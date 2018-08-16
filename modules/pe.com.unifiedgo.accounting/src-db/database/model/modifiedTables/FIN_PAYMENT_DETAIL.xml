@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE FIN_PAYMENT_DETAIL">
+    <table name="FIN_PAYMENT_DETAIL" primaryKey="FIN_PAYMENT_DETAIL_KEY">
+      <column name="EM_SCO_ISOVERPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_SPECIALDOCTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PERCEPTIONAMT" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DESCRIPTION" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PREPAYMENT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DOC_CURRENCY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CONVERT_RATE" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[1]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PAYMENTAMOUNT" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_SPECIALDOCTYPEPLUS" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RENDCUENTAS_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISRENDCUENTAS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISPREPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DISCBOE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PAYOUTRENDCUENTAS" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PAYOUTPREPAYMENT" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ALT_CONVERT_RATE" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[1]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RESPBPARTNER_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_FACTOREDINV_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_LOANDOCLI_INV_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="C_CURRENCY" name="EM_SCO_PAYDET_CURR_FK">
+        <reference local="EM_SCO_DOC_CURRENCY_ID" foreign="C_CURRENCY_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_RENDICIONCUENTAS" name="EM_SCO_PAYDET_REND_FK">
+        <reference local="EM_SCO_RENDCUENTAS_ID" foreign="SCO_RENDICIONCUENTAS_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_BPARTNER" name="EM_SCO_PAYDET_RESBP_FK">
+        <reference local="EM_SCO_RESPBPARTNER_ID" foreign="C_BPARTNER_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_INVOICE" name="EM_SCO_PAYMENTDET_DBOE_FK">
+        <reference local="EM_SCO_DISCBOE_ID" foreign="C_INVOICE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_INVOICE" name="EM_SCO_PAYMENTDET_FEDINV_FK">
+        <reference local="EM_SCO_FACTOREDINV_ID" foreign="C_INVOICE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_INVOICE" name="EM_SCO_PAYMENTDET_LOANINV_FK">
+        <reference local="EM_SCO_LOANDOCLI_INV_ID" foreign="C_INVOICE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_PREPAYMENT" name="EM_SCO_PAYMENTDET_PREPAY_FK">
+        <reference local="EM_SCO_PREPAYMENT_ID" foreign="SCO_PREPAYMENT_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_PAYDET_ISPRE_CHK"><![CDATA[EM_SCO_ISPREPAYMENT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PAYDET_ISREND_CHK"><![CDATA[EM_SCO_ISRENDCUENTAS IN ('Y', 'N')]]></check>
+    </table>
+  </database>

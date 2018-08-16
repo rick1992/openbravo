@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_WAREHOUSE_VAL_TYPE_TRG">
+    <trigger name="SWA_WAREHOUSE_VAL_TYPE_TRG" table="M_WAREHOUSE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  TYPE RECORD IS REF CURSOR;
+  Cur_Defaults RECORD;
+  v_count NUMBER:=0;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+
+  IF(INSERTING OR UPDATING) THEN
+
+    IF(:NEW.em_swa_warehousetype IN ('TR','MU','SRV'))THEN
+     
+	      SELECT count(*) INTO v_count FROM m_warehouse 
+	       WHERE ad_org_id = :NEW.ad_org_id 
+	       AND em_swa_warehousetype = :NEW.em_swa_warehousetype
+	       AND isactive='Y'
+	       AND ad_client_id = :NEW.ad_client_id
+	       AND m_warehouse_id not in (:NEW.m_warehouse_id);
+
+	     IF(COALESCE(v_count,0) > 0 AND :NEW.em_swa_warehousetype='TR')THEN
+	       RAISE NO_DATA_FOUND;
+	     ELSIF(COALESCE(v_count,0) > 0 AND :NEW.em_swa_warehousetype='MU')THEN
+	       RAISE NO_DATA_FOUND;
+	     ELSIF(COALESCE(v_count,0) > 0 AND :NEW.em_swa_warehousetype='SRV')THEN
+	       RAISE NO_DATA_FOUND;
+     
+     END IF;
+    END IF;
+    
+  END IF;
+END SWA_WAREHOUSE_VAL_TYPE_TRG
+]]></body>
+    </trigger>
+  </database>

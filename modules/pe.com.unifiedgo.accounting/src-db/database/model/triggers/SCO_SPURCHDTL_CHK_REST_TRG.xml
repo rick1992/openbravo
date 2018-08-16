@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_SPURCHDTL_CHK_REST_TRG">
+    <trigger name="SCO_SPURCHDTL_CHK_REST_TRG" table="SCO_PERCEPSALES_DETAIL" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_SCO_Percep_Sales_ID  VARCHAR2(32);
+  v_sumLinesAmount NUMBER;
+  v_RendCuentasRefund NUMBER;
+
+  v_invoicetaxTaxAmt NUMBER;
+  v_invoiceDocStatus VARCHAR(60);
+  v_invoiceDoctypeTarget_ID VARCHAR(32);
+  v_invoiceIsSimpleProvision VARCHAR(1):='N';
+  v_invoicetax_invoiceref_ID VARCHAR(32);
+  v_invoicetaxPwithholrec_line_ID VARCHAR(32);
+  v_invoiceIsPaid VARCHAR(1):='N';
+
+  v_From_Currency_ID VARCHAR(32);
+  v_Currency_ID VARCHAR(32);
+  v_AD_Client_ID VARCHAR(32);
+  v_AD_Org_ID VARCHAR(32);
+  v_DateInvoiced DATE;
+  v_CBpartner_ID VARCHAR(32);
+
+  v_ConvertedAmount NUMBER;
+
+  v_dategen DATE;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_SCO_Percep_Sales_ID:=:NEW.SCO_Percep_Sales_ID;
+  ELSE
+    v_SCO_Percep_Sales_ID:=:OLD.SCO_Percep_Sales_ID;
+  END IF;
+
+  SELECT PROCESSED,
+    C_CURRENCY_ID,DocStatus, dategen
+  INTO v_Processed,
+    v_Currency_ID, v_DocStatus, v_dategen
+  FROM SCO_Percep_Sales
+  WHERE SCO_Percep_Sales_ID=v_SCO_Percep_Sales_ID;
+  IF UPDATING THEN
+    IF((v_Processed='Y') 
+      AND ((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+      OR(COALESCE(:OLD.SCO_PercepSales_Detail_ID, '0') <> COALESCE(:NEW.SCO_PercepSales_Detail_ID, '0'))
+      OR(COALESCE(:OLD.Amount, 0) <> COALESCE(:NEW.Amount, 0))
+      OR(COALESCE(:OLD.convert_rate, 0) <> COALESCE(:NEW.convert_rate, 0))
+      OR(COALESCE(:OLD.paymentamount, 0) <> COALESCE(:NEW.paymentamount, 0))
+      OR(COALESCE(:OLD.invoicetaxref_id, '0') <> COALESCE(:NEW.invoicetaxref_id, '0'))
+      OR(COALESCE(:OLD.invoiceref_id, '0') <> COALESCE(:NEW.invoiceref_id, '0'))
+      OR(COALESCE(:OLD.doctyperef_id, '0') <> COALESCE(:NEW.doctyperef_id, '0'))
+      OR(COALESCE(:OLD.AD_ORG_ID, '0') <> COALESCE(:NEW.AD_ORG_ID, '0'))
+      OR(COALESCE(:OLD.AD_CLIENT_ID, '0') <> COALESCE(:NEW.AD_CLIENT_ID, '0'))
+      OR(COALESCE(:OLD.C_BPartner_ID, '0') <> COALESCE(:NEW.C_BPartner_ID, '0'))
+      )) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF((DELETING OR INSERTING) AND (v_Processed='Y')) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+  END IF;
+
+  IF(INSERTING OR UPDATING) THEN
+ 
+    --Check Invoice Params
+    SELECT docstatus,c_doctypetarget_id,
+           ispaid,
+	   AD_Client_ID, AD_Org_ID, C_Currency_ID, dateinvoiced, c_bpartner_id
+      INTO v_invoiceDocStatus, v_invoiceDoctypeTarget_ID,
+           v_invoiceIsPaid,
+	   v_AD_Client_ID, v_AD_Org_ID, v_From_Currency_ID, v_DateInvoiced, v_CBpartner_ID
+      FROM C_Invoice
+      WHERE C_Invoice_ID = :NEW.invoiceref_id;
+
+    SELECT c_invoice_id,taxamt
+      INTO v_invoicetax_invoiceref_ID, v_invoicetaxTaxAmt
+      FROM C_InvoiceTax
+    WHERE C_InvoiceTax_ID = :NEW.invoicetaxref_id;
+ 
+    IF( v_invoiceDoctypeTarget_ID<>:NEW.doctyperef_id OR v_invoiceDocStatus<>'CO' OR v_invoicetax_invoiceref_ID<>:NEW.invoiceref_id OR v_CBpartner_ID<>:NEW.C_Bpartner_ID) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_SPerceptionRecInvalidInvoiceRef@');
+    END IF;
+
+
+    IF(v_invoicetaxTaxAmt < :NEW.Amount) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_SPerceptionRecInvalidAmountRef@');
+    END IF;
+
+
+    IF(:NEW.convert_rate IS NULL) THEN
+       SELECT COALESCE(sco_currency_convert_doc(:NEW.amount, v_From_Currency_ID, v_Currency_ID, v_dategen, :NEW.doctyperef_id, :NEW.invoiceref_id, v_AD_Client_ID, v_AD_Org_ID), 0)
+        INTO v_ConvertedAmount;
+    ELSE
+      SELECT COALESCE(c_currency_convert_rate(:NEW.amount, v_From_Currency_ID, v_Currency_ID, v_dategen, 'S', v_AD_Client_ID, v_AD_Org_ID, :NEW.convert_rate),0)
+        INTO v_ConvertedAmount;
+    END IF;
+
+    :NEW.ConvertedAmount := v_ConvertedAmount;
+
+  END IF;
+  
+END SCO_SPURCHDTL_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

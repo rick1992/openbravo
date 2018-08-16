@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_ALTEXRATE_TRG">
+    <trigger name="SCO_PAYMENT_ALTEXRATE_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_alt_convrate NUMBER;
+  v_finacc_Currency_ID VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT C_Currency_ID
+      INTO v_finacc_Currency_ID
+      FROM FIN_Financial_Account
+    WHERE FIN_Financial_Account_ID = :NEW.FIN_Financial_Account_ID;
+
+    IF(INSERTING) THEN
+      SELECT sco_calculate_alt_convrate(v_finacc_Currency_ID,:NEW.C_Currency_ID, :NEW.finacc_txn_convert_rate) INTO v_alt_convrate;
+      :NEW.em_sco_alt_convert_rate := v_alt_convrate;
+    ELSIF(UPDATING) THEN
+      IF(:OLD.finacc_txn_convert_rate<>:NEW.finacc_txn_convert_rate) THEN
+        SELECT sco_calculate_alt_convrate(v_finacc_Currency_ID,:NEW.C_Currency_ID, :NEW.finacc_txn_convert_rate) INTO v_alt_convrate;
+        :NEW.em_sco_alt_convert_rate := v_alt_convrate;
+      END IF;
+    END IF;
+
+    END SCO_PAYMENT_ALTEXRATE_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="CalculateNewBasedVersionData" package="pe.com.unifiedgo.accounting.ad_actionbutton">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS M_PRODUCTPRICE_ID, '' AS PRICELIST, '' AS PRICESTD, '' AS PRICELIMIT, '' AS M_PRODUCT_ID FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+   <SqlMethod name="getProductPricesByVersion" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        <![CDATA[
+          SELECT pp.M_ProductPrice_ID, COALESCE(pp.Pricelist,0) AS Pricelist, COALESCE(pp.Pricestd,0) AS Pricestd, 
+                 COALESCE(pp.Pricelimit,0) as Pricelimit
+          FROM M_ProductPrice pp
+          WHERE pp.M_PriceList_Version_ID = ?
+          AND pp.M_Product_ID = ?
+        ]]>
+      </Sql>
+      <Parameter name="mPricelistVersionId"/>
+      <Parameter name="mProductId"/>
+    </SqlMethod>
+    <SqlMethod name="getBasedProductPrices" type="preparedStatement" return="Multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT pp.M_Product_ID , ROUND( pp.pricelist * TO_NUMBER(?), TO_NUMBER(?)) AS pricelist,
+        ROUND( pp.pricestd * TO_NUMBER(?), TO_NUMBER(?)) AS pricestd, ROUND( pp.pricelimit * TO_NUMBER(?), TO_NUMBER(?)) AS pricelimit
+        FROM M_ProductPrice pp
+        WHERE pp.M_PriceList_Version_ID = ?
+      ]]>
+      </Sql>
+      <Field name="rownum" value="count"/>
+      <Parameter name="conversionRate"/>
+      <Parameter name="precision"/>
+      <Parameter name="conversionRate"/>
+      <Parameter name="precision"/>
+      <Parameter name="conversionRate"/>
+      <Parameter name="precision"/>
+      <Parameter name="mPricelistVersionId"/>
+    </SqlMethod>
+    
+    <SqlMethod name="insertProductPrice" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        INSERT INTO M_PRODUCTPRICE (M_PRODUCTPRICE_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISACTIVE,
+                                    M_PRICELIST_VERSION_ID, M_PRODUCT_ID, PRICELIST, PRICESTD, PRICELIMIT, COST, ALGORITHM)
+        VALUES (?,?,?,now(),?,now(),?,'Y',
+                ?,?,TO_NUMBER(?), TO_NUMBER(?), TO_NUMBER(?), 0, 'S')
+      ]]>
+      </Sql>
+      <Parameter name="mProductPriceId"/>
+      <Parameter name="adClientId"/>
+      <Parameter name="adOrgId"/>
+      <Parameter name="user"/>
+      <Parameter name="user"/>
+      <Parameter name="mPricelistVersionId"/>
+      <Parameter name="mProductId"/>
+      <Parameter name="pricelist"/>
+      <Parameter name="pricestd"/>
+      <Parameter name="pricelimit"/>
+      </SqlMethod>
+    <SqlMethod name="updateProductPrice" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      UPDATE M_PRODUCTPRICE SET PRICELIST=TO_NUMBER(?), PRICESTD=TO_NUMBER(?), PRICELIMIT=TO_NUMBER(?), UPDATED=NOW(), UPDATEDBY = ? WHERE M_PRODUCTPRICE_ID = ?
+      ]]>
+      </Sql>
+      <Parameter name="pricelist"/>
+      <Parameter name="pricestd"/>
+      <Parameter name="pricelimit"/>
+      <Parameter name="user"/>
+      <Parameter name="mProductpriceId"/>
+    </SqlMethod>
+    <SqlMethod name="updatePriceListVersionBCV" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      UPDATE M_PRICELIST_VERSION SET EM_SCO_BASEVER_ALTCONVRATE = TO_NUMBER(?) WHERE M_PRICELIST_VERSION_ID = ?
+      ]]>
+      </Sql>
+      <Parameter name="altConversionRate"/>
+      <Parameter name="mPricelistVersionId"/>
+      </SqlMethod>
+</SqlClass>

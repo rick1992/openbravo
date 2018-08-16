@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_ASSET_REEVA_CHK_REST_TRG">
+    <trigger name="SCO_ASSET_REEVA_CHK_REST_TRG" table="SCO_ASSET_REEVAL" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_assetstatus VARCHAR(60);
+  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+  v_A_Asset_ID VARCHAR(32);
+  v_amortizationstartdate DATE;
+  v_maxenddate DATE;
+  v_count NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_A_Asset_ID:=:NEW.A_Asset_ID;
+  ELSE
+    v_A_Asset_ID:=:OLD.A_Asset_ID;
+  END IF;
+
+  SELECT COALESCE(em_sco_asset_status,'SCO_ACT'), amortizationstartdate
+  INTO v_assetstatus, v_amortizationstartdate
+  FROM A_Asset
+  WHERE A_Asset_ID=v_A_Asset_ID;
+
+  IF UPDATING THEN
+    IF((v_assetstatus='SCO_RET') 
+      AND ((COALESCE(:OLD.a_asset_id, '0') <> COALESCE(:NEW.a_asset_id, '0'))
+      OR(COALESCE(:OLD.name, '0') <> COALESCE(:NEW.name, '0'))
+      OR(COALESCE(:OLD.reevaldate, v_DateNull) <> COALESCE(:NEW.reevaldate, v_DateNull))
+      OR(COALESCE(:OLD.amount, 0) <> COALESCE(:NEW.amount, 0))
+      OR(COALESCE(:OLD.AD_ORG_ID, '0') <> COALESCE(:NEW.AD_ORG_ID, '0'))
+      OR(COALESCE(:OLD.AD_CLIENT_ID, '0') <> COALESCE(:NEW.AD_CLIENT_ID, '0'))
+      )) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF((DELETING OR INSERTING) AND (v_assetstatus='SCO_RET')) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+  END IF;
+  
+
+  IF(INSERTING) THEN
+
+    IF(:NEW.reevaldate < v_amortizationstartdate) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetreevaldateBeforeStartDate@') ;
+    END IF;
+
+    SELECT max(am.enddate)
+      INTO v_maxenddate 
+      FROM A_Amortizationline aml, A_Amortization am
+    WHERE aml.a_asset_id = :NEW.a_asset_id
+    AND aml.a_amortization_id = am.a_amortization_id;
+
+    IF(v_maxenddate IS NOT NULL) THEN
+      IF(:NEW.reevaldate < v_maxenddate) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetreevaldateBeforeExistingAmortization@') ;
+      END IF;
+    END IF;
+
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.reevaldate,v_DateNull)<>COALESCE(:NEW.reevaldate,v_DateNull)) THEN
+
+      --Check OLD AND NEW
+      IF(:OLD.reevaldate < v_amortizationstartdate) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetOldreevaldateBeforeStartDate@') ;
+      END IF;
+
+      SELECT max(am.enddate)
+        INTO v_maxenddate 
+        FROM A_Amortizationline aml, A_Amortization am
+      WHERE aml.a_asset_id = :NEW.a_asset_id
+      AND aml.a_amortization_id = am.a_amortization_id;
+
+      IF(v_maxenddate IS NOT NULL) THEN
+        IF(:OLD.reevaldate < v_maxenddate) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetOldreevaldateBeforeExistingAmortization@') ;
+        END IF;
+      END IF;
+
+      IF(:NEW.reevaldate < v_amortizationstartdate) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetreevaldateBeforeStartDate@') ;
+      END IF;
+
+      SELECT max(am.enddate)
+        INTO v_maxenddate 
+        FROM A_Amortizationline aml, A_Amortization am
+      WHERE aml.a_asset_id = :NEW.a_asset_id
+      AND aml.a_amortization_id = am.a_amortization_id;
+
+      IF(v_maxenddate IS NOT NULL) THEN
+        IF(:NEW.reevaldate < v_maxenddate) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetreevaldateBeforeExistingAmortization@') ;
+        END IF;
+      END IF;
+    END IF;
+
+    IF(COALESCE(:OLD.amount,0)<>COALESCE(:NEW.amount,0) OR COALESCE(:OLD.reevaldate,v_DateNull)<>COALESCE(:NEW.reevaldate,v_DateNull)) THEN
+      SELECT count(*)
+        INTO v_count
+        FROM sco_assetreev_amortli
+      WHERE SCO_Asset_Reeval_ID = :NEW.SCO_Asset_Reeval_ID;
+
+      IF(v_count <> 0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_UpdateAssetReevalHasLines@') ;
+      END IF;
+
+    END IF;
+
+  END IF;
+
+END SCO_ASSET_REEVA_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PROSPECT_TOTALAMT_LI_TRG">
+    <trigger name="SSA_PROSPECT_TOTALAMT_LI_TRG" table="SSA_PROJPROP_CONTRACT_LINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_prospect_id  VARCHAR2(32);
+  v_specialdoctype VARCHAR(60);
+  v_DocTypeTarget_ID VARCHAR(32);
+
+  v_PEN_CURR VARCHAR(32):='308';
+  v_USD_CURR VARCHAR(32):='100';
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_prospect_id:=:NEW.ssa_projprop_contract_ID;
+  ELSE
+    v_prospect_id:=:OLD.ssa_projprop_contract_ID;
+  END IF;
+
+  -- Get doctype from prospect
+  SELECT C_DocTypeTarget_ID INTO v_DocTypeTarget_ID FROM SSA_ProjProp_Contract WHERE SSA_ProjProp_Contract_ID=v_prospect_id;
+
+  -- Get current specialdoctype
+  SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DOCTYPE WHERE C_DocType_ID=v_DocTypetarget_ID;
+
+
+  --Update Header Totalamount Values
+  IF(INSERTING AND v_specialdoctype = 'SSAARPROSPECT') THEN
+    IF (:NEW.c_currency_id = v_PEN_CURR) THEN --total soles
+      UPDATE ssa_projprop_contract SET totalpenamount = totalpenamount + :NEW.priceactual
+       WHERE ssa_projprop_contract_ID = v_prospect_id;   
+    ELSIF (:NEW.c_currency_id = v_USD_CURR) THEN --total dolares
+      UPDATE ssa_projprop_contract SET totalusdamount = totalusdamount + :NEW.priceactual
+       WHERE ssa_projprop_contract_ID = v_prospect_id;
+    END IF;
+
+  ELSIF (UPDATING AND v_specialdoctype = 'SSAARPROSPECT') THEN 
+    IF (:NEW.c_currency_id = v_PEN_CURR) THEN --total soles
+      UPDATE ssa_projprop_contract SET totalpenamount = (totalpenamount + :NEW.priceactual - :OLD.priceactual) 
+       WHERE ssa_projprop_contract_ID = v_prospect_id;   
+    ELSIF (:NEW.c_currency_id = v_USD_CURR) THEN --total dolares
+      UPDATE ssa_projprop_contract SET totalusdamount = (totalusdamount + :NEW.priceactual - :OLD.priceactual) 
+       WHERE ssa_projprop_contract_ID = v_prospect_id;
+    END IF;
+
+  END IF;
+
+
+  IF(DELETING AND v_specialdoctype = 'SSAARPROSPECT') THEN
+    IF (:OLD.c_currency_id = v_PEN_CURR) THEN --total soles
+      UPDATE ssa_projprop_contract SET totalpenamount = totalpenamount - :OLD.priceactual
+       WHERE ssa_projprop_contract_ID = v_prospect_id;   
+    ELSIF (:OLD.c_currency_id = v_USD_CURR) THEN --total dolares
+      UPDATE ssa_projprop_contract SET totalusdamount = totalusdamount - :OLD.priceactual
+       WHERE ssa_projprop_contract_ID = v_prospect_id;
+    END IF;
+
+  END IF;
+
+
+  END SSA_PROSPECT_TOTALAMT_LI_TRG
+]]></body>
+    </trigger>
+  </database>

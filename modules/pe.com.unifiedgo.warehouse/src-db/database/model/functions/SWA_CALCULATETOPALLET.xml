@@ -1,0 +1,173 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_CALCULATETOPALLET">
+    <function name="SWA_CALCULATETOPALLET" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_movement_id VARCHAR2(32):='';
+  v_m_warehouse_id VARCHAR2(32):='';
+  v_LastProduct_ID VARCHAR2(32):='';
+  v_LastLocator_ID VARCHAR2(32):='';
+  v_product_id VARCHAR2(32):='';
+  v_uom_id VARCHAR2(32):='';
+  v_LastLocator_toInsert_ID VARCHAR2(32):='';
+  v_new_movementline_id VARCHAR2(32):='';
+  v_ad_client_id VARCHAR2(32):='';
+  v_ad_org_id VARCHAR2(32):='';
+  v_updatedby VARCHAR2(32):='';
+  v_locator_id VARCHAR2(32):='';
+  v_locatorto_id VARCHAR2(32):='';
+  v_x VARCHAR2(60):='';
+  v_y VARCHAR2(60):='';
+  v_z VARCHAR2(60):='';
+  v_Result NUMBER:=1; -- Success
+
+-- Record Info
+  v_count_movementline NUMBER:=0;
+  v_storage_detail_preqtyonhand NUMBER:=0;
+  v_storage_detail_qtyonhand NUMBER:=0;
+  v_cantidad_a_mover NUMBER:=0;
+  v_beginlocator NUMBER:=0;
+  v_LineSeqNo NUMBER:=0;
+  v_qtytoinsert NUMBER:=0;
+  v_movementqty NUMBER:=0;
+  CUR_PRODUCT RECORD;
+  CUR_DISTINTPRODUCT RECORD;
+  CUR_locator RECORD;
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parametersi'll be there for you
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+  --DETERMINANDO EL PRODUCTO Y LOS LOCATOR DE LA LINEA SELECCIONADA
+   SELECT M_MOVEMENT_ID, m_product_id , c_uom_id , m_locator_id, m_locatorto_id ,movementqty
+     INTO v_movement_id, v_product_id , v_uom_id , v_locator_id, v_locatorto_id ,v_movementqty
+     FROM M_MOVEMENTLINE 
+    WHERE M_MOVEMENTLINE_ID = v_Record_ID;
+    v_LastLocator_toInsert_ID:=v_locatorto_id;
+  -----------------------
+  --Determinando datos del Padre.. HEADER
+   SELECT ad_client_id, ad_org_id, updatedby, em_swa_m_warehouse_id 
+     INTO v_ad_client_id, v_ad_org_id,v_updatedby ,v_m_warehouse_id
+     FROM M_MOVEMENT
+    WHERE M_MOVEMENT_ID = v_movement_id;
+  --------------------
+
+  --Determinando cuantas lineas hay para continuar insertando
+   SELECT count(M_MOVEMENTLINE_ID)
+     INTO v_count_movementline
+     FROM M_MOVEMENTLINE 
+     WHERE M_MOVEMENT_ID = v_movement_id;
+   v_LineSeqNo:=v_count_movementline*10;
+  ----------------------
+
+  -----Verificando cuantos quedan en STOCK
+     SELECT qtyonhand,preqtyonhand
+       INTO v_storage_detail_qtyonhand, v_storage_detail_preqtyonhand
+       FROM m_storage_detail
+      WHERE m_locator_id = v_locator_id
+        AND m_product_id = v_product_id;
+  --------------
+  -- v_storage_detail_preqtyonhand = Es un número negativo
+  v_cantidad_a_mover:= v_storage_detail_qtyonhand + v_storage_detail_preqtyonhand;
+   IF(v_cantidad_a_mover>0)THEN
+      --Hallando el x,y,z de el destino Locator
+        SELECT x,y,z
+          INTO v_x, v_y, v_z
+          FROM m_locator 
+         WHERE m_locator_id = v_locatorto_id;
+      -------
+         v_beginlocator:= 0;
+         FOR CUR_locator 
+             IN(
+                SELECT sum(m_storage_detail.qtyonhand) as onhand, 
+                       m_locator.m_locator_id, x,y,z 
+                  FROM m_locator 
+                       LEFT JOIN m_storage_detail 
+                              ON m_storage_detail.m_locator_id = m_locator.m_locator_id
+                 WHERE m_warehouse_id = v_m_warehouse_id
+                   AND x=v_x
+              GROUP BY m_locator.m_locator_id, x,y,z
+              ORDER BY y,z
+             ) 
+          LOOP
+            IF (v_cantidad_a_mover > 0 AND v_beginlocator = 1 AND CUR_locator.onhand = 0) THEN
+               IF(v_cantidad_a_mover > v_movementqty) THEN
+	          v_qtytoinsert:= v_movementqty;
+		  v_cantidad_a_mover:= v_cantidad_a_mover-v_movementqty;
+	       ELSE
+		  v_qtytoinsert:= v_cantidad_a_mover;
+		  v_cantidad_a_mover:= 0;
+	       END IF;
+	       v_new_movementline_id:=get_uuid();
+	       v_LineSeqNo:= 10 + v_LineSeqNo;
+               INSERT INTO m_movementline 
+		      (m_movementline_id, ad_client_id,ad_org_id,isactive,
+		       created,createdby,updated,updatedby,
+		       m_movement_id,m_locator_id,m_locatorto_id,m_product_id,
+		       line,movementqty,c_uom_id,em_obwpl_complete,em_obwpl_itemstatus,
+		       em_obwpl_edititem,em_obwpl_allowdelete,em_obwpl_raiseincidence,em_obwpl_reject
+		      ) 
+		VALUES
+		      (v_new_movementline_id,v_ad_client_id, v_ad_org_id,'Y',
+		       now(),v_updatedby,now(),v_updatedby,
+		       v_movement_id,v_locator_id,CUR_locator.m_locator_id,v_product_id,
+		       v_LineSeqNo,v_qtytoinsert,v_uom_id,'N','PE',
+		      'N','Y','N','N'
+		      );
+		 v_LastLocator_toInsert_ID:=CUR_locator.m_locator_id;
+            END IF;
+            IF (CUR_locator.y = v_y AND CUR_locator.z = v_z) THEN
+	       v_beginlocator:= 1;
+	    END IF;
+          END LOOP;
+          IF(v_cantidad_a_mover > 0)THEN
+             v_LineSeqNo:= 10 + v_LineSeqNo;
+             v_new_movementline_id:=get_uuid();
+             INSERT INTO m_movementline 
+                 (m_movementline_id, ad_client_id,ad_org_id,isactive,
+                  created,createdby,updated,updatedby,
+                  m_movement_id,m_locator_id,m_locatorto_id,m_product_id,
+                  line,movementqty,c_uom_id,em_obwpl_complete,em_obwpl_itemstatus,
+                  em_obwpl_edititem,em_obwpl_allowdelete,em_obwpl_raiseincidence,em_obwpl_reject
+                 ) 
+                 VALUES
+                 (v_new_movementline_id,v_ad_client_id, v_ad_org_id,'Y',
+                  now(),v_updatedby,now(),v_updatedby,
+                  v_movement_id,v_locator_id,v_LastLocator_toInsert_ID,v_product_id,
+                  v_LineSeqNo,v_cantidad_a_mover,v_uom_id,'N','PE',
+                  'N','Y','N','N'
+                 );
+                 v_cantidad_a_mover:=0;
+            END IF;
+    END IF;
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_CALCULATETOPALLET
+]]></body>
+    </function>
+  </database>

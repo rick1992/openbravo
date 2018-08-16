@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_MIGRATE_BP_EMAIL_DATA">
+    <function name="SCO_MIGRATE_BP_EMAIL_DATA" type="NULL">
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+  CUR_Mixrow RECORD;
+  CUR_Bpartner RECORD;
+  v_Aux NUMBER;
+  v_ssa_contact_information_id VARCHAR(32);
+  p_AD_Client_ID VARCHAR(32);
+  p_AD_Org_ID VARCHAR(32);
+  p_SCR_RUC_combo_item_ID VARCHAR(32); 
+  p_AD_User_ID VARCHAR(32);
+
+BEGIN
+
+  p_AD_Client_ID := 'AF645935B14444CA8AD4A94FE6B2AF68';
+  p_SCR_RUC_combo_item_ID := '3AF26191B8434FC08355E2C0AD26EDD5';
+  p_AD_User_ID = '100';
+
+  CREATE TEMPORARY TABLE mixrows
+  (
+     taxid character varying(20) NOT NULL,
+     email character varying(255) NOT NULL,
+     email2 character varying(255)
+  ) on commit drop;
+  
+  COPY mixrows FROM '/tmp/datacorreos.txt';
+
+  FOR CUR_Mixrow IN (SELECT * FROM mixrows)
+  LOOP
+    FOR CUR_Bpartner IN (
+       SELECT * FROM C_Bpartner WHERE ad_client_id = p_AD_Client_ID AND em_scr_combo_item_id = p_SCR_RUC_combo_item_ID AND taxid=CUR_Mixrow.taxid
+    )
+    LOOP
+      SELECT ssa_contact_information_id
+        INTO v_ssa_contact_information_id
+        FROM ssa_contact_information
+      WHERE c_bpartner_id = CUR_Bpartner.C_Bpartner_ID
+      AND COALESCE(em_bill_isebill,'N') = 'Y' LIMIT 1;
+
+      IF(v_ssa_contact_information_id IS NOT NULL) THEN
+        DBMS_OUTPUT.PUT_LINE( 'UPDATING CONTACTINFO CBPARTNER:' || CUR_Bpartner.name || ' - email:' || lower(CUR_Mixrow.email) || ' - email2:' || lower(CUR_Mixrow.email2));
+        UPDATE ssa_contact_information
+          SET email = lower(CUR_Mixrow.email),
+              email2 = lower(CUR_Mixrow.email2)
+        WHERE ssa_contact_information_id = v_ssa_contact_information_id;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE( 'INSERT CONTACTINFO CBPARTNER:' || CUR_Bpartner.name || ' - email:' || lower(CUR_Mixrow.email) || ' - email2:' || lower(CUR_Mixrow.email2));
+        AD_Sequence_Next('SSA_Contact_Information_ID', p_AD_Client_ID, v_ssa_contact_information_id) ;
+        INSERT INTO ssa_contact_information(
+            ssa_contact_information_id, ad_client_id, ad_org_id, isactive, 
+            created, createdby, updated, updatedby, firstname, lastname, 
+            lastname2, email, c_bpartner_id, email2, em_bill_isebill)
+        VALUES (
+            v_ssa_contact_information_id, CUR_Bpartner.ad_client_id, CUR_Bpartner.ad_org_id, 'Y', 
+            now(), p_AD_User_ID, now(), p_AD_User_ID, CUR_Bpartner.em_sco_firstname, CUR_Bpartner.em_sco_lastname, 
+            CUR_Bpartner.em_sco_lastname2, lower(CUR_Mixrow.email), CUR_Bpartner.C_Bpartner_ID, lower(CUR_Mixrow.email2), 'Y'
+        );
+      END IF;
+
+    END LOOP;
+  END LOOP;
+
+
+
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_MIGRATE_BP_EMAIL_DATA
+]]></body>
+    </function>
+  </database>

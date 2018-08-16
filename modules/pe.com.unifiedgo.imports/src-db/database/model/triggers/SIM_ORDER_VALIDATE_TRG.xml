@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_ORDER_VALIDATE_TRG">
+    <trigger name="SIM_ORDER_VALIDATE_TRG" table="C_ORDER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(TG_OP='UPDATE') THEN
+
+       IF(:NEW.ISSOTRX='N' AND :NEW.em_sim_orderimport_id is not null)THEN
+        :NEW.em_sim_freight:=ROUND(COALESCE(:NEW.em_sim_freight,0),2);
+	:NEW.em_sim_insurance:=ROUND(COALESCE(:NEW.em_sim_insurance,0),2);
+	:NEW.em_sim_inland:=ROUND(COALESCE(:NEW.em_sim_inland,0),2);
+	:NEW.em_sim_more_expenses:=ROUND(COALESCE(:NEW.em_sim_more_expenses,0),2);
+       END IF;
+    END IF;
+
+    
+
+    END SIM_ORDER_VALIDATE_TRG
+]]></body>
+    </trigger>
+  </database>

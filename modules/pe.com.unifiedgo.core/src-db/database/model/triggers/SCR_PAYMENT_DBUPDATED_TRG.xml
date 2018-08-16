@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_PAYMENT_DBUPDATED_TRG">
+    <trigger name="SCR_PAYMENT_DBUPDATED_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(TG_OP='UPDATE') THEN
+      --Protect sensitive data from concurrent modification
+      IF(COALESCE(:OLD.amount,0) <> COALESCE(:NEW.amount,0)
+      OR COALESCE(:OLD.writeoffamt,0) <> COALESCE(:NEW.writeoffamt,0)
+      OR COALESCE(:OLD.generated_credit,0) <> COALESCE(:NEW.generated_credit,0)
+      OR COALESCE(:OLD.used_credit,0) <> COALESCE(:NEW.used_credit,0)
+      OR COALESCE(:OLD.finacc_txn_amount,0) <> COALESCE(:NEW.finacc_txn_amount,0)
+      OR COALESCE(:OLD.finacc_txn_convert_rate,0) <> COALESCE(:NEW.finacc_txn_convert_rate,0)
+      OR COALESCE(:OLD.em_sco_overpaymentamt,0) <> COALESCE(:NEW.em_sco_overpaymentamt,0)
+      OR COALESCE(:OLD.em_sco_finacc_amount,0) <> COALESCE(:NEW.em_sco_finacc_amount,0)
+      OR COALESCE(:OLD.em_sco_doc_amount,0) <> COALESCE(:NEW.em_sco_doc_amount,0)
+      OR COALESCE(:OLD.em_sco_alt_convert_rate,0) <> COALESCE(:NEW.em_sco_alt_convert_rate,0)
+      OR COALESCE(:OLD.em_sco_uiden_trx_id,'') <> COALESCE(:NEW.em_sco_uiden_trx_id,'')
+      ) THEN
+        IF(TO_DATE(COALESCE(:NEW.em_scr_dbupdated,v_DateNull)) < TO_DATE(COALESCE(:OLD.em_scr_dbupdated,v_DateNull))) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@OBJSON_StaleDate@') ;
+        END IF;
+      END IF;
+    END IF;
+
+    IF(INSERTING) THEN
+      :NEW.em_scr_dbupdated := now();
+    ELSIF(UPDATING) THEN
+      IF row(:NEW.*) IS DISTINCT FROM row(:OLD.*) THEN
+        :NEW.em_scr_dbupdated := now();
+      END IF;
+    END IF;
+
+    END SCR_PAYMENT_DBUPDATED_TRG
+]]></body>
+    </trigger>
+  </database>

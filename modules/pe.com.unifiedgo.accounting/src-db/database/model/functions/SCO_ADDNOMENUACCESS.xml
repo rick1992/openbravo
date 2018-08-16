@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_ADDNOMENUACCESS">
+    <function name="SCO_ADDNOMENUACCESS" type="NULL">
+      <body><![CDATA[TYPE RECORD IS REF CURSOR;
+    CUR_ADRole RECORD;
+
+    CUR_ADWindow RECORD;
+    CUR_ADProcess RECORD;
+    CUR_ADForm RECORD;
+
+    CUR_OBUIAPP_ViewImpl RECORD;
+    CUR_OBUIAPP_Process RECORD;
+
+    v_NextNo VARCHAR(32);
+    v_Aux NUMBER;
+
+    v_AD_Client_ID VARCHAR(32);
+    v_AD_User_ID VARCHAR(32);
+BEGIN
+
+  v_AD_Client_ID := 'AF645935B14444CA8AD4A94FE6B2AF68';
+  v_AD_User_ID := '100';
+
+  FOR CUR_ADRole IN
+    (SELECT * 
+       FROM ad_role
+       WHERE ad_client_id = v_AD_Client_ID AND isactive = 'Y')
+    
+  LOOP
+        -- For Window Access
+    FOR CUR_ADWindow IN (SELECT * 
+                           FROM AD_Window 
+                           WHERE AD_Window_ID NOT IN 
+                                               (SELECT AD_Window_ID FROM AD_Menu WHERE AD_Menu.issummary = 'N' AND
+			                        AD_Menu.action IN ('W')) 
+                             AND isactive = 'Y'
+			)
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM AD_Window_Access
+      WHERE AD_Window_ID = CUR_ADWindow.AD_Window_ID AND
+            AD_Role_ID = CUR_ADRole.AD_Role_ID AND
+            AD_Client_ID = v_AD_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('AD_Window_Access', v_AD_Client_ID, v_NextNo) ;    
+        INSERT INTO ad_window_access(
+                ad_window_access_id, ad_window_id, ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_NextNo, CUR_ADWindow.AD_Window_ID, CUR_ADRole.AD_Role_ID, v_AD_Client_ID, 
+                '0', 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID, 
+                'Y'); 
+      END IF;
+    END LOOP;
+
+    -- For Report And Process Access
+    FOR CUR_ADProcess IN (SELECT * 
+                           FROM AD_Process 
+                           WHERE AD_Process_ID NOT IN 
+                                               (SELECT AD_Process_ID FROM AD_Menu WHERE AD_Menu.issummary = 'N' AND
+			                        AD_Menu.action IN ('P','R')) 
+                             AND isactive = 'Y'
+			 )
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM AD_Process_Access
+      WHERE AD_Process_ID = CUR_ADProcess.AD_Process_ID AND
+            AD_Role_ID = CUR_ADRole.AD_Role_ID AND
+            AD_Client_ID = v_AD_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('AD_Process_Access', v_AD_Client_ID, v_NextNo) ;    
+        INSERT INTO ad_process_access(
+                ad_process_access_id, ad_process_id, ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_NextNo, CUR_ADProcess.AD_Process_ID, CUR_ADRole.AD_Role_ID, v_AD_Client_ID, 
+                '0', 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID, 
+                'Y'); 
+      END IF;
+    END LOOP;
+
+    -- For Form Access
+    FOR CUR_ADForm IN (SELECT * 
+                           FROM AD_Form 
+                           WHERE AD_Form_ID NOT IN 
+                                               (SELECT AD_Form_ID FROM AD_Menu WHERE AD_Menu.issummary = 'N' AND
+			                        AD_Menu.action IN ('X')) 
+                             AND isactive = 'Y'
+                      )
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM AD_Form_Access
+      WHERE AD_Form_ID = CUR_ADForm.AD_Form_ID AND
+            AD_Role_ID = CUR_ADRole.AD_Role_ID AND
+            AD_Client_ID = v_AD_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('AD_Form_Access', v_AD_Client_ID, v_NextNo) ;    
+        INSERT INTO ad_form_access(
+                ad_form_access_id, ad_form_id, ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_NextNo, CUR_ADForm.AD_Form_ID, CUR_ADRole.AD_Role_ID, v_AD_Client_ID, 
+                '0', 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID, 
+                'Y'); 
+      END IF;
+    END LOOP;
+
+
+    -- For View Implementation Access
+    FOR CUR_OBUIAPP_ViewImpl IN (SELECT * 
+                                   FROM OBUIAPP_View_Impl 
+                                   WHERE OBUIAPP_View_Impl_ID NOT IN 
+                                               (SELECT EM_OBUIAPP_view_impl_ID FROM AD_Menu WHERE AD_Menu.issummary = 'N' AND
+			                        AD_Menu.action IN ('OBUIAPP_OpenView')) 
+                                   AND isactive = 'Y'
+                                )
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM OBUIAPP_View_Role_Access
+      WHERE OBUIAPP_View_Impl_ID = CUR_OBUIAPP_ViewImpl.OBUIAPP_View_Impl_ID AND
+            AD_Role_ID = CUR_ADRole.AD_Role_ID AND
+            AD_Client_ID = v_AD_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('OBUIAPP_View_Role_Access', v_AD_Client_ID, v_NextNo) ;    
+        INSERT INTO OBUIAPP_View_Role_Access(
+                obuiapp_view_role_access_id, obuiapp_view_impl_id , ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby)
+        VALUES (v_NextNo, CUR_OBUIAPP_ViewImpl.OBUIAPP_View_Impl_ID, CUR_ADRole.AD_Role_ID, v_AD_Client_ID, 
+                '0', 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID);
+      END IF;
+    END LOOP;
+
+    -- For Process Definition Access
+    FOR CUR_OBUIAPP_Process IN (SELECT * 
+                                  FROM OBUIAPP_Process 
+                                  WHERE OBUIAPP_Process_ID NOT IN 
+                                               (SELECT EM_OBUIAPP_process_ID FROM AD_Menu WHERE AD_Menu.issummary = 'N' AND
+			                        AD_Menu.action IN ('OBUIAPP_Process')) 
+                                  AND isactive = 'Y'
+                               )
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM OBUIAPP_Process_Access
+      WHERE OBUIAPP_Process_ID = CUR_OBUIAPP_Process.OBUIAPP_Process_ID AND
+            AD_Role_ID = CUR_ADRole.AD_Role_ID AND
+            AD_Client_ID = v_AD_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('OBUIAPP_Process_Access', v_AD_Client_ID, v_NextNo) ;    
+        INSERT INTO OBUIAPP_Process_Access(
+                obuiapp_process_access_id, obuiapp_process_id , ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_NextNo, CUR_OBUIAPP_Process.OBUIAPP_Process_ID, CUR_ADRole.AD_Role_ID, v_AD_Client_ID, 
+                '0', 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID,
+                'Y');
+      END IF;
+    END LOOP;
+
+  END LOOP;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_ADDNOMENUACCESS
+]]></body>
+    </function>
+  </database>

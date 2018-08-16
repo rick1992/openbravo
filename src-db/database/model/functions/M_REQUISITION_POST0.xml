@@ -1,0 +1,282 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_REQUISITION_POST0">
+    <function name="M_REQUISITION_POST0" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_requisition_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2013 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32):='0';
+  v_DocAction VARCHAR2(60);
+  v_DocStatus VARCHAR2(60);
+  v_Aux NUMBER;
+  v_bpartner VARCHAR2(32);
+  v_productname m_product.name%TYPE;
+  V_count_requisitioorder NUMBER DEFAULT 0;
+
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+  Cur_RequisitionLine RECORD;
+
+  v_warehouse_id VARCHAR(32);  
+  v_pricelist_id VARCHAR(32);
+  v_currency_id VARCHAR(32);
+  v_sre_eval_docstatus  VARCHAR(32);
+
+  v_quantity NUMBER:=0;
+  v_orderedquantity NUMBER:=0;
+      
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+  v_ResultStr:='PInstanceNotFound';
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    IF (p_PInstance_ID IS NOT NULL) THEN
+        FOR Cur_Parameter IN
+          (SELECT i.Record_ID, i.AD_User_ID, i.AD_Client_ID, i.AD_Org_ID,
+                  p.ParameterName, p.P_String, p.P_Number, p.P_Date
+             FROM AD_PInstance i
+                  LEFT JOIN AD_PInstance_Para p
+                         ON i.AD_PInstance_ID=p.AD_PInstance_ID
+            WHERE i.AD_PInstance_ID=p_PInstance_ID
+            ORDER BY p.SeqNo) LOOP
+           v_Record_ID:=Cur_Parameter.Record_ID;
+           v_User_ID:=Cur_Parameter.AD_User_ID;
+         END LOOP; -- Get Parameter
+    ELSE 
+        v_Record_ID:=p_Requisition_id;
+        SELECT CREATEDBY INTO v_User_ID FROM M_REQUISITION  WHERE M_REQUISITION_ID=p_Requisition_id;
+    END IF;  
+
+
+    SELECT DocAction, DocStatus , c_bpartner_id,   
+           em_swa_wareshouse_id,m_pricelist_id, c_currency_id, em_sre_eval_docstatus
+      INTO v_DocAction, v_DocStatus, v_bpartner, 
+           v_warehouse_id, v_pricelist_id, v_currency_id,v_sre_eval_docstatus
+      FROM M_REQUISITION
+     WHERE M_REquisition_ID = v_Record_ID;
+
+   
+
+
+    v_ResultStr := 'M_Requisition ' || v_Record_ID || ', DocAction=' || v_DocAction || ', DocStatus=' || v_DocStatus;
+
+    /**
+    * Check if requisition has lines
+    */
+    IF (v_DocAction = 'CO') THEN
+      SELECT COUNT(*)
+        INTO v_Aux
+      FROM M_RequisitionLine
+      WHERE M_REQUISITION_ID = v_Record_ID;
+      IF v_Aux=0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@RequisitionWithoutLines@');
+      END IF;
+    END IF;
+
+    SELECT count(*) INTO v_aux
+    FROM dual
+    WHERE EXISTS (
+        SELECT 1
+        FROM m_requisitionline rl JOIN m_product p ON rl.m_product_id = p.m_product_id
+        WHERE rl.m_requisition_id = v_record_id
+          AND p.isgeneric = 'Y');
+    IF (v_aux > 0) THEN
+      SELECT max(p.name) INTO v_productname
+      FROM m_requisitionline rl JOIN m_product p ON rl.m_product_id = p.m_product_id
+      WHERE rl.m_requisition_id = v_record_id
+        AND p.isgeneric = 'Y';
+      RAISE_APPLICATION_ERROR(-20000, '@CannotUseGenericProduct@ ' || v_productName);
+    END IF;
+
+    IF(v_DocStatus = 'DR' AND v_DocAction = 'CO') THEN
+       --Validating budgetline reference
+       IF (EXISTS(SELECT 1 FROM M_Requisitionline rl WHERE rl.M_Requisition_ID=v_Record_ID AND rl.Em_Spr_Budgetline_ID IS NULL)) THEN
+           --RAISE_APPLICATION_ERROR(-20000,'@SPR_ReqLineMustHaveBDGLine@');
+       END IF;
+
+       IF(v_sre_eval_docstatus IN ('DR','DP'))THEN
+	   UPDATE m_requisition
+	      SET em_sre_eval_docstatus = 'PD',
+	          updated  = now(),
+		  updatedby = v_User_ID
+	    WHERE m_requisition_id = v_Record_ID;
+
+	     v_Message := '@sre_requisition_pendingEvaluation@' || v_Message; 
+	     v_Result := 2;
+	     IF(p_PInstance_ID IS NOT NULL) THEN
+	     AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+	     END IF;
+	    RETURN;
+       END IF;
+
+       --Validating entered requested qty based on budgetline reference
+       FOR Cur_RequisitionLine IN
+         (SELECT Em_Spr_Budgetline_ID, SUM(qty) as totalqty, max(line) as line, max(m_product_id) as m_product_id, ReqStatus
+            FROM M_RequisitionLine
+           WHERE M_Requisition_ID = v_Record_ID GROUP BY Em_Spr_Budgetline_ID, ReqStatus) LOOP
+          IF (Cur_RequisitionLine.totalqty <= 0) THEN
+            RAISE_APPLICATION_ERROR(-20000,'@GoodsMovementsWithZeroQty@');
+          END IF;
+          
+          SELECT SUM(rl.qty) INTO v_quantity FROM M_RequisitionLine rl, M_Requisition r 
+           WHERE rl.M_Requisition_ID = r.M_Requisition_ID 
+             AND rl.Em_Spr_Budgetline_ID = Cur_RequisitionLine.Em_Spr_Budgetline_ID 
+             AND r.docstatus IN ('CO','CL')
+             AND rl.reqstatus IN ('O','C');
+             
+          SELECT qtyordered INTO v_orderedquantity FROM SPR_Budgetline bdl WHERE bdl.SPR_Budgetline_ID = Cur_RequisitionLine.Em_Spr_Budgetline_ID;          
+
+          
+         IF (v_orderedquantity < (COALESCE(v_quantity,0) + Cur_RequisitionLine.totalqty)) THEN
+            SELECT (p.value || ' - ' || p.name) INTO v_productname FROM M_Product p WHERE p.M_Product_ID =Cur_RequisitionLine.M_Product_ID;
+            RAISE_APPLICATION_ERROR(-20000,'@SPR_ReqLineInvalidQty@' || ' ' || '@Inline@' || ' ' || Cur_RequisitionLine.line || ': ' || v_productname || '@SPR_CantAvailToRequest@'|| v_orderedquantity-COALESCE(v_quantity,0));
+          END IF;
+
+         IF(Cur_RequisitionLine.ReqStatus='O')THEN
+          UPDATE SPR_Budgetline  
+             SET qtyinrequisition=COALESCE(v_quantity,0) + Cur_RequisitionLine.totalqty 
+           WHERE SPR_Budgetline_ID = Cur_RequisitionLine.Em_Spr_Budgetline_ID;
+         END IF;  
+       END LOOP;       
+    END IF;
+    
+    IF(v_DocStatus IN('CL', 'VO', 'RE')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@') ;
+    ELSIF (v_DocStatus = 'DR') THEN
+      IF (v_DocAction = 'CO') THEN
+
+
+       --UPDATE QTYAPPROVED WHEN WE COMPLETED
+
+       UPDATE M_REQUISITIONLINE
+         SET EM_SRE_QTYAPPROVED = QTY
+        WHERE M_REQUISITION_ID = v_Record_ID;
+      
+        v_ResultStr := 'Complete the requisition: ' || v_Record_ID;
+        UPDATE M_REQUISITION
+        SET DocStatus = 'CO',
+            DocAction = 'CL',
+            Updated=now(),
+            UpdatedBy=v_User_ID,
+            em_sre_approved =  now(),
+	    em_sre_approvedby = v_User_ID
+        WHERE M_REQUISITION_ID = v_Record_ID;
+      ELSE 
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@');
+      END IF;
+    ELSIF (v_DocStatus = 'CO' ) THEN
+      IF (v_DocAction = 'CL') THEN
+        v_ResultStr := 'Close requisition lines';
+
+
+
+        FOR Cur_RequisitionLine IN
+          (SELECT M_RequisitionLine_ID, qty
+           FROM M_RequisitionLine
+           WHERE M_Requisition_ID = v_Record_ID
+           AND ReqStatus = 'O') LOOP
+
+             M_REQUISITIONLINE_STATUS(NULL, Cur_RequisitionLine.M_RequisitionLine_ID, v_User_ID);
+     
+        END LOOP;
+
+
+        
+      ELSIF (v_DocAction = 'RE' ) THEN
+        v_ResultStr := 'Reactivate the requisition: ' || v_Record_ID;
+
+        /**
+         ANTES DE REACTIVAR DEBEMOS VERIFICAR SI NO HAY LINEAS ASOCIADAS
+         A ORDENES DE COMPRA NACIONAL O IMPORTACION.
+        */
+
+        SELECT COUNT(MR.M_REQUISITIONORDER_ID)
+         INTO V_count_requisitioorder
+         FROM M_REQUISITIONORDER MR
+         INNER JOIN M_REQUISITIONLINE MRL ON MR.M_REQUISITIONLINE_ID = MRL.M_REQUISITIONLINE_ID
+        WHERE MRL.M_REQUISITION_ID = v_Record_ID;
+
+        IF(V_count_requisitioorder > 0)THEN
+           RAISE_APPLICATION_ERROR(-20000, '@sre_changestatus_queriorder@');
+        END IF; 
+
+        --Validating entered requested qty based on budgetline reference
+        FOR Cur_RequisitionLine IN
+          (SELECT Em_Spr_Budgetline_ID , sum(qty) as qty
+             FROM M_RequisitionLine
+            WHERE M_Requisition_ID = v_Record_ID
+              AND reqstatus IN ('O','C')
+            GROUP BY  Em_Spr_Budgetline_ID ) LOOP
+
+          /* SELECT SUM(rl.qty) INTO v_quantity FROM M_RequisitionLine rl, M_Requisition r 
+            WHERE rl.M_Requisition_ID=r.M_Requisition_ID 
+             AND rl.Em_Spr_Budgetline_ID = Cur_RequisitionLine.Em_Spr_Budgetline_ID 
+             AND r.docstatus IN ('CO','CL') 
+             AND rl.M_RequisitionLine_ID <> Cur_RequisitionLine.M_RequisitionLine_ID;*/
+
+           UPDATE SPR_Budgetline  
+              SET qtyinrequisition=qtyinrequisition - COALESCE(Cur_RequisitionLine.qty,0) 
+            WHERE SPR_Budgetline_ID = Cur_RequisitionLine.Em_Spr_Budgetline_ID;
+        END LOOP;      
+
+          UPDATE M_REQUISITIONLINE
+             SET EM_SRE_QTYAPPROVED = 0
+           WHERE M_REQUISITION_ID = v_Record_ID; 
+        
+        
+        UPDATE M_REQUISITION
+        SET DocStatus = 'DR',
+            DocAction = 'CO',
+	    em_sre_eval_docstatus='DR',
+	    em_sre_approved =  now(),
+	    em_sre_approvedby = v_User_ID
+        WHERE M_REQUISITION_ID = v_Record_ID;
+        
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@');
+      END IF;
+    END IF;
+
+   
+
+    
+  END; --BODY
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('M_RequisitionLine_Post error: ' || v_ResultStr);
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr);
+END M_REQUISITION_POST0
+]]></body>
+    </function>
+  </database>

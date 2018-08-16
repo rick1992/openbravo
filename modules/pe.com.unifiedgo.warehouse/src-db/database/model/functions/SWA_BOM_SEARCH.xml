@@ -1,0 +1,162 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_BOM_SEARCH">
+    <function name="SWA_BOM_SEARCH" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32):='0';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+  Cur_Product RECORD;
+  Cur_Bom_Search_Line RECORD;
+  -- 
+  v_count NUMBER(10):=0;
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_Aux NUMBER;
+  v_Included VARCHAR(1);
+  v_Line NUMBER;
+  v_countbomsearch NUMBER:=0;
+
+  p_SWA_Bom_Search_Resultline_ID VARCHAR(32);
+
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+         FROM AD_PInstance i
+           LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+         WHERE i.AD_PInstance_ID=p_PInstance_ID
+         ORDER BY p.SeqNo) 
+      LOOP
+	  v_Record_ID:=Cur_Parameter.Record_ID;
+          v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      RAISE NO_DATA_FOUND;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+  BEGIN --BODY 
+
+
+    SELECT AD_Client_ID, AD_Org_ID
+      INTO v_Client_ID, v_Org_ID
+      FROM SWA_Bom_Search
+    WHERE SWA_Bom_Search_ID = v_Record_ID FOR UPDATE;
+
+    SELECT Count(*)
+      INTO v_Aux
+      FROM SWA_Bom_Search_Line
+    WHERE SWA_Bom_Search_ID = v_Record_ID LIMIT 1;
+
+    IF(v_Aux=0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SWA_BOMSearchWithoutLines@');
+    END IF;
+
+    DELETE FROM swa_bom_search_resultline WHERE swa_bom_search_id = v_Record_ID;
+
+    v_Line:=10;
+
+    SELECT count(*) INTO v_countbomsearch FROM SWA_Bom_Search_Line WHERE SWA_Bom_Search_ID = v_Record_ID;
+
+    FOR Cur_Product IN
+      (SELECT * FROM M_Product
+       WHERE AD_Client_ID = v_Client_ID AND
+             AD_ISORGINCLUDED(v_Org_ID,AD_Org_ID,v_Client_ID) <> -1 AND
+             isbom = 'Y' AND isactive = 'Y'
+      )
+    LOOP
+
+
+         SELECT Count(*)
+          INTO v_Aux
+          FROM M_Product_BOM
+        WHERE AD_Client_ID = v_Client_ID AND
+              M_Product_ID = Cur_Product.M_Product_ID AND
+              isactive = 'Y';
+
+        IF(v_Aux<> v_countbomsearch AND v_countbomsearch >1) THEN
+          v_Included := 'N';
+          CONTINUE;
+        END IF;
+      
+       
+ 
+    
+      v_Included := 'Y';
+      FOR Cur_Bom_Search_Line IN
+        ( SELECT * FROM SWA_Bom_Search_Line WHERE SWA_Bom_Search_ID = v_Record_ID )
+          
+      LOOP
+        SELECT Count(*)
+          INTO v_Aux
+          FROM M_Product_BOM
+        WHERE AD_Client_ID = v_Client_ID AND
+              M_Product_ID = Cur_Product.M_Product_ID AND
+              M_Productbom_ID = Cur_Bom_Search_Line.M_Product_ID AND
+              isactive = 'Y' LIMIT 1;
+
+        IF(v_Aux=0) THEN
+          v_Included := 'N';
+          EXIT;
+        END IF;
+      END LOOP;
+
+      IF(v_Included='Y') THEN
+        --Insert the result line
+        Ad_Sequence_Next('SWA_Bom_Search_Resultline', v_Client_ID, p_SWA_Bom_Search_Resultline_ID);
+        INSERT INTO swa_bom_search_resultline(
+                    swa_bom_search_resultline_id, ad_client_id, ad_org_id, line, 
+                    isactive, created, createdby, updated, updatedby, swa_bom_search_id, 
+                    m_product_id)
+        VALUES (
+                    p_SWA_Bom_Search_Resultline_ID , v_Client_ID, v_Org_ID, v_Line, 
+                    'Y', now(), v_AD_User_ID, now(), v_AD_User_ID, v_Record_ID, 
+                    Cur_Product.M_Product_ID
+               );
+
+        v_Line:=v_Line+10;
+      END IF;
+
+    END LOOP;
+
+    v_Message:='@SWA_BOMSearchSuccess@';
+
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Finished ' || v_Message) ;
+    END IF;
+    RETURN;
+    
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  END IF;
+--  RETURN;
+END SWA_BOM_SEARCH
+]]></body>
+    </function>
+  </database>

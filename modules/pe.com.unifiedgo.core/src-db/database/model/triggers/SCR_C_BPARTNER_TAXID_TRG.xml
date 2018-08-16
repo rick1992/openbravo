@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_C_BPARTNER_TAXID_TRG">
+    <trigger name="SCR_C_BPARTNER_TAXID_TRG" table="C_BPARTNER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_cmbItem_value VARCHAR(40);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  --autotrim taxid value
+  IF(INSERTING) THEN
+    IF(:NEW.taxid IS NOT NULL) THEN
+      :NEW.taxid := trim(:NEW.taxid);
+    END IF;
+  ELSE
+    IF(COALESCE(:OLD.taxid, '.')<>COALESCE(:NEW.taxid,'.')) THEN
+      IF(:NEW.description IS NULL OR :NEW.description='') THEN
+        IF(:NEW.taxid IS NOT NULL) THEN
+          :NEW.taxid := trim(:NEW.taxid);
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  IF INSERTING THEN
+    SELECT cmbi.value INTO v_cmbItem_value
+      FROM scr_combo_category cmbc, scr_combo_item cmbi
+     WHERE cmbc.scr_combo_category_id = cmbi.scr_combo_category_id
+       AND cmbc.ad_client_id = :NEW.ad_client_id
+       AND cmbc.value='Tipo de Documento de Identidad'
+       AND cmbi.scr_combo_item_id = :NEW.em_scr_combo_item_id
+     LIMIT 1;
+
+    IF (v_cmbItem_value = 'DNI' AND length(:NEW.taxid) <> 8) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCR_DNI_maxlength@');
+    ELSIF (v_cmbItem_value = 'REGISTRO UNICO DE CONTRIBUYENTES' AND length(:NEW.taxid) <> 11) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCR_RUC_maxlength@');
+    END IF; 
+
+  END IF;      
+
+  IF UPDATING THEN
+    IF ((COALESCE(:OLD.em_scr_combo_item_id,'') <> COALESCE(:NEW.em_scr_combo_item_id,'')) OR (COALESCE(:OLD.taxid,'') <> COALESCE(:NEW.taxid,''))) THEN 
+        SELECT cmbi.value INTO v_cmbItem_value
+	  FROM scr_combo_category cmbc, scr_combo_item cmbi
+	 WHERE cmbc.scr_combo_category_id = cmbi.scr_combo_category_id
+	   AND cmbc.ad_client_id = :NEW.ad_client_id
+	   AND cmbc.value='Tipo de Documento de Identidad'
+	   AND cmbi.scr_combo_item_id = :NEW.em_scr_combo_item_id
+	 LIMIT 1;
+
+	IF (v_cmbItem_value = 'DNI' AND length(:NEW.taxid) <> 8) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCR_DNI_maxlength@');
+	ELSIF (v_cmbItem_value = 'REGISTRO UNICO DE CONTRIBUYENTES' AND length(:NEW.taxid) <> 11) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCR_RUC_maxlength@');
+	END IF; 
+    END IF;
+
+  END IF;  
+
+
+END SCR_C_BPARTNER_TAXID_TRG
+]]></body>
+    </trigger>
+  </database>

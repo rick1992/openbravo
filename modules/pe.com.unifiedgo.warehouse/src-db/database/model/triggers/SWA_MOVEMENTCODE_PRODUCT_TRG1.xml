@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_MOVEMENTCODE_PRODUCT_TRG1">
+    <trigger name="SWA_MOVEMENTCODE_PRODUCT_TRG1" table="SWA_MOVEMENTCODE_PRODUCT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2012-2013 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_onhand      NUMBER;
+  v_reserved    NUMBER;
+  v_count       NUMBER;
+  v_isgeneric   CHAR(1);
+  v_movementcode_id VARCHAR(32);
+  v_movementcode_plan_id VARCHAR(32);
+  v_docstatus VARCHAR(60);
+  v_processed   CHAR(1);
+  
+   
+
+BEGIN
+  IF (AD_isTriggerEnabled() = 'N') THEN RETURN;
+  END IF;
+
+  IF (INSERTING) THEN
+    v_movementcode_plan_id = :NEW.swa_movementcode_plan_id;
+  ELSE 
+    v_movementcode_plan_id = :OLD.swa_movementcode_plan_id;
+  END IF;
+
+
+  IF (INSERTING OR UPDATING) THEN
+    IF(:NEW.c_uom_id <> :NEW.c_to_uom_id)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_movcode_different_uom@');
+    END IF;
+  END IF;
+
+  IF (UPDATING) THEN
+   --Validation
+  END IF;
+
+  IF (DELETING) THEN
+    SELECT docstatus , processed
+      INTO v_docstatus , v_processed
+      FROM swa_movementcode mc
+       INNER JOIN swa_movementcode_plan mp ON mp.swa_movementcode_id = mc.swa_movementcode_id
+       WHERE  mp.swa_movementcode_plan_id = v_movementcode_plan_id;
+      
+      IF(v_docstatus='CO' OR v_docstatus='CA' OR v_processed='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000,'@swa_movcode_product_delete@');
+      END IF;
+     
+  END IF;
+
+  
+END SWA_MOVEMENTCODE_PRODUCT_TRG1
+]]></body>
+    </trigger>
+  </database>

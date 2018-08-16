@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_C_TAX_SPECIALTAX_TRG">
+    <trigger name="SCO_C_TAX_SPECIALTAX_TRG" table="C_TAX" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.isactive = 'Y' AND :NEW.em_sco_specialtax IS NOT NULL AND :NEW.em_sco_specialtax<>'') THEN
+      SELECT Count(*)
+        INTO v_Aux
+        FROM C_Tax
+      WHERE AD_Client_ID = :NEW.AD_Client_ID AND
+	    AD_ISORGINCLUDED(AD_Org_ID, :NEW.AD_Org_ID, :NEW.AD_Client_ID)<>-1 AND
+            isactive = 'Y' AND em_sco_specialtax = :NEW.em_sco_specialtax;
+
+      IF(v_Aux<>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_DuplicatedActiveSpecialTax@') ;
+      END IF;
+    END IF;
+  ELSE
+    IF((:OLD.isactive<>:NEW.isactive OR (COALESCE(:OLD.em_sco_specialtax,'.')<>COALESCE(:NEW.em_sco_specialtax,'.'))) AND :NEW.em_sco_specialtax IS NOT NULL AND :NEW.em_sco_specialtax<>'') THEN
+
+      IF(:NEW.isactive = 'Y') THEN
+        SELECT Count(*)
+          INTO v_Aux
+          FROM C_Tax
+        WHERE AD_Client_ID = :NEW.AD_Client_ID AND
+	      AD_ISORGINCLUDED(AD_Org_ID, :NEW.AD_Org_ID, :NEW.AD_Client_ID)<>-1 AND
+              isactive = 'Y' AND em_sco_specialtax = :NEW.em_sco_specialtax AND C_Tax_ID<>:OLD.C_Tax_ID;
+
+        IF(v_Aux<>0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_DuplicatedActiveSpecialTax@') ;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+
+  END SCO_C_TAX_SPECIALTAX_TRG
+]]></body>
+    </trigger>
+  </database>

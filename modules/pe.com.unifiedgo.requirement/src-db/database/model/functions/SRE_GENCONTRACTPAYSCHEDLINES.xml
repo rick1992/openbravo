@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SRE_GENCONTRACTPAYSCHEDLINES">
+    <function name="SRE_GENCONTRACTPAYSCHEDLINES" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Message_tmp VARCHAR(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success 
+ 
+-- Record Info
+  Cur_Parameter RECORD;
+  Cur_Lines RECORD;
+
+  v_LineNo NUMBER:=0;
+  v_NextID VARCHAR(32);
+  v_DocStatus VARCHAR(60);
+  v_Client_ID VARCHAR(32);
+  v_Org_ID VARCHAR(32);
+  v_UpdatedBy VARCHAR(32);
+  v_Project_ID VARCHAR(32);
+  v_contracttype VARCHAR(60); 
+  v_paymentDate DATE;
+  v_invoiced_amount NUMBER:=0;
+  
+BEGIN
+    
+    -- Get Parameters
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_contract_id;
+      SELECT CREATEDBY INTO v_User_ID FROM SRE_Contract_Payschedule WHERE SRE_Contract_Payschedule_ID=p_contract_id;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+
+    /**
+    * Read Contract Payment Schedule
+    */
+    v_ResultStr:='ReadingPurchaseContract';
+    SELECT DocStatus, AD_Client_ID, AD_Org_ID, UpdatedBy, c_project_id, paymentdate , contracttype
+      INTO v_DocStatus, v_Client_ID, v_Org_ID, v_UpdatedBy, v_Project_ID, v_paymentDate , v_contracttype
+      FROM SRE_Contract_Payschedule
+     WHERE SRE_Contract_Payschedule_ID=v_Record_ID FOR UPDATE;
+    
+
+    /**
+    * Deleting all lines previously created
+    */
+    DELETE FROM sre_contract_paysched_line WHERE sre_contract_payschedule_id = v_Record_ID;
+		
+
+    /**
+    * Generating lines pending from purchase contracts
+    */
+    v_LineNo:=0;
+    FOR Cur_Lines IN (
+      SELECT cl.*, c.c_currency_id, c.c_bpartner_id, c.c_project_id
+        FROM sre_purchase_contract c, sre_purchase_contract_line cl
+       WHERE c.sre_purchase_contract_id = cl.sre_purchase_contract_id
+         AND c.docstatus='CO' 
+         AND (case when v_Project_ID is not null then c.c_project_id=v_Project_ID else '1'='1' end)
+         AND c.ad_org_id = v_Org_ID
+         AND c.ad_client_id = v_Client_ID 
+         AND cl.c_invoice_id is null
+         AND cl.datepromised <= v_paymentDate
+         AND cl.schedulepaid <> 'Y'
+         AND c.contracttype = v_contracttype
+    )
+    LOOP          
+		  Ad_Sequence_Next('SRE_Contract_Paysched_Line', Cur_Lines.sre_purchase_contract_id, v_NextID) ;
+          v_LineNo:=v_LineNo + 10;
+          
+                  v_invoiced_amount:=coalesce((select sum(i.grandtotal) 
+                                                 from c_invoice i 
+                                                where i.c_invoice_id in (select cl.c_invoice_id 
+                                                                           from sre_purchase_contract_line cl 
+                                                                          where cl.sre_purchase_contract_id=Cur_Lines.sre_purchase_contract_id 
+                                                                            and cl.c_invoice_id is not null)),0);
+                                                                            
+		  INSERT INTO sre_contract_paysched_line(
+			  	    sre_contract_paysched_line_id, ad_client_id, ad_org_id, isactive, 
+				    created, createdby, updated, updatedby, description, amount, 
+				    sre_purchase_contract_id, sre_contract_payschedule_id, c_currency_id, 
+				    c_bpartner_id, c_project_id, line, invoiced_amount)
+   		     VALUES (v_NextID, v_Client_ID, v_Org_ID, 'Y', 
+				    now(), v_User_ID, now(), v_User_ID, Cur_Lines.description, Cur_Lines.amount, 
+				    Cur_Lines.sre_purchase_contract_id, v_Record_ID, Cur_Lines.c_currency_id, 
+				    Cur_Lines.c_bpartner_id, Cur_Lines.c_project_id, v_LineNo, v_invoiced_amount);
+    END LOOP;
+
+
+    v_Message := '@Success@';
+    v_Result := 1; -- Warning
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+    
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SRE_GENCONTRACTPAYSCHEDLINES
+]]></body>
+    </function>
+  </database>

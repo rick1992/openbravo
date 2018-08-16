@@ -1,0 +1,192 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_CREATECONTRACT">
+    <function name="SSA_CREATECONTRACT" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_project_selected VARCHAR(32);  
+
+  Cur_Parameter RECORD;
+
+  v_Prospect_ID VARCHAR(32);
+  v_Org_ID VARCHAR2(32);
+  v_Client_ID VARCHAR2(32);
+  v_Contract_DocType_ID VARCHAR(32);
+  v_Contract_DocumentNo VARCHAR(30);
+  v_Contract_ID VARCHAR(32);
+  v_Contract_SpecialDocType VARCHAR(60);
+  v_ContractLine_ID VARCHAR(32);
+  v_Contract_Payment_Sched_ID VARCHAR(32);
+  v_Contract_CounterSalesRep_ID VARCHAR(32);
+  
+  v_LineSeqNo NUMBER:=0; 
+  Cur_Line RECORD;  
+
+  v_disc_eval_status VARCHAR(60);
+  v_disc_eval_updated DATE;
+  v_disc_eval_updatedby VARCHAR(32);
+
+  v_project_currency_id VARCHAR(32);
+  v_project_pricelist_id VARCHAR(32);
+  v_project_promotorbank VARCHAR(60);
+  v_project_promotorfinacct_id VARCHAR(32);
+  v_project_cbobuildingtype_id VARCHAR(32);
+
+BEGIN    
+   
+    -- Get Parameters
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User_ID:=Cur_Parameter.AD_User_ID;
+        IF (Cur_Parameter.parametername = 'c_project_id') THEN
+          v_project_selected := Cur_Parameter.p_string;
+        END IF;                
+      END LOOP; -- Get Parameter
+    ELSE
+      RAISE NO_DATA_FOUND ;
+    END IF;       
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+    v_Prospect_ID := v_Record_ID;
+    -- Reading Prospect
+    SELECT AD_Org_ID, AD_Client_ID, discount_eval_status, discount_eval_updated, discount_eval_updatedby
+      INTO v_Org_ID, v_Client_ID, v_disc_eval_status, v_disc_eval_updated, v_disc_eval_updatedby
+      FROM ssa_projprop_contract
+     WHERE ssa_projprop_contract_id = v_Prospect_ID;
+
+
+    v_Contract_SpecialDocType := 'SSAARCONTRACT';
+    SELECT C_DocType_ID
+      INTO v_Contract_DocType_ID
+      FROM C_DocType
+     WHERE AD_Client_ID = v_Client_ID 
+       AND AD_ISORGINCLUDED(v_Org_ID, AD_Org_ID, v_Client_ID) <> -1 
+       AND em_sco_specialdoctype = v_Contract_SpecialDocType LIMIT 1;
+    IF (v_Contract_DocType_ID IS NULL OR v_Contract_DocType_ID='') THEN
+	  RAISE_APPLICATION_ERROR(-20000, '@SSA_NoContractDocumentType@') ;
+	END IF;
+
+    Ad_Sequence_Next('SSA_ProjProp_Contract', v_Client_ID, v_Contract_ID);
+    Ad_Sequence_Doctype(v_Contract_DocType_ID, v_Client_ID, 'Y', v_Contract_DocumentNo) ;
+    IF(v_Contract_DocumentNo IS NULL) THEN 
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_existsContractWithProspect@ @DocumentSequenceNotFound@') ;
+    END IF;
+
+
+    IF(EXISTS(SELECT 1 FROM AD_User WHERE AD_User_ID=v_User_ID AND COALESCE(em_ssa_chk_issalesrep,'N')='Y')) THEN
+      v_Contract_CounterSalesRep_ID:=v_User_ID;
+    END IF;
+
+    SELECT c_currency_id, m_pricelist_id, em_scr_promotor_bank, em_scr_promotor_finacct_id,
+           em_spr_cboitem_buildingtype_id
+      INTO v_project_currency_id, v_project_pricelist_id, v_project_promotorbank, v_project_promotorfinacct_id,
+           v_project_cbobuildingtype_id
+      FROM c_project
+     WHERE c_project_id=v_project_selected;
+
+    --Creating Header of Contract
+    INSERT INTO ssa_projprop_contract(
+            ssa_projprop_contract_id, ad_client_id, ad_org_id, isactive, 
+            created, createdby, updated, updatedby, docstatus, docaction, 
+            description, c_project_id, documentno, c_bpartner_id, firstname, 
+            lastname, lastname2, email, email2, phone, taxid, isfirstvisit, 
+            salesrep_id, c_currency_id, m_pricelist_id, datedoc, c_bpartner_location_id, 
+            processing, c_doctype_id, c_doctypetarget_id, specialdoctype, 
+            phone2, c_location_id, bpdocumenttype_cmbi_id,
+            counter_salesrep_id, discount_eval_status, discount_eval_updated, discount_eval_updatedby,
+            promotor_bank, promotor_finacct_id, cboitem_buildingtype_id)
+     SELECT v_Contract_ID, ad_client_id, ad_org_id, 'Y', 
+	    now(), v_User_ID, now(), v_User_ID, 'DR', 'CO', 
+	    description, v_project_selected, v_Contract_DocumentNo, c_bpartner_id, firstname, 
+	    lastname, lastname2, email, email2, phone, taxid, 'N', 
+	    salesrep_id, v_project_currency_id, v_project_pricelist_id, now(), c_bpartner_location_id, 
+	    'N', '0', v_Contract_DocType_ID, v_Contract_SpecialDocType, 
+	    phone2, c_location_id, bpdocumenttype_cmbi_id,
+	    v_Contract_CounterSalesRep_ID, 'DR', NULL, NULL,
+	    v_project_promotorbank, v_project_promotorfinacct_id, v_project_cbobuildingtype_id
+       FROM ssa_projprop_contract   
+      WHERE ssa_projprop_contract.ssa_projprop_contract_id = v_Prospect_ID;   
+
+
+    IF (NOT EXISTS(SELECT 1 FROM ssa_projprop_contract_line WHERE ssa_projprop_contract_id = v_Prospect_ID AND c_project_id=v_project_selected)) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_NoProspectLinesInSelProject@');
+    END IF;
+    
+    IF(NOT EXISTS(SELECT 1 FROM ssa_projprop_contract_line WHERE ssa_projprop_contract_id=v_Prospect_ID AND c_project_id=v_project_selected 
+                  AND ssa_projprop_contract_line_id NOT IN (SELECT prospectline_id FROM ssa_projprop_contract_line WHERE specialdoctype='SSAARCONTRACT' AND prospectline_id IS NOT NULL))
+      ) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_LinesIsInContract@');
+    END IF;
+    
+    --Creating Lines of Contract
+    FOR Cur_Line IN
+     (SELECT * FROM ssa_projprop_contract_line WHERE ssa_projprop_contract_id = v_Prospect_ID AND c_project_id=v_project_selected ORDER BY line)
+    LOOP    
+        IF (Cur_Line.ssa_projprop_contract_line_id NOT IN (SELECT prospectline_id FROM ssa_projprop_contract_line WHERE specialdoctype='SSAARCONTRACT' AND prospectline_id IS NOT NULL)) THEN     
+           Ad_Sequence_Next('SSA_ProjProp_Contract_Line', Cur_Line.ad_client_id, v_ContractLine_ID);
+
+           v_LineSeqNo:= 10 + v_LineSeqNo;
+
+	   INSERT INTO ssa_projprop_contract_line(
+	   	   ssa_projprop_contract_line_id, ad_client_id, ad_org_id, isactive, 
+		   created, createdby, updated, updatedby, description, c_project_id, 
+		   c_bpartner_id, c_currency_id, m_pricelist_id, ssa_projprop_contract_id, 
+		   discount, totalamount, priceactual, line, specialdoctype, 
+	           ssa_project_property_id, property_detail, 
+	           prospectline_id,
+	           discount_eval_status, discount_eval_updated, discount_eval_updatedby)
+	    VALUES (v_ContractLine_ID, Cur_Line.ad_client_id, Cur_Line.ad_org_id, 'Y', 
+	  	   now(), v_User_ID, now(), v_User_ID, Cur_Line.description, v_project_selected, 
+		   Cur_Line.c_bpartner_id, v_project_currency_id, v_project_pricelist_id, v_Contract_ID, 
+		   Cur_Line.discount, Cur_Line.totalamount, Cur_Line.priceactual, v_LineSeqNo, v_Contract_SpecialDocType,
+	           Cur_Line.ssa_project_property_id, Cur_Line.property_detail, 
+	           Cur_Line.ssa_projprop_contract_line_id,
+	           'DR', NULL, NULL);  
+	 END IF;
+    END LOOP;
+
+
+    --Setting Prospect Link
+    UPDATE ssa_projprop_contract 
+       SET prospect_id=v_Prospect_ID
+     WHERE ssa_projprop_contract_id=v_Contract_ID;   
+   
+        
+    v_Message:='@Success@' || '. ' || '@SSA_ContractNo@'|| ' ' || v_Contract_DocumentNo;
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSA_CREATECONTRACT
+]]></body>
+    </function>
+  </database>

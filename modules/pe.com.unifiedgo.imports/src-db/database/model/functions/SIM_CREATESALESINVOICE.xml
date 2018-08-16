@@ -1,0 +1,279 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_CREATESALESINVOICE">
+    <function name="SIM_CREATESALESINVOICE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+ 
+  v_Aux NUMBER;
+  v_docstatus VARCHAR(60);
+  v_DocumentNo VARCHAR(30);
+  v_Invoice_ID VARCHAR(32);
+  v_from_consignement CHAR(1):='N';
+  v_code_cboitem  VARCHAR2(32);
+  v_specialdoctype VARCHAR(32);
+  Cur_C_Order RECORD;
+  v_EM_Sco_Podoctype_Comboitem_ID VARCHAR(32);
+  v_document_toinvoice_id VARCHAR(32);
+  v_EM_Sco_Purchaseinvoicetype VARCHAR(60);
+  v_sco_dua_id VARCHAR(32);
+  v_em_sim_folioimport_id VARCHAR(32);
+  v_scr_combo_category_id VARCHAR(32);
+  v_scr_combo_item_id VARCHAR(32);
+  Cur_parameter_get RECORD;
+  v_physicalnumberinvoice VARCHAR(40);
+  v_date_to_invoice_get DATE;
+  v_date_to_receipt DATE;
+  v_is_tocomplete CHAR;
+  v_String_tmp VARCHAR(400):='';
+
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    SELECT Record_ID, AD_User_ID
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+    WHERE AD_PInstance_ID = p_PInstance_ID;
+
+    --GET PARAMETERS
+   FOR Cur_parameter_get IN (
+    SELECT i.AD_Client_ID, p.ParameterName, p.p_string, p.P_Date 
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo
+   )LOOP
+      
+      IF (Cur_parameter_get.ParameterName = 'sim_doc_physical_invoice') THEN
+             v_physicalnumberinvoice:=Cur_parameter_get.p_string;
+      END IF;
+
+      IF (Cur_parameter_get.ParameterName = 'sim_date_invoice') THEN
+             IF(Cur_parameter_get.P_Date IS NULL)THEN
+               IF(Cur_parameter_get.p_string IS NOT NULL)THEN
+                  v_date_to_invoice_get:=TO_DATE(Cur_parameter_get.p_string,'yyyy-MM-dd');
+                ELSE
+                  v_date_to_invoice_get:=now();
+               END IF;
+             ELSE
+              v_date_to_invoice_get:=Cur_parameter_get.P_Date;
+             END IF;
+      END IF;
+ 
+      IF (Cur_parameter_get.ParameterName = 'sim_accountdate_invoice') THEN
+       
+             IF(Cur_parameter_get.P_Date IS NULL)THEN
+               IF(Cur_parameter_get.p_string IS NOT NULL)THEN
+                 
+                  v_date_to_receipt:=TO_DATE(Cur_parameter_get.p_string,'yyyy-MM-dd');
+               ELSE 
+                v_date_to_receipt:=now();
+               END IF;
+             ELSE
+              v_date_to_receipt:=Cur_parameter_get.P_Date;
+             END IF;
+      END IF;
+
+      IF (Cur_parameter_get.ParameterName = 'sim_tocomplete_invoice') THEN
+             v_is_tocomplete:=Cur_parameter_get.p_string;
+      END IF;
+
+      IF (Cur_parameter_get.ParameterName = 'sim_documentto_invoice') THEN
+             v_document_toinvoice_id:=Cur_parameter_get.p_string;
+      END IF;
+
+   END LOOP;
+
+   
+
+    SELECT * INTO Cur_C_Order FROM C_Order WHERE C_Order_ID = v_Record_ID;
+    
+    C_Invoice_Create(NULL, v_Invoice_ID, Cur_C_Order.C_Order_ID) ;
+
+    IF (v_Invoice_ID IS NULL OR v_Invoice_ID='0') THEN
+            RAISE_APPLICATION_ERROR(-20000, '@InvoiceCreateFailed@');
+    END IF;
+
+    DELETE FROM C_Invoiceline WHERE C_Invoice_ID = v_Invoice_ID AND qtyinvoiced = 0;
+
+    SELECT Count(*)
+      INTO v_Aux
+      FROM C_InvoiceLine
+    WHERE C_Invoice_ID = v_Invoice_ID;
+
+    IF(v_Aux=0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_InvoiceWithoutLines@');
+    END IF;
+
+    UPDATE C_Invoice
+      SET createdby = v_User_ID,
+          updatedby = v_User_ID
+    WHERE C_Invoice_ID = v_Invoice_ID;
+
+    UPDATE C_InvoiceLine
+      SET createdby = v_User_ID,
+          updatedby = v_User_ID
+    WHERE C_Invoice_ID = v_Invoice_ID;
+
+    SELECT code 
+      INTO v_code_cboitem 
+      FROM scr_combo_item 
+     WHERE scr_combo_item_id = Cur_C_Order.em_ssa_combo_item_id;
+    v_from_consignement='N';
+    IF(v_code_cboitem IS NOT NULL AND  v_code_cboitem='consignacion') THEN
+     v_from_consignement='Y';
+    END IF;
+    
+    
+
+   IF(Cur_C_Order.issotrx = 'Y') THEN --Sales Order
+   
+    UPDATE C_Invoice 
+       SET em_ssa_combo_item_id  = Cur_C_Order.em_ssa_combo_item_id,
+           em_ssa_is_consignment = v_from_consignement
+     WHERE C_Invoice_ID = v_Invoice_ID;
+    SELECT documentno, em_sco_specialdoctype INTO v_DocumentNo, v_specialdoctype FROM C_Invoice WHERE C_Invoice_ID = v_Invoice_ID;
+    IF(v_specialdoctype = 'SCOARTICKET') THEN
+      v_Message:= '@SSA_SalesTicketDocumentno@ ' || v_DocumentNo || ' @beenCreated@';
+    ELSE
+      v_Message:= '@SSA_SalesInvoiceDocumentno@ ' || v_DocumentNo || ' @beenCreated@';
+    END IF;
+    
+   ELSE --Purchase Order - Se hizo para parciales
+
+   
+   IF(v_document_toinvoice_id IS NULL)THEN    
+     SELECT SCR_COMBO_ITEM_ID 
+       INTO v_EM_Sco_Podoctype_Comboitem_ID
+       FROM SCR_COMBO_ITEM ci 
+      INNER JOIN SCR_COMBO_CATEGORY cc ON ci.SCR_COMBO_CATEGORY_id = cc.SCR_COMBO_CATEGORY_id
+      WHERE ci.value='tabla10_01'
+       AND cc.value='tablasunat10'
+       AND ci.ad_client_id=Cur_C_Order.ad_client_id;
+
+      IF(v_EM_Sco_Podoctype_Comboitem_ID IS NULL)THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ssa_combo_item_no_facturasunat10@');
+      END IF;
+      v_document_toinvoice_id:=v_EM_Sco_Podoctype_Comboitem_ID;
+    END IF;  
+      
+      v_EM_Sco_Purchaseinvoicetype:='SCO_PURIMP';
+
+
+      --Ver si El parcial tiene asociado un FOLIO
+        SELECT em_sim_folioimport_id
+          INTO v_em_sim_folioimport_id 
+          FROM c_order 
+         WHERE c_order_id=Cur_C_Order.C_Order_ID;
+      --
+
+      IF(v_em_sim_folioimport_id IS NOT NULL)THEN
+         SELECT sco_dua_id
+           INTO v_sco_dua_id
+           FROM sim_folioimport 
+          WHERE sim_folioimport_id = v_em_sim_folioimport_id;
+
+           UPDATE C_Invoice 
+              SET em_ssa_combo_item_id  = Cur_C_Order.em_ssa_combo_item_id,
+                  em_ssa_is_consignment = v_from_consignement,
+                  EM_Sco_Podoctype_Comboitem_ID = v_document_toinvoice_id,
+                  EM_Sco_Purchaseinvoicetype = v_EM_Sco_Purchaseinvoicetype,
+                  em_scr_physical_documentno = v_physicalnumberinvoice,
+                  EM_Sco_Newdateinvoiced=v_date_to_invoice_get,
+                  DateInvoiced=TRUNC(v_date_to_receipt),
+                  DateAcct=v_date_to_receipt,
+                  EM_Sco_Isimportation='Y',
+                  em_sco_dua_id = v_sco_dua_id,
+                  EM_Sco_Duatype = 'SO'                  
+           WHERE C_Invoice_ID = v_Invoice_ID;
+
+      ELSE --Create Whitout DAM INFO
+
+          --RAISE v_date_to_receipt;
+       
+           UPDATE C_Invoice 
+              SET em_ssa_combo_item_id  = Cur_C_Order.em_ssa_combo_item_id,
+                  em_ssa_is_consignment = v_from_consignement,
+                  EM_Sco_Podoctype_Comboitem_ID = v_document_toinvoice_id,
+                  em_scr_physical_documentno = v_physicalnumberinvoice,
+                  EM_Sco_Newdateinvoiced=v_date_to_invoice_get,
+                  DateInvoiced=TRUNC(v_date_to_receipt),
+                  DateAcct=v_date_to_receipt,
+                  em_sco_isimportation='Y',
+                  EM_Sco_Purchaseinvoicetype = v_EM_Sco_Purchaseinvoicetype
+            WHERE C_Invoice_ID = v_Invoice_ID;
+      END IF;
+      --
+       
+      
+     SELECT scr_combo_category_id 
+       INTO v_scr_combo_category_id 
+       FROM scr_combo_category 
+      WHERE value LIKE 'docVentaTaxExcento'
+        AND ad_client_id = Cur_C_Order.ad_client_id;
+
+     IF(v_scr_combo_category_id IS NULL OR v_scr_combo_category_id='')THEN
+      RAISE_APPLICATION_ERROR(-20000, '@ssa_combo_category_no_docVentaTaxExcento@');
+     END IF;
+
+     SELECT scr_combo_item_id
+       INTO v_scr_combo_item_id 
+       FROM scr_combo_item 
+      WHERE scr_combo_category_id=v_scr_combo_category_id
+        AND value='PVTE-Inafecto-porDefecto';
+      
+     IF(v_scr_combo_category_id IS NULL OR v_scr_combo_category_id='')THEN
+      RAISE_APPLICATION_ERROR(-20000, '@ssa_combo_item_no_PVTE_Inafecto_porDefecto@');
+     END IF;
+
+      UPDATE C_INVOICELINE 
+         SET EM_Scr_Specialtax='SCOEXEMPT',
+             Isdeferred  = 'Y',
+             em_sco_isdeferredonreceipt  = 'Y',
+             EM_Scr_Combo_Item_ID=v_scr_combo_item_id
+       WHERE C_INVOICE_ID = v_Invoice_ID;
+
+    
+    SELECT documentno INTO v_DocumentNo FROM C_Invoice WHERE C_Invoice_ID = v_Invoice_ID;
+    v_Message:= '@SIM_PurchaseInvoiceDocumentno@ ' || v_DocumentNo || ' @beenCreated@';
+
+   END IF;
+
+
+   IF(v_is_tocomplete='Y')THEN
+    C_INVOICE_POST(NULL, v_Invoice_ID);
+   END IF;
+    
+
+
+
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SIM_CREATESALESINVOICE
+]]></body>
+    </function>
+  </database>

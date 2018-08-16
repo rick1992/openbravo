@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_UPDATECREDITUSED0">
+    <function name="SSA_UPDATECREDITUSED0" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_AD_Client_ID VARCHAR(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  Cur_Parameter RECORD;
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+    SELECT AD_Client_ID
+      INTO v_AD_Client_ID
+      FROM C_BPartner
+    WHERE C_BPartner_ID = v_Record_ID;
+
+
+    --Try to update bp em_ssa_creditused value
+    BEGIN
+      SSA_UPDATECREDITUSED(v_Record_ID,v_AD_Client_ID );
+    EXCEPTION
+    WHEN OTHERS THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_ErrorUpdatingBPCreditUsed@' || SQLERRM) ;
+    END;
+
+
+
+    v_Message:='@ssa_updatecreditusedsuccessful@';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSA_UPDATECREDITUSED0
+]]></body>
+    </function>
+  </database>

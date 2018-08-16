@@ -1,0 +1,3423 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010-2013 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ *************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title id="paramTitle">xxTitle</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+  var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  var defaultLang = "en_US";
+</script>
+<script language="JavaScript" type="text/javascript">
+  var strTabId = "";
+</script>
+<script language="JavaScript" type="text/javascript" id="paramStrTabId">
+  strTabId = "";
+</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/org.openbravo.userinterface.selector/js/classic-skin-variable.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/calculator.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+<script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/org.openbravo.advpaymentmngt/FIN_Utilities.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></script>
+<script type="text/javascript">
+  window.onunload = reloadOpener; // reloads opener on closing
+</script>
+<script language="JavaScript" type="text/javascript">
+  OB.APRM = OB.APRM || {};
+  OB.APRM.APFT_GLItems = [];
+  OB.APRM.APFT_GLItemsId = 0;
+  OB.APRM.HasGLItems = false;
+  OB.APRM.AOOI_bp = null;
+  var hasBPartner = null;
+  var GLItemId = null;
+  var GLItemInEditingMode = false;
+</script>
+<script language="JavaScript" type="text/javascript">
+//Ajax calls
+function distributeAmount(_amount) {
+  var amount = applyFormat(_amount);
+  var distributedAmount = 0;
+  var keepSelection = false;
+  var chk = frm.inpScheduledPaymentDetailId;
+  var scheduledPaymentDetailId, outstandingAmount, j, i;
+  if (isGLItemEnabled) {
+    amount = subtract(amount, frm.inpGLSumAmount.value);
+  }
+  if (!chk) {
+    updateTotal();
+    return;
+  } else if (!chk.length) {
+    scheduledPaymentDetailId = frm.inpRecordId0.value;
+    outstandingAmount = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
+    if ( compare(outstandingAmount, '>', amount) ) {
+      outstandingAmount = amount;
+    }
+    frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = outstandingAmount;
+    if (!isTrue('isReceipt')){
+        frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value = "0.00" ;
+    }
+    
+    if (!chk.checked && compare(outstandingAmount, '!=', 0)) {
+      chk.checked = true;
+      updateData(chk.value, chk.checked);
+    }
+  } else {
+      
+    var total = chk.length;
+    for ( i = 0; i < total; i++) {
+      if (chk[i].checked) {
+        if(frm.elements["inpPaymentAmount" + chk[i].value].value > 0){
+          distributedAmount = add(distributedAmount, frm.elements["inpPaymentAmount" + chk[i].value].value);
+        } else{
+          amount = subtract(amount, frm.elements["inpPaymentAmount" + chk[i].value].value);
+        }
+      }
+    }
+    if (compare(amount, '>', distributedAmount) || compare(amount, '==', distributedAmount)) {
+      amount = subtract(amount, distributedAmount);
+      keepSelection = true;
+    }
+    if (compare(amount, '>', 0)){
+        for (i = 0; i < total; i++) {
+          scheduledPaymentDetailId = frm.elements["inpRecordId" + i].value;
+          outstandingAmount = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
+          if(compare(outstandingAmount, '>', 0)){
+              continue;
+          }
+          if (chk[i].checked && keepSelection) {
+            if(compare(outstandingAmount, '<', amount) && compare(distributedAmount, '==', outstandingAmount))
+              continue;
+            else
+              amount = add(amount, frm.elements["inpPaymentAmount" + chk[i].value].value);
+          }
+          frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = outstandingAmount;
+          if (!isTrue('isReceipt')){
+            frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value = "0.00" ;
+          }
+          for ( j = 0; j < total; j++) {
+            if (!chk[j].checked && chk[j].value === scheduledPaymentDetailId) {
+              chk[j].checked = true;
+              updateData(chk[j].value, chk[j].checked,null ,true );
+            }
+          }
+          amount = subtract(amount, outstandingAmount);
+        }
+    }
+    for (i = 0; i < total; i++) {
+      scheduledPaymentDetailId = frm.elements["inpRecordId" + i].value;
+      outstandingAmount = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
+      if (chk[i].checked && keepSelection) {
+        if(compare(outstandingAmount, '<', amount) && compare(distributedAmount, '==', outstandingAmount))
+          continue;
+        else
+          amount = add(amount, frm.elements["inpPaymentAmount" + chk[i].value].value);
+      }
+      if ( compare(outstandingAmount, '>', amount) ) {
+        outstandingAmount = amount;
+      }
+      if ( compare(amount, '==', 0) && compare(outstandingAmount, '>=', 0 )) {
+        frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = "";
+        if (!isTrue('isReceipt')){
+            frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value = "" ;
+        }
+        for ( j = 0; j < total; j++) {
+          if (chk[j].checked && chk[j].value === scheduledPaymentDetailId) {
+            chk[j].checked = false;
+            updateData(chk[j].value, chk[j].checked);
+          }
+        }
+      } else {
+        frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = outstandingAmount;
+        if (!isTrue('isReceipt')){
+            frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value = "0.00";
+        }
+        for ( j = 0; j < total; j++) {
+          if (!chk[j].checked && chk[j].value === scheduledPaymentDetailId) {
+            chk[j].checked = true;
+            updateData(chk[j].value, chk[j].checked,null ,true );
+          }
+        }
+        amount = subtract(amount, outstandingAmount);
+      }
+    }
+  }
+  
+  updateData(null, false, true);
+  updateTotal();
+  
+  return true;
+}
+
+function bPartnerBlocked(){
+  try {
+      
+    //actualizamos datos
+    if (!isTrue('isReceipt')) {
+       updateAllRet(false);
+    }
+    //updateAll();
+    //updateTotal();
+    updateData(null, false, true);
+    
+    var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/AddOrderOrInvoice.html";
+    var paramXMLReq = null;
+    return submitXmlHttpRequest(callBackBPartnerBlocked, document.frmMain, "BPARTNERBLOCK", url, false, null, paramXMLReq);
+  } catch (e) {
+    alert(e);
+  }
+}
+
+function callBackBPartnerBlocked(paramXMLParticular, XMLHttpRequestObj) {
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        strText = XMLHttpRequestObj.responseText;
+        var objson = eval(strText);
+        showJSMessage(objson.text);
+        return false;
+      } else {
+          
+        openProcessPayment();
+        return true;
+      }
+    } catch (e) {}
+  }
+  return true;
+}
+
+function callBackGrid(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = '';
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+
+        strText = XMLHttpRequestObj.responseText;
+        var aux = strText.substring(29, strText.length-8);
+        var tableBody = document.getElementById('sectionGrid');
+        var browserName = getBrowserInfo('name');
+        if (browserName.toUpperCase().indexOf('INTERNET EXPLORER') !== -1) {
+          var temp = document.createElement('span');
+          temp.id = 'temp';
+          temp.style.display = 'none';
+          var newRows = '<table><tbody id=\"sectionGrid\">'+ aux;
+          temp.innerHTML = newRows;
+          tableBody.parentNode.replaceChild(temp.firstChild.firstChild, tableBody);
+          if (temp.parentNode) {
+            temp.parentNode.removeChild(temp);
+          }
+        } else {
+          tableBody.innerHTML = aux;
+        }
+
+        if (document.frmMain.isFirstLoad.value === 'true'){
+          document.frmMain.isFirstLoad.value='false';
+          // SUG IMPL for payment in = payment out
+          /* if (isTrue('isReceipt')) {
+            var amount = document.frmMain.inpActualPayment.value;
+            if (document.frmMain.inpUseCredit.checked) {
+              amount = add(amount, document.frmMain.inpCredit.value);
+            }
+            distributeAmount(amount);
+          } */
+          
+        }
+        
+        if (!isTrue('isReceipt')) {
+            updateAllRet(false);
+        }
+        updateAll();
+        updateTotal();
+        updateData(null, false, true);
+
+      } else {
+        document.getElementById('sectionGrid').innerHTML = '';
+      }
+    } catch (e) {
+    }
+  }
+  return true;
+}
+
+function loadGridList() {
+    var bpselector_isDirty = false;
+    if(sc_C_BPartner_ID.isDirty() == true){
+        bpselector_isDirty = true;
+    }            
+
+    if (!bpselector_isDirty && 
+     (OB.APRM.AOOI_bp === null ||
+      OB.APRM.AOOI_bp !== document.getElementById('C_BPartner_ID').value ||
+      OB.APRM.AOOI_dt !== document.getElementById('paramDocumentType').value ||
+      OB.APRM.AOOI_pm !== document.getElementById('paramAlternativePaymentMethod').checked ||
+      OB.APRM.AOOI_fa !== document.getElementById('paramAllFinancialAccount').checked ||      
+      OB.APRM.AOOI_ddf !== document.getElementById('paramExpectedDateFrom').value ||
+      OB.APRM.AOOI_ddt !== document.getElementById('paramExpectedDateTo').value ||
+      OB.APRM.AOOI_cu !== document.getElementById('paramCurrencyId').value ||
+      OB.APRM.AOOI_odn !== document.getElementById('paramOrderDocNo').value ||
+      OB.APRM.AOOI_exhr !== document.getElementById('paramExchangeRate').value ||
+      OB.APRM.AOOI_cc !== document.getElementById('paramCContable').value))
+  {
+    OB.APRM.AOOI_bp = document.getElementById('C_BPartner_ID').value;
+    OB.APRM.AOOI_dt = document.getElementById('paramDocumentType').value;
+    OB.APRM.AOOI_pm = document.getElementById('paramAlternativePaymentMethod').checked;
+    OB.APRM.AOOI_fa = document.getElementById('paramAllFinancialAccount').checked;
+    OB.APRM.AOOI_ddf = document.getElementById('paramExpectedDateFrom').value;
+    OB.APRM.AOOI_ddt = document.getElementById('paramExpectedDateTo').value;
+    OB.APRM.AOOI_cu = document.getElementById('paramCurrencyId').value;
+    OB.APRM.AOOI_odn = document.getElementById('paramOrderDocNo').value;
+    OB.APRM.AOOI_exhr = document.getElementById('paramExchangeRate').value;
+    OB.APRM.AOOI_cc = document.getElementById('paramCContable').value;
+    try {
+      var url = '../org.openbravo.advpaymentmngt.ad_actionbutton/AddOrderOrInvoice.html';
+      var paramXMLReq = null;
+
+      return submitXmlHttpRequest(callBackGrid, document.frmMain, 'GRIDLIST', url, false, null, paramXMLReq);
+    } catch (e) {
+      alert(e);
+    }
+  }
+}
+
+function showChkboxAllFinAcct() {
+    if (strTabId == "")
+        return;
+  
+    if (strTabId == "5818416D097A410B9F8890DBCDD99B4A") {      
+        document.getElementById("paramAllFinancialAccount").style.display="block";   
+        document.getElementById("lblShowFinacct").style.display="block";          
+    }
+}
+
+</script>
+<script language="JavaScript" type="text/javascript">
+function setTextContent(element, text) {
+  while (element.firstChild!==null) {
+    element.removeChild(element.firstChild); // remove all existing content
+  }
+  var newdiv = document.createElement("div");
+  newdiv.innerHTML = text.substring(5, text.length-6);
+  element.appendChild(newdiv);
+}
+
+function selectRowTable(cell) {
+     var trele=document.getElementById('gridGLItem').getElementsByTagName("tr");
+     var classname;
+     for(var i=0;i<trele.length;i++)
+     {
+          classname = trele[i].className;
+          trele[i].className= classname.replace("DataGrid_Body_Row_selected","");
+     }
+     cell.parentNode.parentNode.parentNode.className = cell.parentNode.parentNode.parentNode.className + ' DataGrid_Body_Row_selected';
+} 
+
+function deselectRowsTable() {
+     var trele=document.getElementById('gridGLItem').getElementsByTagName("tr");
+     var classname;
+     for(var i=0;i<trele.length;i++)
+     {    
+          classname = trele[i].className;
+          trele[i].className= classname.replace("DataGrid_Body_Row_selected","");
+     }
+} 
+
+function loadGLItemList() {
+  var table = document.getElementById('sectionGLItemGrid'),
+      glitemCount = OB.APRM.APFT_GLItems.length,
+      glitemAmount = 0,
+      glitemDescLength = 20, glitemDescCont = "...",
+      cellCount, row, cellEditButton, cellGLItemDesc, cellGLITemReceivedInAmt, cellGLITemPaidOutAmt, cellRemoveButton, i, textNode, glAcctDimsDesc, glAcctDimsDescnext, acctDim, cellGLItemDim, cellText;
+
+  setTextContent(table,'');
+  if (!OB.APRM.HasGLItems) {
+      var glItems = eval(document.getElementById('paramGLItems').value);
+      if (glItems && glItems.length>0){
+          OB.APRM.APFT_GLItems = glItems;
+          OB.APRM.HasGLItems = true;
+          var amountSelected = 0;
+          for (i=0;i<glItems.length;i++){
+            if (isTrue('isReceipt')) {
+              amountSelected = add(amountSelected,applyFormatJSToOBMasked(glItems[i].glitemReceivedInAmt));
+              amountSelected = subtract(amountSelected,applyFormatJSToOBMasked(glItems[i].glitemPaidOutAmt));
+            } else {
+              amountSelected = subtract(amountSelected,applyFormatJSToOBMasked(glItems[i].glitemReceivedInAmt));
+              amountSelected = add(amountSelected,applyFormatJSToOBMasked(glItems[i].glitemPaidOutAmt));
+            }
+            OB.APRM.APFT_GLItems[i].id = i+1;
+          }
+          document.getElementById('paramGLItems').value = '';
+          glitemCount = OB.APRM.APFT_GLItems.length;
+          OB.APRM.APFT_GLItemsId = glitemCount; 
+          frm.inpGLSumAmount.value = amountSelected;
+          document.getElementById('paramGLItemsAmt').innerHTML = document.frmMain.inpGLSumAmount.value;
+          updateTotal();
+      } 
+  }
+  if (glitemCount === 0) {
+    OB.APRM.HasGLItems = false;
+    frm.inpGLSumAmount.value = '0';
+    updateTotal();
+    return;
+  }
+  OB.APRM.HasGLItems = true;
+  for (i = 0; i < glitemCount; i++) {     
+    row = table.insertRow(table.rows.length);
+    row.className = 'DataGrid_Body_Row DataGrid_Body_Row_'+i%2;
+    cellCount = 0;         
+    
+    cellGLItemDesc = row.insertCell(cellCount);
+    cellGLItemDesc.rowSpan = "2";
+    textNode = document.createTextNode(OB.APRM.APFT_GLItems[i].glitemDesc);
+    cellGLItemDesc.appendChild(textNode);
+    cellGLItemDesc.className = 'DataGrid_Body_Cell';
+    cellCount++;
+    
+    // Accounting Dimensions
+  /*  if(hasBPartner)
+      glAcctDimsDesc = ["cActivityDimDesc", "mProductDimDesc", "cCampaignDimDesc"];
+    else*/
+    glAcctDimsDesc = ["cBpartnerDimDesc", "cCostcenterDimDesc", "scoInternalDocDimDesc", "scoInvoiceGlrefDimDesc", "cActivityDimDesc", "mProductDimDesc", "cCampaignDimDesc"];
+
+    
+   // glAcctDimsDescnext = ["cProjectDimDesc", "user1DimDesc", "user2DimDesc"];
+    //glAcctDimsDescnext = ["cProjectDimDesc", "user1DimDesc", "user2DimDesc"];
+
+    for (acctDim = 0; acctDim < glAcctDimsDesc.length; acctDim++) {
+        
+        
+      if (glAcctDimsDesc[acctDim]=="scoInternalDocDimDesc") { continue;} //se vera junto con el invoiceglref
+      
+      if(glAcctDimsDesc[acctDim]=="scoInvoiceGlrefDimDesc"){
+          var glitem = OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]];
+          if(!glitem) glitem = OB.APRM.APFT_GLItems[i]["scoInternalDocDimDesc"];
+          
+          if(glitem){
+              cellGLItemDim = row.insertCell(cellCount);
+              if (glitem.length > glitemDescLength + glitemDescCont.length) {
+                textNode = document.createTextNode(glitem.slice(0, glitemDescLength) + glitemDescCont);
+              } else {
+                textNode = document.createTextNode(glitem);
+              }
+              cellGLItemDim.appendChild(textNode);
+              cellGLItemDim.className = 'DataGrid_Body_Cell';
+              cellGLItemDim.rowSpan = "2";
+              cellCount++;
+          }else{
+              cellGLItemDim = row.insertCell(cellCount);
+                textNode = document.createTextNode("");
+                cellGLItemDim.appendChild(textNode);
+                cellGLItemDim.className = 'DataGrid_Body_Cell';
+                cellGLItemDim.rowSpan = "2";
+                cellCount++;
+          }
+          
+      } else if (OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]]) {
+        cellGLItemDim = row.insertCell(cellCount);
+        if (OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]].length > glitemDescLength + glitemDescCont.length) {
+          textNode = document.createTextNode(OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]].slice(0, glitemDescLength) + glitemDescCont);
+        } else {
+          textNode = document.createTextNode(OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]]);
+        }
+        cellGLItemDim.appendChild(textNode);
+        cellGLItemDim.className = 'DataGrid_Body_Cell';
+        cellGLItemDim.rowSpan = "2";
+        cellCount++;
+      } else if (OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim].replace("Desc", "Displayed")] === 'Y') {
+        // The Acct. Dimen is displayed and the user has left it empty
+        cellGLItemDim = row.insertCell(cellCount);
+        textNode = document.createTextNode("");
+        cellGLItemDim.appendChild(textNode);
+        cellGLItemDim.className = 'DataGrid_Body_Cell';
+        cellGLItemDim.rowSpan = "2";
+        cellCount++;
+      }
+  /*    if(cellCount <= 4 && acctDim === (glAcctDimsDesc.length-1)) {
+        var newElements;
+        if (glAcctDimsDesc.length > 4) {
+          newElements = glAcctDimsDescnext.slice(0, 1);
+          if(newElements.length > 0) {
+            glAcctDimsDesc.push(newElements[0]);
+            if((glAcctDimsDescnext.length)-1 === 0) {
+                glAcctDimsDescnext = [];
+            } else {
+              glAcctDimsDescnext = glAcctDimsDescnext.slice((glAcctDimsDescnext.length)-1);
+            }
+          }
+        } else {
+          newElements = glAcctDimsDescnext.slice(0, (glAcctDimsDesc.length)-(cellCount-1));
+          for(addElement = 0; addElement < newElements.length; addElement++) {
+              glAcctDimsDesc.push(newElements[addElement]);
+          }
+          glAcctDimsDescnext = glAcctDimsDescnext.slice(((glAcctDimsDescnext.length)-(cellCount-1)));
+        }
+      }*/
+    }
+    
+    cellGLITemReceivedInAmt = row.insertCell(cellCount);
+    textNode = document.createTextNode(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt));
+    cellGLITemReceivedInAmt.appendChild(textNode);
+    cellGLITemReceivedInAmt.className = 'DataGrid_Body_Cell_Amount';
+    cellGLITemReceivedInAmt.rowSpan = "2";
+    cellCount++;
+    
+    cellGLITemPaidOutAmt = row.insertCell(cellCount);
+    cellGLITemPaidOutAmt.rowSpan = "2";
+    textNode = document.createTextNode(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt));
+    cellGLITemPaidOutAmt.appendChild(textNode);
+    cellGLITemPaidOutAmt.className = 'DataGrid_Body_Cell_Amount';
+    cellCount++;
+    
+    if (isTrue('isReceipt')) {
+      glitemAmount = subtract(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt), applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt));
+    } else {
+      glitemAmount = subtract(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt), applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt));
+    }
+    
+    cellGLITemDesc = row.insertCell(cellCount);
+    cellGLITemDesc.rowSpan = "2";
+    textNode = document.createTextNode(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemDescription));
+    cellGLITemDesc.appendChild(textNode);
+    cellGLITemDesc.className = 'DataGrid_Body_Cell';
+    cellCount++;
+    
+    cellEditButton = row.insertCell(cellCount);
+    cellEditButton.rowSpan = "2";
+    cellText = '<div><button type="button" id="buttonEditGLItem"'
+        + ' class="ButtonLink_focus" onclick="editGLItem(' + i + ', ' + OB.APRM.APFT_GLItems[i].id + ', this); return false;"'
+        + ' onfocus="buttonEvent(\'onfocus\', this); window.status=\'OK\'; return true;"'
+        + ' onblur="buttonEvent(\'onblur\', this);"'
+        + '  onkeyup="buttonEvent(\'onkeyup\', this);"'
+        + '  onkeydown="buttonEvent(\'onkeydown\', this);"'
+        + '  onkeypress="buttonEvent(\'onkeypress\', this);"'
+        + '  onmouseup="buttonEvent(\'onmouseup\', this);"'
+        + '  onmousedown="buttonEvent(\'onmousedown\', this);"'
+        + '  onmouseover="buttonEvent(\'onmouseover\', this); window.status=\'OK\'; return true;"'
+        + '  onmouseout="buttonEvent(\'onmouseout\', this);">'
+        + '  <table class="Button"><tr><td>'
+        + '    <img alt="Edit" title="Edit" src="../web/org.openbravo.advpaymentmngt/images/GLItemGridEdit-xButt.png" id="imgButtonEdit" name="imgButtonEditxx" style="opacity:1;" border="0"/></td>'
+        + '  </tr></table></button></div>';
+    setTextContent(cellEditButton, cellText);
+    cellCount++;       
+    
+    cellRemoveButton = row.insertCell(cellCount);
+    cellRemoveButton.rowSpan = "2";
+    cellText = '<div><button type="button" id="buttonRemoveGLItem"'
+        + ' class="ButtonLink_focus" onclick="removeGLItem(' + i + ', ' + applyFormatOBMaskedToJS(glitemAmount) + ');return false;"'
+        + ' onfocus="buttonEvent(\'onfocus\', this); window.status=\'OK\'; return true;"'
+        + ' onblur="buttonEvent(\'onblur\', this);"'
+        + '  onkeyup="buttonEvent(\'onkeyup\', this);"'
+        + '  onkeydown="buttonEvent(\'onkeydown\', this);"'
+        + '  onkeypress="buttonEvent(\'onkeypress\', this);"'
+        + '  onmouseup="buttonEvent(\'onmouseup\', this);"'
+        + '  onmousedown="buttonEvent(\'onmousedown\', this);"'
+        + '  onmouseover="buttonEvent(\'onmouseover\', this); window.status=\'OK\'; return true;"'
+        + '  onmouseout="buttonEvent(\'onmouseout\', this);">'
+        + '  <table class="Button"><tr><td>'
+        + '    <img alt="Remove" title="Remove" src="../web/org.openbravo.advpaymentmngt/images/GLItemGridCancel-xButt.png" name="imgButtonRemovexx" style="opacity:1;" border="0"/></td>'
+        + '  </tr></table></button></div>';
+    setTextContent(cellRemoveButton, cellText);
+
+    row = table.insertRow(table.rows.length);
+    row.className = 'DataGrid_Body_Row DataGrid_Body_Row_'+i%2;
+    cellCount = 0;
+
+ /*  for (acctDim = 0; acctDim < glAcctDimsDescnext.length; acctDim++) {
+        if (OB.APRM.APFT_GLItems[i][glAcctDimsDescnext[acctDim]]) {
+            cellGLItemDim = row.insertCell(cellCount);
+            if (OB.APRM.APFT_GLItems[i][glAcctDimsDescnext[acctDim]].length > glitemDescLength + glitemDescCont.length) {
+              textNode = document.createTextNode(OB.APRM.APFT_GLItems[i][glAcctDimsDescnext[acctDim]].slice(0, glitemDescLength) + glitemDescCont);
+            } else {
+              textNode = document.createTextNode(OB.APRM.APFT_GLItems[i][glAcctDimsDescnext[acctDim]]);
+            }
+            cellGLItemDim.appendChild(textNode);
+            cellGLItemDim.className = 'DataGrid_Body_Cell';
+            cellCount++;
+          } else if (OB.APRM.APFT_GLItems[i][glAcctDimsDescnext[acctDim].replace("Desc", "Displayed")] === 'Y') {
+            // The Acct. Dimen is displayed and the user has left it empty
+            cellGLItemDim = row.insertCell(cellCount);
+            textNode = document.createTextNode("");
+            cellGLItemDim.appendChild(textNode);
+            cellGLItemDim.className = 'DataGrid_Body_Cell';
+            cellCount++;
+          }
+        }*/
+  }
+  updateTotal();
+}
+function addOrEditGLItem() {
+  initialize_MessageBox('messageBoxID');
+  var amount = 0, glamount = 0, expectedAmt = 0;
+  if (frm.inpGLItemReceivedInAmount.value === null || frm.inpGLItemReceivedInAmount.value === '') {
+    setWindowElementFocus(frm.inpGLItemReceivedInAmount);
+    showJSMessage(7);
+    return false;
+  } else if (frm.inpGLItemPaidOutAmount.value === null || frm.inpGLItemPaidOutAmount.value === '') {
+    setWindowElementFocus(frm.inpGLItemPaidOutAmount);
+    showJSMessage(7);
+    return false;
+  } else if (frm.inpcGlitemId.value === null || frm.inpcGlitemId.value === '') {
+    setWindowElementFocus(frm.inpcGlitemId);
+    showJSMessage(7);
+    return false;
+  } /*else if (!hasBPartner && (frm.inpCBPartnerId_dim.value === null || frm.inpCBPartnerId_dim.value === '')) {
+    setWindowElementFocus(frm.inpCBPartnerId_dim);
+    showJSMessage('SCO_GLItemPaymentBPartnerNotFound');
+    return false;
+      }*/
+  else if ( (compare(frm.inpGLItemReceivedInAmount.value, '==', 0) && compare(frm.inpGLItemPaidOutAmount.value, '==', 0)) ||
+              (compare(frm.inpGLItemReceivedInAmount.value, '!=', 0) && compare(frm.inpGLItemPaidOutAmount.value, '!=', 0)) ) {
+    setWindowElementFocus(frm.paramPaymentAmountGLItem);
+    showJSMessage('APRM_JSAMOUNTDIFFTOZERO');
+    return false;
+  }   
+  
+  //check require analytics and costcenter vali1dations
+  var reqs='N';
+  var freqs = null;
+  var glitemname = sc_C_Glitem_ID.selectorField.getDisplayValue();
+  var splitted1 = glitemname.split(' - ');
+
+  if(splitted1.length >= 2){
+      var breqs = splitted1[splitted1.length -1];
+
+      var matches = breqs.match(/\[(.*?)\]/);
+      if (matches) {
+            freqs = matches[1];
+      }
+  }
+  if(freqs != null){
+      var splitted2 = freqs.split("|");
+      if(splitted2 != null && splitted2.length == 2){
+          // splitted[0] debit reqs   |   splitted[1] credit reqs
+          var amount = 0;
+          if(isTrue('isReceipt')){
+              amount = subtract(frm.inpGLItemReceivedInAmount.value, frm.inpGLItemPaidOutAmount.value);
+          }
+          else{
+              amount = subtract(frm.inpGLItemPaidOutAmount.value, frm.inpGLItemReceivedInAmount.value);
+          }
+          var isdebitacc = true;
+          if((amount>0 && isTrue('isReceipt')) || (amount<0 && !isTrue('isReceipt'))){
+              isdebitacc = false;
+          }
+          
+          if(isdebitacc){
+              reqs = splitted2[0];
+          }
+          else{
+              reqs = splitted2[1];
+          }
+      }
+  }
+  if(reqs.indexOf('C') != -1){
+      //requires costcenter
+      if((frm.inpCCostcenterId.value === null || frm.inpCCostcenterId.value === '')){
+        showJSMessage('SCO_InvLineNeedsCostCenter');
+        return false;
+      }
+  }
+  
+  if(reqs.indexOf('A') != -1){
+      //requires analytics
+      if((frm.inpscoInternalDocId.value === null || frm.inpscoInternalDocId.value === '') && (frm.inpscoInvoiceGlrefId.value === null || frm.inpscoInvoiceGlrefId.value === '')){
+        showJSMessage('SCO_InvLineNeedsInternalDoc');
+        return false;
+      }
+  }
+  
+  var prev_glamount = 0;
+  if (isTrue('isReceipt')) {
+    if (GLItemInEditingMode) {
+        for (i=0; i<OB.APRM.APFT_GLItems.length; i++) {
+             if (OB.APRM.APFT_GLItems[i].id == GLItemId) { 
+                 prev_glamount = subtract(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt, OB.APRM.APFT_GLItems[i].glitemPaidOutAmt);
+             }
+        }
+    } 
+    
+    glamount = subtract(frm.inpGLItemReceivedInAmount.value, frm.inpGLItemPaidOutAmount.value); 
+    
+  } else {
+    if (GLItemInEditingMode) {
+        for (i=0; i<OB.APRM.APFT_GLItems.length; i++) {
+             if (OB.APRM.APFT_GLItems[i].id == GLItemId) { 
+                 prev_glamount = subtract(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt, OB.APRM.APFT_GLItems[i].glitemReceivedInAmt);
+             }
+        }
+    } 
+    glamount = subtract(frm.inpGLItemPaidOutAmount.value, frm.inpGLItemReceivedInAmount.value);
+    
+  }
+  
+  var glSumAmount = add(document.frmMain.inpGLSumAmount.value, glamount);  
+  var expectedAmount = add(document.frmMain.inpExpectedPayment.value, glamount);  
+  if (GLItemInEditingMode) {
+	  glSumAmount = subtract(glSumAmount, prev_glamount);
+	  expectedAmount = subtract(expectedAmount, prev_glamount);
+  }
+  document.frmMain.inpGLSumAmount.value = glSumAmount;
+  document.frmMain.inpExpectedPayment.value = expectedAmount;
+  if (!isTrue('isReceipt')) {    
+    if (document.frmMain.inpUseCredit.checked) {
+      amount = subtract(amount, document.frmMain.inpCredit.value);
+      if ( compare(amount, '<', '0') ) {
+        amount = 0;
+      }
+    }
+    document.frmMain.inpActualPayment.value = amount;
+  }
+
+  var _cBpartnerDim = null;
+  var _cBpartnerDimDesc = null;
+  if(hasBPartner){
+      _cBpartnerDim = document.frmMain.inpBusinessPartnerId.value;
+      _cBpartnerDimDesc = document.frmMain.inpBusinessPartner.value;
+  }
+  else{  
+      if(frm.inpCBPartnerId_dim.value === null || frm.inpCBPartnerId_dim.value === ''){
+          _cBpartnerDim = '';
+          _cBpartnerDimDesc = '';
+      }
+      else{
+          _cBpartnerDim = frm.inpCBPartnerId_dim.value;
+          _cBpartnerDimDesc = sc_C_BPartner_ID_dim.selectorField.getDisplayValue();  
+      }
+  }
+       
+  var descrip = document.getElementById("description_dim").value;
+  if(descrip=="") descrip = "--";
+  
+  
+  // SUG IMPL when editing GlItems GRID
+  if (GLItemInEditingMode) {   
+      for (i=0; i<OB.APRM.APFT_GLItems.length; i++) {
+          if (OB.APRM.APFT_GLItems[i].id == GLItemId) {           
+              OB.APRM.APFT_GLItems[i].glitemId = frm.inpcGlitemId.value,
+              OB.APRM.APFT_GLItems[i].glitemDesc = sc_C_Glitem_ID.selectorField.getDisplayValue();
+              OB.APRM.APFT_GLItems[i].cBpartnerDim = _cBpartnerDim;
+              OB.APRM.APFT_GLItems[i].cBpartnerDimDesc = _cBpartnerDimDesc;
+              OB.APRM.APFT_GLItems[i].cBpartnerDimDisplayed = frm.strElement_BP.value;
+              OB.APRM.APFT_GLItems[i].cCostcenterDim = frm.inpCCostcenterId && frm.inpCCostcenterId.value;
+              OB.APRM.APFT_GLItems[i].cCostcenterDimDesc = sc_C_Costcenter_ID.selectorField.getDisplayValue();
+              OB.APRM.APFT_GLItems[i].cCostcenterDimDisplayed = frm.strElement_CC.value;
+              OB.APRM.APFT_GLItems[i].scoInternalDocDim = frm.inpscoInternalDocId && frm.inpscoInternalDocId.value;
+              OB.APRM.APFT_GLItems[i].scoInternalDocDimDesc = sc_SCO_Internal_Doc_ID.selectorField.getDisplayValue();
+              OB.APRM.APFT_GLItems[i].scoInternalDocDimDisplayed = frm.strElement_ID.value;
+              OB.APRM.APFT_GLItems[i].scoInvoiceGlrefDim = frm.inpscoInvoiceGlrefId && frm.inpscoInvoiceGlrefId.value;
+              OB.APRM.APFT_GLItems[i].scoInvoiceGlrefDimDesc = sc_SCO_Invoice_Glref_ID.selectorField.getDisplayValue();
+              OB.APRM.APFT_GLItems[i].scoInvoiceGlrefDimDisplayed = frm.strElement_IG.value;
+              OB.APRM.APFT_GLItems[i].scoEeffCashflowDim = frm.inpscoEeffCashflowId && frm.inpscoEeffCashflowId.value;
+              OB.APRM.APFT_GLItems[i].scoEeffCashflowDimDesc = sc_SCO_EEFF_Cashflow_ID.selectorField.getDisplayValue();
+              OB.APRM.APFT_GLItems[i].scoEeffCashflowDimDisplayed = frm.strElement_CF.value;
+              OB.APRM.APFT_GLItems[i].glitemReceivedInAmt = OB.Utilities.Number.OBMaskedToJS(frm.inpGLItemReceivedInAmount.value,
+                                                                      getGlobalDecSeparator(),
+                                                                      getGlobalGroupSeparator());
+              OB.APRM.APFT_GLItems[i].glitemPaidOutAmt = OB.Utilities.Number.OBMaskedToJS(frm.inpGLItemPaidOutAmount.value,
+                                                                   getGlobalDecSeparator(),
+                                                                   getGlobalGroupSeparator());
+              OB.APRM.APFT_GLItems[i].glitemDescription = descrip;              
+          }
+      }
+      
+  } else {
+      // New GL ITEM
+      OB.APRM.APFT_GLItemsId++;
+      OB.APRM.APFT_GLItems.push({
+        id: OB.APRM.APFT_GLItemsId,
+        glitemId: frm.inpcGlitemId.value,
+        glitemDesc: sc_C_Glitem_ID.selectorField.getDisplayValue(),
+        cBpartnerDim: _cBpartnerDim,
+        cBpartnerDimDesc: _cBpartnerDimDesc,
+        cBpartnerDimDisplayed: frm.strElement_BP.value,
+        cActivityDim: frm.inpCActivityId && frm.inpCActivityId.value,
+        cActivityDimDesc: sc_C_Activity_ID.selectorField.getDisplayValue(),
+        cActivityDimDisplayed: frm.strElement_AY.value,
+        mProductDim: frm.inpMProductId && frm.inpMProductId.value,
+        mProductDimDesc:  sc_M_Product_ID.selectorField.getDisplayValue(),
+        mProductDimDisplayed: frm.strElement_PR.value,
+        cCampaignDim: frm.inpCampaignId && frm.inpCampaignId.value,
+        cCampaignDimDesc: sc_C_Campaign_ID.selectorField.getDisplayValue(),
+        cCampaignDimDisplayed: frm.strElement_MC.value,
+        cProjectDim: frm.inpCProjectId && frm.inpCProjectId.value,
+        cProjectDimDesc: sc_C_Project_ID.selectorField.getDisplayValue(),
+        cProjectDimDisplayed: frm.strElement_PJ.value,
+        cCostcenterDim: frm.inpCCostcenterId && frm.inpCCostcenterId.value,
+        cCostcenterDimDesc: sc_C_Costcenter_ID.selectorField.getDisplayValue(),
+        cCostcenterDimDisplayed: frm.strElement_CC.value,
+        scoInternalDocDim: frm.inpscoInternalDocId && frm.inpscoInternalDocId.value,
+        scoInternalDocDimDesc: sc_SCO_Internal_Doc_ID.selectorField.getDisplayValue(),
+        scoInternalDocDimDisplayed: frm.strElement_ID.value,
+        scoInvoiceGlrefDim: frm.inpscoInvoiceGlrefId && frm.inpscoInvoiceGlrefId.value,
+        scoInvoiceGlrefDimDesc: sc_SCO_Invoice_Glref_ID.selectorField.getDisplayValue(),
+        scoInvoiceGlrefDimDisplayed: frm.strElement_IG.value,
+        scoEeffCashflowDim: frm.inpscoEeffCashflowId && frm.inpscoEeffCashflowId.value,
+        scoEeffCashflowDimDesc: sc_SCO_EEFF_Cashflow_ID.selectorField.getDisplayValue(),
+        scoEeffCashflowDimDisplayed: frm.strElement_CF.value,
+        user1Dim: frm.inpUser1Id && frm.inpUser1Id.value,
+        user1DimDesc: sc_User1_ID.selectorField.getDisplayValue(),
+        user1DimDisplayed: frm.strElement_U1.value,
+        user2Dim: frm.inpUser2Id && frm.inpUser2Id.value,
+        user2DimDesc: sc_User2_ID.selectorField.getDisplayValue(),
+        user2DimDisplayed: frm.strElement_U2.value,
+        glitemReceivedInAmt: OB.Utilities.Number.OBMaskedToJS(frm.inpGLItemReceivedInAmount.value,
+                                                              getGlobalDecSeparator(),
+                                                              getGlobalGroupSeparator()),
+        glitemPaidOutAmt: OB.Utilities.Number.OBMaskedToJS(frm.inpGLItemPaidOutAmount.value,
+                                                           getGlobalDecSeparator(),
+                                                           getGlobalGroupSeparator()),
+        glitemDescription: descrip
+      });
+  }
+  
+  loadGLItemList();
+  
+  //clean parameters
+  document.getElementById("description_dim").value = "";
+  frm.inpGLItemReceivedInAmount.value = "0.00";
+  frm.inpGLItemPaidOutAmount.value = "0.00";
+  
+  sc_C_Glitem_ID.selectorField.setValue("");
+  frm.inpcGlitemId.value = "";
+  
+  sc_C_Costcenter_ID.selectorField.setValue("");
+  frm.inpCCostcenterId.value = "";
+  
+  sc_SCO_Internal_Doc_ID.selectorField.setValue("");
+  frm.inpscoInternalDocId.value = "";
+  
+  sc_SCO_Invoice_Glref_ID.selectorField.setValue("");
+  frm.inpscoInvoiceGlrefId.value = "";
+  
+  sc_SCO_EEFF_Cashflow_ID.selectorField.setValue("");
+  frm.inpscoEeffCashflowId.value = "";
+  
+  sc_C_BPartner_ID_dim.selectorField.setValue("");
+  frm.inpCBPartnerId_dim.value = "";
+  
+  /*sc_C_Project_ID.selectorField.setValue("");
+  frm.inpCProjectId.value = "";*/
+  
+  // SUG IMPL Finishing editing mode
+  if (GLItemInEditingMode) {      
+	  deactiveGLItemEditingMode();
+  }
+}
+
+function activeGLItemEditingMode(id, cell) {
+	var btn = document.getElementById('tdButtonGLItem');
+    btn.innerHTML = "Editar";   
+    
+    var imgs;
+    imgs=document.getElementsByName('imgButtonEditxx');
+    for(var i=0;i<imgs.length;i++)
+    {    
+    	imgs[i].style.opacity = "0.3";
+    }    
+    imgs=document.getElementsByName('imgButtonRemovexx');
+    for(var i=0;i<imgs.length;i++)
+    {    
+    	imgs[i].style.opacity = "0.3";
+    }  
+
+    var img = cell.getElementsByTagName("img");
+    if (img.length == 1) {
+        img[0].src = "../web/org.openbravo.advpaymentmngt/images/GLItemGridEditCancel-xButt.png";
+      	img[0].style.opacity = "1";
+    }  
+    
+    selectRowTable(cell);
+
+    GLItemId = id;
+    
+    GLItemInEditingMode = true;
+}
+
+function deactiveGLItemEditingMode() {
+    var btn = document.getElementById('tdButtonGLItem');
+    btn.innerHTML = "Añadir";
+    
+    var imgs;    
+    imgs=document.getElementsByName('imgButtonEditxx');
+    for(var i=0;i<imgs.length;i++)
+    {    
+    	 imgs[i].src= "../web/org.openbravo.advpaymentmngt/images/GLItemGridEdit-xButt.png";    
+    	 imgs[i].style.opacity = "1";
+    }    
+    imgs=document.getElementsByName('imgButtonRemovexx');
+    for(var i=0;i<imgs.length;i++)
+    {    
+    	 strstyle = imgs[i].style;
+    	 imgs[i].style.opacity = "1";
+    }            
+    
+    deselectRowsTable();
+
+    GLItemId = null;
+    
+    GLItemInEditingMode = false;
+}
+
+function cancelGLItemEditingMode(cell) {	
+	//clean parameters
+	document.getElementById("description_dim").value = "";
+	document.frmMain.inpGLItemReceivedInAmount.value = "0.00";
+	document.frmMain.inpGLItemPaidOutAmount.value = "0.00";
+
+	sc_C_Glitem_ID.selectorField.setValue("");
+	document.frmMain.inpcGlitemId.value = "";
+	  
+	sc_C_Costcenter_ID.selectorField.setValue("");
+	document.frmMain.inpCCostcenterId.value = "";
+
+	sc_SCO_Internal_Doc_ID.selectorField.setValue("");
+	document.frmMain.inpscoInternalDocId.value = "";
+	  
+	sc_SCO_Invoice_Glref_ID.selectorField.setValue("");
+	document.frmMain.inpscoInvoiceGlrefId.value = "";
+
+	sc_SCO_EEFF_Cashflow_ID.selectorField.setValue("");
+	document.frmMain.inpscoEeffCashflowId.value = "";
+	    
+	sc_C_BPartner_ID_dim.selectorField.setValue("");
+	document.frmMain.inpCBPartnerId_dim.value = "";   	
+
+	deactiveGLItemEditingMode();
+}
+
+function editGLItem(key, glItemId, cell) {
+	if (GLItemInEditingMode) {
+		if (glItemId != GLItemId) {
+			return;  
+		}
+		cancelGLItemEditingMode(cell);
+		return;
+	}
+	
+	
+    var row = OB.APRM.APFT_GLItems[key];
+    
+    if (row == null) return;    
+    
+    // glitem
+    if (row.glitemId !== null && row.glitemId !== '') {
+       document.frmMain.inpcGlitemId.value = row.glitemId;
+    } else {
+       document.frmMain.inpcGlitemId.value = "";
+    }
+    
+    if (row.glitemDesc !== null && row.glitemDesc !== '') {
+        sc_C_Glitem_ID.selectorField.setValue(row.glitemDesc);
+    } else {
+        sc_C_Glitem_ID.selectorField.setValue("");
+    }
+    
+    if (row.glitemDescription !== null && row.glitemDescription !== '' && row.glitemDescription !== "--") {
+        document.getElementById("description_dim").value = row.glitemDescription;
+    } else {
+        document.getElementById("description_dim").value = "";
+    }  
+    
+    // amounts
+    if (row.glitemReceivedInAmt !== null && row.glitemReceivedInAmt !== '') {
+        document.frmMain.inpGLItemReceivedInAmount.value = applyFormatJSToOBMasked(row.glitemReceivedInAmt);
+    } else {
+        document.frmMain.inpGLItemReceivedInAmount.value = "0";
+    }
+    
+    if (row.glitemPaidOutAmt !== null && row.glitemPaidOutAmt !== '') {
+        document.frmMain.inpGLItemPaidOutAmount.value = applyFormatJSToOBMasked(row.glitemPaidOutAmt);
+    } else {
+        document.frmMain.inpGLItemPaidOutAmount.value = "0";
+    }  
+    
+    // business partner
+    if (row.cBpartnerDim !== null && row.cBpartnerDim !== '') {
+        if (hasBPartner){
+            document.frmMain.inpBusinessPartnerId.value = row.cBpartnerDim;
+        } else {
+            document.frmMain.inpCBPartnerId_dim.value = row.cBpartnerDim;
+        } 
+    } else {
+        document.frmMain.inpCBPartnerId_dim.value = "";
+    }   
+    
+    if (row.cBpartnerDimDesc !== null && row.cBpartnerDimDesc !== '') {
+        if (hasBPartner){
+            document.frmMain.inpBusinessPartner.value = row.cBpartnerDimDesc;
+        } else {
+            sc_C_BPartner_ID_dim.selectorField.setValue(row.cBpartnerDimDesc);  
+        } 
+    } else {
+        sc_C_BPartner_ID_dim.selectorField.setValue("");
+    }     
+    
+    if (row.cBpartnerDimDisplayed !== null && row.cBpartnerDimDisplayed !== '') {
+        document.frmMain.strElement_BP.value = row.cBpartnerDimDisplayed;
+    } else {
+        document.frmMain.strElement_BP.value = "";
+    }   
+    
+    // cost center
+    if (row.cCostcenterDim !== null && row.cCostcenterDim !== '') {
+        document.frmMain.inpCCostcenterId.value = row.cCostcenterDim;
+    } else {
+        document.frmMain.inpCCostcenterId.value = "";
+    }    
+
+    if (row.cCostcenterDimDesc !== null && row.cCostcenterDimDesc !== '') {
+        sc_C_Costcenter_ID.selectorField.setValue(row.cCostcenterDimDesc);
+    } else {
+        sc_C_Costcenter_ID.selectorField.setValue("");
+    }
+    
+    if (row.cCostcenterDimDisplayed !== null && row.cCostcenterDimDisplayed !== '') {
+        document.frmMain.strElement_CC.value = row.cCostcenterDimDisplayed;
+    } else {
+        document.frmMain.strElement_CC.value = "";
+    }    
+
+    // internal doc
+    if (row.scoInternalDocDim !== null && row.scoInternalDocDim !== '') {
+        document.frmMain.inpscoInternalDocId.value = row.scoInternalDocDim;
+    } else {
+        document.frmMain.inpscoInternalDocId.value = "";
+    }    
+
+    if (row.scoInternalDocDimDesc !== null && row.scoInternalDocDimDesc !== '') {
+        sc_SCO_Internal_Doc_ID.selectorField.setValue(row.scoInternalDocDimDesc);
+    } else {
+        sc_SCO_Internal_Doc_ID.selectorField.setValue("");
+    }
+    
+    if (row.scoInternalDocDimDisplayed !== null && row.scoInternalDocDimDisplayed !== '') {
+        document.frmMain.strElement_ID.value = row.scoInternalDocDimDisplayed;
+    } else {
+        document.frmMain.strElement_ID.value = "";
+    } 
+    
+
+    // invoice ref  
+    if (row.scoInvoiceGlrefDim !== null && row.scoInvoiceGlrefDim !== '') {
+        document.frmMain.inpscoInvoiceGlrefId.value = row.scoInvoiceGlrefDim;
+    } else {
+        document.frmMain.inpscoInvoiceGlrefId.value = "";
+    }    
+
+    if (row.scoInvoiceGlrefDimDesc !== null && row.scoInvoiceGlrefDimDesc !== '') {
+        sc_SCO_Invoice_Glref_ID.selectorField.setValue(row.scoInvoiceGlrefDimDesc);
+    } else {
+        sc_SCO_Invoice_Glref_ID.selectorField.setValue("");
+    }
+    
+    if (row.scoInvoiceGlrefDimDisplayed !== null && row.scoInvoiceGlrefDimDisplayed !== '') {
+        document.frmMain.strElement_IG.value = row.scoInvoiceGlrefDimDisplayed;
+    } else {
+        document.frmMain.strElement_IG.value = "";
+    }
+    
+    //eeff cash flow
+    if (row.scoEeffCashflowDim !== null && row.scoEeffCashflowDim !== '') {
+        document.frmMain.inpscoEeffCashflowId.value = row.scoEeffCashflowDim;
+    } else {
+        document.frmMain.inpscoEeffCashflowId.value = "";
+    }  
+    
+    if (row.scoEeffCashflowDimDesc !== null && row.scoEeffCashflowDimDesc !== '') {
+        sc_SCO_EEFF_Cashflow_ID.selectorField.setValue(row.scoEeffCashflowDimDesc);
+    } else {
+        sc_SCO_EEFF_Cashflow_ID.selectorField.setValue("");
+    }
+    
+        
+    if (row.scoEeffCashflowDimDisplayed !== null && row.scoEeffCashflowDimDisplayed !== '') {
+        document.frmMain.strElement_CF.value = row.scoEeffCashflowDimDisplayed;
+    } else {
+        document.frmMain.strElement_CF.value = "";
+    }
+    
+    activeGLItemEditingMode(row.id, cell);
+}   
+
+function removeGLItem(key, removedAmount) {
+  if(GLItemInEditingMode) {
+	return;  
+  }	
+  
+  var removedAmount = applyFormatJSToOBMasked(removedAmount);
+  if (!isTrue('isReceipt')){     
+    if ( compare(document.frmMain.inpActualPayment.value, '>', removedAmount) ) {
+      document.frmMain.inpActualPayment.value = subtract(document.frmMain.inpActualPayment.value, removedAmount);
+    } else {
+      document.frmMain.inpActualPayment.value = 0;
+    }
+  }
+  document.frmMain.inpGLSumAmount.value = subtract(document.frmMain.inpGLSumAmount.value, removedAmount);
+  document.frmMain.inpExpectedPayment.value = subtract(document.frmMain.inpExpectedPayment.value, removedAmount);
+  OB.APRM.APFT_GLItems.splice(key, 1);
+  updateConvertedAmounts();
+  loadGLItemList();
+}
+
+function displayMulticurrencyControls() {
+  var invCurrency = document.getElementById('paramCurrencyId').value;
+  var accountCurrency = document.getElementById('paramFinancialAccountCurrencyId').value;
+
+  var display = ( invCurrency && accountCurrency && invCurrency != accountCurrency );
+
+  displayLogicElement('multiCurrencyRow', display );
+  if (document.frmMain.strNotAllowExchange.value === 'Y' && display) {  
+      readOnlyLogicElement('paramExchangeRate', true);
+      readOnlyLogicElement('paramAltExchangeRate', true);
+      readOnlyLogicElement('paramActualConverted', true);
+   }
+  else {
+      readOnlyLogicElement('paramExchangeRate', false);
+      readOnlyLogicElement('paramAltExchangeRate', false);
+      readOnlyLogicElement('paramActualConverted', false);
+  }
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+function validate(action) {
+  var frm = document.frmMain;
+  if (action === 'openprocess') {
+    if (frm.inpActualPayment.value === null || frm.inpActualPayment.value === '') {
+      setWindowElementFocus(frm.inpActualPayment);
+      showJSMessage(7);
+      return false;
+    } else {
+
+      var diffAction = frm.inpDifferenceAction,
+          selectedAction = null, i, actionSelected = false;
+      for (i = 0; i < diffAction.length; i++) {
+        if (diffAction[i].checked) {
+          actionSelected = true;
+          break;
+        }
+      }
+      if (actionSelected) {
+         selectedAction = diffAction[i].value;
+      }
+      if (!validateSelectedPendingPayments(true, selectedAction)) { return false; }
+      
+      if(isTrue('inpisapp')){
+          var iscompensationpmt = false;
+          if(frm.inpapApplicationType.value === 'SCO_COMP'){
+              iscompensationpmt = true;
+          }
+          if(frm.inparApplicationType.value === 'SCO_COMP'){
+              iscompensationpmt = true;
+          }
+          if(!iscompensationpmt){
+            var actualpayment = frm.inpActualPayment.value;
+             if(actualpayment !== applyFormat('0')){
+              showJSMessage("SCO_AppPaymentInvalidAmount");
+              return false;
+            } 
+          }
+      }
+    }
+    OB.APRM.APFT_GLItems = OB.APRM.APFT_GLItems || [];
+  }
+  return true;
+}
+
+//function changeTipoPago(){
+//    var tipoPago = document.getElementById('cmbTipoPago').value;
+//    document.getElementById('paramTipoPago').value = tipoPago;    
+//}
+
+
+
+function isPaymentDetraccion(){
+    if(document.getElementById("chkIsDetraccionPayment").checked){
+
+        document.getElementById('paramChkIsDetraccionPayment').value = '1';
+        
+    }else{
+       
+        document.getElementById('paramChkIsDetraccionPayment').value = '0';
+    }
+}
+
+
+/*
+function callBackInvoiceRef(paramXMLParticular, XMLHttpRequestObj) {
+    var strText = "";
+      if (getReadyStateHandler(XMLHttpRequestObj)) {
+        try {
+          if (XMLHttpRequestObj.responseText) {
+            strText = XMLHttpRequestObj.responseText;
+            createCombo(document.getElementById('inpInvoiceRef'), strText);
+          } else {
+            document.getElementById('inpInvoiceRef').innerHTML = '';
+          }
+        } catch (e) {
+        }
+      }
+      return true;
+    }
+    */
+
+
+function updateAll(drivenByGrid) {
+  var frm = document.frmMain;
+  var chk = frm.inpScheduledPaymentDetailId;
+  var recordAmount, i;
+
+  frm.inpExpectedPayment.value = applyFormat('0');
+  if (isGLItemEnabled) {
+    frm.inpExpectedPayment.value = frm.inpGLSumAmount.value || applyFormat('0');
+  }
+  if (!chk) {
+    return;
+  } else if (!chk.length) {
+    if (!chk.checked) {
+      recordAmount = frm.elements["inpRecordAmt" + chk.value].value;
+      frm.inpExpectedPayment.value = add(frm.inpExpectedPayment.value, recordAmount);
+    }
+    updateData(chk.value, chk.checked, drivenByGrid);
+  } else {
+    var total = chk.length;
+    if (drivenByGrid){
+      if(!document.getElementById('inpTotal') || document.getElementById('inpTotal').value !== applyFormat('0')){
+        document.getElementById('inpTotal').value = applyFormat('0');
+        for (i = 0; i < total; i++) {
+          if(applyFormat(document.frmMain.elements['inpPaymentAmount'+chk[i].value].value) !== "" && chk[i].checked){
+            document.getElementById('inpTotal').value = add(applyFormat(document.getElementById('inpTotal').value), applyFormat(document.frmMain.elements['inpPaymentAmount'+chk[i].value].value));
+          }
+        }
+      }
+    }
+    for (var i = 0; i < total; i++) {
+      if (!chk[i].checked) {
+        recordAmount = frm.elements["inpRecordAmt" + chk[i].value].value;
+        frm.inpExpectedPayment.value = add(frm.inpExpectedPayment.value, recordAmount);
+      }
+      if (drivenByGrid){
+        if (applyFormat(document.frmMain.elements['inpPaymentAmount'+chk[i].value].value) === "" || !chk[i].checked)
+        {
+          updateData(chk[i].value, chk[i].checked, drivenByGrid, true);
+          if (chk[i].checked){
+            document.getElementById('inpTotal').value = add(applyFormat(document.getElementById('inpTotal').value), applyFormat(document.frmMain.elements['inpPaymentAmount'+chk[i].value].value));
+          }
+        }
+      }
+      else{
+          updateData(chk[i].value, chk[i].checked, drivenByGrid,true);
+      }
+    }
+  }
+  if (drivenByGrid){
+    updateTotal();
+  }
+  
+  
+  return true;
+}
+
+    
+    function updateAllRet(drivenByGrid) {
+        if(drivenByGrid){
+        var chk = frm.inpScheduledPaymentDetailIdRet;
+        var chkId = frm.inpScheduledPaymentDetailId;
+        
+        if (!chk) {
+            return;
+          } else if (!chk.length) {
+              if(chkId.checked)
+                updateDataRet(chk.value, chk.checked, drivenByGrid);
+              else
+                  updateDataRet(chk.value, false, drivenByGrid);  
+          } else {
+            var total = chk.length;
+        
+            for (var i = 0; i < total; i++) {
+               if(chkId[i].checked)
+                updateDataRet(chk[i].value, chk[i].checked, drivenByGrid, true);
+               else
+                   updateDataRet(chk[i].value, false, drivenByGrid, true);   
+              
+            }
+          }
+        
+        }else{//first load
+            var chk = frm.inpScheduledPaymentDetailIdRet;
+            var chkId = frm.inpScheduledPaymentDetailId;
+            
+            if (!chk) {
+                return;
+              } else if (!chk.length) {
+                  frm.elements["inpInvoiceDetRetAmount" + chkId.value].disabled = !(chk.checked);
+                  
+                  if(chkId.checked && document.frmMain.elements['inpRetChecked'+chkId.value].value == "1"){
+                      chk.checked = true;
+                      
+                      frm.elements["inpInvoiceDetRetAmount" +  chkId.value].className = frm.elements["inpInvoiceDetRetAmount" +  chkId.value].className.replace(' readonly', '');
+                      frm.elements["inpRetChecked" + chkId.value].value="1";
+                       
+                  }else{
+                      chk.checked = false;
+                      
+                      document.frmMain.elements['inpInvoiceDetRetAmount'+chkId.value].value = "0.00";
+                        var classText = frm.elements["inpInvoiceDetRetAmount" + chkId.value].className;
+                        if (classText.search('readonly') === -1) {
+                          frm.elements["inpInvoiceDetRetAmount" + chkId.value].className = classText.concat(" readonly");
+                        }
+                        frm.elements["inpRetChecked" + chkId.value].value="0";
+                  }
+                      
+              } else {
+                var total = chk.length;
+            
+                for (var i = 0; i < total; i++) {
+                    
+                    frm.elements["inpInvoiceDetRetAmount" + chkId[i].value].disabled = !(chkId[i].checked);
+                    
+                   if(chkId[i].checked  && document.frmMain.elements['inpRetChecked'+chkId[i].value].value == "1"){
+                        chk[i].checked=true;
+                        
+                        frm.elements["inpInvoiceDetRetAmount" +  chkId[i].value].className = frm.elements["inpInvoiceDetRetAmount" +  chkId[i].value].className.replace(' readonly', '');
+                        frm.elements["inpRetChecked" + chkId[i].value].value="1";
+                   }else{
+                       chk[i].checked=false;   
+                       
+                       document.frmMain.elements['inpInvoiceDetRetAmount'+chkId[i].value].value = "0.00";
+                        var classText = frm.elements["inpInvoiceDetRetAmount" + chkId[i].value].className;
+                        if (classText.search('readonly') === -1) {
+                          frm.elements["inpInvoiceDetRetAmount" + chkId[i].value].className = classText.concat(" readonly");
+                        }
+                        frm.elements["inpRetChecked" + chkId[i].value].value="0";
+                   }
+                }
+              }
+        }
+        
+          return true;
+        }
+    
+function updateReadOnlyExtras(key, mark){
+    
+    if (mark === null) {
+        mark = false;
+      }
+    
+    if (!isTrue('isReceipt')){
+      
+      if (mark) {
+        
+      } else {
+        
+        frm.elements["inpInvoiceDetRetAmount" + key].value = '';
+        frm.elements["inpPaymentSourceAmount" + key].value = '';
+    
+      }
+    } 
+      updateReadOnly(key, mark);
+      
+      return true;
+}   
+
+
+function updateDataRet(key, mark, drivenByGrid, all){
+    if (mark === null) { mark=false; }
+    
+    if(key === null ){
+          
+            
+          
+      }else{
+      
+          var source = document.frmMain.elements['inpPaymentSourceAmount'+key].value;
+          if(source===""){
+              var chk = frm.inpScheduledPaymentDetailIdRet;
+            
+                if (!chk) {
+                    return;
+                  } else if (!chk.length) {
+                      if(chk.value==key){
+                        chk.checked = false;
+                        document.frmMain.elements['inpInvoiceDetRetAmount'+key].value = "0.00";
+                        var classText = frm.elements["inpInvoiceDetRetAmount" + key].className;
+                        if (classText.search('readonly') === -1) {
+                          frm.elements["inpInvoiceDetRetAmount" + key].className = classText.concat(" readonly");
+                          frm.elements["inpInvoiceDetRetAmount" + key].disabled = true;
+                          
+                        }
+                        frm.elements["inpRetChecked" + key].value="0";
+                      }
+                  } else {
+                    var total = chk.length;
+                
+                    for (var i = 0; i < total; i++) {
+                       if(chk[i].value==key){
+                           chk[i].checked = false;
+                           document.frmMain.elements['inpInvoiceDetRetAmount'+key].value = "0.00";
+                           var classText = frm.elements["inpInvoiceDetRetAmount" + key].className;
+                        if (classText.search('readonly') === -1) {
+                          frm.elements["inpInvoiceDetRetAmount" + key].className = classText.concat(" readonly");
+                            frm.elements["inpInvoiceDetRetAmount" + key].disabled = true;
+                        }
+                        frm.elements["inpRetChecked" + key].value="0";
+                       }
+                      
+                    }
+                  }
+                
+          }
+          else{
+              //habilitar si mark es true, deshabilitar y a 0 si mark es false
+              
+              var chk = frm.inpScheduledPaymentDetailIdRet;
+            
+                if (!chk) {
+                    return;
+                  } else if (!chk.length) {
+                      if(chk.value==key){
+                          frm.elements["inpInvoiceDetRetAmount" + key].disabled = !mark;
+                          if(mark==true){
+                              frm.elements["inpInvoiceDetRetAmount" + key].className = frm.elements["inpInvoiceDetRetAmount" + key].className.replace(' readonly', '');
+                              frm.elements["inpRetChecked" + key].value="1";    
+                          }else{
+                            document.frmMain.elements['inpInvoiceDetRetAmount'+key].value = "0.00";
+                            var classText = frm.elements["inpInvoiceDetRetAmount" + key].className;
+                            if (classText.search('readonly') === -1) {
+                              frm.elements["inpInvoiceDetRetAmount" + key].className = classText.concat(" readonly");
+                            }
+                            frm.elements["inpRetChecked" + key].value="0";
+                          }
+                      }
+                  } else {
+                    var total = chk.length;
+                
+                    for (var i = 0; i < total; i++) {
+                       if(chk[i].value==key){
+                           frm.elements["inpInvoiceDetRetAmount" + key].disabled = !mark;
+                           if(mark==true){
+                               frm.elements["inpInvoiceDetRetAmount" + key].className = frm.elements["inpInvoiceDetRetAmount" + key].className.replace(' readonly', '');
+                               frm.elements["inpRetChecked" + key].value="1";  
+                           }else{
+                               document.frmMain.elements['inpInvoiceDetRetAmount'+key].value = "0.00";
+                               var classText = frm.elements["inpInvoiceDetRetAmount" + key].className;
+                                if (classText.search('readonly') === -1) {
+                                    frm.elements["inpInvoiceDetRetAmount" + key].className = classText.concat(" readonly");
+                                }
+                                frm.elements["inpRetChecked" + key].value="0";
+                            }
+                       }
+                      
+                    }
+                  }
+          }
+          
+      }
+      
+      return true;
+}
+
+function updateData(key, mark, drivenByGrid, all) {
+    
+  
+  if (mark === null) { mark=false; }
+  
+  if(key !== null) updateReadOnlyExtras(key, mark);
+  
+  if(key === null ){
+      var chk = document.frmMain.inpScheduledPaymentDetailId;
+      if (!chk) {
+             
+        } else if (!chk.length) {
+            
+        
+          key = frm.inpRecordId0.value;
+          var currencyFlag = document.frmMain.elements['inpRecordCurrency'+key].value;
+          var currencySymbol = document.frmMain.elements['inpRecordCurrSymbol'+key].value;
+          
+          var hasret =0;
+          if (!isTrue('isReceipt')) hasret = document.frmMain.elements['inpInvoiceDetRetAmount'+key].value;
+          
+          
+          if (chk.checked) {
+              if(hasret==0 || hasret==null || hasret==""){
+                  
+                  if(currencyFlag=="0")
+                      document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + Math.round(100 * (document.frmMain.elements['inpPaymentAmount'+key].value* document.getElementById('paramExchangeRate').value))/100;         
+                  else
+                      document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + document.frmMain.elements['inpPaymentAmount'+key].value;
+                  
+                      
+                }else{
+                      
+                  if(currencyFlag=="0"){
+                      document.frmMain.elements['inpPaymentSourceAmount'+key].value= currencySymbol + (+Math.round(100 * (document.frmMain.elements['inpPaymentAmount'+key].value * document.getElementById('paramExchangeRate').value))/100 + Math.round(100 * (document.frmMain.elements['inpInvoiceDetRetAmount'+key].value * document.getElementById('paramExchangeRate').value))/100 );
+                     
+                  }else{
+                      document.frmMain.elements['inpPaymentSourceAmount'+key].value= currencySymbol + (+document.frmMain.elements['inpPaymentAmount'+key].value  + +document.frmMain.elements['inpInvoiceDetRetAmount'+key].value);
+                   }
+                }
+          }else if (!isTrue('isReceipt')){
+              var chkRet = document.frmMain.inpScheduledPaymentDetailIdRet;
+              chkRet.checked=false;
+          }
+          
+        } else {
+          var rows = chk.length;
+          for (i = 0; i < rows; i++) {
+            key = frm.elements["inpRecordId" + i].value;
+            var currencyFlag = document.frmMain.elements['inpRecordCurrency'+key].value;
+          var currencySymbol = document.frmMain.elements['inpRecordCurrSymbol'+key].value;
+        var hasret =0;
+          if (!isTrue('isReceipt')) hasret = document.frmMain.elements['inpInvoiceDetRetAmount'+key].value;
+          
+            if (chk[i].checked) {
+                if(hasret==0 || hasret==null || hasret==""){
+                      
+                      if(currencyFlag=="0")
+                          document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + Math.round(100 * (document.frmMain.elements['inpPaymentAmount'+key].value* document.getElementById('paramExchangeRate').value))/100;         
+                      else
+                          document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + document.frmMain.elements['inpPaymentAmount'+key].value;
+                      
+                          
+                    }else{
+                          
+                      if(currencyFlag=="0"){
+                          document.frmMain.elements['inpPaymentSourceAmount'+key].value= currencySymbol + (+Math.round(100 * (document.frmMain.elements['inpPaymentAmount'+key].value * document.getElementById('paramExchangeRate').value))/100 + +Math.round(100 * (document.frmMain.elements['inpInvoiceDetRetAmount'+key].value * document.getElementById('paramExchangeRate').value))/100 );
+                         
+                      }else{
+                          document.frmMain.elements['inpPaymentSourceAmount'+key].value= currencySymbol + (+document.frmMain.elements['inpPaymentAmount'+key].value  + +document.frmMain.elements['inpInvoiceDetRetAmount'+key].value);
+                       }
+                    }
+            }else if (!isTrue('isReceipt')){
+                var chkRet = document.frmMain.inpScheduledPaymentDetailIdRet;
+                chkRet[i].checked=false;
+            }
+          }
+        }
+        
+      
+  }else{
+
+      var paymentAmount = document.frmMain.elements['inpPaymentAmount'+key];
+      var currencyFlag = document.frmMain.elements['inpRecordCurrency'+key].value;
+      var currencySymbol = document.frmMain.elements['inpRecordCurrSymbol'+key].value;
+      
+      
+  if (!isTrue('isReceipt')){
+      var hasret = document.frmMain.elements['inpRecordRet'+key].value;
+      
+    if (mark && paymentAmount.value === '') {
+        
+      
+      if(hasret==0){
+          
+          paymentAmount.value=document.frmMain.elements['inpRecordAmt'+key].value;
+          document.frmMain.elements['inpInvoiceDetRetAmount'+key].value = "0.00";
+          
+      }else{
+         
+          paymentAmount.value=document.frmMain.elements['inpRecordAmt'+key].value;
+          document.frmMain.elements['inpInvoiceDetRetAmount'+key].value = "0.00";
+         // paymentAmount.value = document.frmMain.elements['inpRecordPrin'+key].value;
+         // document.frmMain.elements['inpInvoiceDetRetAmount'+key].value = document.frmMain.elements['inpRecordRet'+key].value;
+          //checkear el checkbox de retencion
+          var chkRet = document.frmMain.inpScheduledPaymentDetailIdRet;
+      
+          if (!chkRet.length) {
+                if(chkRet.value == key){ chkRet.checked=true;  }
+          } else if (chkRet.length) {
+              var rows = chkRet.length;
+              for (i = 0; i < rows; i++) {
+                  if(chkRet[i].value == key){ chkRet[i].checked=true;  }
+              }
+          }
+          
+          frm.elements["inpRetChecked" + key].value="1";
+    
+      }
+    }
+    
+    if (mark){
+        if(hasret==0){
+          
+          if(currencyFlag=="0")
+              document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + Math.round(100 * (document.frmMain.elements['inpRecordAmt'+key].value* document.getElementById('paramExchangeRate').value))/100;         
+          else
+              document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + document.frmMain.elements['inpRecordAmt'+key].value;
+          
+              
+        }else{
+              
+          if(currencyFlag=="0"){
+              document.frmMain.elements['inpPaymentSourceAmount'+key].value= currencySymbol + Math.round(100 * ((+document.frmMain.elements['inpRecordPrin'+key].value + +document.frmMain.elements['inpRecordRet'+key].value) * document.getElementById('paramExchangeRate').value))/100;
+             
+          }else{
+              document.frmMain.elements['inpPaymentSourceAmount'+key].value= currencySymbol + (+document.frmMain.elements['inpRecordPrin'+key].value  + +document.frmMain.elements['inpRecordRet'+key].value);
+           }
+        }
+    }else{
+        var chkRet = document.frmMain.inpScheduledPaymentDetailIdRet;
+      
+          if (!chkRet.length) {
+                if(chkRet.value == key){ chkRet.checked=false;  }
+          } else if (chkRet.length) {
+              var rows = chkRet.length;
+              for (i = 0; i < rows; i++) {
+                  if(chkRet[i].value == key){ chkRet[i].checked=false;  }
+              }
+          }
+    }
+    
+  } else { // sales
+    if (drivenByGrid && mark && !paymentAmount.value) {
+      var total = document.getElementById('inpTotal').value ? document.getElementById('inpTotal').value : 0;
+      var actualPayment = document.getElementById('paramActualPayment').value;
+      if (frm.inpUseCredit.checked) {
+        actualPayment = add(actualPayment, document.frmMain.inpCredit.value);
+      }
+      var gridAmt = document.frmMain.elements['inpRecordAmt'+key].value;
+      // SUG IMPL for payment in = payment out 
+      paymentAmount.value=document.frmMain.elements['inpRecordAmt'+key].value;      
+/*       if ( compare(actualPayment, '<', 0) && compare(gridAmt, '>=', 0) ) {
+        paymentAmount.value = 0;
+      } else {
+        if ( compare(actualPayment, '<', 0) && compare(gridAmt, '<', 0) ) {
+          total = abs(total);
+          actualPayment = abs(actualPayment);
+          subtotal = add(total, abs(gridAmt));
+          if ( compare(subtotal, '>', actualPayment)) {
+            paymentAmount.value = subtract(0, subtract(actualPayment, total));
+          } else {
+            paymentAmount.value = gridAmt;
+          }
+        } else {
+          var subtotal = add(total, gridAmt);
+          if ( compare(subtotal, '>', actualPayment)) {
+            paymentAmount.value = subtract(actualPayment, total);
+          } else {
+            paymentAmount.value = gridAmt;
+          }
+        }
+      } */
+      
+      document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + paymentAmount.value;
+      
+    }
+  
+    if (mark){
+        if(currencyFlag=="0"){
+            document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol +  Math.round(100 * paymentAmount.value * document.getElementById('paramExchangeRate').value)/100;
+        }else{
+            document.frmMain.elements['inpPaymentSourceAmount'+key].value = currencySymbol + paymentAmount.value;
+        }
+    }
+  }
+  if (!all){
+    updateTotal();
+  }
+  
+  }
+  
+  return true;
+}
+function validateDate(element){
+  if(isValidDate(element.value, element.getAttribute('displayformat'))) {
+    loadGridList();
+  }
+}
+function paymentAmountOnChange(element){
+  updateTotal();
+  numberInputEvent('onchange', element);
+  
+}
+
+//RETENCIONES/////////////////////////////////////////
+
+function callbackUpdateTotal(){
+    showRetencionMessage();
+    
+    var isRet = document.getElementById('cmbRetencion').value;
+    if(isRet == "0"){
+        document.getElementById('divMessageCalculo').style.display = 'none';
+    }else{
+        document.getElementById('divMessageCalculo').style.display = 'block';
+    }
+    document.getElementById('divMessageCalculo').innerHTML = "Calculo desactualizado";
+}
+
+
+function showRetencionMessage(){
+
+    //retencion y detraccion
+      var totalrd = parseFloat(applyFormat(document.getElementById('inpTotal').value));
+      var tcRet = parseFloat(applyFormat(document.getElementById('paramTcForRetencion1').value));
+      var totalDocumentos = 0;
+      
+      var chk = frm.inpScheduledPaymentDetailId;
+      if(!chk) totalDocumentos = 0; 
+      else if (!chk.length) {
+          scheduledPaymentDetailId = frm.inpRecordId0.value;
+          totalDocumentos = frm.elements["inpRecordInvAmt" + scheduledPaymentDetailId].value
+      }
+      else{
+         var total = chk.length;
+         for ( i = 0; i < total; i++) {
+           if (chk[i].checked) {
+               totalDocumentos = +totalDocumentos + +frm.elements["inpRecordInvAmt" + chk[i].value].value;
+           }
+         }
+      }
+      
+      totalrd = totalrd * tcRet;
+      totalDocumentos = totalDocumentos * tcRet;
+      
+      var limitRetencion = parseFloat(applyFormat(document.getElementById('paramLimitForRetencion').value));
+      var retencion = document.getElementById('paramRetencion').value;
+
+      if( (totalrd > limitRetencion || totalDocumentos > limitRetencion) && retencion == "Y"){
+            //document.getElementById('divRetencion').style.display = 'block';
+            document.getElementById('divRetencion').style.color = 'red';
+            document.getElementById('divRetencion').innerHTML = "PAGO SUJETO A RETENCION";
+      }else{
+            //document.getElementById('divRetencion').style.display = 'none';
+          document.getElementById('divRetencion').style.color = 'white';
+          document.getElementById('divRetencion').innerHTML = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+      }
+      
+}
+
+
+function calcularRetencion(){
+    
+    var isRet = document.getElementById('cmbRetencion').value;
+    var retencion = 0;
+    
+    if(isRet != "0"){
+        
+        var perc = applyFormat(document.getElementById('paramPorc').value);
+         var chk = frm.inpScheduledPaymentDetailId;
+         var chkRet = frm.inpScheduledPaymentDetailIdRet;
+         if(!chk) retencion = 0; 
+         else if (!chk.length) {
+             scheduledPaymentDetailId = frm.inpRecordId0.value;
+             
+             if (chk.checked && chkRet.checked) {
+                
+                var outstanding = parseFloat(frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value)+ parseFloat(frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value);
+            //    var fieldOrderNr = document.getElementsByName("fieldOrderNr" + scheduledPaymentDetailId)[0].getAttribute("title");
+                
+             //   if(fieldOrderNr.length>0){}else{
+                
+                if( outstanding == 0 || (outstanding >= frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value 
+                        && frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value > 0)
+                        || (isRet == "2" && document.getElementById('paramChkIsDetraccionPayment').value=='1'))
+                    outstanding = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
+                else
+                    outstanding = parseFloat(frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value);
+                
+                     var ret = Math.round(outstanding * perc) / 100;
+                     if(isRet == "2")//detraccion
+                        ret = Math.round(outstanding * perc /100);
+                     
+                     frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = Math.round( (outstanding - ret)*100)/100;
+                     frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value = ret;
+                     retencion = retencion + ret;
+                     
+                     if(isRet == "2" && document.getElementById('paramChkIsDetraccionPayment').value=='1'){
+                         frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = ret;
+                     }
+                     
+                }else if(chk.checked){//no retencion
+                    var outstanding = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
+                    frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = outstanding;
+                    frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value = "0.00" ;
+                }
+                
+                
+           //  }
+         }
+         else{
+            var total = chk.length;
+            for ( i = 0; i < total; i++) {
+              if (chk[i].checked && chkRet[i].checked) {
+                  
+                //  alert(applyFormat(frm.elements["inpPaymentAmount" + chk[i].value].value)+' '+coalesce(applyFormat(frm.elements["inpInvoiceDetRetAmount" + chk[i].value].value),0));
+                  
+                var outstanding = parseFloat(applyFormat(frm.elements["inpPaymentAmount" + chk[i].value].value))+parseFloat(applyFormat(frm.elements["inpInvoiceDetRetAmount" + chk[i].value].value));
+            //    var fieldOrderNr = document.getElementsByName("fieldOrderNr" + chk[i].value)[0].getAttribute("title");
+                
+            //    if(fieldOrderNr.length>0){ continue; }
+                
+                if( outstanding == 0 || (outstanding >= applyFormat(frm.elements["inpRecordAmt" + chk[i].value].value)
+                        && applyFormat(frm.elements["inpRecordAmt" + chk[i].value].value) > 0)
+                        || (isRet == "2" && document.getElementById('paramChkIsDetraccionPayment').value=='1'))
+                  outstanding = applyFormat(frm.elements["inpRecordAmt" + chk[i].value].value);
+                else
+                    outstanding = parseFloat(applyFormat(frm.elements["inpPaymentAmount" + chk[i].value].value));
+                    
+                  var ret = Math.round(outstanding * perc) / 100;
+                  if(isRet == "2")//detraccion
+                    ret = Math.round(outstanding * perc /100);
+                  
+                  frm.elements["inpPaymentAmount" + chk[i].value].value = Math.round( (outstanding - ret)*100)/100;
+                  frm.elements["inpInvoiceDetRetAmount" + chk[i].value].value = ret;
+                  retencion = retencion + ret;
+                
+                  if(isRet == "2" && document.getElementById('paramChkIsDetraccionPayment').value=='1'){
+                      frm.elements["inpPaymentAmount" + chk[i].value].value = ret;
+                  }
+              }else if(chk[i].checked){//no retencion
+                  var outstanding = applyFormat(frm.elements["inpRecordAmt" + chk[i].value].value);
+                  frm.elements["inpPaymentAmount" + chk[i].value].value = outstanding;  
+                  frm.elements["inpInvoiceDetRetAmount" + chk[i].value].value = "0.00" ;
+              }
+              
+             
+            }
+         }
+         
+    }else{
+        var chk = frm.inpScheduledPaymentDetailId;
+         if(!chk) retencion = 0; 
+         else if (!chk.length) {
+             scheduledPaymentDetailId = frm.inpRecordId0.value;
+             if (chk.checked) {
+                 var outstanding = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
+                 frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = outstanding;
+                 frm.elements["inpInvoiceDetRetAmount" + scheduledPaymentDetailId].value = "0.00" ;
+             }
+             
+             
+         }
+         else{
+             
+             var total = chk.length;
+             for ( i = 0; i < total; i++) {
+               if (chk[i].checked) {
+                   var outstanding = applyFormat(frm.elements["inpRecordAmt" + chk[i].value].value);
+                   frm.elements["inpPaymentAmount" + chk[i].value].value = outstanding;  
+                   frm.elements["inpInvoiceDetRetAmount" + chk[i].value].value = "0.00" ;
+               }
+              
+             }
+         }
+         
+    }
+    
+    updateData(null, false, true);
+     updateTotal();
+     
+     if(isRet == "0")
+         document.getElementById('divMessageCalculo').style.display = 'none';
+     else{
+         document.getElementById('divMessageCalculo').style.display = 'block';
+         
+         if(isRet == "1"){
+             document.getElementById('divMessageCalculo').innerHTML = "Se efectuara retencion";
+         }
+         else{
+             document.getElementById('divMessageCalculo').innerHTML = "Se efectuara detraccion";
+         }
+     }
+     
+     document.getElementById('paramInpAplicarRet').value = isRet;
+     document.getElementById('paramInpRetencion').value = retencion;
+}
+
+
+function setGLItemMode(toGLItem){
+
+  displayLogicElement('glitemRow', toGLItem);
+  displayLogicElement('glitemAddRow', toGLItem);
+  displayLogicElement('gridGLItem', toGLItem);
+  displayLogicElement('totalInvoices', toGLItem);
+  displayLogicElement('GLItemSelectorLbl', toGLItem);
+  displayLogicElement('GLItemSelector', toGLItem);
+  displayLogicElement('descriptionGlitem', toGLItem);
+  
+  if (isTrue('inpissimple')){
+      displayLogicElement('paramAllFinancialAccount', !toGLItem);
+      displayLogicElement('lblShowFinacct', !toGLItem);
+  }else{
+      displayLogicElement('paramAllFinancialAccount', false);
+      displayLogicElement('lblShowFinacct', false);
+  }
+  
+  
+  displayLogicElement('ExpectedDateFromLbl', !toGLItem);
+  displayLogicElement('ExpectedDateFrom', !toGLItem);
+  displayLogicElement('ExpectedDateToLbl', !toGLItem);
+  displayLogicElement('ExpectedDateTo', !toGLItem);
+  displayLogicElement('gridPayment', !toGLItem);
+  displayLogicElement('totalGLItems', !toGLItem);
+  displayLogicElement('inpAlternativeLabel', !toGLItem);
+  displayLogicElement('inpAlternativeChkBox', !toGLItem);
+  displayLogicElement('inpAllChkBox', !toGLItem);
+  displayLogicElement('paramOrderDocNoLbl', !toGLItem);
+  displayLogicElement('paramOrderDocNoTd', !toGLItem);
+  displayLogicElement('paramCContableTd', !toGLItem);
+  if (toGLItem) {
+    displayLogicElement('bpartnerfilterRow', !toGLItem);
+    displayLogicElement('lblBpartnerfilterRow', !toGLItem);
+    displayLogicElement('dataBpartnerfilterRow', !toGLItem);
+  } else {
+    displayLogicElement('bpartnerfilterRow', !hasBPartner);
+    displayLogicElement('lblBpartnerfilterRow', !toGLItem);
+    displayLogicElement('dataBpartnerfilterRow', !toGLItem);
+  }
+  
+  // SUG IMPL 
+  if (toGLItem) {
+	  displayLogicElement('lblDetraccion', !toGLItem);
+	  displayLogicElement('chkDetraccion', !toGLItem);
+	  displayLogicElement('poRetencion', !toGLItem);
+  } else {
+      displayLogicElement('lblDetraccion', !toGLItem);
+      displayLogicElement('chkDetraccion', !toGLItem);
+      displayLogicElement('poRetencion', !isTrue('isReceipt'));	  
+  }
+  
+  autoDisplayLogicDimensions(toGLItem);
+ 
+  resizeAreaCreateFrom();
+  if (toGLItem) {
+    loadGLItemList();
+  }
+  return true;
+}
+function autoDisplayLogicDimensions(isDisplayed) {
+  var displayLogicDimension = function (dimension, isDisplayed) {
+    displayLogicElement(dimension + '_dim_label', isDisplayed);
+    displayLogicElement(dimension + '_dim_inp', isDisplayed);
+    displayLogicElement(dimension + '_th', isDisplayed)
+  }
+  var displayTitle = false;
+  var table = document.getElementById('sectionGLItemGridHeader');
+  var row = table.rows;
+  var rowLength = row.length;
+  var cellCount = 1, rowCount = 0, lastRow = rowLength-1, lastCell = (row[lastRow].cells.length)-1;
+
+    
+  if (document.frmMain.strElement_AY.value === 'Y' && isDisplayed) {
+    row[rowCount].cells[cellCount].innerHTML = 'Activity';
+    row[rowCount].cells[cellCount].id = 'c_activity_id_th';
+    cellCount++;
+    displayLogicDimension('c_activity_id', true);
+    displayTitle = true;
+  } else {
+    //row[lastRow].cells[lastCell].id = 'c_activity_id_th';
+    //lastCell--;
+    displayLogicDimension('c_activity_id', false);
+  }
+  
+  if (document.frmMain.strElement_PR.value === 'Y' && isDisplayed) {
+    row[rowCount].cells[cellCount].innerHTML = 'Product';
+    row[rowCount].cells[cellCount].id = 'm_product_id_th';
+    cellCount++;
+    displayLogicDimension('m_product_id', true);
+    displayTitle = true;
+  } else {
+    //row[lastRow].cells[lastCell].id = 'm_product_id_th';
+    //lastCell--;
+    displayLogicDimension('m_product_id', false);
+  }
+
+  if (document.frmMain.strElement_MC.value === 'Y' && isDisplayed) {
+    row[rowCount].cells[cellCount].innerHTML = 'Campaign';
+    row[rowCount].cells[cellCount].id = 'c_campaign_id_th';
+    cellCount++;
+    displayLogicDimension('c_campaign_id', true);
+    displayTitle = true;
+  } else {
+    //row[lastRow].cells[lastCell].id = 'c_campaign_id_th';
+   // lastCell--;
+    displayLogicDimension('c_campaign_id', false);
+  }
+  
+  if (document.frmMain.strElement_PJ.value === 'Y' && isDisplayed) {
+        row[rowCount].cells[cellCount].innerHTML = 'Proyecto';
+        row[rowCount].cells[cellCount].id = 'c_project_id_th';
+        cellCount++;
+        displayLogicDimension('c_project_id', true);
+        displayTitle = true;
+  } else {
+        //row[lastRow].cells[lastCell].id = 'c_project_id_th';
+        //lastCell--;
+        displayLogicDimension('c_project_id', false);
+  }
+  
+  if(cellCount > 4) {
+      rowCount++;
+      cellCount = 0;
+  }
+
+  if(lastCell < 0) {
+      lastRow --;
+      lastCell = (row[lastRow].cells.length)-4;
+  }
+  
+  //reiniciar porque el resto de arriba no sirve
+  cellCount = 1, rowCount = 0, lastRow = rowLength-1, lastCell = (row[lastRow].cells.length)-1;
+  
+
+  if (document.frmMain.strElement_BP.value === 'Y' && isDisplayed) {
+      
+    row[rowCount].cells[cellCount].innerHTML = 'Tercero';
+    row[rowCount].cells[cellCount].id = 'c_bpartner_id_th';
+    cellCount++;
+    displayLogicDimension('c_bpartner_id', true);
+    displayTitle = true;
+  } else {
+    //row[lastRow].cells[lastCell].id = 'c_bpartner_id_th';
+    //lastCell--;
+    displayLogicDimension('c_bpartner_id', false);
+  }
+  
+  if (document.frmMain.strElement_CC.value === 'Y' && isDisplayed) {
+    row[rowCount].cells[cellCount].innerHTML = 'Centro de Costos';
+    row[rowCount].cells[cellCount].id = 'c_costcenter_id_th';
+    cellCount++;
+    displayLogicDimension('c_costcenter_id', true);
+    displayTitle = true;
+
+  } else {
+   // row[lastRow].cells[lastCell].id = 'c_costcenter_id_th';
+   // lastCell--;
+    displayLogicDimension('c_costcenter_id', false);
+  }
+  if ( (document.frmMain.strElement_ID.value === 'Y' || document.frmMain.strElement_IG.value === 'Y') && isDisplayed) {
+    row[rowCount].cells[cellCount].innerHTML = 'Nro. Documento';
+    row[rowCount].cells[cellCount].id = 'sco_invoice_glref_id_th'; //'sco_internal_doc_id_th';
+    cellCount++;
+    displayLogicDimension('sco_invoice_glref_id'/*'sco_internal_doc_id'*/, true);
+    displayLogicDimension('sco_internal_doc_id'/*'sco_internal_doc_id'*/, true);
+    displayTitle = true;
+
+  } else {
+   // row[lastRow].cells[lastCell].id = 'sco_internal_doc_id_th';
+   // lastCell--;
+    displayLogicDimension('sco_invoice_glref_id'/*'sco_internal_doc_id'*/, false);
+    displayLogicDimension('sco_internal_doc_id'/*'sco_internal_doc_id'*/, false);
+  }
+  if ( (document.frmMain.strElement_CF.value === 'Y' || document.frmMain.strElement_CF.value === 'Y') && isDisplayed) {
+/* 	    row[rowCount].cells[cellCount].innerHTML = 'Rub. Flujo de Efectivo';
+	    row[rowCount].cells[cellCount].id = 'sco_eeff_cashflow_id_th';
+	    cellCount++;*/
+	    displayLogicDimension('sco_eeff_cashflow_id', true);
+	    displayTitle = true;
+
+  } else {
+ 	    displayLogicDimension('sco_eeff_cashflow_id', false);
+  }
+  /*
+  if (document.frmMain.strElement_IG.value === 'Y' && isDisplayed) {
+        row[rowCount].cells[cellCount].innerHTML = 'Documento Compra Venta';
+        row[rowCount].cells[cellCount].id = 'sco_invoice_glref_id_th';
+        cellCount++;
+        displayLogicDimension('sco_invoice_glref_id', true);
+        displayTitle = true;
+
+      } else {
+       // row[lastRow].cells[lastCell].id = 'sco_invoice_glref_id_th';
+       // lastCell--;
+        displayLogicDimension('sco_invoice_glref_id', false);
+      }
+  */
+  
+  /*
+  if(cellCount > 4) {
+      rowCount++;
+      cellCount = 0;
+  }
+
+  if(lastCell < 0) {
+      lastRow --;
+      lastCell = (row[lastRow].cells.length)-5;
+  }*/
+  if (document.frmMain.strElement_U1.value === 'Y' && isDisplayed) {
+    row[rowCount].cells[cellCount].innerHTML = '1st Dimension';
+    row[rowCount].cells[cellCount].id = 'user1_id_th';
+    cellCount++;
+    displayLogicDimension('user1_id', true);
+    displayTitle = true;
+  } else {
+    //row[lastRow].cells[lastCell].id = 'user1_id_th';
+   // lastCell--;
+    displayLogicDimension('user1_id', false);
+  }
+ /* if(cellCount > 4) {
+      rowCount++;
+      cellCount = 0;
+  }
+
+  if(lastCell < 0) {
+      lastRow --;
+      lastCell = (row[lastRow].cells.length)-5;
+  }*/
+  if (document.frmMain.strElement_U2.value === 'Y' && isDisplayed) {
+    row[rowCount].cells[cellCount].innerHTML = '2nd Dimension';
+    row[rowCount].cells[cellCount].id = 'user2_id_th';
+    cellCount++;
+    displayLogicDimension('user2_id', true);
+    displayTitle = true;
+  } else {
+    //row[lastRow].cells[lastCell].id = 'user2_id_th';
+    //lastCell--;
+    displayLogicDimension('user2_id', false);
+  }
+  
+  if (displayTitle) {
+    displayLogicElement('acctDimensionsTitle', true);
+  } else {
+    displayLogicElement('acctDimensionsTitle', false);
+  }
+}
+
+function documentTypeOnChange(value){
+  if ('G' === value) {
+    //if we are not already on GL Item mode.
+    if (!isTrue('isInGLItemMode')) {
+      document.frmMain.isInGLItemMode.value='Y';
+      document.getElementById('paramInvoicesAmt').innerHTML = frm.inpInvoiceAmount.value;
+      setGLItemMode(true);
+    }
+  } else {
+    document.getElementById('paramGLItemsAmt').innerHTML = document.frmMain.inpGLSumAmount.value;
+    if (isTrue('isInGLItemMode')) {
+      document.frmMain.isInGLItemMode.value='N';
+      setGLItemMode(false);
+    }
+    loadGridList();
+  }
+}
+function actualPaymentOnChange(){
+    // SUG IMPL for payment in = payment out
+/*    if (isTrue('isReceipt')) {
+    var amount = document.frmMain.inpActualPayment.value;
+    if (document.frmMain.inpUseCredit.checked) {
+      amount = add(amount, document.frmMain.inpCredit.value);
+    }
+    if (isTrue('isInGLItemMode')) {
+      updateTotal();
+    } else {
+      distributeAmount(amount);
+    }
+  }  */
+}
+function useCreditOnChange(){
+  actualPaymentOnChange();
+  updateTotal();
+}
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramFirstLoad">
+var FirstLoad=null;
+</script>
+
+<script language="JavaScript" type="text/javascript">
+function onLoadDo() {
+//variables por defecto
+document.getElementById('paramInpAplicarRet').value = "0";
+document.getElementById('paramInpRetencion').value = "0";
+document.getElementById('paramChkIsDetraccionPayment').value = "0";
+document.getElementById('paramTipoPago').value = "0";
+
+showChkboxAllFinAcct();
+
+  var tableTopPopup = new windowTableId('client_top_popup', 'buttonOK'),
+      tableTop = new windowTableId('client_top', 'buttonProcess'),
+      tableMiddle = new  windowTableId('client_middle', 'buttonProcess'),
+      tableBottom = new windowTableId('client_bottom', 'buttonProcess');
+  this.windowTables = new Array(tableTopPopup, tableTop, tableMiddle, tableBottom);
+
+  setWindowTableParentElement();
+  enableShortcuts('popup');
+  setBrowserAutoComplete(false);
+  hasBPartner = document.frmMain.inpBusinessPartnerId.value !== null && document.frmMain.inpBusinessPartnerId.value !== '';
+
+  initFIN_Utilities(document.frmMain, hasBPartner, null, true);
+  try {
+    onloadFunctions();
+  } catch (e) {}
+  setGLItemMode(isTrue('isInGLItemMode'));
+  displayLogicElement('sectionDifference', false);
+  displayLogicElement('sectionDifferenceBox', false);
+  processLabels();
+  displayLogicElement('paramCustBalance', isReceipt);  
+  displayLogicElement('paramCredit', compare(document.getElementById('paramCredit').value, '>', '0') );
+  displayLogicElement('lblCredit', compare(document.getElementById('paramCredit').value, '>', '0'));
+  displayLogicElement('paramUseCredit', compare(document.getElementById('paramCredit').value, '>', '0') && compare(document.frmMain.inpGeneratedCredit.value, '==', '0') );
+  displayLogicElement('lblUseCredit', compare(document.getElementById('paramCredit').value, '>', '0') && compare(document.frmMain.inpGeneratedCredit.value, '==', '0') );
+//SUG IMPL for payment in = payment out
+  //displayLogicElement('NoPackageslinkCalc', isTrue('isReceipt'));
+  displayLogicElement('NoPackageslinkCalc', false);
+  
+  displayMulticurrencyControls();
+  if (isTrue('isReceipt')) {
+    displayLogicElement('PaymentOutOptionO', false);
+    displayLogicElement('PaymentOutOptionE', false);
+    // SUG IMPL for payment in = payment out
+    /* setWindowElementFocus(frm.inpActualPayment);  */
+  } else {
+    displayLogicElement('PaymentOutOptionO', false);     
+  }
+  // SUG IMPL for payment in = payment out
+  document.getElementById('paramActualPayment').readOnly = true;
+  document.getElementById('paramActualPayment').className = 'readonly required dojoValidateValid TextBox_btn_OneCell_width number';
+  setWindowElementFocus(frm.inpDocNumber);
+  updateTotal();
+  
+  //numberInputEvent('onchange', document.frmMain.inpGLItemAmount);
+  loadGridList();
+  loadGLItemList();
+  resizeAreaCreateFrom();
+
+  if(isTrue('isReceipt'))  
+      document.getElementById('poRetencion').style.display = 'none';
+ /* else
+      document.getElementById('soTipoDeposito').style.display = 'none';*/
+      
+  /*if (isTrue('inpissimple')){
+        displayLogicElement('PaymentOutOptionG', false);
+  }*/
+      
+  if (isTrue('isReceipt')){
+      displayLogicElement('PaymentOutOptionE', false);
+     
+  }
+  
+  //avoid horizontal scrolling when business partner column is displayed in the grid
+  if (!document.getElementById('paramBusinessPartner').value) {
+    popupResizeTo(1050, 600);
+  }    
+
+}
+
+function onResizeDo(){
+  if(isPopupVisible==false)
+    resizeAreaCreateFrom(true);
+}
+
+function submitThisPage(strCommand) {
+  if (validate(strCommand)) {
+    document.frmMain.inpGLItems.value = isc.JSON.encode(OB.APRM.APFT_GLItems);
+    setProcessingMode('popup', true);
+    submitCommandForm(strCommand, false, null, null);
+    return true;
+  }
+  return true;
+}
+
+var isPopupVisible = false;
+
+function openProcessPayment() {
+    
+  if (validate('openprocess')) {
+    var amount = document.frmMain.inpActualPayment.value;
+    // if amount is 0 deposit or withdrawn is not allowed
+    // skip action regarding document window
+    if ( compare(amount, '==', 0) ) {
+      submitThisPage('SAVEANDPROCESS');
+      return true;
+    }
+    document.getElementById('client_top_popup').style.display = 'block';
+    document.getElementById('client_top').style.display = 'none';
+    document.getElementById('client_middle').style.display = 'none';
+    document.getElementById('client_bottom').style.display = 'none';
+    
+    isPopupVisible = true;
+  }
+}
+function closeProcessPayment() {
+  document.getElementById('client_top_popup').style.display = 'none';
+  document.getElementById('client_top').style.display = 'block';
+  document.getElementById('client_middle').style.display = 'block';
+  document.getElementById('client_bottom').style.display = 'block';
+  isPopupVisible = false;
+  setGLItemMode(isTrue('isInGLItemMode'));
+}
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form name="frmMain" method="post" action="AddOrderOrInvoice.html">
+  <input type="hidden" name="Command" />
+  <input type="hidden" name="IsPopUpCall" value="1" />
+  <input type="hidden" name="inpadOrgId" value="" id="fieldOrg"/>
+  <input type="hidden" name="inpfinPaymentId" value="" id="fieldPayment"/>
+  <input type="hidden" name="inpadWindowId" value="" id="fieldWindowId"/>
+  <input type="hidden" name="inpTabId" value="" id="fieldTabId"/> 
+  <input type="hidden" name="inpTabId" value="" id="tab"></input>  
+  <input type="hidden" name="isReceipt" value="" id="fieldReceipt"/>
+  <input type="hidden" name="inpissotrx" value="" id="fieldIsSoTrx"/>
+  <input type="hidden" name="inpissimple" value="" id="fieldIsSimple"/>
+  <input type="hidden" name="inpisapp" value="" id="fieldIsApp"/>
+  <input type="hidden" name="inpapApplicationType" value="" id="fieldAPApplicationType"/>
+  <input type="hidden" name="inparApplicationType" value="" id="fieldARApplicationType"/>
+  <input type="hidden" name="isFirstLoad" value="true"/>
+  <input type="hidden" name="isInGLItemMode" value="N"/>
+  <input type="hidden" name="inpGLItems" id="paramGLItems"  value=""/>
+  <input type="hidden" name="inpDeleteGLItem" value=""/>
+  <input type="hidden" id="paramGeneratedCredit" name="inpGeneratedCredit" value="0"/>
+  <input type="hidden" name="strElement_BP" id="paramStrElement_BP" value=""/>
+  <input type="hidden" name="strElement_PR" id="paramStrElement_PR" value=""/>
+  <input type="hidden" name="strElement_PJ" id="paramStrElement_PJ" value=""/>
+  <input type="hidden" name="strElement_AY" id="paramStrElement_AY" value=""/>
+  <input type="hidden" name="strElement_CC" id="paramStrElement_CC" value=""/>
+  <input type="hidden" name="strElement_ID" id="paramStrElement_ID" value=""/>
+  <input type="hidden" name="strElement_IG" id="paramStrElement_IG" value=""/>
+  <input type="hidden" name="strElement_CF" id="paramStrElement_CF" value=""/>
+  <input type="hidden" name="strElement_MC" id="paramStrElement_MC" value=""/>
+  <input type="hidden" name="strElement_U1" id="paramStrElement_U1" value=""/>
+  <input type="hidden" name="strElement_U2" id="paramStrElement_U2" value=""/>
+  <input type="hidden" name="strNotAllowExchange" id="paramStrNotAllowExchange" value=""/>
+  <input type="hidden" name="strWriteOffLimit" id="paramStrWriteOffLimit" value=""/>
+  <input type="hidden" name="strtypewriteoff" id="paramStrtypewriteoff" value=""/>
+  <input type="hidden" name="strAmountwriteoff" id="paramStrAmountwriteoff" value=""/>
+  
+  <input type="hidden" name="limitForRetencion" id="paramLimitForRetencion" value=""/>
+  <input type="hidden" name="retencion" id="paramRetencion" value=""/>
+  <input type="hidden" name="tcForRetencion0" id="paramTcForRetencion0" value=""/>
+  <input type="hidden" name="tcForRetencion1" id="paramTcForRetencion1" value=""/>
+  
+  <input type="hidden" name="inpRetencion" id="paramInpRetencion" value=""/>
+  <input type="hidden" name="inpAplicar" id="paramInpAplicarRet" value=""/>
+ 
+  <input type="hidden" name="inpChkIsDetraccionPayment" id="paramChkIsDetraccionPayment" value=""/>
+  <input type="hidden" name="inpTipoPago" id="paramTipoPago" value=""/>
+  
+  <input type="hidden" name="inpPaymentInDocType" id="paramPaymentInDocType" value=""/>
+  
+  <div class="Popup_ContentPane_CircleLogo">
+    <div class="Popup_WindowLogo">
+      <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_process" src="../../../../../web/images/blank.gif" border=0/></img>
+    </div>
+  </div>
+  <table cellspacing="0" cellpadding="0" width="100%" id="table_header">
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span name="lblR" id="lblRPopupTitle">Add Payment In</span><span name="lblP" id="lblPPopupTitle">Add Payment Out</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+  </table>
+  <table cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_messagebox">
+
+          <!-- MessageBox -->
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+            <tbody>
+            <tr class="MessageBox_TopMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr>
+              <td class="MessageBox_LeftMargin"></td>
+              <td>
+
+                <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_LeftTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopLeft"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Left"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td class="MessageBox_bg">
+
+                      <table class="MessageBox_Top">
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span>
+                            <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_Icon_ContentCell">
+                                  <div class="MessageBox_Icon"></div>
+                                </td>
+                                <td style="vertical-align: top;" id="messageBoxIDContent">
+                                  <span>
+                                    <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                      xxInfo: AccessTableWithNoView
+                                    </div>
+                                    <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                      xxThe current information is empty.
+                                    </div>
+                                    <div class="MessageBox_TextSeparator"></div>
+                                  </span>
+                                </td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            </span>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+
+                    </td>
+                    <td class="MessageBox_RightTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopRight"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Right"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2" class="MessageBox_BottomLeft">
+                    </td>
+                    <td class="MessageBox_BottomTrans MessageBox_bg">
+                    </td>
+                    <td rowspan="2" class="MessageBox_BottomRight">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Bottom">
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+
+              </td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr class="MessageBox_BottomMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+                <td class="MessageBox_RightMargin"></td>
+              </tr>
+            </tbody>
+          </table>
+        <!-- MessageBox END -->
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+
+    <tr>
+      <td>
+        <!-- Hidden Process Payment Div  -->
+        <div class="Popup_ContentPane_Client" style="display: none;" id="client_top_popup">
+          <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_InfoBar">
+           <tr>
+             <td class="Popup_InfoBar_Icon_cell"><img src="../web/images/blank.gif" class="Popup_InfoBar_Icon_info" border="0"></td>
+             <td class="Popup_InfoBar_text_table">
+               <table>
+                 <tr><td class="Popup_InfoBar_text" id="processHelp">Process Payment</td></tr>
+                 </table>
+              </td>
+            </tr>
+          </table>
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr><td colspan="6" height="20"></td></tr>
+            <tr>
+              <td class="TitleCell"></td>
+              <td class="TitleCell" colspan="2"><span class="LabelText">Action regarding document</span></td>
+              <td class="Combo_ContentCell">
+                <select name="inpActionDocument" id="paramActionDocument" class="ComboKey Combo_TwoCells_width" required="true">
+                  <div id="reportActionDocument"></div>
+                </select>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+            </tr>
+            <tr><td colspan="6" height="20"></td></tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonOK"
+                    class="ButtonLink_focus"
+                    onclick="submitThisPage('SAVE');return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='OK'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='OK'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="OK" title="OK" src="../web/images/blank.gif" id="imgButtonOK" border="0"></td>
+                        <td class="Button_text Button_width" id="tdButtonOK">OK</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_LeftAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonCancel"
+                    class="ButtonLink"
+                    onclick="closeProcessPayment();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../web/images/blank.gif" id="imgButtonCancel" border="0"></td>
+                        <td class="Button_text Button_width" id="tdButtonCancel">Cancel</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_top">
+          <table cellspacing="0" cellpadding="0" style="border:0 none;margin-top:5px;margin-left:auto;margin-right:auto;margin-bottom:5px;width:950px;border-collapse:collapse;">
+
+            <tr>
+              <td width="300px" class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td ></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td ></td>
+            </tr>
+
+            <!-- Text -->
+            
+            <!-- Line 1 -->
+            <tr>
+              <td width="300px" class="TitleCell"><span name="lblP" id="lblPPayingTo" class="LabelText">To Be Paid To</span><span name="lblR" id="lblRReceivingFrom" class="LabelText">Received From</span></td>
+              <td class="TextBox_ContentCell" colspan="2"><input class="readonly dojoValidateValid TextBox_OneCell_width" type="text" name="inpBusinessPartner" value="" id="paramBusinessPartner"></input>
+              <input type="hidden" name="inpBusinessPartnerId" value="" id="paramBusinessPartnerId"></input></td>
+            </tr>
+            
+            <!-- Line hidden -->
+            <tr style="display:none;">
+              <td width="300px" class="TitleCell"><span name="lblP" id="lblPExpectedPaym" class="LabelText">Expected Payment Out</span><span name="lblR" id="lblRExpectedPaym" class="LabelText">Expected Payment In</span></td>
+              <td class="TextBox_ContentCell"> <input class="readonly dojoValidateValid required TextBox_OneCell_width number" type="text" id="paramExpectedPayment" name="inpExpectedPayment" value="" onchange="updateDifference();"></input>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td width="300px" class="TitleCell"><span class="LabelText">Expected Converted</span></td>
+              <td class="TextBox_ContentCell"> <input class="readonly dojoValidateValid required TextBox_OneCell_width number" type="text" id="paramExpectedConverted" name="inpExpectedConverted" value="" onchange="" disabled="true"></input>
+              </td>
+              <td class="TitleCell"></td>
+            </tr>
+
+            <!-- Line 2 -->
+            <tr>
+              <td width="300px" class="TitleCell"><span name="lblP" id="lblPActualPaymentOut" class="LabelText">Actual Payment Out</span><span name="lblR" id="lblRActualPaymentIn" class="LabelText">Actual Payment In</span></td>
+              <td class="TextBox_btn_ContentCell">
+                  <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                    <tr>
+                      <td class="Textbox_ContentCell">
+                        <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" outputformat="euroEdition" onchange="actualPaymentOnChange();return true;" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" name="inpActualPayment" maxlength="22" value="" required="true" class="dojoValidateValid required TextBox_btn_OneCell_width number" id="paramActualPayment"/>
+                          </td></tr>
+                        </table>
+                        <span id="paramActualPaymentinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                          <table class="TextBox_MsgContainer_table">
+                            <tbody><tr class="TextBox_MsgContainer_tr">
+                              <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                            </tr>
+                            <tr>
+                              <td class="invalid" colspan="2"><div name="invalidText" id="paramActualPaymentinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                            </tr>
+                          </tbody></table>
+                        </span>
+                      </td>
+                      <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Amount From'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpActualPayment', document.frmMain.inpActualPayment.value, false);return false;">
+                      <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                      </td>
+                    </tr>
+                  </table>
+                  
+              </td>
+              
+              <td width="50px"  align="left">
+                <input type="hidden" id="paramFinancialAccountCurrency2Id" name="financialAccountCurrency2Id" value=""/>
+                <input type="hidden" id="paramFinancialAccountCurrency2Precision" name="inpFinancialAccountCurrency2Precision" value="2"/>
+                <input width="50px" style="text-align: left;" class="readonly TextBox_OneCell_width" type="text" id="paramFinancialAccountCurrency2Name" name="paramFinancialAccountCurrency2Name" value=""></input>
+              </td>
+              <td width="50px"></td>
+              
+              <td width="300px" class="TitleCell"><span class="LabelText" id="lblExchangeRate">Exchange Rate</span></td>
+              <td class="TextBox_ContentCell"> 
+                <input type="hidden" class="dojoValidateValid required TextBox_OneCell_width number" type="text" id="paramExchangeRate" name="inpExchangeRate" value="" onchange="updateConvertedAmounts(); loadGridList(); " disabled="true"></input>
+                <input class="dojoValidateValid required TextBox_OneCell_width number" type="text" id="paramAltExchangeRate" name="inpAltExchangeRate" value="" disabled="true"></input>
+              </td>
+              <td width="50px"  align="left" class="TextBox_ContentCell">
+                <input type="hidden" id="paramCurrencyId" name="inpCurrencyId" value=""/>
+                <input width="50px" style="text-align: left;" class="readonly dojoValidateValid required TextBox_OneCell_width" type="text" id="paramCurrencyName" name="paramCurrencyName" value=""></input>
+              </td>
+              
+            </tr>
+
+            <!-- Line 3  multicurrency-->
+            <tr  style="display:none;" >
+              <td class="TitleCell"><span class="LabelText" id="lblActualConverted">Actual Converted</span></td>
+              <td class="TextBox_ContentCell"> <input class="dojoValidateValid required TextBox_OneCell_width number" type="text" id="paramActualConverted" name="inpActualConverted" value="" onchange="updateConvertedAmounts(true); " disabled="true" ></input>
+              </td>
+              <td width="50px" align="left">
+                <input type="hidden" id="paramFinancialAccountCurrencyId" name="financialAccountCurrencyId" value=""/>
+                <input type="hidden" id="paramFinancialAccountCurrencyPrecision" name="inpFinancialAccountCurrencyPrecision" value="2"/>
+                <input width="50px" style="text-align: left;"  class="readonly dojoValidateValid required TextBox_OneCell_width" type="text" id="paramFinancialAccountCurrencyName" name="paramFinancialAccountCurrencyName" value=""></input>
+              </td>
+              <td width="50px"></td>
+              
+              <td class="TitleCell"><span class="LabelText" name="lbl" id="lblCredit">Available Credit</span></td>
+              <td class="TextBox_ContentCell"><input class="readonly dojoValidateValid TextBox_OneCell_width number" type="text" name="inpCredit" value="0" id="paramCredit"></input></td>
+              <td class="TitleCell"><span class="LabelText" name="lbl" id="lblUseCredit">Use Available Credit</span></td>
+              <td class="Radio_Check_ContentCell"><span class="Checkbox_container_NOT_Focused"><input type="checkbox" name="inpUseCredit" value="Y" id="paramUseCredit" onclick="useCreditOnChange();"></input></span></td>
+              
+              
+            </tr>
+
+
+            <tr class="FieldGroup_BottomMargin"></tr>
+            
+            <!-- Table filters -->
+            <tr>
+              <td width="300px" class="TitleCell"><span class="LabelText">Transaction Type</span></td>
+              <td class="Combo_ContentCell">
+                <select id="paramDocumentType" name="inpDocumentType" class="ComboKey Combo_OneCell_width" onchange="documentTypeOnChange(this.value);">
+                  <option value="O" id="PaymentOutOptionO">Orders</option> 
+                  <option value="I" selected="selected">Invoices</option>
+                  <!-- <option value="B">Orders and Invoices</option> -->
+                  <option value="G" id="PaymentOutOptionG">GL Items</option>
+                   <option value="A" id="PaymentOutOptionA">Doc. Varios</option> 
+                   <!-- <option value="E" id="PaymentOutOptionE">Entregas a Rendir</option> --> 
+                </select>
+              </td>
+              <td colspan="2"></td>
+              <td width="300px" class="TitleCell" id="ExpectedDateFromLbl" ><span class="LabelText">Expected Date From</span></td>
+              <td class="TextBox_btn_ContentCell" id="ExpectedDateFrom">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" 
+                          id="paramExpectedDateFrom" 
+                          class="dojoValidateValid TextBox_btn_OneCell_width" 
+                          value="" 
+                          maxlength="10" 
+                          name="inpExpectedDateFrom" 
+                          onkeyup="autoCompleteDate(this, this.displayFormat);return true;" 
+                          onkeydown="changeToEditingMode('onkeydown');" 
+                          onkeypress="changeToEditingMode('onkeypress');" 
+                          oncut="changeToEditingMode('oncut');" 
+                          onpaste="changeToEditingMode('onpaste');" 
+                          oncontextmenu="changeToEditingMode('oncontextmenu');" 
+                          onblur="expandDateYear(this.id);" 
+                          onchange="validateDateTextBox(this.id); validateDate(this); return true;" 
+                          displayFormat="xx" 
+                          saveFormat="xx"></input>
+                          <script>djConfig.searchIds.push("paramExpectedDateFrom");</script>
+                        </td></tr>
+                      </table>
+                      <span id="paramExpectedDateFrominvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr"><td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td></tr>
+                          <tr><td class="invalid" colspan="2"><div name="invalidText" id="paramExpectedDateFrominvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td></tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpExpectedDateFrom', document.frmMain.inpExpectedDateFrom.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td width="300px" class="TitleCell" id="GLItemSelectorLbl"><span class="LabelText">GL Item</span></td>
+              <td class="TextBox_ContentCell" colspan="2" id="GLItemSelector">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Glitem_ID = null;</script>
+                      <input type="hidden" name="inpcGlitemId" id="C_Glitem_ID" value="" onreset="sc_C_Glitem_ID.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_C_Glitem_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/350EE26A0F4E46B09942FCE3D35278E4?columnName=C_Glitem_ID&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=true&WithTabFix=yes"></script> 
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="TitleCell" id="inpAlternativeLabel"><span class="TitleCell LabelText"><label name="lblP" id="lblPShowPaym" for="paramAlternativePaymentMethod">Todos</label></span><span class="TitleCell LabelText"><label name="lblR" id="lblRShowPaym" for="paramAlternativePaymentMethod">Todos</label></span></td>
+              <td class="Radio_Check_ContentCell" id="inpAlternativeChkBox">
+              <span class="Radio_Check_ContentCell Checkbox_container_NOT_Focused"><input type="checkbox" name="inpAlternativePaymentMethod" value="Y" id="paramAlternativePaymentMethod" onclick="loadGridList()"></input></span>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell" id="ExpectedDateToLbl"><span class="LabelText">Expected Date To</span></td>
+              <td class="TextBox_btn_ContentCell" id="ExpectedDateTo">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" id="paramExpectedDateTo" class="dojoValidateValid TextBox_btn_OneCell_width" value="" maxlength="10" name="inpExpectedDateTo" onkeyup="autoCompleteDate(this);" onkeydown="changeToEditingMode('onkeydown');" onkeypress="changeToEditingMode('onkeypress');" oncut="changeToEditingMode('oncut');" onpaste="changeToEditingMode('onpaste');" oncontextmenu="changeToEditingMode('oncontextmenu');" onblur="expandDateYear(this.id);" onchange="validateDateTextBox(this.id); validateDate(this);return true;" displayFormat="xx" saveFormat="xx"></input>
+                          </td></tr>
+                      </table>
+                      <span id="paramExpectedDateToinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr"><td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td></tr>
+                          <tr><td class="invalid" colspan="2"><div name="invalidText" id="paramExpectedDateToinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td></tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpExpectedDateTo', document.frmMain.inpExpectedDateTo.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+            </tr>
+            
+            <tr>                            
+              <td class="TitleCell" id="paramOrderDocNoLbl"><span class="LabelText">Nº Documento Físico</span></td>
+              <td class="TextBox_ContentCell"  id="paramOrderDocNoTd">
+                  <input class="dojoValidateValid TextBox_OneCell_width" id="paramOrderDocNo" type="text" size="40" maxlenght="100" name="inpOrderDocNo" value="" onchange="loadGridList(); return true;" ></input>
+                    <script>djConfig.searchIds.push("paramOrderDocNo");</script>
+              </td>
+              <td class="TextBox_ContentCell"  id="paramCContableTd">
+                  <input class="dojoValidateValid TextBox_OneCell_width" id="paramCContable" type="text" size="40" maxlenght="100" name="inpCContable" value="" onchange="loadGridList(); return true;" placeholder="Cuenta Contable"></input>
+                    <script>djConfig.searchIds.push("paramCContable");</script>
+              </td>              
+              <td class="TitleCell"></td>
+              
+              <td class="TitleCell"><span class="LabelText"id="lblBpartnerfilterRow">Business Partner</span></td>
+              <td class="TextBox_ContentCell" colspan="1" id="dataBpartnerfilterRow">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                     <script>var sc_C_BPartner_ID = null;</script>
+                      <input type="hidden" name="inpcBPartnerId" id="C_BPartner_ID" value="" onreset="sc_C_BPartner_ID.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_C_BPartner_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/5EB6DEA1790E46B49A5F1560CBBF135B?columnName=C_BPartner_ID&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=true&callOut=loadGridList&WithTabFix=yes"></script>                     
+                    </td>
+                  </tr>
+                </table>
+                </td>
+                
+                <td class="TitleCell"><span class="TitleCell LabelText" id="lblShowFinacct" style="display:none"><label for="paramAllFinancialAccount">Show payments out with no financial accounts</label></span></td>
+              <td class="Radio_Check_ContentCell" id="inpAllChkBox">
+              <span class="Radio_Check_ContentCell Checkbox_container_NOT_Focused"><input type="checkbox" name="inpAllFinancialAccount" value="Y" id="paramAllFinancialAccount" onclick="loadGridList()" style="display:none"></input></span>
+              </td>
+              
+              
+            </tr>
+          
+
+            <tr id="glitemRow">
+              <td class="TitleCell"><span class="LabelText">Received In</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="Textbox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                        <input type="text" id="paramGLItemReceivedInAmount" class="dojoValidateValid required TextBox_btn_OneCell_width number"  value="0" maxlength="22" name="inpGLItemReceivedInAmount" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" onchange="" oncontextmenu="changeToEditingMode('oncontextmenu');" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" outputformat="euroEdition"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramGLItemReceivedInAmountinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr">
+                            <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                          </tr>
+                          <tr>
+                            <td class="invalid" colspan="2"><div name="invalidText" id="paramGLItemReceivedInAmountinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                          </tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Amount'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpGLItemReceivedInAmount', document.frmMain.inpGLItemReceivedInAmount.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"><span class="LabelText">Paid Out</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="Textbox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                        <input type="text" id="paramGLItemPaidOutAmount" class="dojoValidateValid required TextBox_btn_OneCell_width number"  value="0" maxlength="22" name="inpGLItemPaidOutAmount" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" onchange="" oncontextmenu="changeToEditingMode('oncontextmenu');" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" outputformat="euroEdition"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramGLItemPaidOutAmountinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr">
+                            <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                          </tr>
+                          <tr>
+                            <td class="invalid" colspan="2"><div name="invalidText" id="paramGLItemPaidOutAmountinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                          </tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Amount'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpGLItemPaidOutAmount', document.frmMain.inpGLItemPaidOutAmount.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+            </tr>
+            
+             <tr id="descriptionGlitem">
+                 <td id="description_dim_label" class="TitleCell"><span class="LabelText">Descripcion</span></td>
+              <td id="description_dim_inp" class="TextBox_ContentCell" colspan="5">
+                <table style="border:0px;border-collapse:collapse;" width="100%">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <input style="width:100%" type="text" id="description_dim" class="dojoValidateValid TextBox_btn_OneCell_width" value="" maxlength="255" name="inpDescription">
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            
+              <tr id="acctDimensionsTitle">
+              <td colspan="7">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"></tr>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">Accounting Dimensions</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"></td>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"></tr>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+            <tr id="GLItemSection1_Dim">
+              <!-- Project Dimension -->
+              <td id="c_project_id_dim_label" class="TitleCell"><span class="LabelText">Project</span></td>
+              <td id="c_project_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Project_ID = null;</script>
+                      <input type="hidden" name="inpCProjectId" id="C_Project_ID" value="" onreset="sc_C_Project_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Project_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312D569C01312D90408D005D?columnName=C_Project_ID&disabled=false&DisplayLength=45.0&required=false&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td></td>
+              <!-- Activity Dimension -->
+              <td id="c_activity_id_dim_label" class="TitleCell"><span class="LabelText">Activity</span></td>
+              <td id="c_activity_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Activity_ID = null;</script>
+                      <input type="hidden" name="inpCActivityId" id="C_Activity_ID" value="" onreset="sc_C_Activity_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Activity_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312D569C01312D8C1EC40036?columnName=C_Activity_ID&disabled=false&CssSize=OneCell&DisplayLength=45.0&required=false&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>             
+              
+            </tr>
+            <tr id="GLItemSection2_Dim">
+              <!-- Product Dimension -->
+              <td id="m_product_id_dim_label" class="TitleCell"><span class="LabelText">Product</span></td>
+              <td id="m_product_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_M_Product_ID = null;</script>
+                      <input type="hidden" name="inpMProductId" id="M_Product_ID" value="" onreset="sc_M_Product_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_M_Product_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312DA8D801312DDE869B000C?columnName=M_Product_ID&disabled=false&CssSize=OneCell&DisplayLength=45.0&required=false&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td></td>
+              <!-- Campaign Dimension -->
+              <td id="c_campaign_id_dim_label" class="TitleCell"><span class="LabelText">Campaign</span></td>
+              <td id="c_campaign_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Campaign_ID = null;</script>
+                      <input type="hidden" name="inpCampaignId" id="C_Campaign_ID" value="" onreset="sc_C_Campaign_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Campaign_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312D569C01312D8DCCD50045?columnName=C_Campaign_ID&disabled=false&CssSize=OneCell&DisplayLength=45.0&required=false&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              
+            </tr>
+            <tr id="GLItemSection3_Dim">
+              <!-- Business Partner Dimension -->
+              <td id="c_bpartner_id_dim_label" class="TitleCell"><span class="LabelText">Business Partner</span></td>
+              <td id="c_bpartner_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_BPartner_ID_dim = null;</script>
+                      <input type="hidden" name="inpCBPartnerId_dim" id="C_BPartner_ID_dim" value="" onreset="sc_C_BPartner_ID_dim.resetSelector();" ></input>
+                     <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/5EB6DEA1790E46B49A5F1560CBBF135B?columnName=C_BPartner_ID_dim&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=false&WithTabFix=yes"></script>
+                     
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td></td>
+              <!-- Cost center Dimension -->
+              <td id="c_costcenter_id_dim_label" class="TitleCell" ><span class="LabelText">Centro de Costos</span></td>
+              <td id="c_costcenter_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Costcenter_ID = null;</script>
+                      <input type="hidden" name="inpCCostcenterId" id="C_Costcenter_ID" value="" onreset="sc_C_Costcenter_ID.resetSelector();"></input>                      
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/0B6B0F0971C843289DA6CC8B9FC049CF?columnName=C_Costcenter_ID&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=false&restrictadorgid=inpadOrgId&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              
+            </tr>
+            <tr id="GLItemSection4_Dim">
+              <!-- User1 Dimension -->
+              <td id="user1_id_dim_label" class="TitleCell"><span class="LabelText">1st Dimension</span></td>
+              <td id="user1_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_User1_ID = null;</script>
+                      <input type="hidden" name="inpUser1Id" id="User1_ID" value="" onreset="sc_User1_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_User1_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/814758DD755642E9BF38BD2E5AD713EC?columnName=User1_ID&disabled=false&CssSize=OneCell&DisplayLength=45.0&required=false&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td></td>
+              <!-- User2 Dimension -->
+              <td id="user2_id_dim_label" class="TitleCell"><span class="LabelText">2nd Dimension</span></td>
+              <td id="user2_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_User2_ID = null;</script>
+                      <input type="hidden" name="inpUser2Id" id="User2_ID" value="" onreset="sc_User2_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_User2_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/BD1DA40E134A42B9889B529302A96871?columnName=User2_ID&disabled=false&CssSize=OneCell&DisplayLength=45.0&required=false&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              
+            </tr> 
+            <tr id="GLItemSection6_Dim">
+                <!-- Internal Document -->
+              <td id="sco_internal_doc_id_dim_label" class="TitleCell"><span class="LabelText">Documento Interno</span></td>
+              <td id="sco_internal_doc_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_SCO_Internal_Doc_ID = null;</script>
+                      <input type="hidden" name="inpscoInternalDocId" id="SCO_Internal_Doc_ID" value="" onreset="sc_SCO_Internal_Doc_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_SCO_Internal_Doc_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FD4E7DA209A04299B855D124AA36B190?columnName=SCO_Internal_Doc_ID&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=false&restrictadorgid=inpadOrgId&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td></td>
+              
+              <td id="sco_invoice_glref_id_dim_label" class="TitleCell"><span name="lblP" id="lblPDocGLRef" class="LabelText">Documento de Compra</span><span name="lblR" id="lblRDocGLRef" class="LabelText">Documento de Venta</span></td>
+              <td id="sco_invoice_glref_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_SCO_Invoice_Glref_ID = null;</script>
+                      <input type="hidden" name="inpscoInvoiceGlrefId" id="SCO_Invoice_Glref_ID" value="" onreset="sc_SCO_Invoice_Glref_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_SCO_Invoice_Glref_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/2C4D456752AC4FD6A2CEDE6096AE9950?columnName=SCO_Invoice_Glref_ID&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=false&restrictadorgid=inpadOrgId&restrictcurrencyid=financialAccountCurrencyId&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>          
+            <tr id="GLItemSection7_Dim">
+                <!-- Internal Document -->
+              <td id="sco_eeff_cashflow_id_dim_label" class="TitleCell"><span class="LabelText">Rub. Flujo de Efectivo</span></td>
+              <td id="sco_eeff_cashflow_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_SCO_EEFF_Cashflow_ID = null;</script>
+                      <input type="hidden" name="inpscoEeffCashflowId" id="SCO_EEFF_Cashflow_ID" value="" onreset="sc_SCO_EEFF_Cashflow_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_SCO_EEFF_Cashflow_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/42B2327E5512403A8CAC2A07ED9B6AB7?columnName=SCO_EEFF_Cashflow_ID&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=false&restrictadorgid=inpadOrgId&WithTabFix=yes"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td colspan="4"></td>
+              <td width="200px" id="glitemAddRow" >
+                <div>
+                  <button type="button"
+                    id="buttonAddGLItem"
+                    class="ButtonLink_focus"
+                    onclick="addOrEditGLItem();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='OK'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='OK'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="OK" title="OK" src="../web/images/blank.gif" id="imgButtonOK" border="0"></td>
+                        <td class="Button_text Button_width" id="tdButtonGLItem">Añadir</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              
+             </tr> 
+            <tr class="FieldGroup_BottomMargin"></tr>
+
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_middle">
+          <table height="100%" border="0" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_LeftMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdleftSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_LeftMargin"></td></tr>
+                </table>
+              </td>
+              <td valign="top">
+                <div id="client2" style="overflow: auto;">
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="gridPayment">
+                    <thead>
+                      <tr class="DataGrid_Body_Row">
+                        <th class="DataGrid_Header_LineNoCell DataGrid_Body_Cell_CheckBox" width="25"> 
+                          <input type="checkbox" name="inpAllLines" onclick="markAll(document.frmMain.inpScheduledPaymentDetailId, this.checked);updateAll(true);return true;"/>
+                        </th>
+                       <!-- <th class="DataGrid_Header_Cell" width="120"><span name="lblP" id="lblPPIN">Purchase Invoice No.</span><span name="lblR" id="lblRSIN">Sales Invoice No.</span></th> -->
+                        <th class="DataGrid_Header_Cell" width="100"><span name="lblP" id="lblPPPIN">Nº Factura Física</span><span name="lblR" id="lblPRSIN">Nº Factura Física</span></th>
+                        <th class="DataGrid_Header_Cell" width="100"><span name="lblP" id="lblPDTIN">Tipo doc.</span><span name="lblR" id="lblRDTIN">Tipo doc.</span></th>                        
+                        <th class="DataGrid_Header_Cell" width="170" id="bpGridColumn">Business Partner</th>                        
+                        <th class="DataGrid_Header_Cell" width="70">Expected Date</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="60">Imp. Facturado</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="60">Imp. al T/C</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="60">Imp. a liquidar</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="60">Imp. pendiente</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="40">Detrac. %</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="80"><span name="lblP" id="lblPPayment">Payment Out</span><span name="lblR" id="lblRPayment">Payment In</span></th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="80"><span name="lblP" id="lblPPaymentDoc">Pago doc.</span><span name="lblR" id="lblRPaymentDoc">Cobro doc.</span></th>
+                        <th class="DataGrid_Header_LineNoCell DataGrid_Body_Cell_CheckBox" width="25"> 
+                          <input type="checkbox" name="inpAllLinesRet" onclick="markAll(document.frmMain.inpScheduledPaymentDetailIdRet, this.checked);updateAllRet(true);return true;"/>
+                        </th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="80" id="detretGridColumn"><span name="lblDet" id="lblDetRet">Det/Ret</span></th>
+                        <!--   <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="80" id="descGridColumn"><span name="lblDescripcion" id="lblDescripcion">Descripcion</span></th> -->
+                      </tr>
+                    </thead>
+                    <tbody id="sectionGrid">
+                    </tbody>
+                  </table>
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="gridGLItem">
+                    <thead  id="sectionGLItemGridHeader">
+                      <tr class="DataGrid_Body_Row">                        
+                        <th class="DataGrid_Header_Cell" width="300" rowspan="2">GL Item</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100"  rowspan="2" ></th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100"  rowspan="2" ></th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100"  rowspan="2" ></th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" rowspan="2">Received In</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" rowspan="2">Paid Out</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="200" rowspan="2">Glosa</th>
+                        <th class="DataGrid_Header_LineNoCell" width="20" rowspan="2"></th>                         
+                        <th class="DataGrid_Header_LineNoCell" width="20" rowspan="2"></th>
+                      </tr>
+                      
+                    </thead>
+                    <tbody id="sectionGLItemGrid">
+                    </tbody>
+                  </table>
+                  
+                  <input type="hidden" name="inpGLSumAmount" value="0" outputformat="euroEdition"/>
+                  <input type="hidden" name="inpInvoiceAmount" value="0" outputformat="euroEdition"/>
+                  <input type="hidden" id="inpTotal" value="0" outputformat="euroEdition"/>
+                  <input type="hidden" name="inpDifference" id="inpDifference" value="0" outputformat="euroEdition"/>
+                  <table cellspacing="0" cellpadding="0" width="100%" class="" style="table-layout: auto;">
+                    <tr class="FieldGroup_BottomMargin"></tr>
+                    <tr id="totalInvoices">
+                      <td width="80%" class="LabelText" style="text-align:right">Amount on Invoices and/or Orders</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramInvoicesAmt"></span></td>
+                    </tr>
+                    <tr id="totalGLItems">
+                      <td width="80%" class="LabelText" style="text-align:right">Amount on GL Items</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramGLItemsAmt"></span></td>
+                    </tr>
+                    <tr>
+                      <td width="80%" class="LabelText" style="text-align:right">Total</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramTotal"></span></td>
+                    </tr>
+                    <tr id="sectionDifference">
+                      <td class="LabelText" style="text-align:right">There is a difference of</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramDifference"></span></td>
+                    </tr>
+                    <tr id="sectionDifferenceBox">
+                      <td></td>
+                      <td>
+                        <table id="tableDifferenceBox" cellspacing="0" cellpadding="0" width="100%" class="" style="border: #888888 2px solid; table-layout: auto;">
+                          <tr id="underpayment">
+                            <td class="Radio_Check_ContentCell" width="20">
+                              <input type="radio" name="inpDifferenceAction" value="underpayment"/>
+                            </td>
+                            <td><span class="LabelText">Leave this as an underpayment</span></td>
+                          </tr>
+                     <!--       <tr id="credit">
+                            <td class="Radio_Check_ContentCell" width="20">
+                              <input type="radio" name="inpDifferenceAction" value="credit"/>
+                            </td>
+                            <td><span class="LabelText">Leave this amount to be used later</span></td>
+                          </tr>
+                          -->
+                         <!-- <tr id="refund">
+                            <td class="Radio_Check_ContentCell" width="20">
+                              <input type="radio" name="inpDifferenceAction" value="refund"/>
+                            </td>
+                            <td><span class="LabelText">Refund amount to customer</span></td>
+                          </tr> -->
+                          <tr id="writeoff">
+                            <td class="Radio_Check_ContentCell">
+                              <input type="radio" name="inpDifferenceAction" value="writeoff"/>
+                            </td>
+                            <td><span class="LabelText">Write off the difference</span></td>
+                          </tr>
+                           <tr id="writeofflimit">
+                            <td class="Radio_Check_ContentCell" >
+                              <input type="radio" name="inpDifferenceAction" value="writeofflimit" id="radiolimit" DISABLED/>
+                            </td>
+                            <td><span class="LabelText">Write off the difference (Above limit)</span></td>
+                          </tr> 
+                          <tr id="overpayment">
+                            <td class="Radio_Check_ContentCell">
+                              <input type="radio" name="inpDifferenceAction" value="overpayment" checked="checked" checked/>
+                            </td>
+                            <td><span class="LabelText">Leave this as an overpayment</span></td>
+                          </tr>      
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+              </td>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_RightMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdrightSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_RightMargin"></td></tr>
+                </table>
+              </td>
+            </tr>
+            
+          </table>
+        </div>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto; padding-bottom: 5px;" id="client_bottom">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+            <tr>
+              <td class="TableEdition_OneCell_width" colspan="6"><hr></td>
+            </tr>
+            <tr>
+              <td class="TextBox_ContentCell" colspan="6" style="padding:5px ">
+                <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">            
+                <tr>            
+                    <td id="lblDetraccion" class="TitleCell" ><span class="LabelText"><label>Es pago por detraccion:</label></span></td>
+                    <td id="chkDetraccion" class="Radio_Check_ContentCell"><span class="Radio_Check_ContentCell Checkbox_container_NOT_Focused"><input type="checkbox" name="chkIsDetraccionPayment" id="chkIsDetraccionPayment" onclick="isPaymentDetraccion();"></input></span></td>                         
+                    <!-- <td id="soTipoDeposito" >       
+                        <table>
+                           <tr>
+                            <td class="TableEdition_OneCell_width"></td>       
+                            <td class="TableEdition_OneCell_width"></td>    
+                            <td class="TableEdition_OneCell_width"></td>
+                            <td class="TitleCell"><span class="LabelText"><label>Tipo de Pago:</label></span></td>                     
+                            <td class="TitleCell">
+                               <select id="cmbTipoPago" name="cmbTipoPago" class="ComboKey Combo_OneCell_width" onchange="changeTipoPago()">
+                                <option value="0">Deposito</option>
+                                <option value="1">Letra en Cobranza</option>
+                                <option value="2">Letra en Descuento</option>
+                               </select>
+                           </td>      
+                           </tr>
+                        </table>                                       
+                    </td> -->                       
+                    <td id="poRetencion"> 
+                      <table>            
+                        <tr>         
+                            <td class="TableEdition_OneCell_width"></td>                          
+                            <!-- <td class="LabelText" id="divRetencion" style="color: red; display: none">PAGO SUJETO A RETENCION</td> -->
+                            <!-- <td class="LabelText" id="divRetencion" style="color: red;">PAGO SUJETO A RETENCION</td> -->
+                            <td class="LabelText" id="divRetencion" style="color: red;">PAGO SUJETO A RETENCION</td>
+                            <td class="TitleCell" ><span class="LabelText"><label>Ingrese porcentaje:</label></span></td>
+                            <td class="TextBox_ContentCell"><input type="text" id="paramPorc" class="dojoValidateValid TextBox_btn_OneCell_width" value="3.0" maxlength="6" name="inpPorcRet"></input></td>
+                            <td class="LabelText"id="divMessageCalculo" colspan="2"></td>  
+                        </tr>
+                        <tr>                              
+                            <td class="TableEdition_OneCell_width"></td>
+                            <td class="TableEdition_OneCell_width"></td>     
+                            <td>                                                                
+                                <select id="cmbRetencion" name="cmbRetencion" class="ComboKey Combo_OneCell_width" onchange="calcularRetencion(this);">
+                                    <option value="0">No aplicar Retencion</option>
+                                    <option value="1">Aplicar retencion</option>
+                                    <option value="2">Aplicar detraccion</option>
+                                </select>
+                            </td>           
+                            <td class="Button_LeftAlign_ContentCell">
+                              <button type="button" 
+                                id="buttonCalcRetencion"
+                                class="ButtonLink" 
+                                onclick="calcularRetencion(this);return false;"
+                                onfocus="buttonEvent('onfocus', this); window.status='Create'; return true;"
+                                onblur="buttonEvent('onblur', this);"
+                                onkeyup="buttonEvent('onkeyup', this);"
+                                onkeydown="buttonEvent('onkeydown', this);"
+                                onkeypress="buttonEvent('onkeypress', this);"
+                                onmouseup="buttonEvent('onmouseup', this);"
+                                onmousedown="buttonEvent('onmousedown', this);"
+                                onmouseover="buttonEvent('onmouseover', this); window.status='Create'; return true;"
+                                onmouseout="buttonEvent('onmouseout', this);">
+                                <table class="Button">
+                                  <tr>
+                                    <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Process" title="Process" src="../../../../../web/images/blank.gif" border="0" /></td>
+                                    <td class="Button_text Button_width">Calcular</td>
+                                    <td class="Button_right"></td>
+                                  </tr>
+                                </table>
+                              </button>
+                            </td>     
+                            <td class="TableEdition_OneCell_width" colspan="2"></td>                                                
+                        </tr>
+                      </table>
+                    </td>                                  
+                 </tr>             
+              </table>
+             </td>
+            </tr>
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonProcess"
+                    class="ButtonLink" 
+                    onclick="bPartnerBlocked(this);return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Create'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Create'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Process" title="Process" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Process</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>              
+              <td class="Button_LeftAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonCancel" 
+                    class="ButtonLink" 
+                    onclick="closePage();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Cancel</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>                            
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_INVOICE_SALESAREA_TRG">
+    <trigger name="SSA_INVOICE_SALESAREA_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_n NUMBER;
+  v_AreaByUser VARCHAR(32);
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF (INSERTING OR UPDATING) THEN
+   IF (:NEW.SalesRep_ID IS NOT NULL AND :NEW.em_ssa_sales_area_cbo_item_id IS NULL AND :NEW.ISSOTRX='Y')THEN
+        SELECT em_ssa_sales_area_cbo_item_id 
+          INTO v_AreaByUser
+          FROM ad_user 
+         WHERE ad_user_id=:NEW.SalesRep_ID;
+
+       IF(v_AreaByUser IS NOT NULL)THEN
+         :NEW.em_ssa_sales_area_cbo_item_id:=v_AreaByUser;
+       END IF;
+
+   END IF;
+  END IF; 
+
+  
+  END SSA_INVOICE_SALESAREA_TRG
+]]></body>
+    </trigger>
+  </database>

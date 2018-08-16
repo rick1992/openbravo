@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_TRANSACT_VALSTOCK_TRG">
+    <trigger name="SWA_TRANSACT_VALSTOCK_TRG" table="M_TRANSACTION" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[  v_DateNull DATE := TO_DATE('01-01-1900', 'DD-MM-YYYY');
+  v_docstatus VARCHAR(60);
+  v_docaction VARCHAR(60);
+  v_warehouse_id VARCHAR(32); 
+  v_canceled_inoutline_id  VARCHAR(32); 
+  v_productinfo VARCHAR(200); 
+  v_stockInDay NUMBER:=0;
+  v_negativestock BOOLEAN:=false;
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+
+    IF( :NEW.movementdate < (SELECT trunc(now()) from dual))THEN --Solo entra la validaciones para insertar operaciones fuera de la fecha actual
+	IF(:NEW.movementqty<0)THEN
+             
+            SELECT M_WAREHOUSE_ID INTO v_warehouse_id FROM M_LOCATOR WHERE M_LOCATOR_ID = :NEW.M_LOCATOR_ID;
+            SELECT swa_get_stock_per_day(:NEW.ad_client_id,:NEW.m_product_id,v_warehouse_id,trunc(:NEW.movementdate)) INTO v_stockInDay from dual;
+
+ 
+           IF(v_stockInDay + :NEW.movementqty < 0)THEN
+             v_negativestock:=true;
+           END IF;
+
+
+           IF(:NEW.m_inoutline_id IS NOT NULL)THEN 
+
+           
+		SELECT docstatus, docaction , M_INOUTLINE.canceled_inoutline_id
+		  INTO v_docstatus, v_docaction , v_canceled_inoutline_id 
+		  FROM M_INOUT 
+		 INNER JOIN M_INOUTLINE ON M_INOUT.M_INOUT_ID = M_INOUTLINE.M_INOUT_ID
+		 WHERE M_INOUTLINE.M_INOUTLINE_ID = :NEW.m_inoutline_id;
+
+                 --v_canceled_inoutline_id Si es creada por anulacion no tomar en cuenta.  la validacion
+		 IF(v_docstatus = 'DR' AND v_docaction='CO' AND v_canceled_inoutline_id IS NULL AND v_negativestock)THEN
+		   SELECT value || '-' || name INTO v_productinfo FROM M_PRODUCT WHERE M_PRODUCT_ID = :NEW.M_PRODUCT_ID;
+		   RAISE_APPLICATION_ERROR(-20000, '@swa_transaction_valxday@' || ' - ' || v_productinfo);
+		 END IF;
+
+	    ELSIF(:NEW.m_movementline_id IS NOT NULL)THEN --No hacer la validacion para movimientos entre ubicaciones
+	        --EXIT;
+	    ELSIF(:NEW.m_inventoryline_id IS NOT NULL)THEN -- No hacer la validacion para ajustes por inventario
+		--EXIT;
+	    ELSE
+
+	        IF(v_negativestock)THEN
+	           SELECT value || '-' || name INTO v_productinfo FROM M_PRODUCT WHERE M_PRODUCT_ID = :NEW.M_PRODUCT_ID;
+	           RAISE_APPLICATION_ERROR(-20000, '@swa_transaction_valxday@' || ' - ' || v_productinfo);
+	        END IF;
+	      END IF;
+	   END IF; --end movement < 0
+    END IF; --end movementdate < now()
+  END IF;
+
+  END SWA_TRANSACT_VALSTOCK_TRG
+]]></body>
+    </trigger>
+  </database>

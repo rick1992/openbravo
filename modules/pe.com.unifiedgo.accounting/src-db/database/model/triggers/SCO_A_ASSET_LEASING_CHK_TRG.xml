@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_A_ASSET_LEASING_CHK_TRG">
+    <trigger name="SCO_A_ASSET_LEASING_CHK_TRG" table="A_ASSET" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF (INSERTING) THEN
+    IF(COALESCE(:NEW.em_sco_isleasing,'N') = 'Y') THEN
+      IF(:NEW.em_sco_contractnumber IS NULL
+      OR :NEW.em_sco_contractdate IS NULL
+      OR :NEW.em_sco_leasingstartdate IS NULL
+      OR :NEW.em_sco_numberoffees IS NULL
+      OR :NEW.em_sco_leasingamount  IS NULL
+      ) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetLeasingIncompleteData@') ;
+      END IF;
+    ELSE
+      :NEW.em_sco_contractnumber := NULL;
+      :NEW.em_sco_contractdate := NULL;
+      :NEW.em_sco_leasingstartdate := NULL;
+      :NEW.em_sco_numberoffees := NULL;
+      :NEW.em_sco_leasingamount := NULL;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.em_sco_isleasing,'')<>COALESCE(:NEW.em_sco_isleasing,'')
+    OR COALESCE(:OLD.em_sco_contractnumber,'')<>COALESCE(:NEW.em_sco_contractnumber,'')
+    OR COALESCE(:OLD.em_sco_contractdate,v_DateNull)<>COALESCE(:NEW.em_sco_contractdate,v_DateNull)
+    OR COALESCE(:OLD.em_sco_leasingstartdate,v_DateNull)<>COALESCE(:NEW.em_sco_leasingstartdate,v_DateNull)
+    OR COALESCE(:OLD.em_sco_numberoffees,0)<>COALESCE(:NEW.em_sco_numberoffees,0)
+    OR COALESCE(:OLD.em_sco_leasingamount,0)<>COALESCE(:NEW.em_sco_leasingamount,0)
+    ) THEN
+      IF(COALESCE(:NEW.em_sco_isleasing,'N') = 'Y') THEN
+        IF(:NEW.em_sco_contractnumber IS NULL
+        OR :NEW.em_sco_contractdate IS NULL
+        OR :NEW.em_sco_leasingstartdate IS NULL
+        OR :NEW.em_sco_numberoffees IS NULL
+        OR :NEW.em_sco_leasingamount  IS NULL
+        ) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_AssetLeasingIncompleteData@') ;
+        END IF;
+      ELSE
+        :NEW.em_sco_contractnumber := NULL;
+        :NEW.em_sco_contractdate := NULL;
+        :NEW.em_sco_leasingstartdate := NULL;
+        :NEW.em_sco_numberoffees := NULL;
+        :NEW.em_sco_leasingamount := NULL;
+      END IF;
+    END IF;
+  END IF;
+
+END SCO_A_ASSET_LEASING_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

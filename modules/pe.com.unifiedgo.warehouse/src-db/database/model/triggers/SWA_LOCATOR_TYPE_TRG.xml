@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_LOCATOR_TYPE_TRG">
+    <trigger name="SWA_LOCATOR_TYPE_TRG" table="M_LOCATOR" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_count NUMBER;
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+  IF UPDATING THEN
+
+    IF (COALESCE(:OLD.EM_OBWHS_Type,'.')<>COALESCE(:NEW.EM_OBWHS_Type,'.')) THEN
+      SELECT COUNT(*)
+        INTO v_count
+        FROM SWA_StoragePicking_Detail
+       WHERE M_Locator_ID = :NEW.M_Locator_ID;
+
+       IF v_count>0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SWA_StoragePickingDetailLines@') ;
+       END IF;
+     END IF;
+  END IF;
+
+  END SWA_LOCATOR_TYPE_TRG
+]]></body>
+    </trigger>
+  </database>

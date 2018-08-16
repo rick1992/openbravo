@@ -1,0 +1,2458 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportValuedInventoryData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+    
+  
+  <SqlMethod name="selectTransactions" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+       select 
+       '' as regnumber,
+       '' as created,
+        '' as idorganizacion,
+    '' as idperiodo,
+    '' as periodo,
+    '' as fechainicial,
+    '' as fechafinal,
+    '' as em_scr_sunatcode_ref,
+    
+    
+    
+    
+    
+        '' as idproducto,
+        '' as codigo_producto,
+        '' as producto,
+     ''as idalmacen,
+      '' as codigo_almacen,
+     '' as almacen,
+    
+      '' codigo_sunat,
+         '' desc_sunat,
+         0.0 as saldo_inicial,
+       
+       
+       * from (
+        SELECT t.AD_CLIENT_ID,t.AD_ORG_ID,ci.value,t.m_product_id product_id, m_locator.m_warehouse_id warehouse_id,t.movementdate,m_warehouse.em_scr_sunatcode,
+        '' AS serie,
+        '' AS numdoc,
+        (CASE
+            WHEN t.m_inoutline_id is not  NULL THEN 
+                (CASE WHEN gr.em_scr_physical_documentno IS  NULL THEN gr.documentno else gr.em_scr_physical_documentno END )
+            ELSE  ''
+        END )  documento,
+         (CASE  
+             WHEN t.m_inoutline_id is not  NULL THEN 
+                (CASE WHEN gr.em_scr_physical_documentno IS  NULL THEN '00' else '09' END )
+            ELSE  '00'
+        END )  t10code,
+        t.movementdate as invoicedate,
+        t.movementdate fecha,
+        EXTRACT( epoch FROM t.movementdate) fecha2,
+        sum(CASE WHEN coalesce(t.movementqty,0) >=0 THEN coalesce(t.movementqty,0)  else 0.00 END ) cantidad_in,
+        (CASE WHEN coalesce(t.movementqty,0)>0 THEN (t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_in,
+        sum(CASE WHEN t.movementqty >=0 THEN t.transactioncost else 0.00 END ) costototal_in,
+        sum(CASE WHEN t.movementqty <0 THEN abs(t.movementqty) else 0.00 END ) cantidad_out,
+        (CASE WHEN t.movementqty <0 THEN abs(t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_out,
+        sum(CASE WHEN coalesce(t.movementqty,0) <0 THEN abs(t.transactioncost) else 0.00 END ) costototal_out,
+        COALESCE(
+            (SELECT sum(coalesce(t2.movementqty,0))  qtyanterior
+                FROM m_transaction t2
+                LEFT JOIN m_locator m2 ON m2.m_locator_id=t2.m_locator_id 
+                WHERE 
+                t2.movementdate<t.movementdate
+                AND t2.m_product_id = t.m_product_id
+                AND m2.m_warehouse_id= m_locator.m_warehouse_id                
+                ),0) saldo_antes,'' saldo_final,ci.code t12code,gr.poreference referencia,
+        COALESCE(
+            (select sum(t3.transactioncost)  costoanterior
+                FROM m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id=t3.m_locator_id 
+                WHERE 
+                t3.movementdate<t.movementdate
+                AND t3.m_product_id = t.m_product_id
+                AND m3.m_warehouse_id= m_locator.m_warehouse_id ),0) costo_antes,    
+       
+        0 as costo_final,'' pcode,'' pname,'' t6code,'' t5code ,'' direccion,0 as costing,'' as datefrom, '' as dateto,
+        (CASE WHEN t.m_inoutline_id  is not null then gr.m_inout_id ELSE null  
+        END) id,
+        (CASE WHEN t.m_inoutline_id  is not null then 'gr' ELSE null  
+        END) id2, T.m_transaction_id,
+        sum(t.movementqty) cant ,coalesce(sum(t.transactioncost),0) costo
+        ,t.trxprocessdate
+        FROM m_transaction t
+        JOIN m_inoutline grline on grline.m_inoutline_id=t.m_inoutline_id
+        JOIN m_inout gr on gr.m_inout_id=grline.m_inout_id AND gr.docstatus='CO'         
+        LEFT JOIN m_locator on m_locator.m_locator_id=t.m_locator_id         
+        JOIN scr_combo_item ci on t.em_ssa_combo_item_id=ci.scr_combo_item_id 
+        JOIN m_product producto on producto.m_product_id=t.m_product_id 
+        JOIN m_warehouse on m_warehouse.m_warehouse_id = m_locator.m_warehouse_id  
+       WHERE 
+        producto.em_sco_isconsignment='N'
+        AND gr.docstatus='CO'
+        GROUP BY t.AD_CLIENT_ID,t.AD_ORG_ID,documento,t10code,invoicedate,fecha,T.m_transaction_id,t.movementdate,t.trxprocessdate,fecha2,costounit_in,costounit_out,saldo_antes,costo_antes,t12code,product_id,em_scr_sunatcode,warehouse_id,ci.value,referencia,costo_final,id,id2    
+ union 
+        SELECT t.AD_CLIENT_ID,t.AD_ORG_ID,ci.value,t.m_product_id product_id, m_locator.m_warehouse_id warehouse_id,t.movementdate,m_warehouse.em_scr_sunatcode,
+        '' AS serie,
+        '' AS numdoc,
+        (CASE  
+            WHEN t.m_inventoryline_id is not NULL  THEN inv.documentno             
+            ELSE  ''
+        END )  documento,
+        '00' t10code,
+        t.movementdate invoicedate,
+        t.movementdate fecha,
+        EXTRACT( epoch FROM t.movementdate) fecha2,
+        sum(CASE WHEN t.movementqty >=0 THEN t.movementqty  else 0.00 END ) cantidad_in,
+        (CASE WHEN t.movementqty>0 THEN (t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_in,
+        sum(CASE WHEN t.movementqty >=0 THEN t.transactioncost else 0.00 END ) costototal_in,
+        sum(CASE WHEN t.movementqty <0 THEN abs(t.movementqty) else 0.00 END ) cantidad_out,
+        (CASE WHEN t.movementqty <0 THEN abs(t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_out,
+        sum(CASE WHEN t.movementqty <0 THEN abs(t.transactioncost) else 0.00 END ) costototal_out,
+        COALESCE(
+            (SELECT sum(t2.movementqty)  qtyanterior
+                FROM m_transaction t2
+                LEFT JOIN m_locator m2 ON m2.m_locator_id=t2.m_locator_id 
+                WHERE 
+                t2.movementdate<t.movementdate
+                AND t2.m_product_id = t.m_product_id
+                AND m2.m_warehouse_id= m_locator.m_warehouse_id                
+                ),0) saldo_antes,'' saldo_final,ci.code t12code,''referencia,
+        COALESCE(
+            (select sum(t3.transactioncost)  costoanterior
+                FROM m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id=t3.m_locator_id 
+                WHERE 
+                t3.movementdate<t.movementdate
+                AND t3.m_product_id = t.m_product_id
+                AND m3.m_warehouse_id= m_locator.m_warehouse_id ),0) costo_antes,    
+       
+        0 as costo_final,'' pcode,'' pname,'' t6code,'' t5code ,'' direccion,0 as costing,'' as datefrom, '' as dateto,
+        (CASE WHEN t.m_inventoryline_id  is not null then inv.m_inventory_id 
+            ELSE null  
+        END) id,
+        (CASE 
+            WHEN t.m_inventoryline_id  is not null then 'inv'            
+            ELSE null  
+        END) id2, T.m_transaction_id, sum(t.movementqty) cant ,coalesce(sum(t.transactioncost),0) costo
+        ,t.trxprocessdate
+        FROM m_transaction t
+        
+        JOIN m_inventoryline invline on invline.m_inventoryline_id= t.m_inventoryline_id
+        LEFT JOIN m_inventory inv on inv.m_inventory_id=invline.m_inventory_id 
+        LEFT JOIN m_locator on m_locator.m_locator_id=t.m_locator_id         
+        JOIN scr_combo_item ci on t.em_ssa_combo_item_id=ci.scr_combo_item_id 
+        JOIN m_product producto on producto.m_product_id=t.m_product_id 
+        JOIN m_warehouse on m_warehouse.m_warehouse_id = m_locator.m_warehouse_id  
+       WHERE 
+        producto.em_sco_isconsignment='N'
+       
+        GROUP BY t.AD_CLIENT_ID,t.AD_ORG_ID,documento,t10code,invoicedate,fecha,t.movementdate,t.trxprocessdate,fecha2,costounit_in,costounit_out,saldo_antes,costo_antes,t12code,product_id,em_scr_sunatcode,warehouse_id,ci.value,referencia,costo_final,id,T.m_transaction_id,id2    
+
+union
+       SELECT t.AD_CLIENT_ID,t.AD_ORG_ID,ci.value,t.m_product_id product_id, m_locator.m_warehouse_id warehouse_id,t.movementdate,m_warehouse.em_scr_sunatcode,
+        '' AS serie,
+        '' AS numdoc,
+        (CASE  
+            WHEN t.m_movementline_id is not NULL  THEN mov.documentno ELSE  ''
+        END )  documento,
+        '00' t10code,
+        t.movementdate invoicedate,
+        t.movementdate fecha,
+        EXTRACT( epoch FROM t.movementdate) fecha2,
+        sum(CASE WHEN t.movementqty >=0 THEN t.movementqty  else 0.00 END ) cantidad_in,
+        (CASE WHEN t.movementqty>0 THEN (t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_in,
+        sum(CASE WHEN t.movementqty >=0 THEN t.transactioncost else 0.00 END ) costototal_in,
+        sum(CASE WHEN t.movementqty <0 THEN abs(t.movementqty) else 0.00 END ) cantidad_out,
+        (CASE WHEN t.movementqty <0 THEN abs(t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_out,
+        sum(CASE WHEN t.movementqty <0 THEN abs(t.transactioncost) else 0.00 END ) costototal_out,
+        COALESCE(
+            (SELECT sum(t2.movementqty)  qtyanterior
+                FROM m_transaction t2
+                LEFT JOIN m_locator m2 ON m2.m_locator_id=t2.m_locator_id 
+                WHERE 
+                t2.movementdate<t.movementdate
+                AND t2.m_product_id = t.m_product_id
+                AND m2.m_warehouse_id= m_locator.m_warehouse_id                
+                ),0) saldo_antes,'' saldo_final,ci.code t12code,'' referencia,
+        COALESCE(
+            (select sum(t3.transactioncost)  costoanterior
+                FROM m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id=t3.m_locator_id 
+                WHERE 
+                t3.movementdate<t.movementdate
+                AND t3.m_product_id = t.m_product_id
+                AND m3.m_warehouse_id= m_locator.m_warehouse_id ),0) costo_antes,    
+       
+        0 as costo_final,'' pcode,'' pname,'' t6code,'' t5code ,'' direccion,0 as costing,'' as datefrom, '' as dateto,
+        (CASE WHEN t.m_movementline_id is not null then mov.m_movement_id ELSE null  
+        END) id,
+        (CASE WHEN t.m_movementline_id is not null then 'mov' ELSE null  
+        END) id2, T.m_transaction_id,
+        sum(t.movementqty) cant ,coalesce(sum(t.transactioncost),0) costo
+        ,t.trxprocessdate
+        FROM m_transaction t
+        
+        JOIN m_movementline movline on movline.m_movementline_id=t.m_movementline_id
+        LEFT JOIN m_movement mov on mov.m_movement_id=movline.m_movement_id        
+        LEFT JOIN m_locator on m_locator.m_locator_id=t.m_locator_id         
+        JOIN scr_combo_item ci on t.em_ssa_combo_item_id=ci.scr_combo_item_id 
+        JOIN m_product producto on producto.m_product_id=t.m_product_id  
+        JOIN m_warehouse on m_warehouse.m_warehouse_id = m_locator.m_warehouse_id 
+       WHERE 
+        producto.em_sco_isconsignment='N'
+       
+        GROUP BY t.AD_CLIENT_ID,t.AD_ORG_ID,documento,t10code,fecha,invoicedate,t.movementdate,t.trxprocessdate,fecha2,costounit_in,costounit_out,saldo_antes,costo_antes,t12code,product_id,em_scr_sunatcode,warehouse_id,ci.value,referencia,costo_final,id,T.m_transaction_id,id2    
+
+
+union
+        
+        SELECT t.AD_CLIENT_ID,t.AD_ORG_ID,ci.value,t.m_product_id product_id, m_locator.m_warehouse_id warehouse_id,t.movementdate,m_warehouse.em_scr_sunatcode,
+        '' AS serie,
+        '' AS numdoc,
+        (CASE              
+            WHEN t.m_productionline_id is not NULL  THEN prod.documentno ELSE  ''
+        END )  documento,
+        '00'  t10code,
+        t.movementdate invoicedate,
+        t.movementdate fecha,
+        EXTRACT( epoch FROM t.movementdate) fecha2,
+        sum(CASE WHEN t.movementqty >=0 THEN t.movementqty  else 0.00 END ) cantidad_in,
+        (CASE WHEN t.movementqty>0 THEN (t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_in,
+        sum(CASE WHEN t.movementqty >=0 THEN t.transactioncost else 0.00 END ) costototal_in,
+        sum(CASE WHEN t.movementqty <0 THEN abs(t.movementqty) else 0.00 END ) cantidad_out,
+        (CASE WHEN t.movementqty <0 THEN abs(t.transactioncost::FLOAT/t.movementqty ) else 0.00 END ) costounit_out,
+        sum(CASE WHEN t.movementqty <0 THEN abs(t.transactioncost) else 0.00 END ) costototal_out,
+        COALESCE(
+            (SELECT sum(t2.movementqty)  qtyanterior
+                FROM m_transaction t2
+                LEFT JOIN m_locator m2 ON m2.m_locator_id=t2.m_locator_id 
+                WHERE 
+                t2.movementdate<t.movementdate
+                AND t2.m_product_id = t.m_product_id
+                AND m2.m_warehouse_id= m_locator.m_warehouse_id                
+                ),0) saldo_antes,'' saldo_final,ci.code t12code,'' referencia,
+        COALESCE(
+            (select sum(t3.transactioncost)  costoanterior
+                FROM m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id=t3.m_locator_id 
+                WHERE 
+                t3.movementdate<t.movementdate
+                AND t3.m_product_id = t.m_product_id
+                AND m3.m_warehouse_id= m_locator.m_warehouse_id ),0) costo_antes,    
+       
+        0 as costo_final,'' pcode,'' pname,'' t6code,'' t5code ,'' direccion,0 as costing,'' as datefrom, '' as dateto,
+        (CASE WHEN t.m_productionline_id is not null then prod.m_production_id ELSE null END) id,
+        (CASE WHEN t.m_productionline_id is not null then 'prod' ELSE null END) id2, T.m_transaction_id,
+        sum(t.movementqty) cant ,coalesce(sum(t.transactioncost),0) costo
+        ,t.trxprocessdate
+        FROM m_transaction t
+        JOIN m_productionline prodline on prodline.m_productionline_id=t.m_productionline_id
+        LEFT JOIN m_productionplan prodplan on prodplan.m_productionplan_id=prodline.m_productionplan_id
+        LEFT JOIN m_production prod on prod.m_production_id=prodplan.m_production_id
+        LEFT JOIN m_locator on m_locator.m_locator_id=t.m_locator_id         
+        JOIN scr_combo_item ci on t.em_ssa_combo_item_id=ci.scr_combo_item_id 
+        JOIN m_product producto on producto.m_product_id=t.m_product_id 
+        JOIN m_warehouse on m_warehouse.m_warehouse_id = m_locator.m_warehouse_id  
+       WHERE 
+        producto.em_sco_isconsignment='N'       
+        GROUP BY t.AD_CLIENT_ID,t.AD_ORG_ID,documento,t10code,fecha,invoicedate,t.movementdate,t.trxprocessdate,fecha2,costounit_in,costounit_out,saldo_antes,costo_antes,t12code,product_id,em_scr_sunatcode,warehouse_id,ci.value,referencia,costo_final,id,T.m_transaction_id,id2 )   tabla1
+    WHERE 
+        tabla1.AD_CLIENT_ID IN ('1')
+        AND tabla1.AD_ORG_ID IN('1')
+        AND tabla1.value not in ('1')
+        AND tabla1.em_scr_sunatcode is not null
+        AND 2=2          
+    ORDER BY tabla1.warehouse_id, tabla1.product_id,tabla1.fecha,tabla1.trxprocessdate
+    
+    
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="tabla1.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND tabla1.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="movNotUsed" type="replace" optional="true" after="AND tabla1.value not in (" text="'1'"/>
+    <Parameter name="product" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.product_id=?]]></Parameter>
+    <Parameter name="warehouse" optional="false" after="AND 2=2"><![CDATA[ AND tabla1.em_scr_sunatcode=?]]></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.movementdate < TO_DATE(?)]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+    <SqlMethod name="selectMovimientosSinAlmacen" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+       
+SELECT
+    *
+FROM
+    (
+        SELECT
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL AND dt.em_sco_specialdoctype IN ('SWARTVRECEIPT', 'SCOMMSHIPMENT', 'SWAINTERNALSHIPMENT') THEN
+                            CASE 
+                              WHEN COALESCE(gr.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(gr.em_scr_physical_documentno,'-',1)
+                              ELSE ''
+                            END
+                        WHEN inv.issotrx IS NOT NULL THEN
+                            CASE 
+                              WHEN inv.issotrx='Y' THEN
+                                CASE 
+                                  WHEN COALESCE(inv.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(inv.em_scr_physical_documentno,'-',1)
+                                ELSE 
+                                  ''
+                                END
+                            ELSE
+                                CASE 
+                                  WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN
+                                    CASE 
+                                      WHEN invl.em_sim_dua_id IS NOT NULL THEN ''
+                                      WHEN inv.em_sco_dua_id IS NOT NULL THEN ''
+                                    ELSE
+                                      CASE 
+                                        WHEN COALESCE(inv.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(inv.em_scr_physical_documentno,'-',1)
+                                      ELSE 
+                                        ''
+                                      END
+                                    END
+                                ELSE 
+                                  CASE 
+                                    WHEN COALESCE(inv.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(inv.em_scr_physical_documentno,'-',1)
+                                  ELSE 
+                                    ''
+                                  END
+                                END
+                            END
+                        ELSE
+                            ''
+                        END
+                    )
+                ELSE
+                    ''
+                END
+            ) serie,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL AND dt.em_sco_specialdoctype IN ('SWARTVRECEIPT', 'SCOMMSHIPMENT', 'SWAINTERNALSHIPMENT') THEN
+                            substr(COALESCE(gr.em_scr_physical_documentno,''),strpos(COALESCE(gr.em_scr_physical_documentno,''), '-')+1)
+                        WHEN inv.issotrx IS NOT NULL THEN
+                            CASE 
+                              WHEN inv.issotrx='Y' THEN substr(COALESCE(inv.em_scr_physical_documentno,''),strpos(COALESCE(inv.em_scr_physical_documentno,''), '-')+1)
+                            ELSE
+                                CASE 
+                                  WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN
+                                    CASE 
+                                      WHEN invl.em_sim_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = invl.em_sim_dua_id LIMIT 1)
+                                      WHEN inv.em_sco_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = inv.em_sco_dua_id LIMIT 1)
+                                    ELSE
+                                      substr(COALESCE(inv.em_scr_physical_documentno,''),strpos(COALESCE(inv.em_scr_physical_documentno,''), '-')+1)
+                                    END
+                                ELSE 
+                                  substr(COALESCE(inv.em_scr_physical_documentno,''),strpos(COALESCE(inv.em_scr_physical_documentno,''), '-')+1)
+                                END
+                            END
+                            
+                        ELSE
+                            gr.documentno
+                        END
+                    )
+                ELSE
+                    ''
+                END
+            ) numdoc,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL AND dt.em_sco_specialdoctype IN ('SWARTVRECEIPT', 'SCOMMSHIPMENT', 'SWAINTERNALSHIPMENT') THEN
+                            gr.em_scr_physical_documentno
+                        WHEN inv.issotrx IS NOT NULL THEN
+                            CASE 
+                              WHEN inv.issotrx='Y' THEN inv.em_scr_physical_documentno
+                            ELSE
+                                CASE 
+                                  WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN
+                                    CASE 
+                                      WHEN invl.em_sim_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = invl.em_sim_dua_id LIMIT 1)
+                                      WHEN inv.em_sco_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = inv.em_sco_dua_id LIMIT 1)
+                                    ELSE
+                                      inv.em_scr_physical_documentno
+                                    END
+                                ELSE 
+                                  inv.em_scr_physical_documentno
+                                END
+                            END
+                        ELSE
+                            gr.documentno
+                        END
+                    )
+                ELSE
+                    ''
+                END
+            ) documento,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL AND dt.em_sco_specialdoctype IN ('SWARTVRECEIPT', 'SCOMMSHIPMENT', 'SWAINTERNALSHIPMENT') THEN
+                            '09'
+                        WHEN inv.issotrx='Y' THEN
+                            (CASE  (select dti.name FROM c_doctype dti WHERE inv.c_doctypetarget_id=dti.c_doctype_id  ) WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '00' end)
+                        WHEN inv.issotrx='N' THEN
+                          CASE 
+                           WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN '00'
+                          ELSE
+                            (select ci.code FROM scr_combo_item ci WHERE ci.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id LIMIT 1)
+                          END
+                        ELSE
+                            '00'
+                        END
+                    )
+                ELSE
+                    '00'
+                END
+            ) t10code,
+            
+             (
+                          CASE WHEN gr.documentno IS NOT NULL AND dt.em_sco_specialdoctype IN ('SWARFCRECEIPT', 'SCOMMRECEIPT', 'SWARFCRECEIPT') THEN
+                                        gr.dateacct
+              WHEN gr.em_scr_physical_documentno IS NOT NULL AND dt.em_sco_specialdoctype IN ('SWARTVRECEIPT', 'SCOMMSHIPMENT', 'SWAINTERNALSHIPMENT') THEN
+                    gr.dateacct
+              WHEN inv.issotrx='Y' THEN
+                inv.dateacct
+              WHEN inv.issotrx='N' THEN
+                inv.em_sco_newdateinvoiced
+              ELSE gr.dateacct END
+                
+             ) invoicedate,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE(T .transactioncost :: FLOAT / T .movementqty,0.00)
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE(T .transactioncost,0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE(T .transactioncost :: FLOAT / T .movementqty,0.00)
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE(ABS (T .transactioncost),0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        gr.poreference referencia,
+        COALESCE (0) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+        COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            0
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .m_inoutline_id IS NOT NULL THEN
+                gr.m_inout_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .m_inoutline_id IS NOT NULL THEN
+                'gr'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T.m_transaction_id,
+        T .movementqty AS cant,
+        (0) AS costo,
+        T .trxprocessdate
+        ,T .created
+    FROM
+        m_transaction T
+    JOIN m_inoutline grline ON grline.m_inoutline_id = T .m_inoutline_id
+    JOIN m_inout gr ON gr.m_inout_id = grline.m_inout_id
+    AND gr.docstatus = 'CO'
+    JOIN ad_org org ON org.ad_org_id = gr.ad_org_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    
+    JOIN c_doctype dt ON dt.c_doctype_id=gr.c_doctype_id 
+    LEFT JOIN c_invoiceline invl ON invl.m_inoutline_id = grline.m_inoutline_id
+    LEFT JOIN c_invoice inv ON inv.c_invoice_id=invl.c_invoice_id AND inv.docstatus='CO'
+    
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+    AND gr.docstatus = 'CO'
+    UNION
+        SELECT
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+            '' AS serie,
+            (
+                CASE
+                WHEN T .m_inventoryline_id IS NOT NULL THEN
+                    inv.documentno
+                ELSE
+                    ''
+                END
+            ) numdoc,            
+            (
+                CASE
+                WHEN T .m_inventoryline_id IS NOT NULL THEN
+                    inv.documentno
+                ELSE
+                    ''
+                END
+            ) documento,
+            '00' t10code,
+            inv.movementdate invoicedate,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE(T .transactioncost :: FLOAT / T .movementqty,0.00)
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE(T .transactioncost,0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE(T .transactioncost :: FLOAT / T .movementqty,0.00)
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE(ABS (T .transactioncost),0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        '' referencia,
+        (0) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+        COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            coalesce
+            ((
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .movementdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),0)
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .m_inventoryline_id IS NOT NULL THEN
+                inv.m_inventory_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .m_inventoryline_id IS NOT NULL THEN
+                'inv'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T.m_transaction_id,
+        T .movementqty cant,
+        (0) costo,
+        T .trxprocessdate
+                ,T .created
+        
+    FROM
+        m_transaction T
+    JOIN m_inventoryline invline ON invline.m_inventoryline_id = T .m_inventoryline_id
+    LEFT JOIN m_inventory inv ON inv.m_inventory_id = invline.m_inventory_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+    UNION
+        
+        SELECT
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+            '' AS serie,
+            (
+                CASE
+                WHEN T .m_productionline_id IS NOT NULL THEN
+                    prod.documentno
+                ELSE
+                    ''
+                END
+            ) numdoc,   
+            (
+                CASE
+                WHEN T .m_productionline_id IS NOT NULL THEN
+                    prod.documentno
+                ELSE
+                    ''
+                END
+            ) documento,
+            '00' t10code,
+            prod.movementdate invoicedate,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE(T .transactioncost :: FLOAT / T .movementqty,0.00)
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE(T .transactioncost,0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE(T .transactioncost :: FLOAT / T .movementqty,0.00)
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE(ABS (T .transactioncost),0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        '' referencia,
+        COALESCE (
+            (
+                SELECT
+                    COALESCE(SUM (t3.transactioncost),0.00) costoanterior
+                FROM
+                    m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id = t3.m_locator_id
+                WHERE
+                    t3.movementdate < T .movementdate
+                AND t3.m_product_id = T .m_product_id
+                AND m3.m_warehouse_id = m_locator.m_warehouse_id
+            ),
+            0
+        ) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+                COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            coalesce
+            ((
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .movementdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),0)
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .m_productionline_id IS NOT NULL THEN
+                prod.m_production_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .m_productionline_id IS NOT NULL THEN
+                'prod'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T.m_transaction_id,
+        T .movementqty cant,
+        (0) costo,
+        T .trxprocessdate
+                ,T .created
+        
+    FROM
+        m_transaction T
+    JOIN m_productionline prodline ON prodline.m_productionline_id = T .m_productionline_id
+    LEFT JOIN m_productionplan prodplan ON prodplan.m_productionplan_id = prodline.m_productionplan_id
+    LEFT JOIN m_production prod ON prod.m_production_id = prodplan.m_production_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+        
+        
+        
+        UNION 
+
+
+
+
+
+
+
+
+        SELECT
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+            '' AS serie,
+            (
+                CASE
+                WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                    smc.documentno
+                ELSE
+                    ''
+                END
+            ) numdoc,  
+            (
+                CASE
+                WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                    smc.documentno
+                ELSE
+                    ''
+                END
+            ) documento,
+            '00' t10code,
+            T.movementdate invoicedate,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE (T .transactioncost, 0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE (
+                    ABS (T .transactioncost),
+                    0.00
+                )
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        '' referencia,
+        COALESCE (
+            (
+                SELECT
+                    COALESCE (
+                        SUM (t3.transactioncost),
+                        0.00
+                    ) costoanterior
+                FROM
+                    m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id = t3.m_locator_id
+                WHERE
+                    t3.movementdate < T .movementdate
+                AND t3.m_product_id = T .m_product_id
+                AND m3.m_warehouse_id = m_locator.m_warehouse_id
+            ),
+            0
+        ) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+        COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            COALESCE (
+                (
+                    SELECT
+                        mc. COST
+                    FROM
+                        m_costing mc
+                    WHERE
+                        mc.m_product_id = T .m_product_id
+                    AND T .movementdate :: DATE BETWEEN mc.datefrom :: DATE
+                    AND mc.dateto :: DATE
+                    ORDER BY
+                        created ASC
+                    LIMIT 1
+                ),
+                0
+            )
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                smc.swa_movementcode_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                'movcode'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T .m_transaction_id,
+        T .movementqty cant,
+        (0) costo,
+        T .trxprocessdate,
+        T .created
+    FROM
+        m_transaction T
+    inner join swa_movementcode_product smcpr on smcpr.swa_movementcode_product_id = T.em_swa_movcode_product_id
+    inner join swa_movementcode_plan smcp on  smcpr.swa_movementcode_plan_id = smcp.swa_movementcode_plan_id
+    inner join swa_movementcode smc on smcp.swa_movementcode_id=smc.swa_movementcode_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+
+
+
+
+        
+        
+        
+        
+    ) tabla1
+    WHERE
+       
+        tabla1.AD_CLIENT_ID IN ('1')
+        AND tabla1.AD_ORG_ID IN('1')
+        AND tabla1.value not in ('1')
+        AND 2=2          
+    ORDER BY tabla1.warehouse_id, tabla1.product_id,tabla1.fecha,tabla1.created,tabla1.trxprocessdate
+    
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="tabla1.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND tabla1.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="movNotUsed" type="replace" optional="true" after="AND tabla1.value not in (" text="'1'"/>
+    <Parameter name="product" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.product_id=?]]></Parameter>
+    <Parameter name="warehouse" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.warehouse_id=?]]></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.movementdate < TO_DATE(?)]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="selectHeader" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT  p.value pcode,p.name pname,c.em_ssa_code||' - '||ctrl.name t6code, ci.code AS t5code ,w.name as  direccion,0 costing,'' datefrom,'' dateto 
+        FROM m_product p 
+        JOIN  c_uom c on p.c_uom_id=c.c_uom_id
+        LEFT JOIN prdc_productgroup cat ON p.em_prdc_productgroup_id=cat.prdc_productgroup_id
+        left join scr_combo_item ci on cat.em_sco_codtabla5_cmb_item_id=ci.scr_combo_item_id
+        LEFT JOIN c_uom_trl ctrl on c.c_uom_id=ctrl.c_uom_id
+        ,m_warehouse w 
+        JOIN c_location l ON w.c_location_id = l.c_location_id 
+        WHERE
+        m_product_id=?
+        AND m_warehouse_id=?        
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="product"/>
+    <Parameter name="warehouse"/>
+    <!--Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/-->
+    <!--Parameter name="adUserOrg" type="replace" optional="true" after="AND AD_ORG_ID IN(" text="'1'"/-->
+    <!--Parameter name="orgFamily" type="replace" optional="true" after="AND r.AD_ORG_ID IN(" text="'2'"/-->
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  <SqlMethod name="selectCosting" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT cost costing,EXTRACT( epoch FROM datefrom) datefrom,EXTRACT( epoch FROM dateto) dateto
+        FROM m_costing 
+        WHERE 
+        m_product_id=?
+        AND (m_warehouse_id is null OR m_warehouse_id=?)
+        AND AD_CLIENT_ID IN ('1')
+        AND AD_ORG_ID IN('1')
+        AND 1=1
+        ORDER BY datefrom
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="product" />
+    <Parameter name="warehouse" />
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND datefrom >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND dateto < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="orgFamily" type="replace" optional="true" after="AND r.AD_ORG_ID IN(" text="'2'"/-->
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>  
+  <SqlMethod name="mProductDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    SELECT VALUE ||' - '||NAME FROM M_PRODUCT
+    WHERE M_PRODUCT_ID = ?
+    ]]></Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+  
+  
+  
+   <SqlMethod name="mWarehouseDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    SELECT VALUE ||' - '||NAME FROM m_warehouse
+    WHERE m_warehouse_id = ?
+    ]]></Sql>
+    <Parameter name="mWarehouseId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSunatCode" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT em_scr_sunatcode
+        FROM m_warehouse
+        WHERE m_warehouse_id = ?        
+      ]]></Sql>
+    <Parameter name="warehouseId"/>
+  </SqlMethod>
+  
+  
+    <SqlMethod name="selectSunatDescription" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT em_scr_sunatdescription
+        FROM m_warehouse
+        WHERE em_scr_sunatcode = ?    and em_scr_sunatdescription<>''    limit 1
+      ]]></Sql>
+    <Parameter name="sunatcode"/>
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="selectSaldoAnterior" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+     SELECT
+
+        COALESCE((select mc.cost from m_costing mc where ( TO_DATE(?) BETWEEN mc.datefrom and mc.dateto ) and 
+        mc.m_product_id = mt2.m_product_id order by mc.created desc limit 1),0) AS costounit_in,
+
+            SUM (mt2.movementqty) AS cantidad_in 
+
+        FROM
+            m_transaction mt2
+         LEFT JOIN m_locator ml2 on ml2.m_locator_id=mt2.m_locator_id      
+        left JOIN m_warehouse mwh2 on mwh2.m_warehouse_id = ml2.m_warehouse_id 
+        WHERE
+            mt2.AD_CLIENT_ID IN ('1')
+            AND mt2.AD_ORG_ID IN('1') and
+            mt2.m_product_id = ?
+            AND mwh2.m_warehouse_id = ?
+        AND 1=1
+
+            GROUP BY mt2.m_product_id 
+            
+    
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+        <Parameter name="fecha1"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="mt2.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mt2.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="productId"/>
+    <Parameter name="sunatCode"/>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[ AND mt2.movementdate < TO_DATE(?)]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+   <SqlMethod name="SelectPrecioCosting" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+
+        select mc.cost as costing from m_costing mc 
+        
+        where ( TO_DATE(?) BETWEEN mc.datefrom::DATE and mc.dateto::DATE ) and 
+        mc.AD_CLIENT_ID IN ('1')
+            AND mc.AD_ORG_ID IN('1')
+        and mc.m_product_id = ? 
+            
+        order by mc.created desc limit 1
+    
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+        <Parameter name="fecha1"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="mc.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mc.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="productId"/>
+
+    
+  </SqlMethod>
+  
+  
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+     SELECT 
+    ao3.ad_org_id as idorganizacion,
+    cp.c_period_id as idperiodo,
+    cp.name as periodo,
+    to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+    to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+       
+    FROM c_period cp
+    INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+    LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+    on ao.social_name=ao3.social_name
+    
+    where periodtype!='A'
+    ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+
+
+
+
+
+     
+     
+     
+      <SqlMethod name="select_cabecera_final_sin_almacen" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+      
+        select 
+                (
+        
+        select 
+        
+        COALESCE(sum(mt.movementqty) ,0)
+        from m_transaction mt 
+        inner join m_locator ml on mt.m_locator_id=ml.m_locator_id 
+                where ml.m_warehouse_id=t1.warehouse_id and mt.m_product_id=t1.product_id
+                and mt.movementdate::date < to_date(?)
+                ) as saldo_final
+        ,* 
+        from (
+        select DISTINCT 
+                mp.m_product_id as product_id,
+                COALESCE(mp.value, 'no product') as pcode,
+                COALESCE(mp.name, 'sin producto')as pname,
+                mw.m_warehouse_id as warehouse_id,
+                mw.value as codigo_almacen,
+                mw.name as almacen,
+                mw.em_scr_sunatcode as codigo_sunat,
+                mw.em_scr_sunatdescription as desc_sunat
+        
+                from m_transaction t inner join m_locator loc ON t.m_locator_id=loc.m_locator_id
+                inner join m_warehouse mw ON mw.m_warehouse_id=loc.m_warehouse_id
+                left JOIN m_product mp on t.m_product_id=mp.m_product_id 
+                left JOIN  c_uom cip on mp.c_uom_id=cip.c_uom_id 
+                
+                where mw.em_scr_sunatcode is not null 
+                and mp.em_sco_isconsignment='N'
+
+                and t.AD_CLIENT_ID IN ('1')
+                and t.AD_ORG_ID IN('1') 
+                and 2=2
+                ORDER BY mw.em_scr_sunatcode,almacen,pname 
+        ) as t1
+ 
+      
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+            <Parameter name="fecha1"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="and t.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and t.AD_ORG_ID IN(" text="'1'"/>
+        <Parameter name="product" optional="true" after="and 2=2"><![CDATA[ AND t.m_product_id=?]]></Parameter>
+    
+      <Parameter name="parDateFrom" optional="true" after="and 2=2"><![CDATA[ AND t.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="and 2=2"><![CDATA[ AND t.movementdate < TO_DATE(?)]]></Parameter>
+   
+     </SqlMethod>
+     
+     
+     
+       <SqlMethod name="select_cabecera_final_con_almacen" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+        select 
+                (
+        select 
+        
+        COALESCE(sum(mt.movementqty),0)
+        from m_transaction mt 
+        inner join m_locator ml on mt.m_locator_id=ml.m_locator_id 
+        inner join m_warehouse mw on ml.m_warehouse_id=mw.m_warehouse_id
+                where mw.em_scr_sunatcode=t1.codigo_sunat and mt.m_product_id=t1.product_id
+                and mt.movementdate::date < to_date(?)
+                ) as saldo_final
+        ,* 
+        from (
+        select DISTINCT 
+                mp.m_product_id as product_id,
+                COALESCE(mp.value, 'no product') as pcode,
+                COALESCE(mp.name, 'sin producto')as pname,
+                '' as idalmacen,
+                '' as codigo_almacen,
+                '' as almacen,
+                mw.em_scr_sunatcode as codigo_sunat,
+                '' as desc_sunat
+        
+                from m_transaction t inner join m_locator loc ON t.m_locator_id=loc.m_locator_id
+                inner join m_warehouse mw ON mw.m_warehouse_id=loc.m_warehouse_id
+                left JOIN m_product mp on t.m_product_id=mp.m_product_id 
+                left JOIN  c_uom cip on mp.c_uom_id=cip.c_uom_id 
+                
+                where mw.em_scr_sunatcode is not null 
+                and mp.em_sco_isconsignment='N'
+
+                and t.AD_CLIENT_ID IN ('1')
+                and t.AD_ORG_ID IN('1')
+                and 2=2
+                ORDER BY mw.em_scr_sunatcode,pname 
+        ) as t1
+ 
+      
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+            <Parameter name="fecha1"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="and t.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and t.AD_ORG_ID IN(" text="'1'"/>
+        <Parameter name="product" optional="true" after="and 2=2"><![CDATA[ AND t.m_product_id=?]]></Parameter>
+        <Parameter name="scr_sunat" optional="true" after="and 2=2"><![CDATA[ AND mw.em_scr_sunatcode=?]]></Parameter>
+        
+        <Parameter name="parDateFrom" optional="true" after="and 2=2"><![CDATA[ AND t.movementdate >= TO_DATE(?)]]></Parameter>
+        <Parameter name="parDateTo" optional="true" after="and 2=2"><![CDATA[ AND t.movementdate < TO_DATE(?)]]></Parameter>
+   
+     </SqlMethod>
+     
+     
+     
+     
+  
+    <SqlMethod name="selectMovimientosConAlmacen" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+  SELECT
+    *
+FROM
+    (
+        SELECT 
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+                COALESCE((
+                SELECT mw.em_scr_sunatcode from swa_requerimientoreposicion rr 
+                left JOIN swa_requerepo_detail rrd on rr.swa_requerimientoreposicion_id=rrd.swa_requerimientoreposicion_id
+                left join swa_requerepo_detail rrd2 on (rrd.swa_requerepo_detail_id=rrd2.requerepo_from_line_id 
+                                    or rrd.requerepo_from_line_id=rrd2.swa_requerepo_detail_id)
+                left JOIN m_inout mio2 on rrd2.swa_requerimientoreposicion_id=mio2.em_swa_requireposicion_id
+                left JOIN m_warehouse mw on mio2.m_warehouse_id=mw.m_warehouse_id
+                
+                where  gr.em_swa_requireposicion_id=rr.swa_requerimientoreposicion_id and gr.issotrx!=mio2.issotrx limit 1
+                ),'') as em_scr_sunatcode_ref,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL
+                        AND dt.em_sco_specialdoctype IN (
+                            'SWARTVRECEIPT',
+                            
+                            'SCOMMSHIPMENT',
+                            'SWAINTERNALSHIPMENT'
+                        ) THEN
+                            CASE 
+                              WHEN COALESCE(gr.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(gr.em_scr_physical_documentno,'-',1)
+                              ELSE ''
+                            END
+                        WHEN inv.issotrx IS NOT NULL THEN
+                            CASE 
+                              WHEN inv.issotrx='Y' THEN
+                                CASE 
+                                  WHEN COALESCE(inv.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(inv.em_scr_physical_documentno,'-',1)
+                                ELSE 
+                                  ''
+                                END
+                            ELSE
+                                CASE 
+                                  WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN
+                                    CASE 
+                                      WHEN invl.em_sim_dua_id IS NOT NULL THEN ''
+                                      WHEN inv.em_sco_dua_id IS NOT NULL THEN ''
+                                    ELSE
+                                      CASE 
+                                        WHEN COALESCE(inv.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(inv.em_scr_physical_documentno,'-',1)
+                                      ELSE 
+                                        ''
+                                      END
+                                    END
+                                ELSE 
+                                  CASE 
+                                    WHEN COALESCE(inv.em_scr_physical_documentno,'') LIKE '%-%' THEN split_part(inv.em_scr_physical_documentno,'-',1)
+                                  ELSE 
+                                    ''
+                                  END
+                                END
+                            END
+                        ELSE
+                            ''
+                        END
+                    )
+                ELSE
+                    ''
+                END
+            ) serie,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL
+                        AND dt.em_sco_specialdoctype IN (
+                            'SWARTVRECEIPT',
+                            
+                            'SCOMMSHIPMENT',
+                            'SWAINTERNALSHIPMENT'
+                        ) THEN
+                            substr(COALESCE(gr.em_scr_physical_documentno,''),strpos(COALESCE(gr.em_scr_physical_documentno,''), '-')+1)
+                        WHEN inv.issotrx IS NOT NULL THEN
+                            CASE 
+                              WHEN inv.issotrx='Y' THEN substr(COALESCE(inv.em_scr_physical_documentno,''),strpos(COALESCE(inv.em_scr_physical_documentno,''), '-')+1)
+                            ELSE
+                                CASE 
+                                  WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN
+                                    CASE 
+                                      WHEN invl.em_sim_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = invl.em_sim_dua_id LIMIT 1)
+                                      WHEN inv.em_sco_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = inv.em_sco_dua_id LIMIT 1)
+                                    ELSE
+                                      substr(COALESCE(inv.em_scr_physical_documentno,''),strpos(COALESCE(inv.em_scr_physical_documentno,''), '-')+1)
+                                    END
+                                ELSE 
+                                  substr(COALESCE(inv.em_scr_physical_documentno,''),strpos(COALESCE(inv.em_scr_physical_documentno,''), '-')+1)
+                                END
+                            END
+                        ELSE
+                            gr.documentno
+                        END
+                    )
+                ELSE
+                    ''
+                END
+            ) numdoc,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL
+                        AND dt.em_sco_specialdoctype IN (
+                            'SWARTVRECEIPT',
+                            
+                            'SCOMMSHIPMENT',
+                            'SWAINTERNALSHIPMENT'
+                        ) THEN
+                            gr.em_scr_physical_documentno
+                        WHEN inv.issotrx IS NOT NULL THEN
+                            CASE 
+                              WHEN inv.issotrx='Y' THEN inv.em_scr_physical_documentno
+                            ELSE
+                                CASE 
+                                  WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN
+                                    CASE 
+                                      WHEN invl.em_sim_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = invl.em_sim_dua_id LIMIT 1)
+                                      WHEN inv.em_sco_dua_id IS NOT NULL THEN (SELECT dua.sco_duanumber FROM SCO_Dua dua WHERE dua.sco_dua_id = inv.em_sco_dua_id LIMIT 1)
+                                    ELSE
+                                      inv.em_scr_physical_documentno
+                                    END
+                                ELSE 
+                                  inv.em_scr_physical_documentno
+                                END
+                            END
+                        ELSE
+                            gr.documentno
+                        END
+                    )
+                ELSE
+                    ''
+                END
+            ) documento,
+            (
+                CASE
+                WHEN T .m_inoutline_id IS NOT NULL THEN
+                    (
+                        CASE
+                        WHEN gr.em_scr_physical_documentno IS NOT NULL
+                        AND dt.em_sco_specialdoctype IN (
+                            'SWARTVRECEIPT',
+                            'SCOMMSHIPMENT',
+                            'SWAINTERNALSHIPMENT'
+                        ) THEN
+                            '09'
+                        WHEN inv.issotrx IS NOT NULL
+                        AND inv.issotrx = 'Y' THEN
+                            (
+                                CASE (
+                                    SELECT
+                                        dti. NAME
+                                    FROM
+                                        c_doctype dti
+                                    WHERE
+                                        inv.c_doctypetarget_id = dti.c_doctype_id
+                                )
+                                WHEN 'AR Invoice' THEN
+                                    '01'
+                                WHEN 'AR Ticket' THEN
+                                    '03'
+                                WHEN 'AR Credit Memo' THEN
+                                    '07'
+                                WHEN 'Return Material Sales Invoice' THEN
+                                    '07'
+                                WHEN 'AR Debit Memo' THEN
+                                    '08'
+                                ELSE
+                                    '00'
+                                END
+                            )
+                        WHEN inv.issotrx IS NOT NULL
+                        AND inv.issotrx = 'N' THEN
+                          CASE 
+                           WHEN COALESCE(inv.EM_Sco_Purchaseinvoicetype,'')='SCO_PURIMP' THEN '00'
+                          ELSE
+                            (select ci.code FROM scr_combo_item ci WHERE ci.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id LIMIT 1)
+                          END
+                        ELSE
+                            '00'
+                        END
+                    )
+                ELSE
+                    '00'
+                END
+            ) t10code,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE (T .transactioncost, 0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE (
+                    ABS (T .transactioncost),
+                    0.00
+                )
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        gr.poreference referencia,
+        COALESCE (0) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+        COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            COALESCE (
+                (
+                    SELECT
+                        mc. COST
+                    FROM
+                        m_costing mc
+                    WHERE
+                        mc.m_product_id = T .m_product_id
+                    AND T .movementdate :: DATE BETWEEN mc.datefrom :: DATE
+                    AND mc.dateto :: DATE
+                    ORDER BY
+                        created ASC
+                    LIMIT 1
+                ),
+                0
+            )
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .m_inoutline_id IS NOT NULL THEN
+                gr.m_inout_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .m_inoutline_id IS NOT NULL THEN
+                'gr'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T .m_transaction_id,
+        T .movementqty AS cant,
+        (0) AS costo,
+        T .trxprocessdate,
+        T .created
+    FROM
+        m_transaction T
+    JOIN m_inoutline grline ON grline.m_inoutline_id = T .m_inoutline_id
+    JOIN m_inout gr ON gr.m_inout_id = grline.m_inout_id
+    JOIN ad_org org ON org.ad_org_id = gr.ad_org_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    JOIN c_doctype dt ON dt.c_doctype_id = gr.c_doctype_id
+    LEFT JOIN c_invoiceline invl ON invl.m_inoutline_id = grline.m_inoutline_id
+    LEFT JOIN c_invoice inv ON inv.c_invoice_id = invl.c_invoice_id and inv.docstatus='CO'
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+    AND gr.docstatus = 'CO'
+    UNION
+        SELECT
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+            '' as em_scr_sunatcode_ref,
+            '' AS serie,
+            (
+                CASE
+                WHEN T .m_inventoryline_id IS NOT NULL THEN
+                    inv.documentno
+                ELSE
+                    ''
+                END
+            ) numdoc, 
+            (
+                CASE
+                WHEN T .m_inventoryline_id IS NOT NULL THEN
+                    inv.documentno
+                ELSE
+                    ''
+                END
+            ) documento,
+            '00' t10code,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE (T .transactioncost, 0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE (
+                    ABS (T .transactioncost),
+                    0.00
+                )
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        '' referencia,
+        (0) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+        COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            COALESCE (
+                (
+                    SELECT
+                        mc. COST
+                    FROM
+                        m_costing mc
+                    WHERE
+                        mc.m_product_id = T .m_product_id
+                    AND T .movementdate :: DATE BETWEEN mc.datefrom :: DATE
+                    AND mc.dateto :: DATE
+                    ORDER BY
+                        created ASC
+                    LIMIT 1
+                ),
+                0
+            )
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .m_inventoryline_id IS NOT NULL THEN
+                inv.m_inventory_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .m_inventoryline_id IS NOT NULL THEN
+                'inv'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T .m_transaction_id,
+        T .movementqty cant,
+        (0) costo,
+        T .trxprocessdate,
+        T .created
+    FROM
+        m_transaction T
+    JOIN m_inventoryline invline ON invline.m_inventoryline_id = T .m_inventoryline_id
+    LEFT JOIN m_inventory inv ON inv.m_inventory_id = invline.m_inventory_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+
+
+
+
+
+
+
+
+
+
+    UNION
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        SELECT
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+            '' as em_scr_sunatcode_ref,
+            '' AS serie,
+            (
+                CASE
+                WHEN T .m_productionline_id IS NOT NULL THEN
+                    prod.documentno
+                ELSE
+                    ''
+                END
+            ) numdoc, 
+            (
+                CASE
+                WHEN T .m_productionline_id IS NOT NULL THEN
+                    prod.documentno
+                ELSE
+                    ''
+                END
+            ) documento,
+            '00' t10code,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE (T .transactioncost, 0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE (
+                    ABS (T .transactioncost),
+                    0.00
+                )
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        '' referencia,
+        COALESCE (
+            (
+                SELECT
+                    COALESCE (
+                        SUM (t3.transactioncost),
+                        0.00
+                    ) costoanterior
+                FROM
+                    m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id = t3.m_locator_id
+                WHERE
+                    t3.movementdate < T .movementdate
+                AND t3.m_product_id = T .m_product_id
+                AND m3.m_warehouse_id = m_locator.m_warehouse_id
+            ),
+            0
+        ) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+        COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            0
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .m_productionline_id IS NOT NULL THEN
+                prod.m_production_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .m_productionline_id IS NOT NULL THEN
+                'prod'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T .m_transaction_id,
+        T .movementqty cant,
+        (0) costo,
+        T .trxprocessdate,
+        T .created
+    FROM
+        m_transaction T
+    JOIN m_productionline prodline ON prodline.m_productionline_id = T .m_productionline_id
+    LEFT JOIN m_productionplan prodplan ON prodplan.m_productionplan_id = prodline.m_productionplan_id
+    LEFT JOIN m_production prod ON prod.m_production_id = prodplan.m_production_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+    
+
+
+
+
+
+
+
+
+    UNION
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        SELECT
+            T .AD_CLIENT_ID,
+            T .AD_ORG_ID,
+            ci.
+        VALUE
+            ,
+            T .m_product_id product_id,
+            m_locator.m_warehouse_id warehouse_id,
+            T .movementdate,
+            m_warehouse.em_scr_sunatcode,
+            '' as em_scr_sunatcode_ref,
+            '' AS serie,
+            (
+                CASE
+                WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                    smc.documentno
+                ELSE
+                    ''
+                END
+            ) numdoc,  
+            (
+                CASE
+                WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                    smc.documentno
+                ELSE
+                    ''
+                END
+            ) documento,
+            '00' t10code,
+            T .movementdate fecha,
+            EXTRACT (epoch FROM T .movementdate) fecha2,
+            CASE
+        WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+            COALESCE (T .movementqty, 0)
+        ELSE
+            0.00
+        END cantidad_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) > 0 THEN
+                (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_in,
+        (
+            CASE
+            WHEN COALESCE (T .movementqty, 0) >= 0 THEN
+                COALESCE (T .transactioncost, 0.00)
+            ELSE
+                0.00
+            END
+        ) costototal_in,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (T .movementqty)
+            ELSE
+                0.00
+            END
+        ) cantidad_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                ABS (
+                    COALESCE (
+                        T .transactioncost :: FLOAT / T .movementqty,
+                        0.00
+                    )
+                )
+            ELSE
+                0.00
+            END
+        ) costounit_out,
+        (
+            CASE
+            WHEN T .movementqty < 0 THEN
+                COALESCE (
+                    ABS (T .transactioncost),
+                    0.00
+                )
+            ELSE
+                0.00
+            END
+        ) costototal_out,
+        (0) saldo_antes,
+        '' saldo_final,
+        ci.code t12code,
+        '' referencia,
+        COALESCE (
+            (
+                SELECT
+                    COALESCE (
+                        SUM (t3.transactioncost),
+                        0.00
+                    ) costoanterior
+                FROM
+                    m_transaction t3
+                LEFT JOIN m_locator m3 ON m3.m_locator_id = t3.m_locator_id
+                WHERE
+                    t3.movementdate < T .movementdate
+                AND t3.m_product_id = T .m_product_id
+                AND m3.m_warehouse_id = m_locator.m_warehouse_id
+            ),
+            0
+        ) costo_antes,
+        0 AS costo_final,
+        '' pcode,
+        '' pname,
+        '' t6code,
+        '' t5code,
+        '' direccion,
+        COALESCE (
+            (
+                SELECT
+                    mc. COST
+                FROM
+                    m_costing mc
+                WHERE
+                    mc.m_product_id = T .m_product_id
+                AND T .trxprocessdate :: DATE BETWEEN mc.datefrom :: DATE
+                AND mc.dateto :: DATE
+                ORDER BY
+                    created ASC
+                LIMIT 1
+            ),
+            0
+        ) AS costing,
+        '' AS datefrom,
+        '' AS dateto,
+        (
+            CASE
+            WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                smc.swa_movementcode_id
+            ELSE
+                NULL
+            END
+        ) ID,
+        (
+            CASE
+            WHEN T .em_swa_movcode_product_id IS NOT NULL THEN
+                'movcode'
+            ELSE
+                NULL
+            END
+        ) id2,
+        T .m_transaction_id,
+        T .movementqty cant,
+        (0) costo,
+        T .trxprocessdate,
+        T .created
+    FROM
+        m_transaction T
+    inner join swa_movementcode_product smcpr on smcpr.swa_movementcode_product_id = T.em_swa_movcode_product_id
+    inner join swa_movementcode_plan smcp on  smcpr.swa_movementcode_plan_id = smcp.swa_movementcode_plan_id
+    inner join swa_movementcode smc on smcp.swa_movementcode_id=smc.swa_movementcode_id
+    LEFT JOIN m_locator ON m_locator.m_locator_id = T .m_locator_id
+    JOIN scr_combo_item ci ON T .em_ssa_combo_item_id = ci.scr_combo_item_id
+    JOIN m_product producto ON producto.m_product_id = T .m_product_id
+    JOIN m_warehouse ON m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+    WHERE
+        producto.em_sco_isconsignment = 'N'
+
+
+
+
+
+
+
+) tabla1
+
+    WHERE
+       
+        tabla1.AD_CLIENT_ID IN ('1')
+        AND tabla1.AD_ORG_ID IN('1')
+        AND tabla1.value not in ('1')
+        AND 2=2        
+          
+    ORDER BY tabla1.em_scr_sunatcode, tabla1.product_id,tabla1.fecha,tabla1.created,tabla1.trxprocessdate
+    
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="tabla1.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND tabla1.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="movNotUsed" type="replace" optional="true" after="AND tabla1.value not in (" text="'1'"/>
+    <Parameter name="product" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.product_id=?]]></Parameter>
+    <Parameter name="sunatcode" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.em_scr_sunatcode=?]]></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 2=2"><![CDATA[ AND tabla1.movementdate < TO_DATE(?)]]></Parameter>
+    
+  </SqlMethod>
+  
+
+</SqlClass>

@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteGenerateAnaliticKardexData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_detalle_stock_fisico_x_fecha" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+			SELECT t1.ID_ALMACEN,t1.ID_LINEA_PRODUCTO,t1.ID_PRODUCTO,t1.LINEA_PRODUCTO,t1.PRODUCTO,
+			t1.UNIDAD_MEDIAD,t1.VALUE_LINEA_PRODUCTO,t1.VALUE_PRODUCTO,t1.WAREHOUSENAME,t1.SALDO_INICIAL,'' as ID_ORGANIZACION,
+			t1.SALDO_FINAL,  coalesce(sum(t1.QTY),0.0) as entrada, COALESCE( sum(t1.QTYNEGATIVE),0.0) as salida FROM 
+			
+			(
+			
+			SELECT
+				mt.m_product_id AS ID_PRODUCTO,
+				mp.name AS PRODUCTO,
+				mp.value AS VALUE_PRODUCTO,
+				mpl.prdc_productgroup_id AS ID_LINEA_PRODUCTO,
+				mpl.value AS VALUE_LINEA_PRODUCTO,
+			  mpl.description AS LINEA_PRODUCTO,
+				cut.uomsymbol AS UNIDAD_MEDIAD,
+			
+			 mw. NAME AS WAREHOUSENAME,
+			MW.m_warehouse_id AS ID_ALMACEN,
+			COALESCE(io.docstatus,'CO') as docstatus,
+				CASE
+			WHEN (mt.movementqty) >= 0 THEN
+				mt.movementqty
+			ELSE
+				NULL
+			END AS QTY,
+			 CASE
+			WHEN (mt.movementqty) < 0 THEN
+				mt.movementqty *- 1
+			ELSE
+				NULL
+			END AS QTYNEGATIVE
+			
+			,0.0 as SALDO_INICIAL
+				
+			,0.0 as SALDO_FINAL
+			
+
+						
+			FROM
+				M_Transaction mt
+			LEFT JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+			LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+			LEFT JOIN scr_combo_item ci ON ci.scr_combo_item_id = mt.em_ssa_combo_item_id
+			LEFT JOIN m_product mp ON mp.m_product_id = mt.m_product_id
+			LEFT JOIN c_uom cu ON cu.c_uom_id = mt.c_uom_id
+			LEFT JOIN m_inoutline mi ON mi.m_inoutline_id = mt.m_inoutline_id
+			LEFT JOIN m_inout io ON io.m_inout_id = mi.m_inout_id
+			LEFT JOIN m_inventoryLine mil ON mil.m_inventoryLine_id = mt.m_inventoryLine_id
+			LEFT JOIN m_inventory miv ON miv.m_inventory_id = mil.m_inventory_id
+			LEFT JOIN m_productionline mprdl ON mprdl.m_productionline_id = mt.m_productionline_id
+			LEFT JOIN m_productionplan mprdp ON mprdp.m_productionplan_id = mprdl.m_productionplan_id
+			LEFT JOIN m_production mprd ON mprd.m_production_id = mprdp.m_production_id
+			LEFT JOIN c_bpartner bp ON io.c_bpartner_id = bp.c_bpartner_id 
+			left JOIN prdc_productgroup mpl on mp.em_prdc_productgroup_id=mpl.prdc_productgroup_id
+			left JOIN c_uom_trl cut on mp.c_uom_id=cut.c_uom_id 
+			
+				where
+			mt.ad_client_id IN ('1') 
+			and mt.ad_org_id in ('1') 
+			and 2=2 
+			and mpl.prdc_productgroup_id like '%'||coalesce(?,'')||'%' 
+			and mp.m_product_id like '%'||coalesce(?,'')||'%' 
+			and 1=1 
+			and mt.m_movementline_id is null
+			
+			
+			) AS t1
+			
+		
+			WHERE t1.docstatus<>'VO'
+			
+			GROUP BY t1.ID_ALMACEN,t1.ID_LINEA_PRODUCTO,t1.ID_PRODUCTO,t1.LINEA_PRODUCTO,t1.PRODUCTO,
+			t1.UNIDAD_MEDIAD,t1.VALUE_LINEA_PRODUCTO,t1.VALUE_PRODUCTO,t1.WAREHOUSENAME,t1.SALDO_INICIAL,t1.SALDO_FINAL,ID_ORGANIZACION
+			
+				ORDER BY t1.ID_ALMACEN,t1.VALUE_LINEA_PRODUCTO, t1.VALUE_PRODUCTO
+						
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mt.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and mt.ad_org_id in (" text="'1'"/>   
+    <Parameter name="idalmacen" optional="true" after="2=2"><![CDATA[ AND mw.m_warehouse_id = ?]]></Parameter>
+         
+    <Parameter name="idlineaproducto" />
+    <Parameter name="idproducto" />
+      <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND mt.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+    
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+   <SqlMethod name="select_cantidad_inical_x_producto" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+			    SELECT
+				mp.m_product_id AS ID_PRODUCTO,
+				COALESCE (trx.QTY2POS - trx.QTY2NEG, 0) AS SALDO_INICIAL,
+				COALESCE (trx.QTY2POS, 0) AS SALIDA,
+				COALESCE (trx.QTY2NEG, 0) AS ENTRADA
+			FROM
+				m_product mp
+			LEFT JOIN (
+				SELECT
+					mt.m_product_id AS INITI2,
+					COALESCE (
+						SUM (
+							CASE
+							WHEN (mt.movementqty) >= 0 THEN
+								mt.movementqty
+							ELSE
+								0
+							END
+						),
+						0
+					) AS QTY2POS,
+					COALESCE (
+						SUM (
+							CASE
+							WHEN (mt.movementqty) < 0 THEN
+								- mt.movementqty
+							ELSE
+								0
+							END
+						),
+						0
+					) AS QTY2NEG
+				FROM
+					M_Transaction mt
+				LEFT JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+				LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+				WHERE
+				mt.ad_client_id IN ('1') 
+				and mt.ad_org_id in ('1') 
+				AND mw.m_warehouse_id = ?
+				AND mt.m_product_id = ?
+				AND 1=1 
+				GROUP BY
+					mt.m_product_id
+			) trx ON mp.m_product_id = trx.INITI2
+			WHERE
+				mp.m_product_id = ?
+
+			
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mt.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and mt.ad_org_id in (" text="'1'"/>        
+    <Parameter name="idalmacen" />
+    <Parameter name="idproducto" />
+    <Parameter name="fechaHasta" optional="true" after="1=1"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+    <Parameter name="idproducto2" />
+    
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+   <SqlMethod name="select_saldo_inicial" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    	select 
+
+			mw.m_warehouse_id  as id_almacen	,
+			mw.name as WAREHOUSENAME,
+			mpl.prdc_productgroup_id AS ID_LINEA_PRODUCTO,
+			mpl.VALUE AS VALUE_LINEA_PRODUCTO,
+			mpl.description AS LINEA_PRODUCTO,
+			mt.m_product_id as id_producto,
+			mp.value as value_producto,
+			mp. NAME AS PRODUCTO,
+			cut.uomsymbol AS UNIDAD_MEDIAD,
+			sum(mt.movementqty) as saldo_inicial
+
+		FROM
+				M_Transaction mt
+			inner join m_product mp on mt.m_product_id=mp.m_product_id
+			LEFT JOIN prdc_productgroup mpl ON mp.em_prdc_productgroup_id = mpl.prdc_productgroup_id
+			LEFT JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+			LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+			LEFT JOIN c_uom cu ON cu.c_uom_id = mt.c_uom_id
+			LEFT JOIN c_uom_trl cut ON mp.c_uom_id = cut.c_uom_id
+			
+			
+			WHERE
+				mt.ad_client_id IN ('1') 
+				and mt.ad_org_id in ('1') 
+			AND 1=1
+			and mt.m_movementline_id is null
+			
+			GROUP BY 1,2,3,4,5,6,7,8,9
+		having sum(mt.movementqty) <> 0
+		order by 1,4,7
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mt.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and mt.ad_org_id in (" text="'1'"/>        
+    
+        <Parameter name="almacen_id" optional="true" after="1=1"><![CDATA[ AND mw.m_warehouse_id = ? ]]></Parameter>
+        <Parameter name="linea_id" optional="true" after="1=1"><![CDATA[ AND mpl.prdc_productgroup_id = ? ]]></Parameter>
+        <Parameter name="producto_id" optional="true" after="1=1"><![CDATA[ AND mp.m_product_id = ? ]]></Parameter>
+        <Parameter name="fechaHasta" optional="true" after="1=1"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+    
+   
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+
+  
+   <SqlMethod name="select_linea_producto" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+		SELECT aa.ad_org_id as ID_ORGANIZACION, (aa.prdc_productgroup_id ) as ID_LINEA_PRODUCTO,(aa.value|| ' - '||AA.DESCRIPTION) AS LINEA_PRODUCTO 
+		FROM prdc_productgroup AA
+		ORDER BY 1,3
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+   </SqlMethod>
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   <SqlMethod name="selectWarehouseDouble" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+			SELECT
+			M_WAREHOUSE.AD_ORG_ID AS ID_ORGANIZACION,
+			M_WAREHOUSE.M_WAREHOUSE_ID AS ID_ALMACEN,
+			TO_CHAR(VALUE) || TO_CHAR(' - ') || TO_CHAR(M_WAREHOUSE. NAME) AS WAREHOUSENAME
+		FROM
+			M_WAREHOUSE
+		WHERE
+			
+		1 = 1 AND M_WAREHOUSE.AD_Client_ID IN ('1')
+		UNION
+			SELECT
+				NULL AS ID_ORGANIZACION,
+				M_WAREHOUSE.M_WAREHOUSE_ID AS ID_ALMACEN,
+				TO_CHAR(M_WAREHOUSE. NAME) AS WAREHOUSENAME
+			FROM
+				M_WAREHOUSE
+			WHERE
+			2 = 2 AND M_WAREHOUSE.AD_Client_ID IN ('1')
+			ORDER BY
+				1,
+				3
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+         <Parameter name="adUserClient1" type="replace" optional="true" after="1 = 1 AND M_WAREHOUSE.AD_Client_ID IN (" text="'1'"/>
+   
+         <Parameter name="adUserClient2" type="replace" optional="true" after="2 = 2 AND M_WAREHOUSE.AD_Client_ID IN (" text="'1'"/>
+    
+   </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  
+  		  <SqlMethod name="selectPrdcProductgroup" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		      SELECT PRDC_PRODUCTGROUP.VALUE || ' - ' || PRDC_PRODUCTGROUP.DESCRIPTION AS NAME     FROM PRDC_PRODUCTGROUP 
+		           WHERE PRDC_PRODUCTGROUP.PRDC_PRODUCTGROUP_ID = ?
+		    </Sql>
+		    <Parameter name="idLineaProducto"/>
+		  </SqlMethod>    
+  
+  
+  
+     <SqlMethod name="selectMproduct" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		       SELECT M_PRODUCT.VALUE || ' - ' || M_PRODUCT.NAME AS NAME  FROM M_PRODUCT      WHERE M_PRODUCT.M_PRODUCT_ID = ?
+		    </Sql>
+		    <Parameter name="idProducto"/>
+		  </SqlMethod>   
+		  
+		  
+		  
+		  <SqlMethod name="selectMWarehouse" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		        SELECT M_WAREHOUSE.VALUE || ' - ' || M_WAREHOUSE.NAME AS NAME FROM M_WAREHOUSE       WHERE M_WAREHOUSE.M_WAREHOUSE_ID = ?
+		    </Sql>
+		    <Parameter name="idAlmacen"/>
+		  </SqlMethod>   
+  
+  
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

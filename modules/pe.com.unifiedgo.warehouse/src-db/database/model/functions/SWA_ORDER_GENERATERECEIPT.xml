@@ -1,0 +1,163 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_ORDER_GENERATERECEIPT">
+    <function name="SWA_ORDER_GENERATERECEIPT" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_fromrequerimiento_id VARCHAR2(32);
+  v_swa_requirement_request_id VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_docinout VARCHAR2(30);
+
+  v_movementDateparam DATE;
+  v_movementdate DATE;
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  v_inout_id VARCHAR(32);
+  v_client_id  VARCHAR(32);
+  v_ad_org_id VARCHAR(32);
+  v_CDocTypeID VARCHAR(32);
+  v_DocumentNo VARCHAR2(30);
+  v_LineSeqNo NUMBER:=0; 
+  v_locator_id VARCHAR(32);
+  v_comboitem_id VARCHAR(32);
+
+  CUR_ORDER RECORD;
+  Cur_Parameter RECORD;
+  Cur_parameter_get RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+   FOR Cur_parameter_get IN (
+    SELECT i.AD_Client_ID, p.ParameterName, p.p_string, p.P_Date 
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo
+   )LOOP
+
+      IF (Cur_parameter_get.ParameterName = 'swa_movementdate') THEN
+             v_movementDateparam:=Cur_parameter_get.p_date;
+      END IF;
+   
+   END LOOP;
+
+   SELECT * INTO CUR_ORDER  FROM C_ORDER WHERE C_ORDER_ID = v_Record_ID FOR UPDATE; 
+
+   v_client_id:= CUR_ORDER.ad_client_id;
+   v_ad_org_id:= CUR_ORDER.ad_org_id;
+
+   SELECT DOCUMENTNO INTO v_docinout FROM M_INOUT WHERE C_ORDER_ID = v_Record_ID AND DOCSTATUS IN ('DR','CO') LIMIT 1;
+
+   IF(v_docinout  IS NOT NULL)THEN
+     RAISE_APPLICATION_ERROR(-20000,'@swa_inoutwithorder@' || ' - ' || COALESCE(v_docinout,'-'));
+   END IF;
+
+
+
+  --Get Doctype
+  SELECT C_DocType_ID INTO v_CDocTypeID
+    FROM C_DOCTYPE
+   WHERE em_sco_specialdoctype='SCOMMRECEIPT'
+     AND ISACTIVE='Y' 
+     AND AD_Client_Id= v_client_id
+     AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id) <> -1
+     AND COALESCE(isreturn, 'N') = 'N'
+    ORDER BY IsDefault DESC,C_DocType_ID;
+
+  
+  --Get documentno
+    AD_Sequence_Doc('DocumentNo_M_InOut', v_Client_id, 'Y', v_DocumentNo) ;
+  --
+  
+  --Get movementtype
+    SELECT scr_combo_item_id
+      INTO v_comboitem_id
+      FROM scr_combo_item WHERE  VALUE = 'CompraNacional' 
+       AND ad_client_id = v_Client_id LIMIT 1;
+  --
+
+   v_inout_id:=get_uuid();
+   v_movementdate:=COALESCE(v_movementDateparam, CUR_ORDER.dateordered);
+
+   INSERT INTO m_inout
+   (m_inout_id,ad_client_id,ad_org_id,isactive,created,createdby,
+     updated,updatedby,issotrx,documentno,docaction,docstatus,processing,c_doctype_id,
+     movementtype,movementdate,
+     dateacct,c_bpartner_id,c_bpartner_location_id,
+     m_warehouse_id, deliveryrule,freightcostrule,
+     freightamt,deliveryviarule,chargeamt,priorityrule,createfrom,generateto,calculate_freight,
+     c_order_id,em_swa_combo_item_id,Process_Goods_Java, em_scr_physical_documentno
+   )
+   VALUES 
+   (v_inout_id,v_Client_id,v_ad_org_id,'Y',now(),v_User_ID,
+     now(),v_User_ID, 'N',v_DocumentNo,'CO','DR','N',v_CDocTypeID,
+     'V+',v_movementdate,
+     v_movementdate,CUR_ORDER.c_bpartner_id,CUR_ORDER.c_bpartner_location_id,
+     CUR_ORDER.m_warehouse_id,'A','I',
+     0,'P',0,'5','N','N','N',
+     v_Record_ID,v_comboitem_id,'CO','000-0000000'
+    );
+      
+    SELECT m_locator_id INTO v_locator_id FROM M_LOCATOR WHERE M_WAREHOUSE_ID = CUR_ORDER.m_warehouse_id LIMIT 1;
+
+    IF(v_locator_id IS NULL)THEN
+      RAISE NO_DATA_FOUND;
+    END IF;
+
+    FOR Cur_Parameter IN 
+       (SELECT * FROM C_ORDERLINE WHERE C_ORDER_ID = v_Record_ID
+    )LOOP
+        v_LineSeqNo:= 10 + v_LineSeqNo;
+	INSERT INTO m_inoutline
+        (m_inoutline_id,ad_client_id,ad_org_id,isactive,created,createdby,
+         updated,updatedby,line,m_inout_id,m_product_id,c_uom_id,movementqty,isinvoiced,
+         isdescription,c_bpartner_id,m_locator_id, c_orderline_id
+        )
+        VALUES 
+        (get_uuid(),v_Client_id,v_ad_org_id,'Y',now(),v_User_ID,
+         now(),v_User_ID,v_LineSeqNo,v_inout_id,Cur_Parameter.m_product_id,Cur_Parameter.c_uom_id,Cur_Parameter.qtyordered,'N',
+         'N',CUR_ORDER.c_bpartner_id,v_locator_id, Cur_Parameter.c_orderline_id
+        );    
+    END LOOP;
+
+    M_INOUT_POST(NULL, v_inout_id);----avalos
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_ORDER_GENERATERECEIPT
+]]></body>
+    </function>
+  </database>

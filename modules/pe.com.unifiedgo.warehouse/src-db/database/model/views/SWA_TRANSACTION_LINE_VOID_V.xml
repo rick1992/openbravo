@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SWA_TRANSACTION_LINE_VOID_V">
+    <view name="SWA_TRANSACTION_LINE_VOID_V"><![CDATA[SELECT COALESCE(t.m_inoutline_id, '-') || l.canceled_inoutline_id AS swa_transaction_line_void_v_id, t.ad_client_id, t.ad_org_id, t.isactive, t.updated, t.updatedby, t.created, t.createdby, t.m_inoutline_id, l.canceled_inoutline_id, tr.trxprocessdate FROM m_transaction t JOIN m_inoutline l ON t.m_inoutline_id = l.m_inoutline_id JOIN m_transaction tr ON l.canceled_inoutline_id = tr.m_inoutline_id WHERE t.m_inoutline_id IS NOT NULL AND l.canceled_inoutline_id IS NOT NULL]]></view>
+  </database>

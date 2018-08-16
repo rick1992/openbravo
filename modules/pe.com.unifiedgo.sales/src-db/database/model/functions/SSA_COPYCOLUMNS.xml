@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_COPYCOLUMNS">
+    <function name="SSA_COPYCOLUMNS" type="NULL">
+      <body><![CDATA[v_NextColumnId VARCHAR(32);
+    v_module_id VARCHAR(32);
+    v_tablefrom_id VARCHAR(32);
+    v_tableto_id VARCHAR(32);
+    CUR_Columns RECORD;
+    
+    v_Count NUMBER;
+BEGIN
+
+  v_module_id:='22A1F11413EB47F4BB5AB065878079C5';
+
+  v_tablefrom_id:='A9BC62219E644720867F6402B0C25933';
+  v_tableto_id:='2424966D71AD4E2D96F990C71DDE0D31';
+
+
+  FOR CUR_Columns IN
+    (select * from ad_column where ad_table_id=v_tablefrom_id)
+  LOOP
+    SELECT count(*) INTO v_Count FROM ad_column WHERE ad_table_id=v_tableto_id AND columnname=CUR_Columns.columnname;
+    IF(v_Count=0) THEN
+        AD_Sequence_Next('AD_Column', '0', v_NextColumnId) ;
+	INSERT INTO ad_column(
+            ad_client_id, ad_org_id, isactive, created, updated, 
+            createdby, updatedby, name, description, help, columnname, 
+            ad_reference_id, ad_reference_value_id, ad_val_rule_id, fieldlength, 
+            defaultvalue, iskey, isparent, ismandatory, isupdateable, readonlylogic, 
+            isidentifier, seqno, istranslated, isencrypted, callout, vformat, 
+            valuemin, valuemax, isselectioncolumn, ad_element_id, ad_process_id, 
+            issessionattr, issecondarykey, isdesencryptable, ad_callout_id, 
+            developmentstatus, "position", istransient, istransientcondition, 
+            isautosave, validateonnew, isexcludeaudit, imagesizevaluesaction, 
+            imagewidth, imageheight, isusedsequence, sqllogic, em_obuiapp_process_id,
+	    ad_column_id, ad_module_id, ad_table_id)
+    VALUES (
+	    '0', '0', CUR_Columns.isactive, now(), now(), 
+            '100', '100', CUR_Columns.name, CUR_Columns.description, CUR_Columns.help, CUR_Columns.columnname, 
+            CUR_Columns.ad_reference_id, CUR_Columns.ad_reference_value_id, CUR_Columns.ad_val_rule_id, CUR_Columns.fieldlength, 
+            CUR_Columns.defaultvalue, CUR_Columns.iskey, CUR_Columns.isparent, CUR_Columns.ismandatory, CUR_Columns.isupdateable, CUR_Columns.readonlylogic, 
+            CUR_Columns.isidentifier, CUR_Columns.seqno, CUR_Columns.istranslated, CUR_Columns.isencrypted, CUR_Columns.callout, CUR_Columns.vformat, 
+            CUR_Columns.valuemin, CUR_Columns.valuemax, CUR_Columns.isselectioncolumn, CUR_Columns.ad_element_id, CUR_Columns.ad_process_id, 
+            CUR_Columns.issessionattr, CUR_Columns.issecondarykey, CUR_Columns.isdesencryptable, CUR_Columns.ad_callout_id, 
+            CUR_Columns.developmentstatus, CUR_Columns.position, CUR_Columns.istransient, CUR_Columns.istransientcondition, 
+            CUR_Columns.isautosave, CUR_Columns.validateonnew, CUR_Columns.isexcludeaudit, CUR_Columns.imagesizevaluesaction, 
+            CUR_Columns.imagewidth, CUR_Columns.imageheight, CUR_Columns.isusedsequence, CUR_Columns.sqllogic, CUR_Columns.em_obuiapp_process_id,
+	    v_NextColumnId, v_module_id, v_tableto_id);
+    END IF;
+
+  END LOOP;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SSA_COPYCOLUMNS
+]]></body>
+    </function>
+  </database>

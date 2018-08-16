@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="CloseSeqNumberAreaData" package="pe.com.unifiedgo.accounting.ad_actionbutton">
+	<SqlClassComment></SqlClassComment>
+	
+	<SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select '' as rownum, '' as ad_org_id, '' as ad_client_id, '' as areaname, '' as areacode, '' as isgljournal, 
+				'' as idorganizacion, '' as idperiodo, '' as periodo, '' as fechainicial, '' as fechafinal, 
+				'' as scoareaid, '' as scoareaschemaid, '' as cperiodid, '' as acctname, '' as isclosed 
+				from dual 
+			]]>
+		</Sql>
+	</SqlMethod>
+	
+	<SqlMethod name="selectData" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select are.sco_area_id as scoareaid,
+				sch.sco_areaschema_id as scoareaschemaid,
+				sch.c_period_id as cperiodid,
+				are.areaname || ' - ' || acs.name as acctname, 
+				case sch.isclosed when 'Y' then 'SI' else 'NO' end as isclosed 
+				
+				from sco_area are
+				join sco_areaschema sch on are.sco_area_id = sch.sco_area_id
+				join c_acctschema acs on sch.c_acctschema_id = acs.c_acctschema_id
+				
+				where sch.c_period_id = ?
+				and sch.isclosed = ?
+				
+				order by 4 
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<!-- <Parameter name="strAdOrgId" />
+		<Parameter name="strAdClientId" /> -->
+		<Parameter name="strCPeriodId" />
+		<Parameter name="strIsClosed" />
+	</SqlMethod>
+	
+	<!--
+	<SqlMethod name="selectFinancialAccount" type="preparedStatement" return="string">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+      <![CDATA[
+      SELECT TO_CHAR(COALESCE(TO_CHAR(acc.Name),''))||' - '||TO_CHAR(COALESCE(TO_CHAR(curr.ISO_Code),'')) AS NAME 
+        FROM FIN_Financial_Account acc, C_Currency curr
+      WHERE acc.C_Currency_ID = curr.C_Currency_ID
+        AND acc.FIN_Financial_Account_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="finFinancialAccountId"/>
+   </SqlMethod>
+      <SqlMethod name="selectPaymentmethod" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT TO_CHAR(COALESCE(TO_CHAR(pm.Name),'')) AS NAME 
+        FROM FIN_Paymentmethod pm
+      WHERE pm.FIN_Paymentmethod_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="finPaymentmethodId"/>
+   </SqlMethod>
+   <SqlMethod name="selectCurrency" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT TO_CHAR(COALESCE(TO_CHAR(curr.iso_code),'')) AS NAME 
+        FROM C_Currency curr
+      WHERE curr.C_Currency_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="cCurrencyId"/>
+   </SqlMethod>
+   -->
+   
+	<SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				SELECT ao3.ad_org_id as idorganizacion, 
+				cp.c_period_id as idperiodo, 
+				cp.name as periodo, 
+				to_char(cp.startdate,'dd-MM-yyyy') as fechainicial, 
+				to_char(cp.enddate,'dd-MM-yyyy') as fechafinal 
+				
+				FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate  desc
+
+      
+    ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+   
+</SqlClass>

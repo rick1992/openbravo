@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_FIXEDCASHREP_CHK_RES_TRG">
+    <trigger name="SCO_FIXEDCASHREP_CHK_RES_TRG" table="SCO_FIXEDCASH_REPOSITION" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+v_rec_docstatus VARCHAR(60);
+v_rec_fin_financialAccount_id VARCHAR(32);
+v_rec_fixcash_rep_id VARCHAR(32);
+
+v_preliqpay_status VARCHAR(32);
+v_preliqpay_financial_account_id VARCHAR(32);
+v_preliqpay_fixedcashrep_status VARCHAR(60);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF(:OLD.Processed='Y'
+          AND(
+
+               (COALESCE(:OLD.DATEGEN, v_DateNull) <> COALESCE(:NEW.DATEGEN, v_DateNull))
+               OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+               OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	       OR(COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:new.C_Currency_ID, '0'))
+	       OR(COALESCE(:old.fin_financial_account_id, '0') <> COALESCE(:new.fin_financial_account_id, '0'))
+	       OR(COALESCE(:old.fin_financial_account_from_id, '0') <> COALESCE(:new.fin_financial_account_from_id, '0'))
+               OR(COALESCE(:old.fin_reconciliation_id, '0') <> COALESCE(:new.fin_reconciliation_id, '0'))
+	       OR(COALESCE(:old.amount, 0) <> COALESCE(:new.amount, 0))
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+
+  END IF;
+
+  IF(DELETING) THEN
+    IF :OLD.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF :NEW.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+
+  IF((INSERTING OR UPDATING)) THEN
+    IF(:NEW.fin_reconciliation_id IS NOT NULL AND :NEW.fin_reconciliation_id<>'') THEN
+    --Check Reconciliation Params
+      SELECT docstatus, fin_financial_account_id, em_sco_fixcash_rep_id
+        INTO v_rec_docstatus, v_rec_fin_financialAccount_id, v_rec_fixcash_rep_id
+        FROM FIN_Reconciliation
+        WHERE FIN_Reconciliation_ID = :NEW.fin_reconciliation_id;
+
+      IF( v_rec_fin_financialAccount_id<>:NEW.fin_financial_account_id OR v_rec_docstatus<>'CO') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_FixedCashRecInvalidRep@');
+      END IF;
+
+      IF(TG_OP= 'INSERT') THEN
+	  IF(v_rec_fixcash_rep_id IS NOT NULL) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_FixedCashRecInvalidRep@');
+	  END IF;
+      ELSE
+	  IF(v_rec_fixcash_rep_id IS NOT NULL AND COALESCE(:OLD.fin_reconciliation_id,'.') <> COALESCE(:NEW.fin_reconciliation_id,'.')) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_FixedCashRecInvalidRep@');
+	  END IF;
+      END IF;
+    END IF;
+
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.preliqpayment_id IS NOT NULL AND :NEW.preliqpayment_id<>'') THEN
+    --Check Preliqpayment Params
+      SELECT status, fin_financial_account_id, em_sco_fixedcashrep_status
+        INTO v_preliqpay_status, v_preliqpay_financial_account_id, v_preliqpay_fixedcashrep_status
+        FROM FIN_Payment
+        WHERE FIN_Payment_ID = :NEW.preliqpayment_id;
+
+      IF( v_preliqpay_financial_account_id<>:NEW.fin_financial_account_id OR v_preliqpay_status<>'PWNC' OR v_preliqpay_fixedcashrep_status<>'SCO_DR') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_FixedCashRecInvalidPreliq@');
+      END IF;
+
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.preliqpayment_id,'.')<>COALESCE(:NEW.preliqpayment_id,'.')) THEN
+      IF(:NEW.preliqpayment_id IS NOT NULL AND :NEW.preliqpayment_id<>'') THEN
+      --Check Preliqpayment Params
+        SELECT status, fin_financial_account_id, em_sco_fixedcashrep_status
+          INTO v_preliqpay_status, v_preliqpay_financial_account_id, v_preliqpay_fixedcashrep_status
+          FROM FIN_Payment
+          WHERE FIN_Payment_ID = :NEW.preliqpayment_id;
+
+        IF( v_preliqpay_financial_account_id<>:NEW.fin_financial_account_id OR v_preliqpay_status<>'PWNC' OR v_preliqpay_fixedcashrep_status<>'SCO_DR') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_FixedCashRecInvalidPreliq@');
+        END IF;
+
+      END IF;
+    END IF;
+  END IF;
+  
+  IF (DELETING) THEN
+    --Ulink the invoice ref
+    UPDATE FIN_Reconciliation SET em_sco_fixcash_rep_id = NULL
+    WHERE FIN_Reconciliation_ID = :OLD.FIN_Reconciliation_id;
+
+  END IF;
+  
+  IF (UPDATING) THEN
+    --Ulink the reconciliation ref there is a change in reconciliation
+    IF(COALESCE(:OLD.fin_reconciliation_id, '0') <> COALESCE(:NEW.fin_reconciliation_id, '0')) THEN
+      UPDATE FIN_Reconciliation SET em_sco_fixcash_rep_id = NULL
+      WHERE FIN_Reconciliation_ID = :OLD.FIN_Reconciliation_id;
+    END IF;
+  END IF;
+
+END SCO_FIXEDCASHREP_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

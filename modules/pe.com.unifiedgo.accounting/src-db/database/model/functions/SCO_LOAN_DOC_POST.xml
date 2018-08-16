@@ -1,0 +1,760 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_LOAN_DOC_POST">
+    <function name="SCO_LOAN_DOC_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_Result NUMBER:=1; -- Success
+  v_is_included NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_line RECORD;
+    Cur_refundline RECORD;
+  -- Record Info
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60) ;
+  v_DocStatus VARCHAR(60) ;
+  v_DocType_ID VARCHAR2(32);
+  v_DocTypeTarget_ID VARCHAR2(32);
+  v_DocSubTypeSO VARCHAR(60) ;
+  v_DocSubTypeSOTarget VARCHAR(60) ;
+  v_DocBaseTypeTarget VARCHAR(60);
+  v_IsReturnDocType CHAR(1);
+  v_IsBinding CHAR(1):='Y';
+  v_istaxincluded CHAR(1);
+
+  v_Line NUMBER:=0;
+  v_DocumentNo VARCHAR2(200) ;
+  v_Date DATE;
+  v_isSoTrx CHAR(1) ;
+  v_Aux NUMBER;
+  v_c_Bpartner_ID VARCHAR2(32);
+  v_c_Currency_ID VARCHAR2(32);
+  FINISH_PROCESS BOOLEAN:=FALSE;
+  END_PROCESSING BOOLEAN:=FALSE;
+  rowcount NUMBER;
+  v_Amount NUMBER;
+  v_count NUMBER;
+
+  v_specialDocType VARCHAR(60);
+  v_Aux3 VARCHAR(32);
+
+  v_PeriodStartDate DATE;
+  v_PeriodEndDate DATE;
+  v_DocNo_Org_ID AD_Sequence.AD_Org_ID%TYPE;
+  v_TargetDocBaseType C_DOCTYPE.DocBaseType%TYPE;
+  v_isReversal C_DOCTYPE.IsReversal%TYPE;
+  v_MultiplierARC NUMBER:=1;
+  v_available_period NUMBER:=0;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+  v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+
+  v_fin_financial_account_id VARCHAR(32);
+  v_fin_payment_id VARCHAR(32);
+  v_M_Pricelist_ID VARCHAR(32);
+
+  v_referenceno VARCHAR(40);
+  v_c_Bpartner_location_id VARCHAR(32);
+  v_fin_Paymentmethod_ID VARCHAR(32);
+  v_totalamount NUMBER;
+
+  v_C_LoanInvDocType_ID VARCHAR(32);
+  v_C_ExemptTax_ID VARCHAR(32);
+  v_podoctype_cmb_item_id VARCHAR(32);
+  v_manual_paymentterm_ID VARCHAR(32);
+  v_loan_account_id VARCHAR(32);
+  v_loan_validcombination_id VARCHAR(32);
+  v_c_invoice_id VARCHAR(32);
+
+  v_loan_glitem_id VARCHAR(32);
+  BEGIN
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_Order_ID;
+      SELECT CREATEDBY INTO v_User  FROM SCO_LOAN_DOC  WHERE SCO_LOAN_DOC_ID=p_Order_ID;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  BEGIN --BODY
+
+    /**
+    * Read Bill of Exchange To Discount Doc
+    */
+    v_ResultStr:='ReadingOrder';
+    SELECT Processing, Processed, DocAction, DocStatus,
+      C_DocType_ID, C_DocTypeTarget_ID, SCO_LOAN_DOC.AD_Client_ID,
+      SCO_LOAN_DOC.AD_Org_ID, SCO_LOAN_DOC.UpdatedBy, TRUNC(DateGen),
+      documentno, C_Currency_ID, m_pricelist_id, fin_financial_account_id, fin_payment_id,
+      referenceno, c_bpartner_id, c_bpartner_location_id, fin_paymentmethod_id, totalamount, c_invoice_id, loan_glitem_id
+    INTO v_IsProcessing, v_IsProcessed, v_DocAction, v_DocStatus,
+      v_DocType_ID, v_DocTypeTarget_ID, v_Client_ID,
+      v_Org_ID, v_UpdatedBy, v_Date,
+      v_DocumentNo, v_c_Currency_ID, v_M_Pricelist_ID, v_fin_financial_account_id, v_fin_payment_id,
+      v_referenceno, v_c_Bpartner_ID, v_c_Bpartner_location_id, v_fin_Paymentmethod_ID, v_totalamount, v_c_invoice_id, v_loan_glitem_id
+    FROM SCO_LOAN_DOC
+    WHERE SCO_LOAN_DOC_ID=v_Record_ID  FOR UPDATE;
+
+
+    -- Get current DocSubTypeSO
+    SELECT DocSubTypeSO
+      INTO v_DocSubTypeSO
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocType_ID;
+    SELECT DocSubTypeSO, isreturn
+      INTO v_DocSubTypeSOTarget, v_isreturndoctype
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocTypetarget_ID;
+
+    IF (v_DocAction = 'CO' OR v_DocAction = 'PR') THEN
+
+     /**
+      * Check if Loan Doc has Lines
+      */
+      SELECT COUNT(*)
+        INTO v_Aux
+       FROM SCO_Loandoc_Line
+       WHERE SCO_LOAN_DOC_ID = v_Record_ID;
+       IF v_Aux=0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocWithoutLines@');
+       END IF;
+
+
+      /*
+       * Avoids repeating the same documentno for the same organization tree within the same fiscal year
+       */
+      SELECT COUNT(*) INTO v_count
+      FROM (SELECT Y.C_CALENDAR_ID, Y.C_YEAR_ID,
+                MIN(P.STARTDATE) AS PERIODSTARTDATE, MAX(P.ENDDATE) AS PERIODENDDATE
+            FROM C_YEAR Y, C_PERIOD P
+            WHERE Y.C_YEAR_ID = P.C_YEAR_ID
+              AND Y.ISACTIVE = 'Y'
+              AND P.ISACTIVE = 'Y'
+              AND Y.C_CALENDAR_ID = (SELECT O.C_CALENDAR_ID 
+                                     FROM AD_ORG O
+                                     WHERE AD_ORG_ID = AD_ORG_GETCALENDAROWNER(v_Org_ID))
+            GROUP BY Y.C_CALENDAR_ID, Y.C_YEAR_ID) A
+      WHERE PERIODSTARTDATE <= v_Date
+        AND PERIODENDDATE+1 > v_Date ;
+      IF (v_count<>0) THEN
+        SELECT PERIODSTARTDATE, PERIODENDDATE
+          INTO v_PeriodStartDate, v_PeriodEndDate
+        FROM (SELECT Y.C_CALENDAR_ID, Y.C_YEAR_ID,
+                  MIN(P.STARTDATE) AS PERIODSTARTDATE, MAX(P.ENDDATE) AS PERIODENDDATE
+              FROM C_YEAR Y, C_PERIOD P
+              WHERE Y.C_YEAR_ID = P.C_YEAR_ID
+                AND Y.ISACTIVE = 'Y'
+                AND P.ISACTIVE = 'Y'
+                AND Y.C_CALENDAR_ID = (SELECT O.C_CALENDAR_ID 
+                                       FROM AD_ORG O
+                                       WHERE AD_ORG_ID = AD_ORG_GETCALENDAROWNER(v_Org_ID))
+              GROUP BY Y.C_CALENDAR_ID, Y.C_YEAR_ID) A
+        WHERE PERIODSTARTDATE <= v_Date
+          AND PERIODENDDATE+1 > v_Date ;
+        IF (v_PeriodStartDate IS NOT NULL AND v_PeriodEndDate IS NOT NULL) THEN
+          SELECT D.AD_ORG_ID INTO v_DocNo_Org_ID
+          FROM C_DOCTYPE D
+          WHERE D.C_DOCTYPE_ID = v_DocTypeTarget_ID ;
+          SELECT COUNT(*) INTO v_count
+          FROM SCO_LOAN_DOC I
+          WHERE I.DOCUMENTNO = v_DocumentNo
+            AND I.C_DOCTYPETARGET_ID = v_DocTypeTarget_ID
+            AND I.DATEGEN >= v_PeriodStartDate
+            AND I.DATEGEN < v_PeriodEndDate+1 
+            AND I.SCO_LOAN_DOC_ID <> v_Record_ID 
+            AND AD_ISORGINCLUDED(I.AD_ORG_ID, v_DocNo_Org_ID, I.AD_CLIENT_ID) <> -1
+            AND I.AD_CLIENT_ID = v_Client_ID ;
+          IF (v_count<>0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocDifferentDocumentNo@');
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+    
+    /**
+    * Order Closed, Voided or Reversed - No action possible
+    */
+    IF(v_DocStatus IN('CL', 'VO', 'RE')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@') ;
+    END IF;
+
+    /**
+    * Unlock
+    */
+    IF(v_DocAction='XL') THEN
+      UPDATE SCO_LOAN_DOC
+        SET Processing='N',
+        DocAction='--',
+        Updated=now(),
+        UpdatedBy=v_User
+      WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+      FINISH_PROCESS:=TRUE;
+    END IF;
+    
+    IF (NOT FINISH_PROCESS) THEN
+
+      
+      /**
+       * Everything done
+       */
+      IF (v_IsProcessed='Y' AND v_DocAction NOT IN('RC', 'RE','CL')) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@');
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsProcessing='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+      END IF;
+
+      /**
+      * Re-activate
+      */
+      
+      IF (v_DocAction='RE') THEN
+      
+        DBMS_OUTPUT.PUT_LINE('Re-Activating ' || v_DocSubTypeSO || ': ' || v_Record_ID) ;
+        
+        -- Update Order
+        v_ResultStr:='ReActivate';
+
+        IF(v_fin_payment_id IS NOT NULL OR v_fin_payment_id<>'') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocPaymentExist@');
+        END IF;
+
+        --Ulink the loandoc and loandoclines from the generated invoice
+        UPDATE SCO_Loan_Doc SET c_invoice_id = NULL WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+        UPDATE SCO_Loandoc_Line SET fin_payment_schedule_id = NULL WHERE SCO_LOAN_DOC_ID=v_Record_ID;       
+	    
+        --Try to delete the invoice
+        DECLARE
+	      v_LoanInvDocStatus VARCHAR(60);
+	    BEGIN
+          SELECT docstatus INTO v_LoanInvDocStatus FROM C_Invoice WHERE C_Invoice_ID=v_c_invoice_id;
+
+          --Try to reactivate the invoice, if it isnt in draft
+          IF(v_LoanInvDocStatus<>'DR') THEN
+            UPDATE C_Invoice SET docaction='RE' WHERE C_Invoice_ID=v_c_invoice_id;
+            C_INVOICE_POST(NULL,v_c_invoice_id);
+          END IF;
+	   
+	      --Try to delete the invoice, if it isnt in draft the exception will catch it
+	      DELETE FROM SCO_Inv_Manualterm WHERE C_Invoice_ID = v_c_invoice_id;
+	      DELETE FROM C_InvoiceTax WHERE C_Invoice_ID = v_c_invoice_id;
+	      DELETE FROM C_InvoiceLinetax WHERE C_Invoice_ID = v_c_invoice_id;
+	      DELETE FROM C_InvoiceLine WHERE C_Invoice_ID = v_c_invoice_id;
+	      DELETE FROM C_Invoice WHERE C_Invoice_ID = v_c_invoice_id;
+	    EXCEPTION
+    	  WHEN OTHERS THEN
+      	  RAISE_APPLICATION_ERROR(-20000, SQLERRM) ;
+	    END;
+
+	    UPDATE SCO_LOAN_DOC
+         SET DocStatus='DR', -- Draft
+             DocAction='CO',
+             Processing='N',
+	         Processed='N',
+             Updated=now(),
+             UpdatedBy=v_User
+        WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+
+        FINISH_PROCESS:=TRUE;
+      END IF;
+      
+
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_LOAN_DOC C, C_DOCTYPE
+      WHERE C_DocType.DocBaseType IN ('API')
+        AND C_DocType.IsSOTrx='N'
+        AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+        AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+	AND C_DocType.em_sco_specialdoctype='SCOLOANDOC'
+        AND C.SCO_LOAN_DOC_ID = v_Record_ID;
+      IF (v_Count=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_NotCorrectOrgDoctypeLoanDoc@') ;
+      END IF;
+
+
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_LOAN_DOC C, SCO_Loandoc_Line OL
+      WHERE C.SCO_LOAN_DOC_ID = OL.SCO_LOAN_DOC_id
+        AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+        AND C.SCO_LOAN_DOC_ID = v_Record_ID;
+      IF (v_Count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+      END IF;
+      
+
+      /**
+      * Close Order - prepare
+      */
+
+     /**************************************************************************
+      * Start Processing ------------------------------------------------------
+      *************************************************************************/
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+        INTO v_is_ready, v_is_tr_allow
+      FROM SCO_LOAN_DOC, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=SCO_LOAN_DOC.AD_Org_ID
+        AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+        AND SCO_LOAN_DOC.SCO_LOAN_DOC_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+      SELECT AD_ORG_CHK_DOCUMENTS('SCO_LOAN_DOC', 'SCO_Loandoc_Line', v_Record_ID, 'SCO_LOAN_DOC_ID', 'SCO_LOAN_DOC_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+      WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+      LOOP
+        BEGIN
+          v_ResultStr:='UpdateDocType';
+          UPDATE SCO_LOAN_DOC
+          SET C_DocType_ID=C_DocTypeTarget_ID,
+              Updated=now(),
+              UpdatedBy=v_UpdatedBy
+          WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+          v_DocType_ID:=v_DocTypeTarget_ID;
+        EXCEPTION
+          WHEN OTHERS THEN
+            v_ResultStr:='UpdateDocumentNo';
+            UPDATE SCO_LOAN_DOC
+              SET DocumentNo=DocumentNo || '.'
+            WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+        END;
+      END LOOP;
+
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='LockingOrder';
+        UPDATE SCO_LOAN_DOC  SET Processing='Y'  WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+        COMMIT;
+        -- Now, needs to go to END_PROCESSING to unlock
+      END IF;
+
+
+      /**
+      * Allowed Actions:  COmplete, CLose
+      */
+      IF (v_DocAction IN('CO', 'CL', 'PR')) THEN
+        NULL;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@') ;
+      END IF;
+
+
+      /**
+      * Convert to Target DocType
+      */
+      DECLARE
+        v_DocSubTypeSO_Target VARCHAR(60) ;
+      BEGIN
+        v_ResultStr:='ConvertingDocType';
+        IF (v_DocType_ID <> v_DocTypeTarget_ID) THEN
+          -- New
+          IF (v_DocStatus='DR' OR v_DocType_ID='0') THEN
+            -- Update to Target Document Type
+            WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+            LOOP
+              BEGIN
+                v_ResultStr:='UpdateDocType';
+                UPDATE SCO_LOAN_DOC
+                SET C_DocType_ID=v_DocTypeTarget_ID,
+                    Updated=now(),
+                    UpdatedBy=v_User
+                WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+                v_DocType_ID:=v_DocTypeTarget_ID;
+              EXCEPTION
+              WHEN OTHERS THEN
+                v_ResultStr:='UpdateDocumentNo';
+                UPDATE SCO_LOAN_DOC  SET DocumentNo=DocumentNo || '.'  WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+              END;
+            END LOOP;
+          ELSE
+            v_ResultStr:='GetTargetDocType';
+            SELECT DocSubTypeSO
+              INTO v_DocSubTypeSO_Target
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=v_DocTypeTarget_ID;
+            DBMS_OUTPUT.PUT_LINE('Changing DocType from ' || v_DocSubTypeSO || ' to ' || v_DocSubTypeSO_Target) ;
+            -- Change Offer to anything, Change InProcess to anything
+            IF (v_DocSubTypeSO IN('ON', 'OB') OR v_DocStatus='IP') THEN
+              -- Update to Target Document Type
+              WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+              LOOP
+                BEGIN
+                  v_ResultStr:='UpdateDocType';
+                  UPDATE SCO_LOAN_DOC
+                  SET C_DocType_ID=v_DocTypeTarget_ID,
+                      Updated=now(),
+                      UpdatedBy=v_User
+                  WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+                  v_DocType_ID:=v_DocTypeTarget_ID;
+                EXCEPTION
+                WHEN OTHERS THEN
+                  v_ResultStr:='UpdateDocumentNo';
+                  UPDATE SCO_LOAN_DOC  SET DocumentNo=DocumentNo || '.'  WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+                END;
+              END LOOP;
+            ELSE
+              -- Change Back
+              UPDATE SCO_LOAN_DOC
+                SET C_DocTypeTarget_ID=v_DocType_ID
+              WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+              RAISE_APPLICATION_ERROR(-20000, '@CannotChangeDocType@') ;
+            END IF;
+          END IF;
+        END IF; -- C_DocType_ID <> C_DocTypeTarget_ID
+      END; -- Conversion
+
+
+
+    /**
+      * Get DocSubTypeSO + Is it Binding :1:2
+      */
+      v_ResultStr:='TestBinding DocType_ID=' || v_DocType_ID;
+      SELECT CASE DocSubTypeSO WHEN 'ON' THEN 'N' ELSE 'Y' END, DocSubTypeSO
+        INTO v_IsBinding, v_DocSubTypeSO
+      FROM C_DOCTYPE
+      WHERE C_DocType_ID=v_DocType_ID;
+      DBMS_OUTPUT.PUT_LINE('DocSubTypeSO=' || v_DocSubTypeSO || ' IsBinding=' || v_IsBinding) ;
+
+      -- Synchronize Client/Org Ownership
+      UPDATE SCO_LOAN_DOC
+      SET AD_Client_ID=v_Client_ID
+      WHERE SCO_LOAN_DOC_ID=v_Record_ID
+        AND (AD_Client_ID<>v_Client_ID) ;
+
+
+
+      IF(v_DocAction = 'CO') THEN
+
+        SELECT C_Doctype_ID 
+	      INTO v_C_LoanInvDocType_ID
+	      FROM C_Doctype 
+	    WHERE AD_Client_ID = v_Client_ID
+        AND em_sco_specialdoctype='SCOAPLOANINVOICE'
+	    AND ad_isorgincluded(v_Org_ID,C_Doctype.ad_org_id,v_Client_ID) <> -1 LIMIT 1;
+
+	    IF(v_C_LoanInvDocType_ID IS NULL) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocCOLoanInvDoctypeNotFound@');
+	    END IF;
+
+	    SELECT C_Tax_ID
+	      INTO v_C_ExemptTax_ID
+	      FROM C_Tax
+	    WHERE AD_Client_ID = v_Client_ID
+        AND em_sco_specialtax='SCOEXEMPT'
+	    AND isactive = 'Y'
+	    AND ad_isorgincluded(v_Org_ID,C_Tax.ad_org_id,v_Client_ID) <> -1 LIMIT 1;
+
+	    IF(v_C_ExemptTax_ID IS NULL) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOBoeExemptTaxNotFound@');
+	    END IF;
+
+        SELECT SCR_Combo_Item_ID
+          INTO v_podoctype_cmb_item_id
+          FROM SCR_Combo_Item
+        WHERE AD_Client_ID = v_Client_ID
+        AND ad_isorgincluded(v_Org_ID,ad_org_id,v_Client_ID) <> -1
+        AND value = 'tabla10_99' LIMIT 1;
+
+	    IF(v_podoctype_cmb_item_id IS NULL) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocOtherPOdoctypeNotFound@');
+	    END IF;
+
+        SELECT C_Paymentterm_ID
+          INTO v_manual_paymentterm_ID
+          FROM C_Paymentterm
+        WHERE AD_Client_ID = v_Client_ID
+        AND em_sco_specialpayterm = 'SCOMANUALTERM'
+	    AND ad_isorgincluded(v_Org_ID,C_Paymentterm.ad_org_id,v_Client_ID) <> -1 LIMIT 1;
+
+	    IF(v_manual_paymentterm_ID IS NULL) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocCOManualTermNotFound@');
+	    END IF;
+
+
+        --NOW GET THE v_loan_glitem_id
+        --SELECT em_sco_poloan_acct
+        --  INTO v_loan_validcombination_id
+        --  FROM c_bp_vendor_acct
+        --WHERE C_Bpartner_ID = v_c_Bpartner_ID;
+
+        --SELECT c_glitem_id
+        --  INTO v_loan_account_id
+        --  FROM C_Glitem_Acct
+        --WHERE glitem_credit_acct = v_loan_validcombination_id LIMIT 1;
+
+	    --IF(v_loan_account_id IS NULL) THEN
+	    --  RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocCOLoanGLItemNotFound@');
+	    --END IF;
+
+	    --Create invoice to pay the loan
+        DECLARE
+	      CurLines RECORD;
+          v_line NUMBER;
+	      v_otherdocnumber VARCHAR(60);
+          p_C_Invoice_ID VARCHAR(32);
+          p_NewInvoiceDocumentNo VARCHAR(60);
+          p_C_InvoiceLine_ID VARCHAR(32);
+          p_SCO_Inv_Manualterm_ID VARCHAR(32);
+
+          CurPS RECORD;
+          v_sco_loandoc_line_id VARCHAR(32);
+        BEGIN
+
+          Ad_Sequence_Next('C_Invoice', v_Client_ID, p_C_Invoice_ID);
+	      Ad_Sequence_Doctype(v_C_LoanInvDocType_ID, v_Record_ID, 'Y', p_NewInvoiceDocumentNo) ;
+          IF (p_NewInvoiceDocumentNo IS NULL) THEN
+            Ad_Sequence_Doc('DocumentNo_C_Invoice', v_Client_ID, 'Y', p_NewInvoiceDocumentNo) ;
+          END IF;
+
+	      IF (p_NewInvoiceDocumentNo IS NULL) THEN
+	        RAISE_APPLICATION_ERROR(-20000, '@SCO_LoanDocCODocNoNotFound@');
+          END IF;
+
+          --Insert Invoice Header
+	      INSERT INTO C_INVOICE
+          (
+            C_Invoice_ID, AD_Client_ID, AD_Org_ID,
+            IsActive, Created, CreatedBy, Updated,
+            UpdatedBy, IsSOTrx, DocumentNo, DocStatus,
+            DocAction, Processing, Processed, C_DocType_ID,
+            C_DocTypeTarget_ID, Description,
+            DateInvoiced, em_sco_newdateinvoiced, DatePrinted, IsPrinted, TaxDate,
+            DateAcct, C_PaymentTerm_ID, em_sco_fixedduedate, C_BPartner_ID, C_BPartner_Location_ID,
+            AD_User_ID,C_Currency_ID,M_PriceList_ID,fin_paymentmethod_id,
+	        isdiscountprinted,paymentrule,chargeamt,totallines,grandtotal,istaxincluded,isselfservice,
+	        iscashvat, em_aprm_processinvoice, em_sco_isimportation, em_sco_issimpleprovision, em_sco_isforfree,
+	        em_sco_useprepayment, em_scr_physical_documentno, em_sco_podoctype_comboitem_id, em_sco_purchaseinvoicetype
+          )
+	      VALUES
+	      (
+	        p_C_Invoice_ID,v_Client_ID,v_Org_ID,
+	        'Y',now(), v_UpdatedBy, now(),
+            v_UpdatedBy, 'N', p_NewInvoiceDocumentNo, 'DR',
+	        'CO', 'N', 'N', '0',
+	        v_C_LoanInvDocType_ID, '',
+	        v_Date, v_Date, NULL, 'N', NULL,
+	        v_Date, v_manual_paymentterm_ID, NULL, v_c_Bpartner_ID, v_c_Bpartner_Location_ID,
+	        v_User, v_c_Currency_ID, v_M_Pricelist_ID,v_FIN_Paymentmethod_ID,
+	        'N','P', 0, 0, 0, 'N', 'N',
+	        'N', 'CO', 'N', 'N', 'N', 
+	        'SCO_USEPREPAY', v_referenceno, v_podoctype_cmb_item_id, 'SCO_OTHER'
+	      );
+
+
+          --Insert the invoice line
+	      Ad_Sequence_Next('C_InvoiceLine', v_Client_ID, p_C_InvoiceLine_ID);
+	      INSERT INTO C_INVOICELINE
+          (
+            C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+            Created, CreatedBy, Updated, UpdatedBy,
+            C_Invoice_ID, Line,
+            Description, financial_invoice_line, QtyInvoiced, PriceList,
+            PriceActual, PriceLimit, LineNetAmt, ChargeAmt,
+            C_UOM_ID, C_Tax_ID, PriceStd, 
+            Account_ID,Taxbaseamt, gross_unit_price, line_gross_amount,isdeferred, taxamt,
+		    isdescription, excludeforwithholding, iseditlinenetamt, grosspricestd,
+	        explode,em_sco_prorrateo, em_sco_perceptiontaxed, em_sco_detractiontaxed, em_sco_isdeferredonreceipt,
+	        em_sco_creditused, em_scr_specialtax
+	      )
+          VALUES
+          (
+	        p_C_InvoiceLine_ID, v_Client_ID,v_Org_ID, 'Y',
+	        now(), v_UpdatedBy, now(), v_UpdatedBy,
+		    p_C_Invoice_ID, 10,
+	        '', 'Y', 1, 0,
+		    v_totalamount, 0, v_totalamount, 0,
+		    '100', v_C_ExemptTax_ID, v_totalamount,
+		    v_loan_glitem_id, v_totalamount, 0,0, 'N' ,0,
+	        'N', 'N', 'N', 0,
+	        'N', 'N', 'N', 'N', 'N',
+	        0, 'SCOEXEMPT'
+	      );
+
+	      FOR CurLines IN
+              (SELECT * FROM SCO_Loandoc_Line WHERE SCO_LOAN_DOC_ID=v_Record_ID  ORDER BY line)
+          LOOP
+            Ad_Sequence_Next('SCO_Inv_Manualterm', v_Client_ID, p_SCO_Inv_Manualterm_ID);
+            INSERT INTO sco_inv_manualterm(
+              sco_inv_manualterm_id, ad_client_id, ad_org_id, line, created, 
+              createdby, updated, isactive, updatedby, c_invoice_id, amount, 
+              duedate)
+            VALUES 
+            (
+              p_SCO_Inv_Manualterm_ID, v_Client_ID,v_Org_ID, CurLines.line, now(), 
+              v_UpdatedBy, now(), 'Y', v_UpdatedBy,p_C_Invoice_ID, CurLines.amount, 
+              CurLines.duedate
+            );
+	      END LOOP;
+
+          C_INVOICE_POST(NULL, p_C_Invoice_ID);
+
+          --After complete invoice link the generated fin_payment_schedule_ids to the loandoc_lines and the invoice to the loandoc
+          UPDATE SCO_Loan_Doc SET c_invoice_id = p_C_Invoice_ID WHERE SCO_Loan_Doc_ID = v_Record_ID;
+          FOR CurPS IN (SELECT * FROM FIN_Payment_Schedule WHERE C_Invoice_ID = p_C_Invoice_ID)
+          LOOP
+            SELECT sco_loandoc_line_id
+              INTO v_sco_loandoc_line_id
+              FROM SCO_Loandoc_Line
+            WHERE SCO_Loan_doc_ID = v_Record_ID
+            AND fin_payment_schedule_id IS NULL
+            AND duedate = CurPS.duedate
+            AND amount = CurPS.amount LIMIT 1;
+
+            IF(v_sco_loandoc_line_id IS NOT NULL) THEN
+              UPDATE SCO_Loandoc_Line SET fin_payment_schedule_id = CurPS.fin_payment_schedule_id WHERE SCO_Loandoc_Line_ID = v_sco_loandoc_line_id;
+            END IF;
+          END LOOP;
+
+        END;
+      END IF;
+      
+
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**
+      * In Progress -----------------------------------------------------------
+      */
+      UPDATE SCO_LOAN_DOC
+      SET DocStatus='IP',
+          Updated=now(),
+          UpdatedBy=v_User
+      WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        COMMIT;
+      END IF;
+
+    /**
+      * Finished with processing
+      */
+      IF (v_DocAction='PR') THEN
+        v_ResultStr:='FinishProcessing';
+        UPDATE SCO_LOAN_DOC
+        SET DocStatus='IP',
+            DocAction='CO',
+            Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+  
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+
+      IF (v_DocAction IN('CO', 'CL')) THEN
+        UPDATE SCO_LOAN_DOC
+        SET DocStatus='CO',
+            DocAction='RE',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+
+      END IF;
+
+      IF (v_DocAction NOT IN('CO')) THEN
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+
+
+      IF (v_DocAction='CL') THEN
+
+       
+        --Close de Sales Withhloding Receipt no futher actions are permited
+        UPDATE SCO_LOAN_DOC
+        SET DocStatus='CL',
+            DocAction='--',
+            Processed='Y'
+        WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='UnLockingOrder';
+        UPDATE SCO_LOAN_DOC
+        SET Processing='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+        COMMIT;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    --<<FINISH_PROCESS>>
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    --Inserted by Carlos Romero 062706
+    UPDATE SCO_LOAN_DOC  SET Processing='N'  WHERE SCO_LOAN_DOC_ID=v_Record_ID;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END SCO_LOAN_DOC_POST
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_CURRENCY_CONVERT_TABLE">
+    <function name="SCO_CURRENCY_CONVERT_TABLE" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_from" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_to" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_table_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_record_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_DocRate NUMBER;
+  v_ConvertedAmount NUMBER;
+BEGIN
+
+
+  SELECT sco_getConversionRateFromDoc(p_ad_table_id, p_record_id, p_currency_from, p_currency_to) 
+    INTO v_DocRate
+  FROM DUAL;
+
+  IF(v_DocRate IS NULL) THEN
+    SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(p_amount, p_currency_from, p_currency_to, p_convdate, NULL,p_ad_client_id, p_ad_org_id), p_currency_to, NULL)), 0)
+      INTO v_ConvertedAmount;
+  ELSE
+    SELECT COALESCE(c_currency_convert_rate(p_amount, p_currency_from, p_currency_to, p_convdate, 'S', p_ad_client_id, p_ad_org_id, v_DocRate),0)
+      INTO v_ConvertedAmount;
+  END IF;
+
+  RETURN v_ConvertedAmount;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SCO_CURRENCY_CONVERT_TABLE
+]]></body>
+    </function>
+  </database>

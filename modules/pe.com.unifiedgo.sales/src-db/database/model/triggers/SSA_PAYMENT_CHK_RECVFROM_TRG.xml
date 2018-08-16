@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PAYMENT_CHK_RECVFROM_TRG">
+    <trigger name="SSA_PAYMENT_CHK_RECVFROM_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      IF (:NEW.isreceipt='Y' AND :NEW.em_sco_isapppayment = 'N' AND :NEW.EM_Ssa_Paymentin_Doctype='DISC_STAFF_SAMPLE') THEN
+         IF (:NEW.c_bpartner_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_PaymentIn_PartnerNotNull@');
+         ELSIF (:NEW.em_ssa_internal_doc_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_PaymentIn_InternalDocNotNull@');
+         END IF;
+      END IF;     
+
+    ELSE
+      IF(COALESCE(:OLD.em_sco_isapppayment,'.')<>COALESCE(:NEW.em_sco_isapppayment,'.') OR
+         COALESCE(:OLD.EM_Ssa_Paymentin_Doctype,'.')<>COALESCE(:NEW.EM_Ssa_Paymentin_Doctype,'.') OR
+         COALESCE(:OLD.c_bpartner_id,'.')<>COALESCE(:NEW.c_bpartner_id,'.') OR
+         COALESCE(:OLD.em_ssa_internal_doc_id,'.')<>COALESCE(:NEW.em_ssa_internal_doc_id,'.')) THEN
+        IF (:NEW.isreceipt='Y' AND :NEW.em_sco_isapppayment = 'N' AND :NEW.EM_Ssa_Paymentin_Doctype='DISC_STAFF_SAMPLE') THEN
+           IF (:NEW.c_bpartner_id IS NULL) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_PaymentIn_PartnerNotNull@');
+           ELSIF (:NEW.em_ssa_internal_doc_id IS NULL) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_PaymentIn_InternalDocNotNull@');
+           END IF;   
+        END IF;   
+      END IF;
+
+    END IF;
+
+    END SSA_PAYMENT_CHK_RECVFROM_TRG
+]]></body>
+    </trigger>
+  </database>

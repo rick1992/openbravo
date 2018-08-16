@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_CALCULATE_RATE_POLARITY">
+    <function name="SCO_CALCULATE_RATE_POLARITY" type="VARCHAR">
+      <parameter name="p_finacccurrid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_paymentcurrid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_rate_polarity VARCHAR(1) := 'E';
+BEGIN
+  IF(p_finaccCurrId = '308') THEN
+    v_rate_polarity := 'D';
+  ELSIF(p_paymentCurrId = '308') THEN
+    v_rate_polarity := 'E';
+  ELSIF(p_finaccCurrId = '100') THEN
+    v_rate_polarity := 'D';
+  ELSIF(p_paymentCurrId = '100') THEN
+    v_rate_polarity := 'E';
+  ELSIF(p_finaccCurrId = '102') THEN
+    v_rate_polarity := 'D';
+  ELSIF(p_paymentCurrId = '102') THEN
+    v_rate_polarity := 'E';
+  ELSE
+    v_rate_polarity := 'E';
+  END IF;
+
+  RETURN v_rate_polarity;
+END SCO_CALCULATE_RATE_POLARITY
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_BUDGETLINE_UPDATEPRICE_TRG">
+    <trigger name="SPR_BUDGETLINE_UPDATEPRICE_TRG" table="SPR_BUDGETLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2012 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+
+   TYPE RECORD IS REF CURSOR;
+  v_Insert BOOLEAN :=FALSE;
+  v_Processed CHAR(1) :='N';
+  v_ID VARCHAR2(32);
+  
+
+ 
+  
+  v_budget_type SPR_BUDGET.TYPE%TYPE;
+ 
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.spr_budget_id;
+ELSE
+  v_ID:=:NEW.spr_budget_id;
+END IF;
+
+
+  /**************************************************************************
+   * ACTUALIZAR LOS PRECIOS UNITARIOS CUANDO SE CAMBIAN EN TODOS.
+   */
+  IF (UPDATING) THEN
+	IF(:OLD.priceactual <> :NEW.priceactual 
+	   AND (COALESCE(:OLD.M_PRODUCT_ID,'--') = COALESCE(:NEW.M_PRODUCT_ID,'--')) 
+	   AND :NEW.M_PRODUCT_ID IS NOT NULL)THEN
+	   
+	 SELECT type
+	   INTO v_budget_type
+	 FROM spr_budget
+	 WHERE spr_budget_id=v_ID FOR UPDATE;
+
+	 IF(v_budget_type LIKE 'BDG')THEN
+
+	  UPDATE SPR_BUDGETLINE
+	    SET priceactual = :NEW.priceactual,
+		linenetamt = qtyordered*:NEW.priceactual
+	   WHERE m_product_id  = :NEW.m_product_id 
+	    and spr_budget_ID = v_ID;
+	  
+	 END IF;
+	END IF;
+ END IF;
+
+
+END SPR_BUDGETLINE_UPDATEPRICE_TRG
+]]></body>
+    </trigger>
+  </database>

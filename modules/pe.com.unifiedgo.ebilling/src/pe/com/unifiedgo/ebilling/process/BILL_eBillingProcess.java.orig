@@ -1,0 +1,306 @@
+package pe.com.unifiedgo.ebilling.process;
+
+import java.sql.Connection;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.ServletException;
+
+import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
+import org.openbravo.dal.service.OBDal;
+import org.openbravo.database.ConnectionProvider;
+import org.openbravo.model.ad.system.Client;
+import org.openbravo.model.common.invoice.Invoice;
+import org.openbravo.scheduling.ProcessBundle;
+import org.openbravo.scheduling.ProcessLogger;
+import org.openbravo.service.db.DalBaseProcess;
+import org.openbravo.service.db.DalConnectionProvider;
+import org.quartz.JobExecutionException;
+
+import pe.com.unifiedgo.accounting.data.SCOPwithholdingReceipt;
+import pe.com.unifiedgo.ebilling.EbizEbill_Utils;
+import pe.com.unifiedgo.ebilling.data.BILLEbillConnSetting;
+
+public class BILL_eBillingProcess extends DalBaseProcess {
+  private static ProcessLogger logger;
+  private ConnectionProvider connection;
+
+  private final static String SYSTEM_CLIENT_ID = "0";
+
+  // invoices types
+  private final static String ANULADO = "VO";
+  private final static String NOTA_CREDITO = "NC";
+  private final static String NOTA_CREDITO_DEVOLUCION = "NC_DEV";
+  private final static String NOTA_DEBITO = "NB";
+  private final static String ANTICIPO = "PR";
+  private final static String BOLETA = "BV";
+  private final static String FACTURA = "FV";
+  private final static String FACTURA_GUIA = "FV_GR";
+  private final static String FACTURA_DETRACCION = "FV_DT";
+  private final static String FACTURA_PERCEPCION = "FV_PERC";
+  private final static String COMPROBANTE_RETENCION = "COMP_RET";
+
+  public void doExecute(ProcessBundle bundle) throws Exception {
+
+    logger = bundle.getLogger();
+    connection = bundle.getConnection();
+
+    VariablesSecureApp vars = bundle.getContext().toVars();
+    if (vars.getClient().equals(SYSTEM_CLIENT_ID)) {
+      OBCriteria<Client> obc = OBDal.getInstance().createCriteria(Client.class);
+      obc.add(Restrictions.not(Restrictions.eq(Client.PROPERTY_ID, SYSTEM_CLIENT_ID)));
+      for (Client c : obc.list()) {
+        final VariablesSecureApp vars1 = new VariablesSecureApp(bundle.getContext().getUser(),
+            c.getId(), bundle.getContext().getOrganization());
+        processClient(vars1, bundle);
+      }
+    } else {
+      processClient(vars, bundle);
+    }
+
+  }
+
+  private void processClient(VariablesSecureApp vars, ProcessBundle bundle) throws Exception {
+    ConnectionProvider conn = new DalConnectionProvider();
+
+    DateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+    Date todaydate = formatter.parse(formatter.format(new Date()));
+
+    System.out.println("paso1");
+    try {
+      OBContext.setAdminMode(false);
+      System.out.println("paso2");
+      OBCriteria<BILLEbillConnSetting> settings = OBDal.getInstance().createCriteria(
+          BILLEbillConnSetting.class);
+      settings.setFilterOnReadableClients(false);
+      settings.setFilterOnReadableOrganization(false);
+      settings.add(Restrictions.eq(BILLEbillConnSetting.PROPERTY_CLIENT,
+          OBDal.getInstance().get(Client.class, vars.getClient())));
+      settings.add(Restrictions.eq(BILLEbillConnSetting.PROPERTY_ACTIVE, true));
+      List<BILLEbillConnSetting> settings_list = settings.list();
+      System.out.println("paso3");
+      for (int i = 0; i < settings_list.size(); i++) {
+        System.out.println("paso4");
+        BILLEbillConnSetting org_setting = settings_list.get(i);
+        logger.log("Processing Organization: " + org_setting.getOrganization().getName() + "\n");
+        System.out.println("paso5");
+
+        // UPDATE C_INVOICE EBILL STATUS
+        String ebilling_status;
+        int counter = 0;
+        Connection connection = conn.getTransactionConnection();
+        /*
+         * try { BILLEBillingProcessData[] invoices =
+         * BILLEBillingProcessData.geteInvoicesToUpdateState(connection, conn,
+         * org_setting.getClient().getId(), org_setting.getOrganization().getId());
+         * logger.log("Invoices to update status: " + invoices.length + "\n"); for (int j = 0; j <
+         * invoices.length; j++) { ebilling_status = "ER"; // funcion para obtener estado de factura
+         * BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, ebilling_status,
+         * invoices[j].cInvoiceId); counter++; if (counter % 50 == 0) {
+         * logger.log("Invoices processed: " + counter + "\n"); } }
+         * 
+         * conn.releaseCommitConnection(connection); } catch (ServletException e) {
+         * conn.releaseRollbackConnection(connection); e.printStackTrace(); continue; }
+         * 
+         * // UPDATE PWITHHOLDING RECEIPT EBILL STATUS counter = 0; connection =
+         * conn.getTransactionConnection(); try { BILLEBillingProcessData[] pwithholding_receipts =
+         * BILLEBillingProcessData.getePwithhoReceiptToUpdateState(connection, conn,
+         * org_setting.getClient().getId(), org_setting.getOrganization().getId());
+         * logger.log("Pwithholding receipts to update status: " + pwithholding_receipts.length +
+         * "\n"); for (int j = 0; j < pwithholding_receipts.length; j++) { ebilling_status = "ER";
+         * // funcion para obtener estado de comprobante de retencion de // compra
+         * BILLEBillingProcessData.updateePwithhoReceiptStatus(connection, conn, ebilling_status,
+         * pwithholding_receipts[j].scoPwithholdingReceiptId); counter++; if (counter % 50 == 0) {
+         * logger.log("Pwithholding receipts processed: " + counter + "\n"); } }
+         * 
+         * conn.releaseCommitConnection(connection); } catch (ServletException e) {
+         * conn.releaseRollbackConnection(connection); e.printStackTrace(); continue; }
+         */
+
+        // Processing Invoices
+        counter = 0;
+        connection = conn.getTransactionConnection();
+        try {
+          System.out.println("paso6");
+          BILLEBillingProcessData[] invoices = BILLEBillingProcessData.geteInvoicesToSend(
+              connection, conn, org_setting.getClient().getId(), org_setting.getOrganization()
+                  .getId());
+          System.out.println("paso7 " + "Invoices to send: " + invoices.length);
+          logger.log("Invoices to send: " + invoices.length + "\n");
+          for (int j = 0; j < invoices.length; j++) {
+            System.out.println("paso8 - invoices[j].type:" + invoices[j].type);
+            Invoice invoice = OBDal.getInstance().get(Invoice.class, invoices[j].cInvoiceId);
+            DateFormat df = new SimpleDateFormat("dd-MM-yyyy");
+            Date date01Jul = df.parse("01-07-2017");
+            if (invoice.getAccountingDate().compareTo(date01Jul) >= 0) {
+              continue;
+            }            
+//            if (true) {
+//            	continue;
+//            }
+//            if (!invoice.isScoIsforfree()) {
+//            	continue;
+//            }
+            if (invoices[j].type.equals(FACTURA)) {
+              System.out.println("paso9 - FACTURA");
+              String responseStatus = EbizEbill_Utils.eBizzSend_Factura(org_setting.getUrlsend(),
+                  org_setting.getUrlsendEndpoint(), invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            }
+            if (invoices[j].type.equals(FACTURA_GUIA)) {
+              System.out.println("paso9.1 - FACTURA GUIA");
+              String responseStatus = EbizEbill_Utils.eBizzSend_FacturaGuia(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(BOLETA)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_Boleta(org_setting.getUrlsend(),
+                  org_setting.getUrlsendEndpoint(), invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(NOTA_CREDITO)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_NotaCredito(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(NOTA_CREDITO_DEVOLUCION)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_NotaCreditoDevolucion(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(NOTA_DEBITO)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_NotaDebito(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(ANTICIPO)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_FacturaAnticipo(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(ANULADO)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_Baja(org_setting.getUrlsend(),
+                  org_setting.getUrlsendEndpoint(), invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(FACTURA_DETRACCION)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_FacturaDetraccion(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+
+            } else if (invoices[j].type.equals(FACTURA_PERCEPCION)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_FacturaPercepcion(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  invoices[j].cInvoiceId);
+
+              // BILLEBillingProcessData.updateeInvoiceStatus(connection, conn, responseStatus,
+              // invoices[j].cInvoiceId);
+            }
+
+            counter++;
+            if (counter % 50 == 0) {
+              logger.log("Invoices processed: " + counter + "\n");
+            }
+          }
+          conn.releaseCommitConnection(connection);
+        } catch (ServletException e) {
+          conn.releaseRollbackConnection(connection);
+          e.printStackTrace();
+        }
+
+        // Processing Purchase Withholding Receipts
+        counter = 0;
+        connection = conn.getTransactionConnection();
+        try {
+          System.out.println("paso10");
+          BILLEBillingProcessData[] pwithholding_receipts = BILLEBillingProcessData
+              .getePwithhoReceiptToSend(connection, conn, org_setting.getClient().getId(),
+                  org_setting.getOrganization().getId());
+          System.out.println("paso11 " + "Pwithholding Receipts to send: "
+              + pwithholding_receipts.length);
+          logger.log("Pwithholding Receipts to send: " + pwithholding_receipts.length + "\n");
+          for (int j = 0; j < pwithholding_receipts.length; j++) {
+
+            System.out.println("paso12 - pwithholding_receipts[j].type:"
+                + pwithholding_receipts[j].type);
+
+            SCOPwithholdingReceipt pwithholding = OBDal.getInstance().get(
+                SCOPwithholdingReceipt.class, pwithholding_receipts[j].scoPwithholdingReceiptId);
+            DateFormat df = new SimpleDateFormat("dd-MM-yyyy");
+            Date date01Jul = df.parse("01-07-2017");
+            // if (pwithholding.getAccountingDate().compareTo(date01Jul) >= 0) {
+            // continue;
+            // }
+            if (true) {
+              continue;
+            }
+            if (pwithholding_receipts[j].type.equals(COMPROBANTE_RETENCION)) {
+              System.out.println("paso13 - COMPROBANTE DE RETENCION");
+              String responseStatus = EbizEbill_Utils.eBizzSend_ComprobanteRetencion(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  pwithholding_receipts[j].scoPwithholdingReceiptId);
+
+              // BILLEBillingProcessData.updateePwithhoReceiptStatus(connection, conn,
+              // responseStatus, pwithholding_receipts[j].scoPwithholdingReceiptId);
+            } else if (pwithholding_receipts[j].type.equals(ANULADO)) {
+              String responseStatus = EbizEbill_Utils.eBizzSend_ComprobanteRetencionBaja(
+                  org_setting.getUrlsend(), org_setting.getUrlsendEndpoint(),
+                  pwithholding_receipts[j].scoPwithholdingReceiptId);
+
+              // BILLEBillingProcessData.updateePwithhoReceiptStatus(connection, conn,
+              // responseStatus, pwithholding_receipts[j].scoPwithholdingReceiptId);
+
+            }
+
+            counter++;
+            if (counter % 50 == 0) {
+              logger.log("Pwithholding Receipts processed: " + counter + "\n");
+            }
+          }
+          conn.releaseCommitConnection(connection);
+        } catch (ServletException e) {
+          conn.releaseRollbackConnection(connection);
+          e.printStackTrace();
+        }
+      }
+
+      OBDal.getInstance().flush();
+      logger.log("eBilling Process was Executed\n");
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw new JobExecutionException(e.getMessage(), e);
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+}

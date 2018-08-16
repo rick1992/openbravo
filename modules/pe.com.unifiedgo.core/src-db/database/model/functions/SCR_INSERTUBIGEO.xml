@@ -1,0 +1,152 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_INSERTUBIGEO">
+    <function name="SCR_INSERTUBIGEO" type="NUMERIC">
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+  CUR_Mixrow RECORD;
+  v_count NUMBER;
+  v_Aux NUMBER;
+  p_SCR_Combo_Item_ID VARCHAR(32);
+
+  p_AD_Client_ID VARCHAR(32);
+  p_AD_Org_ID VARCHAR(32);
+  p_AD_User_ID VARCHAR(32);
+
+  p_C_Country_ID VARCHAR(32);
+
+  v_Region_ID VARCHAR(32);
+  v_Province_ID VARCHAR(32);
+  v_City_ID VARCHAR(32);
+BEGIN
+
+  p_AD_Client_ID := '0';
+  p_AD_Org_ID := '0';
+  p_AD_User_ID := '100';
+  p_C_Country_ID := '277';
+
+  CREATE TEMPORARY TABLE mixrows
+  (
+     r_areacode character varying(10) NOT NULL,
+     r_name character varying(60) NOT NULL,
+     p_areacode character varying(60) NOT NULL,
+     p_name character varying(60) NOT NULL,
+     c_areacode character varying(60) NOT NULL,
+     c_name character varying(60) NOT NULL
+  ) on commit drop;
+  
+  COPY mixrows FROM '/tmp/regions.txt';
+
+  v_count := 0;
+  FOR CUR_Mixrow IN (SELECT * FROM mixrows)
+  LOOP
+    --FOR C_Region
+    SELECT C_Region_ID
+      INTO v_Region_ID
+      FROM C_Region
+    WHERE AD_Client_ID = p_AD_Client_ID
+    AND AD_Org_ID = p_AD_Org_ID
+    AND C_Country_ID = p_C_Country_ID
+    AND (
+      replace(lower(scr_unaccent(name)),' ','') = replace(lower(scr_unaccent(CUR_Mixrow.r_name)),' ','')
+      OR replace(replace(lower(scr_unaccent(name)),' ',''),'s','z') = replace(replace(lower(scr_unaccent(CUR_Mixrow.r_name)),' ',''),'s','z')
+      OR replace(replace(lower(scr_unaccent(name)),' ',''),'z','s') = replace(replace(lower(scr_unaccent(CUR_Mixrow.r_name)),' ',''),'z','s')
+    ) LIMIT 1;
+
+    IF(v_Region_ID IS NOT NULL) THEN
+      UPDATE C_Region
+        SET em_scr_areacode = CUR_Mixrow.r_areacode
+      WHERE C_Region_ID = v_Region_ID;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE( 'Region:' || CUR_Mixrow.r_name || ' not found creating...');
+      AD_Sequence_Next('C_Region', p_AD_Client_ID, v_Region_ID);
+      INSERT INTO c_region(
+            c_region_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+            updated, updatedby, name, description, c_country_id, isdefault, 
+            value, em_scr_areacode)
+      VALUES (
+            v_Region_ID, p_AD_Client_ID, p_AD_Org_ID, 'Y', now(), p_AD_User_ID, 
+            now(), p_AD_User_ID, CUR_Mixrow.r_name, CUR_Mixrow.r_name, p_C_Country_ID, 'N', 
+            NULL, CUR_Mixrow.r_areacode
+      );
+    END IF;
+
+    --FOR SCR_PROVINCE
+    SELECT SCR_Province_ID
+      INTO v_Province_ID
+      FROM SCR_Province
+    WHERE AD_Client_ID = p_AD_Client_ID
+    AND AD_Org_ID = p_AD_Org_ID
+    AND C_Country_ID = p_C_Country_ID
+    AND C_Region_ID = v_Region_ID
+    AND (
+      replace(lower(scr_unaccent(name)),' ','') = replace(lower(scr_unaccent(CUR_Mixrow.p_name)),' ','')
+      OR replace(replace(lower(scr_unaccent(name)),' ',''),'s','z') = replace(replace(lower(scr_unaccent(CUR_Mixrow.p_name)),' ',''),'s','z')
+      OR replace(replace(lower(scr_unaccent(name)),' ',''),'z','s') = replace(replace(lower(scr_unaccent(CUR_Mixrow.p_name)),' ',''),'z','s')
+    ) LIMIT 1;
+
+    IF(v_Province_ID IS NOT NULL) THEN
+      UPDATE SCR_Province
+        SET areacode = CUR_Mixrow.p_areacode,
+            C_Region_ID = v_Region_ID
+      WHERE SCR_Province_ID = v_Province_ID;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE( 'Province:' || CUR_Mixrow.p_name || ' not found creating...');
+      AD_Sequence_Next('SCR_Province', p_AD_Client_ID, v_Province_ID);
+      INSERT INTO scr_province(
+           scr_province_id, ad_client_id, ad_org_id, isactive, created, 
+            createdby, updated, updatedby, name, areacode, c_country_id, 
+            c_region_id)
+      VALUES (
+            v_Province_ID, p_AD_Client_ID, p_AD_Org_ID, 'Y', now(), 
+            p_AD_User_ID, now(), p_AD_User_ID, CUR_Mixrow.p_name, CUR_Mixrow.p_areacode, p_C_Country_ID, 
+            v_Region_ID
+      );
+    END IF;
+
+    --FOR C_City
+    SELECT C_City_ID
+      INTO v_City_ID
+      FROM C_City
+    WHERE AD_Client_ID = p_AD_Client_ID
+    AND AD_Org_ID = p_AD_Org_ID
+    AND C_Country_ID = p_C_Country_ID
+    AND C_Region_ID = v_Region_ID
+    --Do not compare province because old ones doesnt have one(posible duplicated error)
+    --AND EM_Scr_Province_ID = v_Province_ID
+    AND (
+      replace(lower(scr_unaccent(name)),' ','') = replace(lower(scr_unaccent(CUR_Mixrow.c_name)),' ','')
+      OR replace(replace(lower(scr_unaccent(name)),' ',''),'s','z') = replace(replace(lower(scr_unaccent(CUR_Mixrow.c_name)),' ',''),'s','z')
+      OR replace(replace(lower(scr_unaccent(name)),' ',''),'z','s') = replace(replace(lower(scr_unaccent(CUR_Mixrow.c_name)),' ',''),'z','s')
+    ) LIMIT 1;
+
+    IF(v_City_ID IS NOT NULL) THEN
+      UPDATE C_City
+        SET areacode = CUR_Mixrow.c_areacode,
+            C_Region_ID = v_Region_ID,
+            EM_Scr_Province_ID = v_Province_ID
+      WHERE C_City_ID = v_City_ID;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE( 'City:' || CUR_Mixrow.c_name || ' not found creating... ' || p_C_Country_ID || ' - ' || v_Region_ID);
+      AD_Sequence_Next('C_City', p_AD_Client_ID, v_City_ID);
+      INSERT INTO c_city(
+            c_city_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+            updated, updatedby, name, areacode, 
+            c_country_id, c_region_id, em_scr_province_id)
+      VALUES (
+            v_City_ID, p_AD_Client_ID, p_AD_Org_ID, 'Y', now(), p_AD_User_ID, 
+            now(), p_AD_User_ID, CUR_Mixrow.c_name, CUR_Mixrow.c_areacode, 
+            p_C_Country_ID, v_Region_ID, v_Province_ID
+      );
+    END IF;
+
+  END LOOP;
+
+  RETURN v_count;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN NULL;
+END SCR_INSERTUBIGEO
+]]></body>
+    </function>
+  </database>

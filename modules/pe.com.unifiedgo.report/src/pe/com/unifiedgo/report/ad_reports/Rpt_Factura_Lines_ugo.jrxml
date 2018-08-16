@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_Factura_Lines_ugo" pageWidth="800" pageHeight="482" orientation="Landscape" columnWidth="800" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="1.3310000000000006"/>
+	<property name="ireport.x" value="35"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="C_INVOICE_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="ISTAXINCLUDED" class="java.lang.String"/>
+	<parameter name="ISFORFREE" class="java.lang.String"/>
+	<parameter name="RATETAX" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select inv.c_invoice_id as "INV_ID",
+il.line as "N_LINE",
+gl.c_glitem_id as "ID_ITEM",
+(case when gl.c_glitem_id is null then p.value else '' end) as "COD_PRO",
+(case when gl.c_glitem_id is null then p.name else gl.name end) as "DESCRIP",
+(case when gl.c_glitem_id is null then uom.name else '' end) as "U_MED",
+(case when gl.c_glitem_id is null then il.qtyinvoiced else 0 end) as "CANT",
+(case when gl.c_glitem_id is null then il.pricelist else 0.0 end) as "P_LIST",
+(case when gl.c_glitem_id is null then il.priceactual else 0.0 end) as "P_ACTUAL",
+(case when p.m_product_id is null then il.linenetamt else 0.0 end) as "OTRO",
+(case when gl.c_glitem_id is null then (il.qtyinvoiced*il.pricelist) else il.linenetamt end) as "V_TOT",
+(select c_invoicetax.taxamt from c_invoicetax join c_tax
+on c_invoicetax.c_tax_id = c_tax.c_tax_id
+where c_invoicetax.c_invoice_id = inv.c_invoice_id and em_sco_specialtax= 'SCOIGV') as "MON_IGV"
+
+
+from c_invoice inv
+left join c_invoiceline il
+on inv.c_invoice_id = il.c_invoice_id
+left join m_product p
+on il.m_product_id = p.m_product_id
+left join c_glitem gl
+on il.account_id = gl.c_glitem_id
+left join c_uom uom
+on p.c_uom_id = uom.c_uom_id
+
+where inv.c_invoice_id in ($P{C_INVOICE_ID})
+order by il.line asc]]>
+	</queryString>
+	<field name="INV_ID" class="java.lang.String"/>
+	<field name="N_LINE" class="java.math.BigDecimal"/>
+	<field name="ID_ITEM" class="java.lang.String"/>
+	<field name="COD_PRO" class="java.lang.String"/>
+	<field name="DESCRIP" class="java.lang.String"/>
+	<field name="U_MED" class="java.lang.String"/>
+	<field name="CANT" class="java.math.BigDecimal"/>
+	<field name="P_LIST" class="java.math.BigDecimal"/>
+	<field name="P_ACTUAL" class="java.math.BigDecimal"/>
+	<field name="OTRO" class="java.math.BigDecimal"/>
+	<field name="V_TOT" class="java.math.BigDecimal"/>
+	<field name="MON_IGV" class="java.math.BigDecimal"/>
+	<variable name="TOTAL_LINENETAMT" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{V_TOT}]]></variableExpression>
+	</variable>
+	<variable name="TOTALBRUTO" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{P_ACTUAL}.multiply($F{CANT})]]></variableExpression>
+	</variable>
+	<variable name="TOTALBRUTO_PL" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{P_LIST}.multiply($F{CANT})]]></variableExpression>
+	</variable>
+	<variable name="OTROS" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{OTRO}]]></variableExpression>
+	</variable>
+	<variable name="VAL_VENTA" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{V_TOT}]]></variableExpression>
+	</variable>
+	<variable name="IGV" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID">
+		<variableExpression><![CDATA[$V{VAL_VENTA}.multiply($P{RATETAX})]]></variableExpression>
+	</variable>
+	<group name="C_INVOICE_ID" isResetPageNumber="true">
+		<groupExpression><![CDATA[$F{INV_ID}]]></groupExpression>
+		<groupFooter>
+			<band height="65">
+				<printWhenExpression><![CDATA[$P{ISFORFREE}.equals("Y")]]></printWhenExpression>
+				<textField>
+					<reportElement x="202" y="0" width="203" height="55"/>
+					<textElement textAlignment="Right" verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{ISFORFREE}.equals("Y")?"VALOR VENTA"+"\n"+"I.G.V."+"\n"+"PRECIO VENTA"+"\n"+"DSCTO TRANSFERENCIA A TITULO GRATUITO"+"\n"+"Total a pagar S/.":""]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="477" y="0" width="100" height="55"/>
+					<textElement textAlignment="Right" verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{ISFORFREE}.equals("Y")?$P{NUMBERFORMAT}.format($V{VAL_VENTA})+"\n"+$P{NUMBERFORMAT}.format($F{MON_IGV})+"\n"+$P{NUMBERFORMAT}.format($V{VAL_VENTA}.add($F{MON_IGV}))+"\n - "+$P{NUMBERFORMAT}.format($V{VAL_VENTA}.add($F{MON_IGV}))+"\n"+"0.00":""]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="213" y="52" width="249" height="12"/>
+					<textElement textAlignment="Center" verticalAlignment="Bottom">
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{ISFORFREE}.equals("Y")?"\"TRANSFERENCIA A TITULO GRATUITO\"":""]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="0" width="30" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{N_LINE}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="16" y="0" width="100" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{COD_PRO}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="134" y="0" width="160" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DESCRIP}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="362" y="0" width="60" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{U_MED}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="386" y="0" width="61" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ID_ITEM}==null?($P{NUMBERFORMAT}.format($F{CANT})):""]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="466" y="0" width="50" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ID_ITEM} == null?$P{NUMBERFORMAT}.format($F{P_LIST}):""]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="517" y="0" width="60" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{V_TOT})]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

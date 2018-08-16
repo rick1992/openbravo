@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="GenerateBudgetRequestData" package="pe.com.unifiedgo.project.ad_actionbutton">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS ad_client_id, '' AS m_requisition_id ,'' AS m_requisitionline_id, 
+               '' AS m_product_id, '' AS em_spr_budgetitem_id, 
+               '' AS name, '' AS qty , '' as productvalue,'' as productname,
+               '' AS uomsymbol, '' AS budgetitemname
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectRequisitionLineForBudgetRequest" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+      SELECT RL.AD_CLIENT_ID, RL.M_REQUISITIONLINE_ID, RL.M_REQUISITION_ID,
+             RL.QTY, RL.M_PRODUCT_ID, RL.EM_SPR_BUDGETITEM_ID,
+             P.VALUE as PRODUCTVALUE, P.NAME as PRODUCTNAME,
+             UOM.uomsymbol as UOMSYMBOL, BIT.NAME as BUDGETITEMNAME
+        FROM M_REQUISITIONLINE RL
+         INNER JOIN M_PRODUCT P ON RL.M_PRODUCT_ID = P.M_PRODUCT_ID
+         INNER JOIN C_UOM UOM ON RL.C_UOM_ID = UOM.C_UOM_ID
+         LEFT JOIN SPR_BUDGETITEM BIT ON RL.EM_SPR_BUDGETITEM_ID = BIT.SPR_BUDGETITEM_ID
+       WHERE RL.M_REQUISITION_ID = ?
+       AND em_spr_budgetline_id IS NULL
+      ]]>
+    </Sql>
+    <Parameter name="mRequisitionId"/>
+  </SqlMethod>
+  
+
+</SqlClass>

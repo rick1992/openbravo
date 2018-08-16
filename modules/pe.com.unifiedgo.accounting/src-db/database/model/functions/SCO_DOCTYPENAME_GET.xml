@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_DOCTYPENAME_GET">
+    <function name="SCO_DOCTYPENAME_GET" type="NVARCHAR">
+      <parameter name="p_doctype_id" type="NVARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_language" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_RetValue VARCHAR(60);
+BEGIN
+BEGIN
+  IF p_AD_Language = 'en_US' THEN
+    SELECT NAME
+      INTO v_RetValue
+      FROM C_Doctype
+     WHERE C_Doctype_ID = p_doctype_id;
+  ELSE
+    SELECT NAME
+      INTO v_RetValue
+     FROM C_Doctype_trl
+     WHERE AD_LANGUAGE = p_AD_Language
+       AND C_Doctype_ID = p_doctype_id LIMIT 1;
+  END IF;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN NULL;
+END;
+
+RETURN v_RetValue;
+END SCO_DOCTYPENAME_GET
+]]></body>
+    </function>
+  </database>

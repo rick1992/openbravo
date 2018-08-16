@@ -1,0 +1,212 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_FOLIO_POST">
+    <function name="SIM_FOLIO_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_CountLines NUMBER:=1; -- Success
+  v_totallines_allPartial NUMBER:=0; -- Success
+  v_count_partial_in_folio NUMBER:=0; -- Success
+  v_freight NUMBER:=0; -- Success
+  v_insurance NUMBER:=0; -- Success
+  v_inland NUMBER:=0; -- Success
+  v_more_expenses NUMBER:=0; -- Success
+
+  v_freight_toinsert NUMBER:=0; -- Success
+  v_insurance_toinsert NUMBER:=0; -- Success
+  v_inland_toinsert NUMBER:=0; -- Success
+  v_more_expenses_toinsert NUMBER:=0; -- Success
+
+  v_freight_acumulado NUMBER:=0; -- Success
+  v_insurance_acumulado NUMBER:=0; -- Success
+  v_inland_acumulado NUMBER:=0; -- Success
+  v_more_expenses_acumulado NUMBER:=0; -- Success
+  v_factor NUMBER:=0; -- Success
+  v_foliodua_id VARCHAR2(32);
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  Cur_Parameter RECORD;
+  Cur_Parameter2 RECORD;
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+
+    IF (p_PInstance_ID IS NULL AND p_order_id IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    ELSIF(p_order_id IS NOT NULL) THEN
+      v_Record_ID:=p_order_id;
+      SELECT CreatedBy
+        INTO v_User_ID
+        FROM sim_folioimport
+       WHERE sim_folioimport_id=v_Record_ID;
+      IF(v_User_ID IS NULL)THEN
+       RAISE NO_DATA_FOUND ;
+      END IF;
+    ELSIF(p_PInstance_ID IS NOT NULL) THEN
+      SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+    END IF;
+
+ 
+
+    --  FOLIO - DETERMINAR SI HAY  LINEAS (Parciales) EN EL FOLIO
+
+    SELECT COUNT(c_order_id)
+    INTO v_CountLines
+    FROM c_order
+    WHERE em_sim_folioimport_id=v_Record_ID AND em_sim_is_in_folio = 'Y';
+
+    IF(v_CountLines = 0) THEN
+        v_Message := '@sim_folio_notlines@';
+        v_Result := 0; -- Error
+        IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        END IF;
+        RETURN;
+    END IF;
+    --/////////////////////////////////////
+    
+    SELECT docstatus,freight,insurance,inland,more_expenses
+      INTO v_orderApprovedState, v_freight, v_insurance, v_inland, v_more_expenses
+    FROM sim_folioimport
+    WHERE sim_folioimport_id=v_Record_ID;
+    
+    IF (v_orderApprovedState LIKE 'CO') THEN
+        --v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        END IF;
+        RETURN;
+    END IF; 
+
+    IF (v_orderApprovedState LIKE 'CL') THEN
+        --v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        END IF;
+        RETURN;
+    END IF; 
+    
+  --UPDATE STATUS
+
+    UPDATE sim_folioimport 
+    SET docstatus='CO'
+    WHERE sim_folioimport_id=v_Record_ID;
+  ---------------------------------------------
+
+  --Update Invoice--------------------
+    
+    SELECT sco_dua_id
+      INTO v_foliodua_id
+    FROM sim_folioimport
+    WHERE sim_folioimport_id=v_Record_ID;
+
+   FOR Cur_Parameter  IN
+   (SELECT c_order_id
+    FROM c_order
+    WHERE em_sim_folioimport_id =v_Record_ID AND em_sim_is_in_folio='Y'
+   )
+   LOOP
+    UPDATE c_invoice 
+     set em_sco_dua_id = v_foliodua_id,
+         em_sco_isimportation = 'Y',
+         em_sco_duatype = 'SO'
+    WHERE c_order_id = Cur_Parameter.c_order_id;
+   END LOOP;
+
+  -------------------------------------
+  --Actualizar la DAM en todas las lineas de la Facturas asociadas a los Parciales
+  FOR Cur_Parameter  IN
+  (SELECT cil.c_invoiceline_id
+    FROM c_invoiceline cil
+     INNER JOIN c_orderline col on cil.c_orderline_id = col.c_orderline_id
+     INNER JOIN c_order co on col.c_order_id = co.c_order_id
+    WHERE co.em_sim_folioimport_id =v_Record_ID AND co.em_sim_is_in_folio='Y'
+  )
+  LOOP
+    UPDATE c_invoiceline
+       SET em_sim_dua_id = v_foliodua_id
+     WHERE c_invoiceline_id = Cur_Parameter.c_invoiceline_id;
+  END LOOP;
+
+  --------------------------------------
+
+ --UPDATE Flete, Seguro , Inland, Otros gastos Prorrateo hacia Parcial Segun su Monto de c/u
+
+  SELECT sum(totallines),count(c_order_id)
+    INTO v_totallines_allPartial, v_count_partial_in_folio
+    FROM c_order
+   WHERE em_sim_folioimport_id =v_Record_ID AND em_sim_is_in_folio='Y';
+
+
+  FOR Cur_Parameter2  IN
+   (SELECT c_order_id, totallines
+    FROM c_order
+    WHERE em_sim_folioimport_id =v_Record_ID AND em_sim_is_in_folio='Y'
+   )
+   LOOP
+     v_count_partial_in_folio:= v_count_partial_in_folio-1;
+     IF(v_count_partial_in_folio = 0)THEN
+       v_freight_toinsert:=v_freight - v_freight_acumulado;
+       v_insurance_toinsert:=v_insurance -v_insurance_acumulado;
+       v_inland_toinsert:=v_inland -v_inland_acumulado;
+       v_more_expenses_toinsert:=v_more_expenses-v_more_expenses_acumulado;
+     ELSE
+       v_factor:= Cur_Parameter2.totallines/v_totallines_allPartial;
+
+       v_freight_toinsert:=v_freight*v_factor;
+       v_insurance_toinsert:=v_insurance*v_factor;
+       v_inland_toinsert:=v_inland*v_factor;
+       v_more_expenses_toinsert:=v_more_expenses*v_factor;
+
+       v_freight_acumulado:=v_freight_acumulado + v_freight_toinsert;
+       v_insurance_acumulado:=v_insurance_acumulado + v_insurance_toinsert;
+       v_inland_acumulado:=v_inland_acumulado + v_inland_toinsert;
+       v_more_expenses_acumulado:=v_more_expenses_acumulado + v_more_expenses_toinsert;
+     END IF;
+
+    UPDATE c_order 
+       SET em_sim_freight=v_freight_toinsert,
+           em_sim_insurance=v_insurance_toinsert,
+           em_sim_inland =v_inland_toinsert,
+           em_sim_more_expenses=v_more_expenses_toinsert
+    WHERE c_order_id = Cur_Parameter2.c_order_id;
+   END LOOP;
+
+
+ ------------------------------
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SIM_FOLIO_POST
+]]></body>
+    </function>
+  </database>

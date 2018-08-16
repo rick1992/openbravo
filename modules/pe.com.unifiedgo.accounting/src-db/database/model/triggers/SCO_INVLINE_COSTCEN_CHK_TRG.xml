@@ -1,0 +1,111 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVLINE_COSTCEN_CHK_TRG">
+    <trigger name="SCO_INVLINE_COSTCEN_CHK_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_issotrx VARCHAR(1);
+  v_C_Invoice_ID VARCHAR(32);
+  v_AD_LE_Org_ID VARCHAR(32);
+  v_invoice_AD_Org_ID VARCHAR(32);
+  v_c_acctschema_id VARCHAR(32);
+  v_iscostcenter VARCHAR(1);
+  v_isdebitacc VARCHAR(1);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING OR UPDATING) THEN
+      v_C_Invoice_ID := :NEW.C_Invoice_ID;
+    ELSE
+      v_C_Invoice_ID := :OLD.C_Invoice_ID;
+    END IF;
+
+    SELECT AD_Org_ID, issotrx
+      INTO v_invoice_AD_Org_ID, v_issotrx
+      FROM C_Invoice
+    WHERE C_Invoice_ID = v_C_Invoice_ID;
+
+    SELECT * INTO v_AD_LE_Org_ID from ad_get_org_le_bu(v_invoice_AD_Org_ID,'LE');
+    SELECT c_acctschema_id 
+      INTO v_c_acctschema_id 
+      FROM AD_Org
+    WHERE AD_Org_ID = v_AD_LE_Org_ID;
+
+    v_isdebitacc:='Y';
+    IF((:NEW.linenetamt>0 AND v_issotrx='Y') OR (:NEW.linenetamt<0 AND v_issotrx='N')) THEN
+      v_isdebitacc:='N';
+    END IF;
+
+
+    IF(INSERTING) THEN
+
+       IF(v_c_acctschema_id IS NOT NULL AND :NEW.financial_invoice_line = 'Y' AND :NEW.account_id IS NOT NULL AND :NEW.c_costcenter_id IS NULL) THEN 
+          SELECT elval.em_sco_iscostcenter
+            INTO v_iscostcenter
+            FROM c_glitem_acct glitemacct, c_validcombination comb, c_elementvalue elval
+           WHERE glitemacct.c_acctschema_id = v_c_acctschema_id
+             AND glitemacct.c_glitem_id = :NEW.account_id
+             AND ((glitemacct.glitem_debit_acct = comb.c_validcombination_id AND v_isdebitacc='Y') OR (glitemacct.glitem_credit_acct = comb.c_validcombination_id AND v_isdebitacc<>'Y'))
+             AND comb.account_id = elval.c_elementvalue_id;
+          IF(v_iscostcenter = 'Y') THEN
+             RAISE_APPLICATION_ERROR(-20000, '@SCO_InvLineNeedsCostCenter@') ;
+          END IF;  
+       END IF;
+
+       IF(v_c_acctschema_id IS NOT NULL AND :NEW.financial_invoice_line = 'N' AND :NEW.m_product_id IS NOT NULL AND :NEW.c_costcenter_id IS NULL) THEN 
+          v_iscostcenter:='N';
+          SELECT elval.em_sco_iscostcenter
+            INTO v_iscostcenter
+            FROM m_product_acct mprodacct, c_validcombination comb, c_elementvalue elval
+          WHERE mprodacct.c_acctschema_id = v_c_acctschema_id
+            AND mprodacct.m_product_id = :NEW.m_product_id
+            AND mprodacct.p_expense_acct = comb.c_validcombination_id
+            AND comb.account_id = elval.c_elementvalue_id;
+          IF(v_iscostcenter = 'Y') THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_ProdInInvLineNeedsCostCenter@') ;
+          END IF;  
+       END IF;
+
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.financial_invoice_line, '')<>COALESCE(:NEW.financial_invoice_line,'')
+        OR COALESCE(:OLD.account_id, '')<>COALESCE(:NEW.account_id,'')
+        OR COALESCE(:OLD.c_costcenter_id, '')<>COALESCE(:NEW.c_costcenter_id,'')
+        OR COALESCE(:OLD.linenetamt, 0)<>COALESCE(:NEW.linenetamt,0)
+	OR COALESCE(:OLD.m_product_id, '')<>COALESCE(:NEW.m_product_id,'')	
+      ) THEN 
+
+         IF(v_c_acctschema_id IS NOT NULL AND :NEW.financial_invoice_line = 'Y' AND :NEW.account_id IS NOT NULL AND :NEW.c_costcenter_id IS NULL) THEN 
+            SELECT elval.em_sco_iscostcenter
+              INTO v_iscostcenter
+              FROM c_glitem_acct glitemacct, c_validcombination comb, c_elementvalue elval
+             WHERE glitemacct.c_acctschema_id = v_c_acctschema_id
+               AND glitemacct.c_glitem_id = :NEW.account_id
+               AND ((glitemacct.glitem_debit_acct = comb.c_validcombination_id AND v_isdebitacc='Y') OR (glitemacct.glitem_credit_acct = comb.c_validcombination_id AND v_isdebitacc<>'Y'))
+               AND comb.account_id = elval.c_elementvalue_id;
+            IF(v_iscostcenter = 'Y') THEN
+               RAISE_APPLICATION_ERROR(-20000, '@SCO_InvLineNeedsCostCenter@') ;
+            END IF; 
+	 END IF;
+
+	 IF(v_c_acctschema_id IS NOT NULL AND :NEW.financial_invoice_line = 'N' AND :NEW.m_product_id IS NOT NULL AND :NEW.c_costcenter_id IS NULL) THEN 
+            v_iscostcenter:='N';
+            SELECT elval.em_sco_iscostcenter
+              INTO v_iscostcenter
+              FROM m_product_acct mprodacct, c_validcombination comb, c_elementvalue elval
+            WHERE mprodacct.c_acctschema_id = v_c_acctschema_id
+              AND mprodacct.m_product_id = :NEW.m_product_id
+              AND mprodacct.p_expense_acct = comb.c_validcombination_id
+              AND comb.account_id = elval.c_elementvalue_id; 
+            IF(v_iscostcenter = 'Y') THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SCO_ProdInInvLineNeedsCostCenter@') ;
+            END IF;
+         END IF;
+           
+      END IF;            
+    END IF;
+
+
+    END SCO_INVLINE_COSTCEN_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

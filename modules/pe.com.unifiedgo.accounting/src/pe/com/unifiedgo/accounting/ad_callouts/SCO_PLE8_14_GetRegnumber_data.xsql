@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="SCOPLE814GetRegnumberData" package="pe.com.unifiedgo.accounting.ad_callouts">
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS regnumber, '' AS seqno FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+  </SqlMethod>
+  <SqlMethod name="getRegNumberFromFactAcct" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT em_sco_regnumber AS regnumber
+      FROM Fact_Acct
+      WHERE AD_Client_ID = ?
+      AND AD_Table_ID = ?
+      AND record_ID = ? LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adTableId"/>
+    <Parameter name="recordId"/>
+  </SqlMethod>
+</SqlClass>

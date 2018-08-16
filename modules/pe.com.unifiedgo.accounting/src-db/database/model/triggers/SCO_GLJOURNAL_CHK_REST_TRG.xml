@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_GLJOURNAL_CHK_REST_TRG">
+    <trigger name="SCO_GLJOURNAL_CHK_REST_TRG" table="GL_JOURNAL" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_n NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(UPDATING) THEN
+      IF(COALESCE(:OLD.C_Currency_ID,'')<>COALESCE(:NEW.C_Currency_ID,'')) THEN
+        SELECT COUNT(*)
+          INTO v_n
+          FROM GL_Journalline
+        WHERE GL_Journal_ID = :NEW.GL_Journal_ID;
+
+         IF v_n>0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_GLJournal20502@') ;
+         END IF;
+      END IF;
+    END IF;
+
+    END SCO_GLJOURNAL_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

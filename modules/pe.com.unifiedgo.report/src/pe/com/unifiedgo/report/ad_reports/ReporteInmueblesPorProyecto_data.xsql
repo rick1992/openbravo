@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2017 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteInmueblesPorProyectoData" package="pe.com.unifiedgo.report.ad_reports">
+    <SqlClassComment></SqlClassComment>
+    
+    <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select '' as rownum, '' as ssa_project_property_id , '' as projectname, '' as projectstatus, '' as type, 
+                '' as propertyname, '' as number, '' as cursymbol, '' as price, '' as totalarea, '' as roofedtarea, 
+                '' as notbuiltarea, '' as status, '' as orgname, '' as socialname, '' as orgruc, '' as headerprojectname, 
+                '' as headerprojectlocation, '' as headerprojectstatus from dual
+            ]]>
+        </Sql>
+    </SqlMethod>
+    
+    <SqlMethod name="selectData" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select prop.ssa_project_property_id, proj.name as projectname, 
+				(select lsttrl.name from ad_ref_list lst, ad_ref_list_trl lsttrl 
+				where lst.ad_ref_list_id=lsttrl.ad_ref_list_id and lst.value=proj.projectstatus) as projectstatus, 
+				(select lst.name from ad_reference r, ad_ref_list lst 
+				where r.ad_reference_id=lst.ad_reference_id and r.name='SSA_ProjectProperty_Type' and lst.value=prop.type) as type, 
+				prop.name as propertyname, prop.number, 
+				(select cur.cursymbol from c_currency cur where cur.c_currency_id=prop.c_currency_id) as cursymbol, prop.totalamount as price, 
+				prop.totalarea, prop.roofedtarea, prop.notbuiltarea, 
+				(select lst.name from ad_reference r, ad_ref_list lst 
+				where r.ad_reference_id=lst.ad_reference_id and r.name='SSA_ProjectProperty_Status' and lst.value=prop.docstatus) as status 
+				from c_project proj 
+				inner join ssa_project_property prop on proj.c_project_id = prop.c_project_id 
+				where ad_isorgincluded(proj.ad_org_id, ?, proj.ad_client_id) <> -1 
+				and proj.c_project_id = ? 
+				order by prop.number, prop.created 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+        <Parameter name="projectId" />        
+    </SqlMethod>
+    
+    <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select name as orgname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select social_name as socialname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectRuc" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select taxid as orgruc from ad_orginfo where ad_org_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectProjectName" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select name as headerprojectname from c_project where c_project_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="cProjectId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectProjectLocation" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select address1 as headerprojectlocation from c_project p 
+                left join c_location l on p.c_location_id = l.c_location_id 
+				where p.c_project_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="cProjectId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectProjectStatus" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            	select (select coalesce(t.name, l.name) from ad_ref_list l
+            	left join ad_ref_list_trl t on l.ad_ref_list_id = t.ad_ref_list_id and t.ad_language = 'es_PE'
+            	where l.ad_reference_id = '800002' and l.value = p.Projectstatus limit 1) as headerprojectstatus from c_project p 
+            	where p.c_project_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="cProjectId" />
+    </SqlMethod>
+    
+    <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+    
+</SqlClass>

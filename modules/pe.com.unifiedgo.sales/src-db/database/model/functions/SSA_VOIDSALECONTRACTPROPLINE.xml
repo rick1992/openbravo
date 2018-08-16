@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_VOIDSALECONTRACTPROPLINE">
+    <function name="SSA_VOIDSALECONTRACTPROPLINE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+-- Record Info
+  v_projprop_contract_id VARCHAR(32);
+  v_project_property_id VARCHAR(32);
+  v_linestatus VARCHAR(60);
+  v_docstatus VARCHAR(60);
+  v_line NUMBER;
+  v_propDocStatus VARCHAR(60);
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, AD_User_ID
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+    SELECT ssa_projprop_contract_id, linestatus, ssa_project_property_id, line
+      INTO v_projprop_contract_id, v_linestatus, v_project_property_id, v_line
+      FROM SSA_ProjProp_Contract_Line
+     WHERE SSA_ProjProp_Contract_Line_ID=v_Record_ID;    
+
+    SELECT docstatus
+      INTO v_docstatus
+      FROM SSA_ProjProp_Contract
+     WHERE SSA_ProjProp_Contract_ID=v_projprop_contract_id;     
+
+    IF (v_docstatus<>'CO') THEN        
+        v_Message := '@SSA_ContractNotCompleted@';
+        v_Result := 2; 
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+   	    RETURN;
+    END IF; 
+    IF (v_linestatus<>'CO') THEN        
+        v_Message := '@SSA_CannotVoidNoCOLines@';
+        v_Result := 2; 
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+   	    RETURN;
+    END IF;    
+
+
+    SELECT docstatus 
+      INTO v_propDocStatus 
+      FROM SSA_Project_Property 
+     WHERE SSA_Project_Property_ID=v_project_property_id;
+    IF (v_propDocStatus='SOLD') THEN 
+        v_Message := '@SSA_CannotFreeProjectProperty@' || ' ' || '@line@' || ' ' || v_line;
+        v_Result := 2; 
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+   	    RETURN;
+ 	END IF;
+
+    UPDATE SSA_Project_Property SET docstatus='FREE' WHERE SSA_Project_Property_ID=v_project_property_id;
+
+    UPDATE SSA_ProjProp_Contract_Line
+       SET LineStatus='VO', -- Void
+           Updated=now(),
+           UpdatedBy=v_User_ID
+     WHERE SSA_ProjProp_Contract_Line_ID=v_Record_ID;
+
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSA_VOIDSALECONTRACTPROPLINE
+]]></body>
+    </function>
+  </database>

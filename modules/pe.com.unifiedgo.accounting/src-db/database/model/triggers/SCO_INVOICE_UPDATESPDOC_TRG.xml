@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_UPDATESPDOC_TRG">
+    <trigger name="SCO_INVOICE_UPDATESPDOC_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialdoctypep VARCHAR(60);
+  v_specialmethod VARCHAR(60):=NULL;  
+  v_specialpayterm VARCHAR(60):=NULL;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+      :NEW.em_sco_specialmethod := v_specialmethod;
+          
+      SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+      :NEW.em_sco_specialdoctype := v_specialdoctype;
+
+      SELECT em_sco_specialpayterm INTO v_specialpayterm FROM C_Paymentterm WHERE C_Paymentterm_ID = :NEW.C_Paymentterm_id;
+      :NEW.em_sco_specialpayterm := v_specialpayterm;
+
+      --For keyword diff windows em_ssa_specialdoctypeplus
+      v_specialdoctypep := v_specialdoctype;
+      IF(:NEW.em_ssa_isprepayment = 'Y') THEN
+        v_specialdoctypep := v_specialdoctypep || '_PREPAYMENT';
+      END IF;     
+
+      :NEW.em_ssa_specialdoctypeplus := v_specialdoctypep;
+
+    ELSE
+      IF(COALESCE(:OLD.fin_paymentmethod_id,'')<>COALESCE(:NEW.fin_paymentmethod_id,'') OR
+         COALESCE(:OLD.em_ssa_isprepayment,'.')<>COALESCE(:NEW.em_ssa_isprepayment,'.')) THEN
+         SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+         :NEW.em_sco_specialmethod := v_specialmethod;
+      END IF;
+          
+      IF(COALESCE(:OLD.c_doctypetarget_id,'')<>COALESCE(:NEW.c_doctypetarget_id,'')) THEN
+        SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+        :NEW.em_sco_specialdoctype := v_specialdoctype;
+
+        --For keyword diff windows em_ssa_specialdoctypeplus
+        v_specialdoctypep := v_specialdoctype;
+        IF(:NEW.em_ssa_isprepayment = 'Y') THEN
+          v_specialdoctypep := v_specialdoctypep || '_PREPAYMENT';          
+        END IF;           
+
+        :NEW.em_ssa_specialdoctypeplus := v_specialdoctypep;
+        
+      END IF;
+
+      IF(COALESCE(:OLD.c_paymentterm_id,'')<>COALESCE(:NEW.c_paymentterm_id,'')) THEN
+        SELECT em_sco_specialpayterm INTO v_specialpayterm FROM C_Paymentterm WHERE C_Paymentterm_ID = :NEW.C_Paymentterm_id;
+        :NEW.em_sco_specialpayterm := v_specialpayterm;
+      END IF;
+
+    END IF;
+
+    END SCO_INVOICE_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

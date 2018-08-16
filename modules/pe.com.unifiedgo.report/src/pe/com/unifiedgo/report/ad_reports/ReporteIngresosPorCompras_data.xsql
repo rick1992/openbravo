@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteIngresosPorComprasData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+
+			SELECT DISTINCT
+				ord.c_order_id AS ordenid,
+				to_char(
+					ord.dateordered,
+					'dd/MM/yyyy'
+				) AS fechaorden,
+				CASE
+			WHEN ord.em_sim_is_import = 'Y' THEN
+				to_char('Importación')
+			WHEN ord.em_ssa_isserviceorder = 'Y' THEN
+				to_char('Servicio')
+			ELSE
+				to_char('Nacional')
+			END AS tipoorden,
+			 ord.documentno AS nroorden,
+			 (
+				SELECT
+					COALESCE (T . NAME, l. NAME)
+				FROM
+					ad_ref_list l
+				LEFT JOIN ad_ref_list_trl T ON l.ad_ref_list_id = T .ad_ref_list_id
+				AND T .ad_language = 'es_PE'
+				WHERE
+					l.ad_reference_id = 'FF80818130217A350130218D802B0011'
+				AND l.
+				VALUE
+					= ord.docstatus
+				LIMIT 1
+			) AS estadoorden,
+			 i.documentno AS nronotaing,
+			 (
+				SELECT
+					COALESCE (T . NAME, l. NAME)
+				FROM
+					ad_ref_list l
+				LEFT JOIN ad_ref_list_trl T ON l.ad_ref_list_id = T .ad_ref_list_id
+				AND T .ad_language = 'es_PE'
+				WHERE
+					l.ad_reference_id = '131'
+				AND l.
+				VALUE
+					= i.docstatus
+				LIMIT 1
+			) AS estnotaing,
+			 (
+				SELECT
+					NAME
+				FROM
+					scr_combo_item
+				WHERE
+					scr_combo_item_id = i.em_swa_combo_item_id
+			) AS tipoordenguia,
+			 i.em_scr_physical_documentno AS nroreferencia,
+			 lin.line AS linea,
+				pro. NAME AS producto,
+				COALESCE (lin.qtyordered, 0.00) AS cantidad,
+				COALESCE (
+					(
+						SELECT
+							NAME
+						FROM
+							c_uom_trl
+						WHERE
+							c_uom_id = uom.c_uom_id
+						AND ad_language = 'es_PE'
+					),
+					uom. NAME
+				) AS unimed,
+				CASE ord.em_ssa_isserviceorder
+			WHEN 'Y' THEN
+				'--'
+			ELSE
+				to_char(lin.em_swa_received)
+			END AS cantrecibida
+			
+			
+			
+			,cbp.name as proveedor
+			,cbp.value as codigo_proveedor
+			,coalesce ((SELECT sum (lin2.qtyordered) from c_orderline lin2 where lin2.c_order_id=ord.c_order_id ),0.0) as cant_total_order
+			,coalesce ((SELECT sum (lin2.movementqty) from m_inoutline lin2 where lin2.m_inout_id=i.m_inout_id ) , 0.0 )as cant_total_guia
+			,0.0 as saldo_totales
+			, pro.VALUE as codigo_producto
+			,coalesce(lin.qtyordered,0.0) as cant_pro_order
+			,coalesce(il.movementqty,0.0) as cant_pro_guia
+			,0.0 as saldo_x_producto
+			
+			,coalesce(lin.qtyreserved,0.0) as cant_pro_reservada
+			
+			
+			,'' orgid, '' as orgname 
+			
+			,coalesce((select 
+
+			sim_currency_convert_table(1,
+			(select c_currency_id from c_currency where iso_code = 'USD'),
+			(select c_currency_id from c_currency where iso_code = 'PEN'),
+			ci.dateacct,
+			(select ad_table_id from c_doctype where c_doctype_id = ci.c_doctype_id)
+			,ci.c_invoice_id,
+			ci.ad_client_id,ci.ad_org_id)
+
+			from  c_invoice ci where ci.c_order_id = ord.c_order_id limit 1),0.00000) as tc_factura
+			
+			
+			FROM
+				c_order ord
+			JOIN c_orderline lin ON ord.c_order_id = lin.c_order_id
+			LEFT JOIN c_bpartner cbp on ord.c_bpartner_id=cbp.c_bpartner_id
+			LEFT JOIN m_inoutline il ON lin.c_orderline_id = il.c_orderline_id
+			LEFT JOIN m_inout i ON il.m_inout_id = i.m_inout_id
+			AND i.issotrx = 'N'
+			LEFT JOIN m_product pro ON COALESCE (
+				lin.m_product_id,
+				lin.m_product_id
+			) = pro.m_product_id
+			JOIN c_uom uom ON COALESCE (
+				lin.c_uom_id,
+				lin.c_uom_id
+			) = uom.c_uom_id
+			WHERE
+			ord.ad_client_id IN ('1') 
+			AND ord.ad_org_id IN ('1') 
+			AND ord.issotrx = 'N'
+			AND 1=1
+
+
+			ORDER BY
+				2,
+				4,
+				10
+
+
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="ord.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND ord.ad_org_id IN (" text="'1'"/>
+    <Parameter name="documentno" optional="true" after="1=1"><![CDATA[  and ord.documentno like ('%'||?||'%')  ]]></Parameter>
+    <Parameter name="tercero" optional="true" after="1=1"><![CDATA[   and ord.c_bpartner_id = ?  ]]></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND ord.dateordered :: DATE >= to_date(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND ord.dateordered :: DATE <= to_date(?)]]></Parameter>
+        <Parameter name="producto" optional="true" after="1=1"><![CDATA[   and lin.m_product_id = ?   ]]></Parameter>
+   <Parameter name="filterPending" optional="true" after="1=1"><![CDATA[   and ((lin.qtyordered  -  lin.em_swa_received)>0)   ]]></Parameter>        
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+   <SqlMethod name="selectOrgs" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+  		select org.ad_org_id as orgid, org.name as orgname 
+        from ad_org org join ad_orgtype t using (ad_orgtype_id) 
+        where t.islegalentity!='Y' and t.isacctlegalentity!='Y' 
+        and org.ad_org_id not in ('0') order by org.name 
+	
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+
+  </SqlMethod>
+  
+  
+  
+  
+  
+
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>
+  
+  
+
+  
+</SqlClass>

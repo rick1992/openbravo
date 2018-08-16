@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE M_INVENTORY">
+    <table name="M_INVENTORY" primaryKey="M_INVENTORY_KEY">
+      <column name="EM_SCO_SURPLUSWAREHOUSE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_MISSINGWAREHOUSE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_SURPLUSLOCATOR_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_MISSINGLOCATOR_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CORRELNUM" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="M_LOCATOR" name="EM_SCO_INVENT_MISSLOC_FK">
+        <reference local="EM_SCO_MISSINGLOCATOR_ID" foreign="M_LOCATOR_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="M_WAREHOUSE" name="EM_SCO_INVENT_MISSWARE_FK">
+        <reference local="EM_SCO_MISSINGWAREHOUSE_ID" foreign="M_WAREHOUSE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="M_LOCATOR" name="EM_SCO_INVENT_SURLOC_FK">
+        <reference local="EM_SCO_SURPLUSLOCATOR_ID" foreign="M_LOCATOR_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="M_WAREHOUSE" name="EM_SCO_INVENT_SURWARE_FK">
+        <reference local="EM_SCO_SURPLUSWAREHOUSE_ID" foreign="M_WAREHOUSE_ID"/>
+      </foreign-key>
+    </table>
+  </database>

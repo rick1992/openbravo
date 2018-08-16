@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="UnpaidByClientData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS AMOUNT, '' AS C_INVOICE_ID FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+  <SqlMethod name="getInvTotalPaidAmountByDate" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(SUM(amount),0) AS amount 
+        FROM sco_inv_payment_history_v
+        WHERE AD_Client_ID = ?
+        AND C_Invoice_ID = ?
+        AND TRUNC(paymentdate) <= TRUNC(TO_DATE(?)) 
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="cInvoiceId"/>
+    <Parameter name="dateTo"/>
+  </SqlMethod>
+  <SqlMethod name="getPendingInvByOrg" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT i.c_invoice_id
+        FROM C_Invoice i
+        WHERE i.AD_Client_ID = ?
+        AND i.AD_ORG_ID IN ('1')
+        AND i.issotrx='Y'
+        AND i.docstatus='CO'
+        AND TRUNC(i.dateacct) <= TRUNC(TO_DATE(?)) 
+        AND i.ispaid='N'
+        ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgList" type="replace" optional="false" after="i.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="dateTo"/>
+  </SqlMethod>
+</SqlClass>

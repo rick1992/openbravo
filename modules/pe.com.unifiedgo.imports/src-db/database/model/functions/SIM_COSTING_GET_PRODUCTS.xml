@@ -1,0 +1,846 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_COSTING_GET_PRODUCTS">
+    <function name="SIM_COSTING_GET_PRODUCTS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/**************************
+   *CALCULO DE COSTEO DE IMPORTACIONES
+   *
+   * 1. CODEPARTE01 VAMOS A OBTENER EL MONTO TOTAL DE LAS FACTURAS DE GASTOS  Tipo Expenses AFFECTS APPORTIONMENT  
+   * 2. CODEPARTE02 VAMOS A OBETNER EL MONTO TOTAL DE LAS FACTURAS DE GASTOS  Tipo Expenses MIXED
+     3. CODEPARTE03 VAMOS A RECORRER TODAS LAS FACTURAS de TIPO ORIGEN DONDE TENGAN DUA COMO LINEA
+     
+     3. CODEPARTE03 VAMOS A OBENTER EL MONTO TOTAL DE LOS GASTOS INCLUIDOS EN LAS FACTURAS DE ORIGNEL finantialinvoice Y
+     4. CODEPARTE04 VAMOS A OBTENER EL MONTO TOTAL DE LAS FACTURAS DE TIPO ORIGEN 
+     5. CODEPARTE05 VAMOS A OBTENER LA CANTIDAD DE PRODUCTOS RELACIONADOS EN LAS FACTURAS, sum de los productos a intervenir
+     6. CODEPARTE06 VAMOS A OBTENER EL MONTO TOTAL DE LOS ADVALOREM, ES SE VA A SUMAR AL TOTAL DE LAS FACTURA DEL PUNTO 4
+     7. CODEPARTE07 VAMOS A RECORRER CADA LINEA DE LA FACTURA DE ORIGEN PAR COMENZAR A INSERTAR COMO LINEAS EN EL COSTEO
+   *******/
+
+
+-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_CountLines NUMBER:=1; -- Success
+  v_foliodua_id VARCHAR2(32);
+  v_folioimport_id VARCHAR(32);
+  v_CostingLineSeqNo NUMBER:=0;
+  v_tipo_cambio NUMBER:=0;
+  v_gasto_por_line NUMBER:=0;
+  v_totalProductsinInvoices NUMBER;
+  v_costUnitarioLine NUMBER;
+
+  v_invoice_id VARCHAR2(32);
+  v_Client_ID VARCHAR(32);
+  v_Org_ID VARCHAR(32);
+  v_Created_by VARCHAR(32);
+  v_ispoted_from_migration CHAR:='N';
+  v_countInvoice NUMBER;
+  v_invoicelineToProrrateo  NUMBER;
+  v_total_expenses_mixed NUMBER:=0; 
+  v_total_expenses_affects NUMBER:=0; 
+  v_other_expenses NUMBER:=0; 
+  v_grandtotal_All_Invoices_source_total NUMBER:=0;
+  v_total_expenses NUMBER:=0; 
+  v_total_invoice_expense NUMBER:=0;
+  v_partialline_adv NUMBER:=0;
+  v_partialline_tlc NUMBER:=0;
+  v_adv_product NUMBER:=0; 
+  v_advaloremresult NUMBER:=0; 
+  v_ResultcostingPerLine NUMBER:=0;
+  v_grandtotal_All_Invoices NUMBER:=0; 
+  v_num_of_invoice NUMBER:=0;
+  v_var NUMBER:=1;
+  v_prorrateoXinvoice NUMBER:=1;
+  v_gasto_acumulado NUMBER:=0;
+  v_LinenetAmount NUMBER:=0;
+  v_getExchangeRate NUMBER:=1;
+  v_grandtotal_All_Invoices_source_total_Soles NUMBER:=0;
+ v_ConvertedAmountSoles NUMBER:=0;
+ v_gasto_acumulado_Soles NUMBER:=0;
+ v_gasto_por_line_Soles NUMBER:=0;
+ v_prorrateoXInvoiceSoles NUMBER:=0;
+ v_total_expenses_soles NUMBER:=0;
+ v_other_expenses_soles NUMBER:=0;
+ v_total_expenses_affects_soles NUMBER:=0;
+ v_total_expenses_mixed_soles NUMBER:=0;
+ v_linenetAmountSoles NUMBER:=0;
+ v_aditionallines_invoice NUMBER:=0;
+ v_cif_line NUMBER:=0;
+ v_cif_lineSoles NUMBER:=0;
+ v_factor_p_tmp NUMBER:=0;
+ v_totalinvoicelinewithArrival NUMBER:=0;
+ v_factorAditionalWithoutArrival NUMBER:=0;
+ v_linenetInvoiceAmountSoles NUMBER:=0;
+ v_linenetApCreditAmountSoles NUMBER:=0;
+ v_linenetTotalAmountSoles NUMBER:=0;
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  v_currencyDollar_id VARCHAR(32);
+  v_currencyTO_id VARCHAR(32);
+  v_c_invoice_table_id VARCHAR(32);
+  v_sim_imp_costinlines_id VARCHAR(32);
+  v_validation_currency NUMBER:=0;
+  v_ConvertedAmount NUMBER:=0;
+  v_val_add_to_fob NUMBER:=0;
+  v_freight NUMBER:=0;
+  v_insurance NUMBER:=0;
+  v_more_expenses NUMBER:=0;
+  v_inland NUMBER:=0;
+  v_linenetamt NUMBER:=0;
+  v_totallines_invoice NUMBER:=0;
+  v_totalnotacredito_invoice NUMBER:=0;
+  v_unitprice NUMBER:=0;
+  v_unitpricesoles NUMBER:=0;
+  v_totallinesCreditMemo NUMBER:=0;
+  Cur_Invoice_apCreditMemo RECORD;
+  v_apcreditmemo_amount NUMBER:=0;
+  v_total_ap_creditmemo NUMBER:=0;
+  v_LinenetAmountApCredit NUMBER:=0;
+  v_LinenetAmountTotalDolares NUMBER:=0;
+  v_LinenetAmountInvoice NUMBER:=0;
+  v_costUnitarioLineSoles NUMBER:=0;
+  v_apcreditmemo_amountSoles NUMBER:=0;
+  v_total_ap_creditmemoSoles NUMBER:=0;
+  
+  Cur_Parameter RECORD;
+  Cur_invoice_expenses RECORD;
+  Cur_invoice_source RECORD;
+  Cur_invoice_lines RECORD;
+  Cur_invoice_for_currency RECORD;
+  CUR_invoiceTypeExpenses_EXP RECORD;
+  CUR_invoiceTypeExpenses_MIX RECORD;
+  CUR_invoiceTypeSource_GastosExtras RECORD;
+  CUR_invoiceTypeSource_SUMASOURCE RECORD;
+  Cur_LinexInvoice_source RECORD;
+  CUR_partial RECORD;
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+ -- GET BASIC INFORMATION
+   SELECT ad_client_id, ad_org_id,createdby ,sco_dua_id , sim_folioimport_id,tipo_cambio
+     INTO v_Client_ID, v_Org_ID,v_Created_by,v_foliodua_id, v_folioimport_id, v_tipo_cambio
+     FROM sim_imp_costing 
+    WHERE sim_imp_costing_id = v_Record_ID;
+ --
+  v_currencyDollar_id:= '100';
+  --IDCurrency 308 Soles PEN
+  v_currencyTO_id:='308'; 
+  --InvoiceTableid C_Invoice 318 
+  v_c_invoice_table_id:='318';
+ -- DELETE ALL PRODUCTS ASIGNATES TO COSTING
+   DELETE FROM sim_imp_costinglines 
+         WHERE sim_imp_costing_id = v_Record_ID;
+ --
+
+
+IF(v_tipo_cambio IS NULL) THEN
+ v_tipo_cambio=0;
+ELSIF(v_tipo_cambio < 0) THEN
+   RAISE_APPLICATION_ERROR(-20000,'@sim_tipocambio@') ;
+END IF;
+
+  --IF THERE ARE NOT DUA
+  IF(v_foliodua_id IS NULL) THEN
+    RAISE_APPLICATION_ERROR(-20000,'@sim_therearentdua@') ;
+  END IF; 
+  --
+
+ --PARA MIGRACION FASE1: Hay que ver si las facturas asociadas a los parciales de mi folio son de migración (POSTED = sco_M)
+   --Get de todos los Parciales asociadas a mi folio
+   FOR CUR_partial IN (
+            SELECT DISTINCT a.c_invoice_id, a.posted  FROM (
+		select i.c_invoice_id, i.posted from c_invoice i 
+		   inner join c_order o on o.c_order_id = i.c_order_id 
+		    WHERE o.em_sim_folioimport_id = v_folioimport_id
+		UNION ALL
+		 select i.c_invoice_id, i.posted from c_invoice i
+		   inner join c_invoiceline il ON il.c_invoice_id = i.c_invoice_id
+		   inner join c_orderline ol ON ol.c_orderline_id = il.c_orderline_id
+		   inner join c_order o ON o.c_order_id = ol.c_order_id
+		   where  o.em_sim_folioimport_id = v_folioimport_id
+		) a)
+   LOOP
+     IF (CUR_partial.posted = 'sco_M')THEN
+         v_ispoted_from_migration:='Y' --de Migracion, entonces se tiene que costear por Parcial y no por Factura
+       EXIT;
+     END IF;    
+   END LOOP;    
+ --
+
+
+ --IF THERE ARE NOT INVOICE OF TYPE SOURCE --VAFASTER: EN EVALUACION, hay casos donde una factura està en dos parciales
+ --Tradicionalmente deberìa ser ver todas las las lineas de facturas que estèn relacionados con la DUA si no hay ninguna entonces eliminar esto 
+  SELECT COUNT(c_invoice_id) INTO v_countInvoice FROM c_invoice 
+   WHERE docstatus = 'CO' AND em_sco_isimportation = 'Y' AND em_sco_duatype = 'SO' AND em_sim_imp_costing_id = v_Record_ID;
+   IF(v_countInvoice = 0) THEN
+     --RAISE_APPLICATION_ERROR(-20000,'@sim_costing_no_invoice@') ;
+   END IF;
+ -----
+
+  IF(v_foliodua_id='6fd4f841013d4616a0ffa613d6877b47')THEN
+    v_ispoted_from_migration:='N';
+  END IF;
+
+
+----------------GASTOS
+ -- CODEPARTE01
+ --Recorriendo todas las Facturas de Tipo Expenses AFFECTS APPORTIONMENT para saber la cantidad a prorratear.
+ --SUM(totallines) = Suma SIN IGV
+ v_total_expenses_affects:=0;
+ v_total_expenses_affects_soles:=0;
+ v_Message:='-';
+
+ FOR CUR_invoiceTypeExpenses_EXP IN 
+ (SELECT * 
+    FROM c_invoice 
+   WHERE  docstatus = 'CO'
+     AND em_sco_duaexpensemode = 'PRO'
+     AND em_sco_isimportation = 'Y' 
+     AND em_sco_duatype = 'EXP'
+     AND em_sim_imp_costing_id = v_Record_ID
+ )
+ LOOP
+   IF(CUR_invoiceTypeExpenses_EXP.c_currency_id <> v_currencyDollar_id) THEN
+     --SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(CUR_invoiceTypeExpenses_EXP.totallines,CUR_invoiceTypeExpenses_EXP.c_currency_id, v_currencyDollar_id, CUR_invoiceTypeExpenses_EXP.DateInvoiced, NULL,v_Client_ID,v_Org_ID), v_currencyDollar_id, NULL)), 0)
+     SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeExpenses_EXP.totallines, CUR_invoiceTypeExpenses_EXP.c_currency_id, v_currencyDollar_id, CUR_invoiceTypeExpenses_EXP.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+     INTO v_ConvertedAmount;
+     v_total_expenses_affects = v_total_expenses_affects + v_ConvertedAmount;
+  
+
+     --v_currencyTO_id SOles
+     IF(CUR_invoiceTypeExpenses_EXP.c_currency_id <> v_currencyTO_id)THEN
+           SELECT COALESCE(sim_currency_convert_table(v_ConvertedAmount, v_currencyDollar_id, v_currencyTO_id, CUR_invoiceTypeExpenses_EXP.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+             INTO v_ConvertedAmountSoles;  
+           v_total_expenses_affects_soles:=v_total_expenses_affects_soles + v_ConvertedAmountSoles;
+          v_message:=v_message||'__'||v_ConvertedAmountSoles;
+     ELSE
+        v_total_expenses_affects_soles:=v_total_expenses_affects_soles + CUR_invoiceTypeExpenses_EXP.totallines;
+        v_message:=v_message||'__'||CUR_invoiceTypeExpenses_EXP.totallines;
+     END IF;
+     
+   ELSE
+     v_total_expenses_affects = v_total_expenses_affects + CUR_invoiceTypeExpenses_EXP.totallines;
+
+     SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeExpenses_EXP.totallines, v_currencyDollar_id, v_currencyTO_id, CUR_invoiceTypeExpenses_EXP.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+     INTO v_ConvertedAmountSoles;  
+
+     
+     v_total_expenses_affects_soles:=v_total_expenses_affects_soles + v_ConvertedAmountSoles;
+      v_message:=v_message||'__'||v_ConvertedAmountSoles;
+   END IF;
+
+   
+ END LOOP;
+ -- END CODEPARTE01si
+
+
+ 
+ --RAISE v_message; 
+
+
+--Recorriendo todas las Facturas de Tipo Expenses MIXED Para saber la cantidad a prorratear
+--Cada Línea con el Check Box Activado del campo prorrateo no será tomada en cuenta
+--sum(linenetamt) = Suma Sin IGV
+--CODEPARTE02
+v_total_expenses_mixed:= 0;
+v_total_expenses_mixed_soles:=0;
+FOR CUR_invoiceTypeExpenses_MIX IN 
+(SELECT i.c_currency_id,il.linenetamt,i.DateInvoiced,i.c_invoice_id,i.em_sco_newdateinvoiced
+  FROM c_invoiceline il
+  INNER JOIN c_invoice i ON il.c_invoice_id = i.c_invoice_id
+  WHERE il.em_sco_prorrateo='N'
+    AND i.em_sco_isimportation = 'Y'
+    AND i.em_sco_duaexpensemode = 'MIX'
+    AND i.em_sim_imp_costing_id = v_Record_ID
+)
+LOOP
+
+
+  v_ConvertedAmount:= CUR_invoiceTypeExpenses_MIX.linenetamt;
+  IF(CUR_invoiceTypeExpenses_MIX.c_currency_id <> v_currencyDollar_id)THEN
+    SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeExpenses_MIX.linenetamt, CUR_invoiceTypeExpenses_MIX.c_currency_id, v_currencyDollar_id, CUR_invoiceTypeExpenses_EXP.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+    INTO v_ConvertedAmount;
+  END IF;
+  v_total_expenses_mixed = v_total_expenses_mixed + v_ConvertedAmount;
+
+  
+
+  v_ConvertedAmountSoles:= CUR_invoiceTypeExpenses_MIX.linenetamt;
+  IF(CUR_invoiceTypeExpenses_MIX.c_currency_id <> v_currencyTO_id)THEN
+  
+                       
+    SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeExpenses_MIX.linenetamt, CUR_invoiceTypeExpenses_MIX.c_currency_id, v_currencyTO_id, CUR_invoiceTypeExpenses_MIX.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+    INTO v_ConvertedAmountSoles;
+  END IF;
+  v_total_expenses_mixed_soles:=v_total_expenses_mixed_soles + v_ConvertedAmountSoles;
+
+
+  /* --Se Mejoro Lineas arriba
+  IF(CUR_invoiceTypeExpenses_MIX.c_currency_id <> v_currencyDollar_id)THEN
+    SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeExpenses_MIX.linenetamt, CUR_invoiceTypeExpenses_MIX.c_currency_id, v_currencyDollar_id, CUR_invoiceTypeExpenses_EXP.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+    INTO v_ConvertedAmount;
+    v_total_expenses_mixed = v_total_expenses_mixed + v_ConvertedAmount;
+    IF(CUR_invoiceTypeExpenses_MIX.c_currency_id <> v_currencyTO_id)THEN
+        SELECT COALESCE(sim_currency_convert_table(v_ConvertedAmount, v_currencyDollar_id, v_currencyTO_id, CUR_invoiceTypeExpenses_EXP.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+          INTO v_ConvertedAmountSoles;
+         v_total_expenses_mixed_soles:=v_total_expenses_mixed_soles + v_ConvertedAmountSoles;
+      
+    ELSE
+       v_total_expenses_mixed = v_total_expenses_mixed + CUR_invoiceTypeExpenses_MIX.linenetamt;
+    END IF;
+  ELSE
+    v_total_expenses_mixed = v_total_expenses_mixed + CUR_invoiceTypeExpenses_MIX.linenetamt;
+    SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeExpenses_MIX.linenetamt, v_currencyDollar_id, v_currencyTO_id, CUR_invoiceTypeExpenses_MIX.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeExpenses_EXP.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+    INTO v_ConvertedAmountSoles;
+    v_total_expenses_mixed_soles:=v_total_expenses_mixed_soles + v_ConvertedAmountSoles;  
+  END IF;
+  */
+
+  
+  v_message = v_message || ' ... ' || v_total_expenses_mixed_soles;
+END LOOP;
+--END CODEPARTE02
+ v_total_expenses:= v_total_expenses_affects + v_total_expenses_mixed;
+ v_total_expenses_soles:= v_total_expenses_affects_soles + v_total_expenses_mixed_soles;
+
+--raise exception '%',v_message;
+ --------------------- END GASTOS
+
+--CODEPARTE03
+--RAISE v_foliodua_id;
+IF(v_ispoted_from_migration = 'N')THEN
+
+  --Obtener el Total de TODAS las FACTURAS LAS CUALES INVOCLUCRAN EL DAM
+    SELECT p_invoicesamountso_dua 
+      INTO v_grandtotal_All_Invoices_source_total 
+      FROM sim_get_amount_invoicesdua(v_foliodua_id,v_currencyDollar_id);
+
+
+   FOR Cur_LinexInvoice_source IN (
+     /* SELECT c_invoiceLine.c_invoiceLine_id, c_invoiceLine.linenetamt,c_invoice.c_order_id,c_invoiceLine.m_product_id,c_invoice.c_invoice_id,
+              c_invoiceLine.c_uom_id,c_invoice.c_currency_id, c_invoiceLine.qtyinvoiced, m_inoutline.movementqty,c_invoice.DateInvoiced,
+              c_invoiceLine.priceactual,c_invoice.em_sco_newdateinvoiced, c_invoiceLine.c_orderline_id
+	FROM c_invoiceLine 
+	inner join c_invoice on c_invoice.c_invoice_id = c_invoiceLine.c_invoice_id
+	INNER JOIN m_inoutline ON c_invoiceLine.m_inoutline_id = m_inoutline.m_inoutline_id
+       WHERE c_invoiceLine.em_sim_dua_id = v_foliodua_id
+
+       UNION ALL */
+
+   SELECT c_invoiceLine.c_invoiceLine_id, c_invoiceLine.linenetamt,c_invoice.c_order_id,c_invoiceLine.m_product_id,c_invoice.c_invoice_id,
+              c_invoiceLine.c_uom_id,c_invoice.c_currency_id, c_invoiceLine.qtyinvoiced, 
+              ( select COALESCE(sum(movementqty),0) from m_inoutline iol
+                          inner join m_inout i on i.m_inout_id = iol.m_inout_id
+                            where iol.c_orderline_id = c_invoiceLine.c_orderline_id
+                              and i.docstatus='CO'
+                              )       as movementqty
+              ,c_invoice.DateInvoiced,
+              c_invoiceLine.priceactual,c_invoice.em_sco_newdateinvoiced, c_invoiceLine.c_orderline_id
+	FROM c_invoiceLine 
+	inner join c_invoice on c_invoice.c_invoice_id = c_invoiceLine.c_invoice_id
+	inner join c_orderline on c_orderline.c_orderline_id = c_invoiceLine.c_orderline_id
+       WHERE c_invoiceLine.em_sim_dua_id = v_foliodua_id
+        --AND c_invoiceLine.m_inoutline_id is null
+   )
+   LOOP 
+
+      IF(Cur_LinexInvoice_source.movementqty = 0 )THEN
+       continue;
+      END IF;
+     
+     
+       --Importe de Linea en Dolares
+       SELECT p_invoicesamountso_dua 
+         INTO v_LinenetAmount 
+         FROM sim_get_amount_invoicelinedua(Cur_LinexInvoice_source.c_invoiceLine_id ,v_foliodua_id,v_currencyDollar_id);
+
+
+
+
+       --Importe de Linea en Soles
+       SELECT p_invoicesamountso_dua 
+         INTO v_linenetAmountSoles 
+         FROM sim_get_amount_invoicelinedua(Cur_LinexInvoice_source.c_invoiceLine_id ,v_foliodua_id,v_currencyTO_id);
+
+
+         IF(Cur_LinexInvoice_source.m_product_id = 'GG-4003A171')THEN
+           --  RAISE Cur_LinexInvoice_source.c_invoiceLine_id;
+         END IF;
+
+      --  RAISE v_LinenetAmount;
+       --precio Unitario en Dólares
+       v_unitprice:= v_LinenetAmount/Cur_LinexInvoice_source.movementqty; 
+
+
+       --precio Unitario en Soles
+       v_unitpricesoles:= v_linenetAmountSoles/Cur_LinexInvoice_source.qtyinvoiced; 
+
+        
+      --Obteniendo ADV del Producto => Necesario porque tambièn se incluye en el prorrateo
+      SELECT em_sim_advalorem,em_sim_tlc_disc_advalorem, em_sim_freight, em_sim_insurance,em_sim_more_expenses,em_sim_inland
+        INTO v_partialline_adv,v_partialline_tlc, v_freight, v_insurance,v_more_expenses,v_inland
+        FROM c_orderline
+       WHERE c_orderline_id= Cur_LinexInvoice_source.c_orderline_id;
+
+       v_partialline_adv:= COALESCE(v_partialline_adv,0);
+       v_partialline_tlc:=COALESCE(v_partialline_tlc,0);
+       v_freight:=COALESCE(v_freight,0);
+       v_insurance:=COALESCE(v_insurance,0);
+       v_more_expenses:=COALESCE(v_more_expenses,0);
+       v_inland:=COALESCE(v_inland,0);
+
+       v_val_add_to_fob:=  v_freight + v_insurance + v_more_expenses + v_inland;
+       v_adv_product = v_partialline_adv*(100-v_partialline_tlc)/100; 
+       v_advaloremresult=ROUND(v_adv_product*(v_LinenetAmount+v_val_add_to_fob)/100,2); --ADV siempre en Dólares
+       ------------------------------------------------------------------------------------
+      
+       --factor de prorrateo de el monto real de la linea con respecto al monto total de todas las facturas segun DAM
+       v_prorrateoXinvoice:= v_LinenetAmount/v_grandtotal_All_Invoices_source_total;
+       v_gasto_por_line:=  v_total_expenses*v_prorrateoXinvoice; 
+       v_gasto_por_line_Soles = v_total_expenses_soles*v_prorrateoXinvoice;
+       
+       v_cif_line:= ROUND(v_LinenetAmount + v_advaloremresult + v_gasto_por_line,2);
+       v_cif_lineSoles:= ROUND(v_linenetAmountSoles + v_advaloremresult*v_tipo_cambio + v_gasto_por_line_Soles,2);
+        
+       v_sim_imp_costinlines_id:=get_uuid();
+       v_CostingLineSeqNo:= 10 + v_CostingLineSeqNo;
+       INSERT INTO sim_imp_costinglines
+         (sim_imp_costinglines_id,sim_imp_costing_id, ad_client_id,ad_org_id,isactive,
+          created,createdby,updated,updatedby,c_invoice_id,line,m_product_id,c_uom_id,
+          
+          qtyinvoiced,
+          cost_source,
+          cost_source_currencylocal,
+          linenetamt,
+          linenetamt_currencylocal,
+          advpercent,
+          advtotal,
+          advtotal_currencylocal,
+          cost_line,
+          cost_unit,
+          cost_line_currencylocal,
+          cost_unit_currencylocal,
+          exchange_rate,
+          expenses_CurrencyDollar,
+          expenses_currencylocal
+         )
+        VALUES 
+        (v_sim_imp_costinlines_id,v_Record_ID,v_Client_ID,v_Org_ID,'Y',
+         now(),v_Created_by,now(), v_Created_by, Cur_LinexInvoice_source.c_invoice_id,v_CostingLineSeqNo,Cur_LinexInvoice_source.m_product_id,Cur_LinexInvoice_source.c_uom_id,
+         
+         Cur_LinexInvoice_source.movementqty,
+         v_unitprice,
+         v_unitpriceSoles ,
+         v_LinenetAmount,
+         v_LinenetAmountSoles,
+         v_adv_product,
+         v_advaloremresult,
+         v_advaloremresult*v_tipo_cambio,
+         v_cif_line,
+         (ROUND(v_cif_line,2))/Cur_LinexInvoice_source.movementqty,
+         v_cif_lineSoles,
+         (ROUND(v_cif_lineSoles,2))/Cur_LinexInvoice_source.movementqty,
+         sim_currency_convert_table(v_getExchangeRate, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID),
+         v_gasto_por_line,
+         v_gasto_por_line_Soles
+        );
+   END LOOP;
+END IF; --v_ispoted_from_migration
+--CODEPARTE03
+
+--RAISE NO_DATA_FOUND;
+
+ 
+--OBTENIENDO GASTOS EXTRAS DENTRO DE LA FACTURAS DE TIPO SOURCE 
+v_other_expenses:=0;
+v_other_expenses_soles:=0;
+v_total_expenses = v_total_expenses + v_other_expenses;
+v_total_expenses_soles = v_total_expenses_soles + v_other_expenses_soles;
+
+
+--OBTENIENDO LA SUMA TOTAL DE LAS FACTURAS TIPO SOURCE -- Para prorrateo por Linea
+--SOLO SE VA A SUMAR AQUELLAS LINEAS QUE TENGAN PRODUCTS Financial_Invoice_Line = 'N'
+--v_totalProductsinInvoices TOTAL DE PRODUCTOS QUE TENEMOS PARA PRORRATEAR
+--CODEPARTE04
+
+v_grandtotal_All_Invoices:=0;
+v_grandtotal_All_Invoices_source_total_Soles:=0;
+
+IF(v_ispoted_from_migration = 'Y')THEN
+       --Si hay facturas de migracion, entonces se toma el valor de las facturas asociadas a los parciales del folio
+
+--RAISE v_folioimport_id;
+       
+       FOR CUR_invoiceTypeSource_SUMASOURCE IN (
+            SELECT DISTINCT a.c_invoice_id, a.c_currency_id,a.totallines as linenetamt,a.DateInvoiced,a.em_sco_newdateinvoiced  FROM (
+		select i.c_invoice_id, i.c_currency_id,i.totallines , i.DateInvoiced, i.em_sco_newdateinvoiced
+		  from c_invoice i 
+		   inner join c_order o on o.c_order_id = i.c_order_id 
+		    WHERE o.em_sim_folioimport_id = v_folioimport_id
+		UNION ALL
+		 select i.c_invoice_id, i.c_currency_id,i.totallines, i.DateInvoiced, i.em_sco_newdateinvoiced
+		   from c_invoice i
+		   inner join c_invoiceline il ON il.c_invoice_id = i.c_invoice_id
+		   inner join c_orderline ol ON ol.c_orderline_id = il.c_orderline_id
+		   inner join c_order o ON o.c_order_id = ol.c_order_id
+		   where  o.em_sim_folioimport_id = v_folioimport_id
+		UNION ALL 
+		 select i.c_invoice_id, i.c_currency_id, i.totallines*-1, i.DateInvoiced, i.em_sco_newdateinvoiced
+		   from c_invoice i
+		  WHERE EM_Sco_Isimportation='Y'
+                    AND EM_Sco_Dua_ID = v_foliodua_id
+                    AND EM_Sco_Duatype='SO'
+                    AND em_sco_specialdoctype = 'SCOAPCREDITMEMO'
+		) a)
+       LOOP
+
+           IF(CUR_invoiceTypeSource_SUMASOURCE.c_currency_id <> v_currencyDollar_id)THEN
+                   --SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(CUR_invoiceTypeSource_SUMASOURCE.linenetamt,CUR_invoiceTypeSource_SUMASOURCE.c_currency_id, v_currencyDollar_id, CUR_invoiceTypeSource_SUMASOURCE.DateInvoiced, NULL,v_Client_ID, v_Org_ID), v_currencyDollar_id, NULL)), 0)
+		   SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeSource_SUMASOURCE.linenetamt, CUR_invoiceTypeSource_SUMASOURCE.c_currency_id, v_currencyDollar_id, CUR_invoiceTypeSource_SUMASOURCE.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeSource_SUMASOURCE.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+		   INTO v_ConvertedAmount;
+		   v_grandtotal_All_Invoices:= v_grandtotal_All_Invoices + v_ConvertedAmount;
+		   SELECT COALESCE(sim_currency_convert_table(v_ConvertedAmount,v_currencyDollar_id,v_currencyTO_id,CUR_invoiceTypeSource_SUMASOURCE.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeSource_SUMASOURCE.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+		   INTO v_ConvertedAmountSoles;
+		   v_grandtotal_All_Invoices_source_total_Soles:= v_grandtotal_All_Invoices_source_total_Soles + v_ConvertedAmountSoles;
+		
+           ELSE
+                   v_grandtotal_All_Invoices = v_grandtotal_All_Invoices + CUR_invoiceTypeSource_SUMASOURCE.linenetamt;
+		   SELECT COALESCE(sim_currency_convert_table(CUR_invoiceTypeSource_SUMASOURCE.linenetamt,v_currencyDollar_id,v_currencyTO_id,CUR_invoiceTypeSource_SUMASOURCE.em_sco_newdateinvoiced, v_c_invoice_table_id, CUR_invoiceTypeSource_SUMASOURCE.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+		   INTO v_ConvertedAmountSoles;
+		   v_grandtotal_All_Invoices_source_total_Soles:= v_grandtotal_All_Invoices_source_total_Soles + v_ConvertedAmountSoles;
+
+           END IF;             
+       END LOOP;  
+END IF; -- END v_ispoted_from_migration
+v_grandtotal_All_Invoices_source_total:=v_grandtotal_All_Invoices;   
+--END CODEPARTE04
+
+--CODEPARTE05 
+--OBTENIENDO LA CANTIDAD DE LINEAS DE TIPO SOURCE (PRODUCTOS)
+
+IF(v_ispoted_from_migration = 'Y') THEN
+   SELECT count(c_orderline_id)
+    INTO v_totalProductsinInvoices
+    FROM c_orderline ol
+    INNER JOIN c_order o ON o.c_order_id = ol.c_order_id
+    WHERE o.em_sim_folioimport_id = v_folioimport_id
+     AND ol.m_product_id is not null;
+END IF;
+--END CODEPARTE05 
+
+ --Recorriendo todas las Facturas de Tipo Source para Saber cuanto de ADV sumarte al Totalde invoice, 
+ --esto para incluir al ADV en prorrateo 
+ --CODEPARTE06
+
+ 
+IF(v_ispoted_from_migration = 'Y') THEN
+   FOR Cur_LinexInvoice_source IN(
+       SELECT ol.linenetamt,ol.c_order_id,ol.m_product_id,
+              ol.c_uom_id,o.c_currency_id,i.DateInvoiced,
+              ol.priceactual,i.em_sco_newdateinvoiced, ol.c_orderline_id, i.c_invoice_id
+	FROM c_orderline ol
+   INNER JOIN c_order o ON o.c_order_id = ol.c_order_id
+   INNER JOIN c_invoice i ON i.c_order_id = o.c_order_id
+        WHERE o.em_sim_folioimport_id = v_folioimport_id
+
+   
+        
+   )
+   LOOP 
+
+      --SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(Cur_LinexInvoice_source.linenetamt,Cur_LinexInvoice_source.c_currency_id, v_currencyDollar_id, Cur_LinexInvoice_source.DateInvoiced, NULL,v_Client_ID, v_Org_ID), v_currencyDollar_id, NULL)), 0)
+       SELECT COALESCE(sim_currency_convert_table(Cur_LinexInvoice_source.linenetamt, Cur_LinexInvoice_source.c_currency_id, v_currencyDollar_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+       INTO v_LinenetAmount;
+        --Obteniendo ADV del Producto => Necesario porque tambièn se incluye en el prorrateo
+       SELECT em_sim_advalorem,em_sim_tlc_disc_advalorem, em_sim_freight, em_sim_insurance,em_sim_more_expenses,em_sim_inland
+         INTO v_partialline_adv,v_partialline_tlc, v_freight, v_insurance,v_more_expenses,v_inland
+         FROM c_orderline
+        WHERE c_orderline_id= Cur_LinexInvoice_source.c_orderline_id;
+
+      IF(v_partialline_adv IS NULL)THEN
+      v_partialline_adv = 0;
+      ELSIF(v_partialline_tlc IS NULL) THEN
+      v_partialline_tlc = 0;
+      END IF;
+      v_val_add_to_fob:=  COALESCE(v_freight,0) +  COALESCE(v_insurance,0) + COALESCE(v_more_expenses,0) + COALESCE(v_inland,0);
+      v_adv_product = v_partialline_adv*(100-v_partialline_tlc)/100; 
+      v_advaloremresult=ROUND((v_adv_product*(v_LinenetAmount+v_val_add_to_fob))/100,2);    
+      v_grandtotal_All_Invoices = v_grandtotal_All_Invoices + v_advaloremresult;
+   END LOOP;
+END IF; --END v_ispoted_from_migration
+   --END CODEPARTE06
+ 
+
+ --Recorriendo todas las Facturas de Tipo Source Insertarlas en el COSTEO.
+ --CODEPARTE07
+ --RAISE v_foliodua_id;
+ IF(v_ispoted_from_migration = 'Y') THEN
+
+     FOR Cur_LinexInvoice_source IN(
+
+          SELECT distinct a.linenetamt,a.c_order_id,a.m_product_id,
+                 a.c_uom_id,a.c_currency_id,a.DateInvoiced,a.qtyinvoiced, a.movementqty,
+                 a.priceactual,a.em_sco_newdateinvoiced, a.c_orderline_id, a.c_invoice_id , a.order_totallines, a.invoice_totallines
+          FROM(
+     
+	       SELECT ol.linenetamt,ol.c_order_id,ol.m_product_id,
+		      ol.c_uom_id,o.c_currency_id,i.DateInvoiced,ol.qtyordered as qtyinvoiced, ol.em_swa_received as movementqty,
+		      ol.priceactual,i.em_sco_newdateinvoiced, ol.c_orderline_id, i.c_invoice_id , o.totallines as order_totallines, i.totallines as invoice_totallines
+		FROM c_orderline ol
+		INNER JOIN c_order o ON o.c_order_id = ol.c_order_id
+		INNER JOIN c_invoice i ON i.c_order_id = o.c_order_id
+		WHERE o.em_sim_folioimport_id = v_folioimport_id
+		 AND ol.em_swa_received > 0
+
+       /* UNION ALL 
+
+	     SELECT ol.linenetamt,ol.c_order_id,ol.m_product_id,
+		      ol.c_uom_id,o.c_currency_id,i.DateInvoiced,ol.qtyordered as qtyinvoiced, ol.em_swa_received as movementqty,
+		      ol.priceactual,i.em_sco_newdateinvoiced, ol.c_orderline_id, i.c_invoice_id , o.totallines as order_totallines, il.linenetamt as invoice_totallines
+		FROM c_orderline ol
+		INNER JOIN c_order o ON o.c_order_id = ol.c_order_id
+		INNER JOIN c_invoiceline il ON il.c_orderline_id = ol.c_orderline_id
+		INNER JOIN c_invoice i on i.c_invoice_id = il.c_invoice_id
+		WHERE il.em_sim_dua_id = v_foliodua_id
+		 AND ol.em_swa_received > 0*/
+	       ) a
+         
+     )
+     LOOP 
+
+       v_factor_p_tmp:=Cur_LinexInvoice_source.linenetamt/Cur_LinexInvoice_source.order_totallines;
+       v_LinenetAmount:=v_factor_p_tmp*Cur_LinexInvoice_source.invoice_totallines;
+
+        --RAISE v_foliodua_id;
+     ---Notas de credito aplicada al parcial 
+     v_total_ap_creditmemo:=0;
+     v_total_ap_creditmemoSoles:=0;
+     
+          FOR Cur_Invoice_apCreditMemo IN (
+               SELECT *
+                 FROM C_INVOICE 
+                WHERE EM_Sco_Isimportation='Y'
+                  AND EM_Sco_Dua_ID = v_foliodua_id
+                  AND EM_Sco_Duatype='SO'
+                  AND em_sco_specialdoctype = 'SCOAPCREDITMEMO'
+                  AND EM_Sco_Invoiceref_ID = Cur_LinexInvoice_source.c_invoice_id
+          )LOOP
+
+            IF(Cur_Invoice_apCreditMemo.totallines>0)THEN
+              v_apcreditmemo_amount:= Cur_Invoice_apCreditMemo.totallines*-1;--las notas de credito se deben considerar en negativo
+              v_apcreditmemo_amountSoles:= Cur_Invoice_apCreditMemo.totallines*-1;--las notas de credito se deben considerar en negativo
+            ELSE
+              v_apcreditmemo_amount:= Cur_Invoice_apCreditMemo.totallines;--las notas de credito se deben considerar en negativo
+              v_apcreditmemo_amountSoles:= Cur_Invoice_apCreditMemo.totallines;--las notas de credito se deben considerar en negativo
+            END IF;
+
+
+            --dolares
+            IF(Cur_Invoice_apCreditMemo.c_currency_id <> v_currencyDollar_id)THEN
+                   SELECT COALESCE(sim_currency_convert_table(v_apcreditmemo_amount, Cur_Invoice_apCreditMemo.c_currency_id, v_currencyDollar_id, Cur_Invoice_apCreditMemo.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_Invoice_apCreditMemo.c_invoice_id, Cur_Invoice_apCreditMemo.ad_client_id,Cur_Invoice_apCreditMemo.ad_org_id), 0)
+                   INTO v_apcreditmemo_amount;
+            END IF;
+
+            --soles
+            IF(Cur_Invoice_apCreditMemo.c_currency_id <> v_currencyTO_id)THEN
+                   SELECT COALESCE(sim_currency_convert_table(v_apcreditmemo_amountSoles, Cur_Invoice_apCreditMemo.c_currency_id, v_currencyTO_id, Cur_Invoice_apCreditMemo.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_Invoice_apCreditMemo.c_invoice_id, Cur_Invoice_apCreditMemo.ad_client_id,Cur_Invoice_apCreditMemo.ad_org_id), 0)
+                   INTO v_apcreditmemo_amountSoles;
+            END IF;
+
+
+            --dolares
+            v_apcreditmemo_amount:=COALESCE(v_apcreditmemo_amount,0);
+            v_total_ap_creditmemo:=v_total_ap_creditmemo + v_apcreditmemo_amount;
+
+            --soles
+            v_apcreditmemo_amountSoles:=COALESCE(v_apcreditmemo_amountSoles,0);
+            v_total_ap_creditmemoSoles:=v_total_ap_creditmemoSoles + v_apcreditmemo_amountSoles;
+
+
+
+        END LOOP;
+
+         v_LinenetAmountInvoice:=v_LinenetAmount;
+         v_LinenetAmountApCredit:= COALESCE(v_factor_p_tmp*v_total_ap_creditmemo,0);
+         v_LinenetAmountTotalDolares:= v_LinenetAmountInvoice + v_LinenetAmountApCredit;
+         --------------
+         v_LinenetAmount:= v_LinenetAmountTotalDolares;
+
+
+
+       
+
+
+       IF(COALESCE(Cur_LinexInvoice_source.movementqty,0)=0)THEN --Si en migracion no hay cantidad recepcionada se toma a todo comorecepcionada
+        Cur_LinexInvoice_source.movementqty:=Cur_LinexInvoice_source.qtyinvoiced;
+       END IF;
+
+
+      IF(Cur_LinexInvoice_source.c_currency_id <> v_currencyDollar_id)THEN
+          IF(Cur_LinexInvoice_source.c_currency_id <> v_currencyTO_id)THEN
+	     SELECT COALESCE(sim_currency_convert_table(v_LinenetAmount, Cur_LinexInvoice_source.c_currency_id, v_currencyDollar_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+	     INTO v_LinenetAmount;
+	     SELECT COALESCE(sim_currency_convert_table(Cur_LinexInvoice_source.priceactual, Cur_LinexInvoice_source.c_currency_id, v_currencyDollar_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID), 0)
+	     INTO v_costUnitarioLine;
+
+	     v_LinenetAmountInvoice:= v_LinenetAmount;
+          ELSE
+	     v_LinenetAmount:=COALESCE(v_LinenetAmount);
+	     v_LinenetAmountInvoice:= v_LinenetAmount;
+	     v_costUnitarioLine:=COALESCE(Cur_LinexInvoice_source.priceactual);
+         END IF;
+     ELSE    
+         v_LinenetAmount:=COALESCE(v_LinenetAmount);
+         v_costUnitarioLine:=COALESCE(Cur_LinexInvoice_source.priceactual);
+     END IF;
+
+     --Costo Unitario Total Dolares Invoice + ApCredit
+     v_costUnitarioLine:= v_LinenetAmount / Cur_LinexInvoice_source.movementqty;
+
+     --No entiendo para que hice este IF
+     IF(Cur_LinexInvoice_source.movementqty<>0)THEN
+	--v_costUnitarioLine = v_costUnitarioLine*Cur_LinexInvoice_source.qtyinvoiced/Cur_LinexInvoice_source.movementqty;
+     END IF;
+
+      --Prorrateo en Soles
+    
+      
+        v_linenetInvoiceAmountSoles:= sim_currency_convert_table(v_LinenetAmountInvoice, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID);
+        v_linenetApCreditAmountSoles:= COALESCE(v_factor_p_tmp*v_total_ap_creditmemoSoles,0);
+        v_linenetTotalAmountSoles:= v_linenetInvoiceAmountSoles + COALESCE(v_linenetApCreditAmountSoles,0);
+        v_linenetAmountSoles:= v_linenetTotalAmountSoles;
+
+        --v_linenetAmountSoles:= sim_currency_convert_table(v_LinenetAmount, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID);
+        v_costUnitarioLineSoles:= v_linenetAmountSoles / Cur_LinexInvoice_source.movementqty;
+
+
+     
+       --Obteniendo ADV del Producto => Necesario porque tambièn se incluye en el prorrateo
+     SELECT em_sim_advalorem,em_sim_tlc_disc_advalorem, em_sim_freight, em_sim_insurance,em_sim_more_expenses,em_sim_inland
+       INTO v_partialline_adv,v_partialline_tlc,v_freight, v_insurance,v_more_expenses,v_inland
+       FROM c_orderline
+      WHERE c_orderline_id= Cur_LinexInvoice_source.c_orderline_id;
+
+      IF(v_partialline_adv IS NULL)THEN
+      v_partialline_adv = 0;
+      ELSIF(v_partialline_tlc IS NULL) THEN
+      v_partialline_tlc = 0;
+      END IF;
+      v_val_add_to_fob:=  COALESCE(v_freight,0) +  COALESCE(v_insurance,0) + COALESCE(v_more_expenses,0) + COALESCE(v_inland,0);
+      v_adv_product = v_partialline_adv*(100-v_partialline_tlc)/100; 
+      v_advaloremresult=ROUND(v_adv_product*(v_LinenetAmount+v_val_add_to_fob)/100,2);
+
+      v_totalProductsinInvoices = v_totalProductsinInvoices -1;
+     IF(v_totalProductsinInvoices = 0) THEN
+        v_gasto_por_line = v_total_expenses - v_gasto_acumulado;
+        v_gasto_por_line_Soles = v_total_expenses_soles - v_gasto_acumulado_Soles;
+     ELSE
+        --Prorrateo en Dolares
+        --v_prorrateoXinvoice:= (v_LinenetAmount + v_advaloremresult)/v_grandtotal_All_Invoices;
+        
+        v_prorrateoXinvoice:= v_LinenetAmount/v_grandtotal_All_Invoices_source_total;
+        v_gasto_por_line:=  v_total_expenses*v_prorrateoXinvoice; 
+        --v_gasto_por_line:=  v_total_expenses*v_prorrateoXinvoice; 
+        v_gasto_acumulado:= v_gasto_acumulado + v_gasto_por_line; 
+        --RAISE v_total_expenses;
+
+
+       
+        --v_LinenetAmount / Cur_LinexInvoice_source.movementqty;
+        v_prorrateoXInvoiceSoles:= v_linenetAmountSoles/v_grandtotal_All_Invoices_source_total_Soles;
+        v_gasto_por_line_Soles:=v_total_expenses_soles*v_prorrateoXinvoice;
+        v_gasto_acumulado_Soles:=v_gasto_acumulado_Soles + v_gasto_por_line_Soles;
+
+
+     END IF;
+
+     IF(v_gasto_por_line IS NULL) THEN
+       v_gasto_por_line:= 0;
+     END IF; 
+    
+      v_getExchangeRate:=1; --Para obtener el tipo de cambio con función
+      v_CostingLineSeqNo:= 10 + v_CostingLineSeqNo;
+      v_sim_imp_costinlines_id:=get_uuid();
+      v_ResultcostingPerLine = v_LinenetAmount + v_advaloremresult + v_gasto_por_line;
+     -- RAISE v_LinenetAmount || ' - ' ||v_advaloremresult || ' - ' || v_gasto_por_line;
+  
+      INSERT INTO sim_imp_costinglines
+         (sim_imp_costinglines_id,sim_imp_costing_id,ad_client_id,ad_org_id,
+          isactive,created,createdby,updated,updatedby,
+          c_invoice_id,line,m_product_id,c_uom_id,qtyinvoiced,
+          cost_source,
+          cost_source_currencylocal,
+          linenetamt,
+          linenetamt_currencylocal,
+          advpercent,
+          advtotal,
+          advtotal_currencylocal,
+          cost_line,cost_unit,
+          cost_line_currencylocal,
+          cost_unit_currencylocal,
+          exchange_rate,
+          expenses_CurrencyDollar,
+          expenses_currencylocal
+         )
+        VALUES 
+        (v_sim_imp_costinlines_id,v_Record_ID,v_Client_ID,v_Org_ID,
+         'Y',now(),v_Created_by,now(), v_Created_by,
+         Cur_LinexInvoice_source.c_invoice_id,v_CostingLineSeqNo,Cur_LinexInvoice_source.m_product_id,Cur_LinexInvoice_source.c_uom_id,Cur_LinexInvoice_source.movementqty,
+         v_costUnitarioLine,
+         v_costUnitarioLineSoles,
+         --sim_currency_convert_table(v_costUnitarioLine, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID),
+         v_LinenetAmount,
+         v_linenetAmountSoles,
+         --sim_currency_convert_table(v_LinenetAmount, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID),
+         v_adv_product,v_advaloremresult,
+         v_tipo_cambio*v_advaloremresult,
+         --sim_currency_convert_table(v_advaloremresult, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID),
+         v_ResultcostingPerLine,
+         (ROUND(v_LinenetAmount + v_advaloremresult +  v_gasto_por_line,2))/Cur_LinexInvoice_source.movementqty,
+         v_linenetAmountSoles + (v_advaloremresult*v_tipo_cambio) +  v_gasto_por_line_Soles,
+         --sim_currency_convert_table(v_LinenetAmount, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID)+ (v_advaloremresult*v_tipo_cambio) +  v_gasto_por_line_Soles,
+         
+         (v_linenetAmountSoles + (v_advaloremresult*v_tipo_cambio) +  v_gasto_por_line_Soles)/Cur_LinexInvoice_source.movementqty,
+         --(sim_currency_convert_table(v_LinenetAmount, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID)+(v_advaloremresult*v_tipo_cambio) +  v_gasto_por_line_Soles)/Cur_LinexInvoice_source.movementqty,
+         sim_currency_convert_table(v_getExchangeRate, v_currencyDollar_id, v_currencyTO_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, v_Client_ID,v_Org_ID),
+         v_gasto_por_line,v_gasto_por_line_Soles
+        );
+   
+   END LOOP;
+ END IF;--END v_ispoted_from_migration
+ 
+   --END CODEPARTE07
+    v_Message := 'sucessfull';
+    v_Result := 1;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+    
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SIM_COSTING_GET_PRODUCTS
+]]></body>
+    </function>
+  </database>

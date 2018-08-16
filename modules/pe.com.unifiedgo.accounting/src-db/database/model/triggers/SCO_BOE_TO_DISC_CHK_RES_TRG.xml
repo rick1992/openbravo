@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BOE_TO_DISC_CHK_RES_TRG">
+    <trigger name="SCO_BOE_TO_DISC_CHK_RES_TRG" table="SCO_BOE_TO_DISCOUNT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+v_currency_ID VARCHAR(32);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF(:OLD.Processed='Y' AND :OLD.Docaction <> 'CL'
+          AND(
+               (COALESCE(:OLD.DOCUMENTNO, '.') <> COALESCE(:NEW.DOCUMENTNO, '.'))
+               OR(COALESCE(:OLD.C_DOCTYPE_ID, '0') <> COALESCE(:NEW.C_DOCTYPE_ID, '0'))
+               OR(COALESCE(:OLD.C_DOCTYPETARGET_ID, '0') <> COALESCE(:NEW.C_DOCTYPETARGET_ID, '0'))
+               OR(COALESCE(:OLD.DATEGEN, v_DateNull) <> COALESCE(:NEW.DATEGEN, v_DateNull))
+               OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+               OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	       OR(COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:new.C_Currency_ID, '0'))
+	       OR(COALESCE(:old.FIN_Payment_ID, '0') <> COALESCE(:new.FIN_Payment_ID, '0'))
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+
+    IF (COALESCE(:OLD.C_Currency_ID, '0')!=COALESCE(:NEW.C_Currency_ID, '0'))  THEN
+      SELECT COUNT(*)
+        INTO v_n
+        FROM SCO_Boetodisc_Line
+       WHERE SCO_Boe_To_Discount_ID = :NEW.SCO_Boe_To_Discount_ID;
+
+       IF v_n>0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_NoBPORCurr@') ;
+       END IF;
+     END IF;
+
+    IF ((COALESCE(:OLD.DATEACCT,  TO_DATE('31-12-9999', 'DD-MM-YYYY')) <> COALESCE(:NEW.DATEACCT, TO_DATE('31-12-9999', 'DD-MM-YYYY'))) AND :new.DOCSTATUS NOT IN ('RE')) THEN
+		IF (:old.POSTED = 'Y') THEN
+			RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+                END IF;
+    END IF;
+  END IF;
+
+  IF(DELETING) THEN
+    IF :OLD.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF :NEW.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  --Verify FinancialAccount Currency Congruency
+  IF(INSERTING) THEN
+    SELECT C_Currency_ID
+      INTO v_currency_ID
+      FROM FIN_Financial_Account
+    WHERE FIN_Financial_Account_ID = :NEW.FIN_Financial_Account_ID;
+
+    IF(v_currency_ID <> :NEW.C_Currency_ID) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_FinancialAccCurrMismatch@') ;
+    END IF;
+
+  ELSIF(UPDATING) THEN
+    IF(:OLD.C_Currency_ID <> :NEW.C_Currency_ID OR :OLD.FIN_Financial_Account_ID <> :NEW.FIN_Financial_Account_ID) THEN
+      SELECT C_Currency_ID
+        INTO v_currency_ID
+        FROM FIN_Financial_Account
+      WHERE FIN_Financial_Account_ID = :NEW.FIN_Financial_Account_ID;
+
+      IF(v_currency_ID <> :NEW.C_Currency_ID) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_FinancialAccCurrMismatch@') ;
+      END IF;
+    END IF;
+  END IF;
+
+END SCO_BOE_TO_DISC_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

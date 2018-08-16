@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_Cheque_ugo" pageWidth="1057" pageHeight="607" whenNoDataType="AllSectionsNoDetail" columnWidth="1057" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.2100000000000055"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_NAME" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'INVOICE'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_Cheque_Lines_ugo" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String" isForPrompting="false"/>
+	<queryString>
+		<![CDATA[SELECT t.*
+
+,case when t.id_moneda_banco='100' then t."IMPORTE"
+  else NULL end as "IMP_DOLARES"
+
+,case when t.id_moneda_banco='308' then t."IMPORTE"
+  else NULL END as "IMP_SOLES"
+
+, case
+ when t.id_moneda_banco='308' and t.id_moneda_pago='308' then '0.0000'
+ when t.id_moneda_banco='100' then to_char(t."TC_VENTA",'0D9999')
+ else to_char(t."TC_COMPRA",'0D9999') END as "TIPO_CAMBIO"
+
+,case WHEN t.id_moneda_banco=t.id_moneda_pago and t.id_moneda_banco='308' then 'Y' else 'N' end as "SOLO_PEN"
+,case WHEN t.id_moneda_banco=t.id_moneda_pago and t.id_moneda_banco='100' then 'Y' else 'N' end as "SOLO_USD"
+
+,case when t.id_moneda_banco!=t.id_moneda_pago  then t.tc
+  when t.id_moneda_banco='100' then t."TC_VENTA"
+ else t."TC_COMPRA"
+end as "TC_OFICIAL"
+
+FROM
+(
+select pay.fin_payment_id as "PAYMENT_ID",
+pay.documentno as "VOUCHER",
+pay.paymentdate as "FEC_EMI",
+coalesce(pay.amount,0.00) as "IMPORTE",
+(case when cur.iso_code = 'USD' then pay.amount else null end) as "IMP_DOL",
+(case when cur.iso_code = 'PEN' then pay.amount else null end) as "IMP_SOL",
+
+coalesce(c.description,coalesce(cur.description,'')) as "MONEDA",
+(to_char(pay.paymentdate, 'DD')) as "DIA",
+(to_char(pay.paymentdate,'MM'))  as "MES",
+(to_char(pay.paymentdate,'YYYY')) as "AÑO",
+
+coalesce(bp.name,'') as "B_PARTNER",
+
+coalesce(bpgir.name,bp.name) as "GIRADO_A",
+
+
+(select c_location.city from ad_org
+join ad_orginfo on ad_org.ad_org_id = ad_orginfo.ad_org_id
+left join c_location on ad_orginfo.c_location_id = c_location.c_location_id
+where ad_org.ad_org_id = org.ad_org_id
+limit 1) as "LUGAR",
+
+org.ad_org_id as "ORG_ID",
+coalesce(org.name,'') as "ORG"
+,(select ffa.codebank from fin_financial_account ffa where  ffa.fin_financial_account_id=pay.fin_financial_account_id) AS "CODIGO_BANCO"
+,(pay.description) as "CONCEPTO"
+,(pay.referenceno) AS "VOUCHER2"
+--,coalesce(to_char(em_sco_alt_convert_rate,'0D9999'),'0.0000') AS "TIPO_CAMBIO"
+
+--,round(case when ffa.c_currency_id!='100' and pay.finacc_txn_convert_rate=1.00 then NULL
+-- when ffa.c_currency_id='100' then pay.amount else pay.amount*pay.finacc_txn_convert_rate end ,2) as "IMP_DOLARES"
+--,round(case when ffa.c_currency_id!='308' and pay.finacc_txn_convert_rate=1.00 then NULL
+ --when ffa.c_currency_id='308' then pay.amount else pay.amount*pay.finacc_txn_convert_rate end ,2) as "IMP_SOLES"
+
+      ,round(1/COALESCE(sim_currency_convert_table(1,
+(select c_currency_id from c_currency where iso_code = 'PEN'),
+ (select c_currency_id from c_currency where iso_code = 'USD'), TO_DATE(pay.paymentdate)::timestamp without time zone,
+ NULL, NULL, 'AF645935B14444CA8AD4A94FE6B2AF68', 'F4CC51B76C4147019B0B88923623FBE2'),1),4) as  "TC_COMPRA"
+
+      , COALESCE(sim_currency_convert_table(1,
+(select c_currency_id from c_currency where iso_code = 'USD'),
+ (select c_currency_id from c_currency where iso_code = 'PEN'), TO_DATE(pay.paymentdate)::timestamp without time zone,
+ NULL, NULL, 'AF645935B14444CA8AD4A94FE6B2AF68', 'F4CC51B76C4147019B0B88923623FBE2'),1) as  "TC_VENTA"
+
+
+,ffa.c_currency_id as id_moneda_banco
+,cur.c_currency_id as id_moneda_pago
+,pay.em_sco_alt_convert_rate as tc
+,coalesce ((select fa.em_sco_regnumber from fact_acct fa where fa.record_id=pay.fin_payment_id limit 1),'')
+ as "NRO_FACT"
+from fin_payment pay
+left join c_bpartner bp on pay.c_bpartner_id = bp.c_bpartner_id
+left join c_bpartner bpgir on pay.em_sco_respbpartner_id=bpgir.c_bpartner_id
+join c_currency cur on pay.c_currency_id = cur.c_currency_id
+left join c_currency_trl c on cur.c_currency_id = c.c_currency_id
+LEFT JOIN fin_financial_account ffa on pay.fin_financial_account_id=ffa.fin_financial_account_id
+
+,
+ad_org org
+join ad_orgtype typ using (ad_orgtype_id)
+
+where AD_ISORGINCLUDED(pay.ad_org_id, org.ad_org_id, pay.ad_client_id)<>-1
+and(typ.IsLegalEntity='Y' or typ.IsAcctLegalEntity='Y')
+and pay.isactive = 'Y'
+and pay.fin_payment_id in ($P{DOCUMENT_ID}))
+ AS t]]>
+	</queryString>
+	<field name="PAYMENT_ID" class="java.lang.String"/>
+	<field name="VOUCHER" class="java.lang.String"/>
+	<field name="FEC_EMI" class="java.sql.Timestamp"/>
+	<field name="IMPORTE" class="java.math.BigDecimal"/>
+	<field name="IMP_DOL" class="java.math.BigDecimal"/>
+	<field name="IMP_SOL" class="java.math.BigDecimal"/>
+	<field name="MONEDA" class="java.lang.String"/>
+	<field name="DIA" class="java.lang.String"/>
+	<field name="MES" class="java.lang.String"/>
+	<field name="AÑO" class="java.lang.String"/>
+	<field name="B_PARTNER" class="java.lang.String"/>
+	<field name="GIRADO_A" class="java.lang.String"/>
+	<field name="LUGAR" class="java.lang.String"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="CODIGO_BANCO" class="java.lang.String"/>
+	<field name="CONCEPTO" class="java.lang.String"/>
+	<field name="VOUCHER2" class="java.lang.String"/>
+	<field name="TC_COMPRA" class="java.math.BigDecimal"/>
+	<field name="TC_VENTA" class="java.math.BigDecimal"/>
+	<field name="id_moneda_banco" class="java.lang.String"/>
+	<field name="id_moneda_pago" class="java.lang.String"/>
+	<field name="tc" class="java.math.BigDecimal"/>
+	<field name="NRO_FACT" class="java.lang.String"/>
+	<field name="IMP_DOLARES" class="java.math.BigDecimal"/>
+	<field name="IMP_SOLES" class="java.math.BigDecimal"/>
+	<field name="TIPO_CAMBIO" class="java.lang.String"/>
+	<field name="SOLO_PEN" class="java.lang.String"/>
+	<field name="SOLO_USD" class="java.lang.String"/>
+	<field name="TC_OFICIAL" class="java.math.BigDecimal"/>
+	<variable name="TOTAL_LINENETAMT" class="java.math.BigDecimal" resetType="Group" resetGroup="C_PAYMENT_ID"/>
+	<variable name="TOTAL_TAXAMT" class="java.math.BigDecimal" resetType="Group" resetGroup="C_PAYMENT_ID"/>
+	<variable name="SHOWLOGO" class="java.lang.String"/>
+	<variable name="SHOWCOMPANYDATA" class="java.lang.String"/>
+	<variable name="TOTALBRUTO" class="java.math.BigDecimal" resetType="Group" resetGroup="C_PAYMENT_ID"/>
+	<variable name="TOTAL_ANTICIPO" class="java.math.BigDecimal" resetType="Group" resetGroup="C_PAYMENT_ID"/>
+	<variable name="ITEM" class="java.math.BigDecimal" resetType="Group" resetGroup="C_PAYMENT_ID" calculation="Count">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="TOT_INVOICES" class="java.math.BigDecimal" resetType="Group" resetGroup="C_PAYMENT_ID" calculation="Sum">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<group name="C_PAYMENT_ID">
+		<groupExpression><![CDATA[$F{PAYMENT_ID}]]></groupExpression>
+		<groupFooter>
+			<band/>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band splitType="Stretch"/>
+	</title>
+	<pageHeader>
+		<band height="140" splitType="Stretch">
+			<textField pattern="dd/MM/yyyy">
+				<reportElement mode="Transparent" x="0" y="37" width="128" height="16" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement textAlignment="Center">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMI}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Transparent" x="116" y="22" width="29" height="16" forecolor="#000000" backcolor="#CC0033">
+					<printWhenExpression><![CDATA[false]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{MONEDA}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="145" y="50" width="448" height="15" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement>
+					<font fontName="Monospaced" size="11" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{GIRADO_A}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="145" y="65" width="448" height="15" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement>
+					<font fontName="Monospaced" size="11" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.ConvertirCheque($F{IMPORTE}.toString(),$F{MONEDA},$F{id_moneda_banco},$F{id_moneda_pago},"cabecera")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Transparent" x="229" y="36" width="122" height="16" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement textAlignment="Right">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{IMPORTE}==null?"":$P{NUMBERFORMAT}.format($F{IMPORTE})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="7" y="104" width="100" height="16" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement textAlignment="Center">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.extracFromRegNumber($F{NRO_FACT})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="637" y="104" width="368" height="16" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement textAlignment="Center">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.nombreBancoPlanilla($F{CODIGO_BANCO})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="439" y="104" width="151" height="16" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement textAlignment="Right">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{id_moneda_banco}.equals("308")?$F{IMPORTE}:($F{IMPORTE}.multiply($F{TC_OFICIAL})))]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="273" y="104" width="154" height="16" forecolor="#000000" backcolor="#CC0033">
+					<printWhenExpression><![CDATA[!$F{SOLO_PEN}.equals("Y")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{id_moneda_banco}.equals("100")?$F{IMPORTE}:$F{IMPORTE}.divide($F{TC_OFICIAL},new MathContext(100)))]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="164" y="104" width="100" height="16" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement textAlignment="Right">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO_CAMBIO}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="145" y="79" width="448" height="15" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement>
+					<font fontName="Monospaced" size="11" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{CONCEPTO}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="273" y="104" width="154" height="16" forecolor="#000000" backcolor="#CC0033">
+					<printWhenExpression><![CDATA[$F{SOLO_PEN}.equals("Y")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["*.***,***.**"]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<subreport>
+				<reportElement mode="Transparent" x="0" y="0" width="1057" height="12" forecolor="#FFFFFF" backcolor="#FFFFFF"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="CHEQUE_ID">
+					<subreportParameterExpression><![CDATA[$F{PAYMENT_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_Cheque_Lines_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="262">
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="346" y="52" width="563" height="16" forecolor="#000000" backcolor="#CC0000"/>
+				<textElement>
+					<font fontName="Monospaced" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{GIRADO_A}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="615" y="3" width="36" height="16"/>
+				<textElement textAlignment="Center">
+					<font fontName="Monospaced" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DIA}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="658" y="3" width="31" height="16"/>
+				<textElement textAlignment="Center">
+					<font fontName="Monospaced" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{MES}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="698" y="3" width="41" height="16"/>
+				<textElement textAlignment="Center">
+					<font fontName="Monospaced" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{AÑO}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="804" y="2" width="214" height="20"/>
+				<textElement>
+					<font fontName="Monospaced" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.rellenaAsteriscos($P{NUMBERFORMAT}.format($F{IMPORTE}))]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="263" y="78" width="646" height="16" forecolor="#000000" backcolor="#CC0033"/>
+				<textElement>
+					<font fontName="Monospaced" size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.ConvertirCheque($F{IMPORTE}.toString(),$F{MONEDA},$F{id_moneda_banco},$F{id_moneda_pago},"footer")]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>

@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_REQUISITION_CHK1_TRG">
+    <trigger name="SSA_REQUISITION_CHK1_TRG" table="M_REQUISITION" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_OrderLine_Offer_ID VARCHAR2(32);
+v_Price NUMBER;
+v_lineNo NUMBER;
+v_PriceNew NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+      IF ((COALESCE(:OLD.C_BPartner_ID, '0')!=COALESCE(:NEW.C_BPartner_ID, '0')) 
+       OR (COALESCE(:OLD.M_PriceList_ID,'0') != COALESCE(:NEW.M_PriceList_ID,'0')) 
+       OR (COALESCE(:old.C_Currency_ID, '0') != COALESCE(:NEW.C_Currency_ID, '0'))
+       OR (COALESCE(:OLD.EM_Spr_Project_ID,'0') != COALESCE(:NEW.EM_Spr_Project_ID,'0'))
+       OR (COALESCE(:OLD.em_spr_excludefromproject,'0') != COALESCE(:NEW.em_spr_excludefromproject,'0'))) THEN
+         SELECT COUNT(*) INTO v_n FROM M_REQUISITIONLINE WHERE M_REQUISITION_ID = :NEW.M_REQUISITION_ID;
+         IF v_n>0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotChange@') ;
+         END IF;
+       END IF;
+
+  END IF;
+
+END SSA_REQUISITION_CHK1_TRG
+]]></body>
+    </trigger>
+  </database>

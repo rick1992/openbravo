@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_INSERTCOMBOITEM">
+    <function name="SCO_INSERTCOMBOITEM" type="NUMERIC">
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+  CUR_Mixrow RECORD;
+  v_count NUMBER;
+  v_Aux NUMBER;
+  p_SCR_Combo_Item_ID VARCHAR(32);
+
+  p_AD_Client_ID VARCHAR(32);
+  p_AD_Org_ID VARCHAR(32);
+  p_AD_User_ID VARCHAR(32);
+
+BEGIN
+
+  p_AD_Client_ID := 'AF645935B14444CA8AD4A94FE6B2AF68';
+  p_AD_Org_ID := '0';
+  p_AD_User_ID := '100';
+
+  CREATE TEMPORARY TABLE mixrows
+  (
+
+     value character varying(40) NOT NULL,
+     name character varying(60) NOT NULL,
+     scr_combo_category_id character varying(32) NOT NULL,
+     seqno NUMBER(10,0),
+     code character varying(32)
+  ) on commit drop;
+  
+  COPY mixrows FROM '/tmp/pgtest.txt';
+
+  v_count := 0;
+  FOR CUR_Mixrow IN (SELECT * FROM mixrows)
+  LOOP
+
+    SELECT count(*) INTO v_Aux FROM SCR_Combo_Category WHERE SCR_Combo_Category_ID = CUR_Mixrow.SCR_Combo_Category_ID LIMIT 1;
+    IF(v_Aux = 0) THEN
+      CONTINUE;
+    END IF;
+
+    SELECT count(*) 
+      INTO v_Aux
+      FROM SCR_Combo_Item
+    WHERE ad_client_id = p_AD_Client_ID AND
+          value = CUR_Mixrow.value AND
+          scr_combo_category_id = CUR_Mixrow.scr_combo_category_id LIMIT 1;
+
+    IF(v_Aux=0) THEN
+      AD_Sequence_Next('SCR_Combo_Item', p_AD_Client_ID, p_SCR_Combo_Item_ID) ;
+
+      INSERT INTO scr_combo_item(
+                  scr_combo_item_id, ad_client_id, ad_org_id, isactive, created, 
+                  createdby, updated, updatedby, value, name, scr_combo_category_id, 
+                  seqno, description, code, approvision)
+      VALUES (
+                  p_SCR_Combo_Item_ID, p_AD_Client_ID, p_AD_Org_ID, 'Y', now(), 
+                  p_AD_User_ID, now(), p_AD_User_ID, CUR_Mixrow.value, CUR_Mixrow.name, CUR_Mixrow.scr_combo_category_id, 
+                  CUR_Mixrow.seqno, NULL, CUR_Mixrow.code, 'N'
+             );
+      v_count := v_count + 1;
+    END IF;
+  END LOOP;
+
+  RETURN v_count;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN NULL;
+END SCO_INSERTCOMBOITEM
+]]></body>
+    </function>
+  </database>

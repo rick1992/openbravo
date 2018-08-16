@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_GETPRODUCTPRICESBYDATE">
+    <function name="SCR_GETPRODUCTPRICESBYDATE" type="VARCHAR">
+      <parameter name="p_adclientid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_adorgid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_mproductid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_mpricelistid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_validfrom" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+
+  v_ProductPrices VARCHAR(100);    
+  v_Pricelist NUMBER;
+  v_PriceStd NUMBER;
+  v_PriceLimit NUMBER; 
+    
+  v_PL_OrgId VARCHAR(32);
+  v_PL_CurrId VARCHAR(32);
+  v_PL_IsSOPriceList CHARACTER(1);
+  v_CurrencyPrecision NUMBER;
+  v_PENPriceListId VARCHAR(32);
+  
+  v_PENPriceList NUMBER;
+  v_PENPriceStd NUMBER;
+  v_PENPriceLimit NUMBER; 
+
+  v_cConvRate NUMBER;
+
+  v_orgIncToPriceList NUMBER;
+  
+BEGIN
+    SELECT COALESCE(pp.Pricelist,0), COALESCE(pp.Pricestd,0), COALESCE(pp.Pricelimit,0) 
+      INTO v_Pricelist, v_PriceStd, v_PriceLimit  
+      FROM M_ProductPrice pp, M_PriceList_Version plv
+     WHERE pp.M_PriceList_Version_ID = plv.M_PriceList_Version_ID
+       AND pp.M_Product_ID = p_mproductid
+       AND plv.isactive = 'Y'
+       AND plv.M_PriceList_ID = p_mpricelistid
+       AND plv.validfrom <= p_validfrom
+     ORDER BY plv.validfrom DESC LIMIT 1;
+
+
+    -- VIRTUAL PRICE IMPL
+    SELECT pl.ad_org_id, pl.c_currency_id, curr.priceprecision, pl.em_sco_pricelist_pen_id, pl.issopricelist
+      INTO v_PL_OrgId, v_PL_CurrId, v_CurrencyPrecision, v_PENPriceListId, v_PL_IsSOPriceList
+      FROM m_pricelist pl, c_currency curr      
+     WHERE m_pricelist_id = p_mpricelistid
+       and pl.c_currency_id = curr.c_currency_id;       
+    IF (v_Pricelist = 0) THEN
+       IF (v_PL_CurrId <> '308') THEN
+       
+        -- if listprice=0 and currency is not PEN then calculate a virtual listprice based on the
+        -- convrate and related PEN PriceList
+        IF (v_PENPriceListId IS NOT NULL) THEN   
+           SELECT coalesce(to_number(split_part(prices,'|',1)),0) as pricelist,
+                  coalesce(to_number(split_part(prices,'|',2)),0) as pricestd,
+                  coalesce(to_number(split_part(prices,'|',3)),0) as pricelimit
+             INTO v_PENPriceList, v_PENPriceStd, v_PENPriceLimit   
+             FROM scr_getproductpricesbydate(p_adclientid, p_adorgid, p_mproductid, v_PENPriceListId, p_validfrom) prices; 
+             
+           SELECT convrate
+             INTO v_cConvRate
+             FROM scr_getexchangeratepurch(p_adclientid, v_PL_OrgId, v_PL_CurrId, p_validfrom) convrate;              
+           IF (v_cConvRate IS NOT NULL) THEN            
+            v_Pricelist := COALESCE(ROUND(v_PENPriceList/v_cConvRate,v_CurrencyPrecision),0); 
+            v_PriceStd := COALESCE(ROUND(v_PENPriceStd/v_cConvRate,v_CurrencyPrecision),0); 
+            v_PriceLimit := COALESCE(ROUND(v_PENPriceLimit/v_cConvRate,v_CurrencyPrecision),0);             
+           END IF;
+           
+        END IF; 
+       END IF;
+    END IF;
+
+
+    SELECT COALESCE(em_sco_inctopricelist,0) INTO v_orgIncToPriceList FROM AD_Org WHERE AD_Org_ID=p_adorgid;
+    IF (v_PL_IsSOPriceList='Y' AND v_orgIncToPriceList IS NOT NULL AND v_orgIncToPriceList <> 0) THEN
+      v_Pricelist = v_Pricelist*((v_orgIncToPriceList/100)+1.00);
+      v_PriceStd = v_PriceStd*((v_orgIncToPriceList/100)+1.00);
+    END IF;
+
+    v_ProductPrices := v_Pricelist || '|' || v_PriceStd || '|' || v_PriceLimit;
+        
+    RETURN v_ProductPrices;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      RETURN v_ProductPrices;
+END SCR_GETPRODUCTPRICESBYDATE
+]]></body>
+    </function>
+  </database>

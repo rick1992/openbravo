@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="ReportBPCreditInfoJRData" package="pe.com.unifiedgo.core.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS CLIENTID, '' AS ORGID, '' AS BPID, '' AS BPTAXID, '' AS BPNAME, '' AS ORGNAME,'' AS CURRENCYID, 
+          '' AS PENCREDITLIMIT, '' AS PENCREDITUSED, '' AS PENCREDITFREE, '' AS USDCREDITLIMIT, '' AS USDCREDITUSED, '' AS USDCREDITFREE,
+          '' AS BPGROUPID
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  
+ <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        select bp.ad_client_id as clientid,
+               bp.ad_org_id as orgid,
+               bp.c_bpartner_id as bpid,
+               bp.taxid as bptaxid,
+               (bp.taxid || ' - ' || bp.name) as bpname,
+               org.name as orgname, 
+               coalesce(bp.em_ssa_creditcurrency_id,'308') as currencyid, 
+               (case when bp.em_ssa_creditcurrency_id='308' then bp.so_creditlimit else 0.00 end) as pencreditlimit,
+               (case when bp.em_ssa_creditcurrency_id='308' then bp.em_ssa_creditused else 0.00 end) as pencreditused,
+               (case when bp.em_ssa_creditcurrency_id='308' then (bp.so_creditlimit - bp.em_ssa_creditused) else 0.00 end) as pencreditfree,
+               (case when bp.em_ssa_creditcurrency_id='100' then bp.so_creditlimit else 0.00 end) as usdcreditlimit,
+               (case when bp.em_ssa_creditcurrency_id='100' then bp.em_ssa_creditused else 0.00 end) as usdcreditused,
+               (case when bp.em_ssa_creditcurrency_id='100' then (bp.so_creditlimit - bp.em_ssa_creditused) else 0.00 end) as usdcreditfree
+          from c_bpartner bp
+               inner join ad_org org on bp.ad_org_id=org.ad_org_id 
+         where bp.iscustomer='Y'
+           and bp.isactive = 'Y' 
+           and (bp.em_ssa_creditcurrency_id='308' or bp.em_ssa_creditcurrency_id='100' or bp.em_ssa_creditcurrency_id is null)                         
+           and bp.ad_client_id in ('1')                     
+           and bp.ad_org_id in ('1')     
+           and bp.taxid=?     
+           and AD_ISORGINCLUDED(bp.ad_org_id, ? ,bp.ad_client_id) <> -1         
+         order by bp.taxid, org.name                    
+      ]]></Sql>      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="and bp.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and bp.ad_org_id in (" text="'1'"/>
+    <Parameter name="bpTaxId"/>        
+    <Parameter name="adOrgId"/>           
+  </SqlMethod>  
+    
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>  
+    
+  <SqlMethod name="selectBpartner" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_BPARTNER.TAXID || ' - ' || C_BPARTNER.NAME AS BPNAME
+          FROM C_BPARTNER WHERE C_BPARTNER.C_BPARTNER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBPartnerId"/>
+  </SqlMethod>
+</SqlClass>

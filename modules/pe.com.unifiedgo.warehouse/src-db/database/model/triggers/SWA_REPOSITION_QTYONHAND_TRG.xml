@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_REPOSITION_QTYONHAND_TRG">
+    <trigger name="SWA_REPOSITION_QTYONHAND_TRG" table="SWA_REQUERIMIENTOREPOSICION" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_qtyordered NUMBER:=0;
+  v_received NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  CUR_repo_detail RECORD;
+
+
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.swa_requerimientoreposicion_id;
+ELSE
+  v_ID:=:NEW.swa_requerimientoreposicion_id;
+END IF;
+
+
+IF (UPDATING) THEN
+  --Actualizando Las Cantidades Despachas/Entregadas despues de Completar la notas o guias de remision
+  --cuand se Completa un M_inout o se anula, cambia el estado de la columna isdelivered de tabla swa_requerimientoreposicion
+  --isdelivered FU quiere decir completa EM quiere decir pendiente
+  --Las cantidades despachadas se actualizara siempre y cuando el documento este completado
+  --RAISE v_ID;
+
+  
+  
+  IF(:NEW.STATUS='CO' AND :OLD.ISDELIVERED='EM'  AND :NEW.ISDELIVERED='FU' AND :NEW.repositiontrx='N')THEN --Verificar Lineas de Salidas Relacionadas a Orden de Transferencia
+
+
+      FOR CUR_repo_detail IN (
+                SELECT rpl.swa_requerepo_detail_id as swa_requerepo_detail_id, 
+                       sum(iol.movementqty) as movementqty
+                  FROM swa_requerepo_detail rpl
+                  INNER JOIN M_inoutline iol ON iol.em_swa_requerepo_detail_id = rpl.swa_requerepo_detail_id
+                  INNER JOIN M_inout io ON io.m_inout_id = iol.m_inout_id
+                 WHERE rpl.swa_requerimientoreposicion_id = v_ID
+                   AND io.issotrx='Y'
+                   AND io.docaction='CO'
+                   AND io.em_swa_requireposicion_id = v_ID
+                 Group by rpl.swa_requerepo_detail_id 
+          )
+       LOOP
+       
+         UPDATE swa_requerepo_detail
+            SET qtyshipped = CUR_repo_detail.movementqty
+           WHERE swa_requerepo_detail_id = CUR_repo_detail.swa_requerepo_detail_id;
+       END LOOP;
+       
+  ELSIF(:NEW.STATUS='CO' AND :OLD.ISDELIVERED='EM' AND :NEW.ISDELIVERED='FU' AND :NEW.repositiontrx='Y')THEN --Verificar Lineas de Ingresos Relacionadas a Recepcion de Transferencia
+
+
+        FOR CUR_repo_detail IN (
+                SELECT rpl.swa_requerepo_detail_id as swa_requerepo_detail_id, 
+                       sum(iol.movementqty) as movementqty
+                  FROM swa_requerepo_detail rpl
+                  INNER JOIN M_inoutline iol ON iol.em_swa_requerepo_detail_id = rpl.swa_requerepo_detail_id
+                  INNER JOIN M_inout io ON io.m_inout_id = iol.m_inout_id
+                 WHERE rpl.swa_requerimientoreposicion_id = v_ID
+                   AND io.issotrx='N'
+                   AND io.docaction='CO'
+                   AND io.em_swa_requireposicion_id = v_ID
+                 Group by rpl.swa_requerepo_detail_id 
+          )
+       LOOP
+
+         UPDATE swa_requerepo_detail
+            SET qtyreceipt = CUR_repo_detail.movementqty
+           WHERE swa_requerepo_detail_id = CUR_repo_detail.swa_requerepo_detail_id;
+       END LOOP;
+
+
+  ELSIF(:NEW.STATUS='CO' AND :OLD.ISDELIVERED='FU' AND :NEW.ISDELIVERED='EM' AND :NEW.repositiontrx='Y')THEN --Verificar Lineas de Ingresos Relacionadas a Recepcion de Transferencia
+
+         UPDATE swa_requerepo_detail
+            SET qtyreceipt = 0           
+          WHERE swa_requerimientoreposicion_id = v_ID;
+           
+  ELSIF(:NEW.STATUS='CO' AND :OLD.ISDELIVERED='FU' AND :NEW.ISDELIVERED='EM' AND :NEW.repositiontrx='N')THEN --Actualizar cantidades recepcionadas a 0 Recepcion de transferencia
+
+        UPDATE swa_requerepo_detail
+            SET qtyshipped = 0           
+          WHERE swa_requerimientoreposicion_id = v_ID;
+    
+  END IF;
+  -----------------------------
+ -- RAISE NO_DATA_FOUND;
+END IF;
+
+
+END SWA_REPOSITION_QTYONHAND_TRG
+]]></body>
+    </trigger>
+  </database>

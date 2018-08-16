@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_REQLINE_CHK_RES_TRG">
+    <trigger name="SPR_REQLINE_CHK_RES_TRG" table="M_REQUISITIONLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Count NUMBER:= 0;
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+  
+  IF INSERTING THEN
+     IF(:new.em_spr_budgetline_id IS NULL) THEN
+      -- RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotInsertLinesWoLink@') ;
+     END IF;
+  END IF;
+
+  IF UPDATING THEN
+     IF(COALESCE(:old.em_spr_budgetline_id, '0') <> COALESCE(:new.em_spr_budgetline_id, '0') 
+        AND :new.em_spr_budgetline_id IS NULL) THEN
+       --RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotInsertLinesWoLink@') ;
+     END IF;
+  END IF;
+
+END SPR_REQLINE_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

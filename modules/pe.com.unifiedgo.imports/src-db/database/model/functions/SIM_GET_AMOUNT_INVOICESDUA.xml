@@ -1,0 +1,191 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_GET_AMOUNT_INVOICESDUA">
+    <function name="SIM_GET_AMOUNT_INVOICESDUA" type="NULL">
+      <parameter name="p_dua_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_to_currency_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_invoicesamountso_dua" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2012 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************
+* Function to reserve stock using the get stock function.
+**************/
+  v_pinstance_id                VARCHAR2(32) := get_uuid();
+  v_Client_ID                   VARCHAR(32);
+  v_Org_ID                      VARCHAR(32);
+  v_totallines_invoice NUMBER:=0;
+  v_aditionallines_invoice NUMBER:=0;
+  v_total_ap_creditmemo NUMBER:=0;
+  v_prorrateoXinvoice NUMBER:=0;
+  v_LinenetAmount NUMBER:=0;
+  v_totalAmountSourceDua NUMBER:=0;
+  v_totalapcreditmemo NUMBER:=0;
+  v_apcreditmemo_amount NUMBER:=0;
+  v_Invoice_linenetamt NUMBER:=0;
+  v_from_currency_id            VARCHAR(32);
+  v_to_currency_id              VARCHAR(32);
+  v_otherinvoice_currency_id    VARCHAR(32);
+  v_c_invoice_table_id          VARCHAR(32);
+  TYPE RECORD IS REF CURSOR;
+  Cur_LinexInvoice_source                RECORD; -- ADD BY VAFASTER
+  Cur_Invoice_apCreditMemo               RECORD; -- ADD BY VAFASTER
+  
+
+BEGIN
+
+  v_to_currency_id:=p_to_currency_id;
+  IF(v_to_currency_id IS NULL)THEN
+   RAISE_APPLICATION_ERROR(-20000,'@sim_currency_not_found@');
+  END IF;
+
+   v_c_invoice_table_id:='318';
+
+
+ --QUIERO OBTENER EL MONTO TOTAL DE LAS FACTURAS ORIGEN.
+ FOR Cur_LinexInvoice_source IN (
+   SELECT c_invoiceLine.ad_client_id, c_invoiceLine.ad_org_id, c_invoiceLine.linenetamt,c_invoice.c_order_id,c_invoiceLine.m_product_id,c_invoice.c_invoice_id,
+              c_invoiceLine.c_uom_id,c_invoice.c_currency_id, c_invoiceLine.qtyinvoiced, m_inoutline.movementqty,c_invoice.DateInvoiced,
+              c_invoiceLine.priceactual,c_invoice.em_sco_newdateinvoiced, c_invoiceLine.c_orderline_id
+	FROM c_invoiceLine 
+	inner join c_invoice on c_invoice.c_invoice_id = c_invoiceLine.c_invoice_id
+	LEFT JOIN m_inoutline ON c_invoiceLine.m_inoutline_id = m_inoutline.m_inoutline_id
+       WHERE c_invoiceLine.em_sim_dua_id = p_dua_id
+ )
+ LOOP
+
+      
+     v_Invoice_linenetamt:=Cur_LinexInvoice_source.linenetamt;
+     IF(Cur_LinexInvoice_source.c_currency_id <> v_to_currency_id)THEN ---Revisando Moneda por la que se consulta
+        SELECT COALESCE(sim_currency_convert_table(v_Invoice_linenetamt, Cur_LinexInvoice_source.c_currency_id, v_to_currency_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, Cur_LinexInvoice_source.ad_client_id,Cur_LinexInvoice_source.ad_org_id), 0)
+         INTO v_Invoice_linenetamt;
+     END IF;
+      
+
+     --Obtenemos el total de la factura para esta linea (El total solo con Ordenes enlazadas - Parciales)
+       SELECT COALESCE(sum(linenetamt),0) 
+         INTO v_totallines_invoice 
+         FROM c_invoiceline
+        WHERE c_invoice_id = Cur_LinexInvoice_source.c_invoice_id
+          AND  c_orderline_id is not null;--enlazada con parcial
+
+            IF(Cur_LinexInvoice_source.c_currency_id <> v_to_currency_id)THEN ---Revisando Moneda por la que se consulta
+               SELECT COALESCE(sim_currency_convert_table(v_totallines_invoice, Cur_LinexInvoice_source.c_currency_id, v_to_currency_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, Cur_LinexInvoice_source.ad_client_id,Cur_LinexInvoice_source.ad_org_id), 0)
+               INTO v_totallines_invoice;
+            END IF;
+        v_totallines_invoice:=COALESCE(v_totallines_invoice,0); 
+
+
+       ---Ahora obtenemos las lineas adicionales en la Factura-- puede ser que tengan lineas de descuento u otras
+       SELECT sum(linenetamt) 
+         INTO v_aditionallines_invoice
+         FROM c_invoiceline
+        WHERE c_invoice_id = Cur_LinexInvoice_source.c_invoice_id
+          AND  c_orderline_id is null;--no enlazada con parcial
+
+            IF(Cur_LinexInvoice_source.c_currency_id <> v_to_currency_id)THEN ---Revisando Moneda por la que se consulta
+               SELECT COALESCE(sim_currency_convert_table(v_aditionallines_invoice, Cur_LinexInvoice_source.c_currency_id, v_to_currency_id, Cur_LinexInvoice_source.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_LinexInvoice_source.c_invoice_id, Cur_LinexInvoice_source.ad_client_id,Cur_LinexInvoice_source.ad_org_id), 0)
+               INTO v_aditionallines_invoice;
+            END IF;
+        v_aditionallines_invoice:= COALESCE(v_aditionallines_invoice,0);
+            
+       --Ahora obtenemos el total de las facturas de ORIGEN (NOTAS DE CREDITO)enlazadas con la factura con el mismo DAM 
+       --y prorratearla
+        /*FOR Cur_Invoice_apCreditMemo IN (
+               SELECT *
+                 FROM C_INVOICE 
+                WHERE EM_Sco_Isimportation='Y'
+                  AND EM_Sco_Dua_ID = p_dua_id
+                  AND EM_Sco_Duatype='SO'
+                  AND em_sco_specialdoctype = 'SCOAPCREDITMEMO'
+                  AND EM_Sco_Invoiceref_ID = Cur_LinexInvoice_source.c_invoice_id
+        )LOOP
+
+
+          IF (Cur_Invoice_apCreditMemo.totallines > 0) THEN
+            v_apcreditmemo_amount:= Cur_Invoice_apCreditMemo.totallines*-1;--las notas de credito se deben considerar en negativo
+          ELSE
+            v_apcreditmemo_amount:= Cur_Invoice_apCreditMemo.totallines;--las notas de credito se deben considerar en negativo
+          END IF;
+          
+            IF(Cur_Invoice_apCreditMemo.c_currency_id <> v_to_currency_id)THEN
+                   SELECT COALESCE(sim_currency_convert_table(v_apcreditmemo_amount, Cur_Invoice_apCreditMemo.c_currency_id, v_to_currency_id, Cur_Invoice_apCreditMemo.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_Invoice_apCreditMemo.c_invoice_id, Cur_Invoice_apCreditMemo.ad_client_id,Cur_Invoice_apCreditMemo.ad_org_id), 0)
+                   INTO v_apcreditmemo_amount;
+            END IF;
+            v_apcreditmemo_amount:=COALESCE(v_apcreditmemo_amount,0);
+            v_total_ap_creditmemo:=v_total_ap_creditmemo + v_apcreditmemo_amount;
+
+
+               -- RAISE v_total_ap_creditmemo;
+        END LOOP;*/
+
+
+       ---factor de prorrateo dentro de la misma factura
+       v_prorrateoXinvoice:= v_Invoice_linenetamt/v_totallines_invoice;
+
+       --el valor neto de mi linea será: el monto de la linea + adicionales que vengan en la factura (Prorrateada) + notas de credito aplicadas a la factura (Prorrateada)
+       v_LinenetAmount:=  v_Invoice_linenetamt + v_prorrateoXinvoice*v_aditionallines_invoice + v_prorrateoXinvoice*v_total_ap_creditmemo;
+       v_totalAmountSourceDua:=v_totalAmountSourceDua + v_LinenetAmount;
+   
+ END LOOP;
+-----------
+
+FOR Cur_LinexInvoice_source IN (
+    SELECT distinct c_invoice.c_invoice_id
+      FROM c_invoiceLine 
+     INNER JOIN c_invoice on c_invoice.c_invoice_id = c_invoiceLine.c_invoice_id
+     LEFT JOIN m_inoutline ON c_invoiceLine.m_inoutline_id = m_inoutline.m_inoutline_id
+       WHERE c_invoiceLine.em_sim_dua_id = p_dua_id      
+)
+LOOP
+  FOR Cur_Invoice_apCreditMemo IN (
+               SELECT *
+                 FROM C_INVOICE 
+                WHERE EM_Sco_Isimportation='Y'
+                  AND EM_Sco_Dua_ID = p_dua_id
+                  AND EM_Sco_Duatype='SO'
+                  AND em_sco_specialdoctype = 'SCOAPCREDITMEMO'
+                  AND EM_Sco_Invoiceref_ID = Cur_LinexInvoice_source.c_invoice_id
+        )LOOP
+
+
+          IF (Cur_Invoice_apCreditMemo.totallines > 0) THEN
+            v_apcreditmemo_amount:= Cur_Invoice_apCreditMemo.totallines*-1;--las notas de credito se deben considerar en negativo
+          ELSE
+            v_apcreditmemo_amount:= Cur_Invoice_apCreditMemo.totallines;--las notas de credito se deben considerar en negativo
+          END IF;
+          
+            IF(Cur_Invoice_apCreditMemo.c_currency_id <> v_to_currency_id)THEN
+                   SELECT COALESCE(sim_currency_convert_table(v_apcreditmemo_amount, Cur_Invoice_apCreditMemo.c_currency_id, v_to_currency_id, Cur_Invoice_apCreditMemo.em_sco_newdateinvoiced, v_c_invoice_table_id, Cur_Invoice_apCreditMemo.c_invoice_id, Cur_Invoice_apCreditMemo.ad_client_id,Cur_Invoice_apCreditMemo.ad_org_id), 0)
+                   INTO v_apcreditmemo_amount;
+            END IF;
+            v_apcreditmemo_amount:=COALESCE(v_apcreditmemo_amount,0);
+            v_total_ap_creditmemo:=v_total_ap_creditmemo + v_apcreditmemo_amount;
+
+        END LOOP;
+END LOOP;
+
+  p_InvoicesAmountSO_DUA:= v_totalAmountSourceDua + COALESCE(v_total_ap_creditmemo,0);
+  RETURN;
+END SIM_GET_AMOUNT_INVOICESDUA
+]]></body>
+    </function>
+  </database>

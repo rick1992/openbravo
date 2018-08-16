@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+<!--4243E2B792D34E53BA33CE89B1B55B61--><OBCQL_WIDGET_QUERY>
+<!--4243E2B792D34E53BA33CE89B1B55B61-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[4243E2B792D34E53BA33CE89B1B55B61]]></OBCQL_WIDGET_QUERY_ID>
+<!--4243E2B792D34E53BA33CE89B1B55B61-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--4243E2B792D34E53BA33CE89B1B55B61-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--4243E2B792D34E53BA33CE89B1B55B61-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--4243E2B792D34E53BA33CE89B1B55B61-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[D9137EA442E4433FA4EEC15AF405CCD4]]></OBKMO_WIDGET_CLASS_ID>
+<!--4243E2B792D34E53BA33CE89B1B55B61-->  <HQL><![CDATA[select e.id as InvoiceId, 
+            e.documentNo as documentNo,  
+            e.organization.name as organizationName, 
+            e.invoiceDate as invoiceDate,  
+            e.scrPhysicalDocumentno as physicalNumber, 
+            e.scoFirstduedate as dueDate, 
+            e.businessPartner.name as businessPartnerName, 
+            e.currency.iSOCode as currencyName, 
+            e.grandTotalAmount as totalAmount
+from Invoice e
+where paymentComplete = false
+and documentStatus = 'CO'
+and scoPurchaseinvoicetype = 'SCO_PURIMP'
+and salesTransaction = false
+and current_date -7 > e.scoFirstduedate
+and e.client.id = :client
+ and e.organization.id in (:organizationList)
+ and e.organization.name like :organizationName
+ and @optional_filters@
+order by  e.invoiceDate desc, e.documentNo]]></HQL>
+<!--4243E2B792D34E53BA33CE89B1B55B61-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--4243E2B792D34E53BA33CE89B1B55B61--></OBCQL_WIDGET_QUERY>
+
+<!--AE559F334F514220B8210812E67D2A09--><OBCQL_WIDGET_QUERY>
+<!--AE559F334F514220B8210812E67D2A09-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[AE559F334F514220B8210812E67D2A09]]></OBCQL_WIDGET_QUERY_ID>
+<!--AE559F334F514220B8210812E67D2A09-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--AE559F334F514220B8210812E67D2A09-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--AE559F334F514220B8210812E67D2A09-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--AE559F334F514220B8210812E67D2A09-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[A85463F2E2F241DD977062475F389393]]></OBKMO_WIDGET_CLASS_ID>
+<!--AE559F334F514220B8210812E67D2A09-->  <HQL><![CDATA[select e.purchaseOrderImport.id as OrderId, 
+            e.organization.name as organizationName, 
+            e.purchaseOrderImport.documentNo as documentNo, 
+            e.orderDate as orderDate, 
+            e.fechaDeConfirmacin as confirmationDate,
+            e.businessPartner.name as businessPartnerName,
+            e.currency.iSOCode as currencyName,
+            e.grandTotalAmount as totalAmount
+  from sim_orderimport_pending e
+where e.client.id = :client
+ and e.organization.id in (:organizationList)
+ and e.organization.name like :organizationName
+ and @optional_filters@
+order by  e.orderDate desc, e.purchaseOrderImport.documentNo]]></HQL>
+<!--AE559F334F514220B8210812E67D2A09-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--AE559F334F514220B8210812E67D2A09--></OBCQL_WIDGET_QUERY>
+
+</data>

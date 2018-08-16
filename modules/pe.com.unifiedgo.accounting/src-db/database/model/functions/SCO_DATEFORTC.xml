@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_DATEFORTC">
+    <function name="SCO_DATEFORTC" type="NULL">
+      <parameter name="v_invoice_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="datetc" type="TIMESTAMP" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_RefId VARCHAR(32);
+  v_IsmanualRef VARCHAR(1);
+  v_ManualInvoiceRefDate DATE;
+  v_IsSoTrx VARCHAR(1);
+  v_DateAcct DATE;
+  v_NewInvoiceDate DATE;
+  v_specialdoctype VARCHAR(60);
+  v_podoctype_cmb_id VARCHAR(32);
+  v_podoctype_cmb_value VARCHAR(40);
+  v_dateinvoiced DATE;
+BEGIN
+
+	SELECT inv.em_sco_invoiceref_id, inv.em_sco_ismanualref, inv.em_sco_manualinvoicerefdate, inv.issotrx, inv.dateacct, inv.em_sco_newdateinvoiced, coalesce(dt.em_sco_specialdoctype,''), inv.em_sco_podoctype_comboitem_id, v_dateinvoiced
+	INTO v_RefId, v_IsmanualRef, v_ManualInvoiceRefDate, v_IsSoTrx, v_DateAcct, v_NewInvoiceDate, v_specialdoctype, v_podoctype_cmb_id, v_dateinvoiced
+	FROM C_INVOICE inv, C_Doctype dt WHERE inv.c_doctypetarget_id = dt.c_doctype_id and inv.C_INVOICE_ID=v_invoice_id;
+	
+        --for debit memos return the debit memo dateacct
+        IF(v_specialdoctype = 'SCOARDEBITMEMO') THEN
+          IF(v_IsSoTrx='Y') THEN
+            datetc := v_dateinvoiced;
+	  ELSE
+	    datetc := v_NewInvoiceDate;
+	  END IF;
+          RETURN;
+        END IF;
+        IF(v_specialdoctype = 'SCOAPINVOICE' AND v_podoctype_cmb_id IS NOT NULL) THEN
+          SELECT value INTO v_podoctype_cmb_value FROM SCR_Combo_Item WHERE SCR_Combo_Item_ID = v_podoctype_cmb_id;
+          IF (v_podoctype_cmb_value IN ('tabla10_08','tabla10_88','tabla10_98')) THEN
+            IF(v_IsSoTrx='Y') THEN
+              datetc := v_dateinvoiced;
+	    ELSE
+	      datetc := v_NewInvoiceDate;
+	    END IF;
+            RETURN;
+          END IF;
+        END IF;
+
+
+	IF(v_RefId IS NOT NULL) THEN
+		SELECT em_sco_invoiceref_id, em_sco_ismanualref, em_sco_manualinvoicerefdate, issotrx, dateacct, em_sco_newdateinvoiced, v_dateinvoiced
+		INTO v_RefId, v_IsmanualRef, v_ManualInvoiceRefDate, v_IsSoTrx, v_DateAcct, v_NewInvoiceDate, v_dateinvoiced
+		FROM C_INVOICE WHERE C_INVOICE_ID=v_RefId;
+
+		IF(v_IsSoTrx='Y') THEN
+			datetc := v_dateinvoiced;
+		ELSE
+			datetc := v_NewInvoiceDate;
+		END IF;
+	ELSIF(v_ManualInvoiceRefDate IS NOT NULL) THEN
+		datetc := v_ManualInvoiceRefDate;
+	ELSIF(v_IsSoTrx='Y') THEN
+		datetc := v_dateinvoiced;
+	ELSE
+		datetc := v_NewInvoiceDate;
+	END IF;
+    
+  
+    RETURN;
+END SCO_DATEFORTC
+]]></body>
+    </function>
+  </database>

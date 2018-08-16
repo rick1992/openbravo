@@ -1,0 +1,124 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_RESERVATION_REMOVE">
+    <function name="SWA_RESERVATION_REMOVE" type="NULL">
+      <parameter name="p_record_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_action" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[CUR_ORDERLINE RECORD;
+CUR_REQUEREPODET RECORD;
+
+v_Message VARCHAR2(2000):='';
+v_DocumentNo VARCHAR(30);
+v_m_reservation_id VARCHAR(32);
+
+v_Client_ID VARCHAR(32);
+v_Org_ID  VARCHAR(32);
+v_AD_User_ID  VARCHAR(32);
+v_Product_ID VARCHAR(32);
+v_Uom_ID VARCHAR(32);
+v_qtyreserved NUMBER;
+v_InventoryLine_ID VARCHAR(32);
+v_Warehouse_ID VARCHAR(32);
+v_Locator_ID VARCHAR(32);
+v_count NUMBER;
+CUR_M_Reservation RECORD;
+v_ReservationStatus VARCHAR(32);
+
+BEGIN
+
+/***
+p_action:
+ INV  Reserva para Inventario                                p_record_id = swa_inventory_missing_id
+ SOL  Reserva para Lineas de Venta                           p_record_id = c_orderline_id
+ POS  Reserva para Lineas de Orden de compra por Servicio    p_record_id = c_orderline_id
+ REP  Reserva para Reposiciones                              p_record_id = swa_requerepo_detail_id
+ PRO  Reserva para Armado/Desarmado(Produccion)              p_record_id = m_productionline_id
+ INO  Reserva para productos con documento de Salida         p_record_id = m_inoutline_id
+*/
+
+
+  IF(p_action = 'INV')THEN 
+    SELECT count(*) INTO v_count FROM swa_inventory_missing WHERE swa_inventory_missing_id= p_record_id;
+    IF(v_count > 0)THEN --Si corresponde a esta tabla
+                FOR CUR_M_Reservation IN(
+                     SELECT * 
+                       FROM M_RESERVATION 
+                       WHERE em_swa_inventory_missing_id= p_record_id FOR UPDATE
+		 )LOOP
+		     IF(CUR_M_Reservation.res_status IN ('CO','CL')) THEN
+		 M_RESERVATION_POST(NULL, CUR_M_Reservation.M_RESERVATION_ID ,'RE',CUR_M_Reservation.createdby) ;
+		       SELECT res_status INTO v_ReservationStatus FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		        IF(v_ReservationStatus<>'DR') THEN
+			    RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationREError@') ;
+			END IF;
+		    ELSIF (CUR_M_Reservation.res_status IN ('HO')) THEN
+			RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationStockinHOStatus@') ;
+		    END IF; 
+
+		    DELETE FROM M_Reservation_Stock WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		    DELETE FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+ 	       END LOOP;
+    ELSE
+      RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+    END IF;
+  ELSIF(p_action = 'SOL')THEN
+  ELSIF(p_action = 'POS')THEN
+  ELSIF(p_action = 'REP')THEN
+    SELECT count(*) INTO v_count FROM swa_requerepo_detail WHERE swa_requerepo_detail_id= p_record_id;
+    IF(v_count > 0)THEN --Si corresponde a esta tabla
+                FOR CUR_M_Reservation IN(
+                     SELECT * 
+                       FROM M_RESERVATION 
+                       WHERE em_swa_requerepo_detail_id= p_record_id FOR UPDATE
+		 )LOOP
+		     IF(CUR_M_Reservation.res_status IN ('CO','CL')) THEN
+		       M_RESERVATION_POST(NULL, CUR_M_Reservation.M_RESERVATION_ID ,'RE',CUR_M_Reservation.createdby) ;
+		       SELECT res_status INTO v_ReservationStatus FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		        IF(v_ReservationStatus<>'DR') THEN
+			    RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationREError@') ;
+			END IF;
+		    ELSIF (CUR_M_Reservation.res_status IN ('HO')) THEN
+			RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationStockinHOStatus@') ;
+		    END IF; 
+
+		    DELETE FROM M_Reservation_Stock WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		    DELETE FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+ 	       END LOOP;
+    ELSE
+      RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+    END IF;
+  
+  ELSIF(p_action = 'PRO')THEN
+       SELECT count(*) INTO v_count FROM m_productionline  WHERE m_productionline_id= p_record_id;
+       IF(v_count > 0)THEN --Si corresponde a esta tabla
+                FOR CUR_M_Reservation IN(
+                     SELECT * 
+                       FROM M_RESERVATION 
+                       WHERE em_swa_m_productionline_id= p_record_id FOR UPDATE
+		 )LOOP
+		     IF(CUR_M_Reservation.res_status IN ('CO','CL')) THEN
+		       M_RESERVATION_POST(NULL, CUR_M_Reservation.M_RESERVATION_ID ,'RE',CUR_M_Reservation.createdby) ;
+		       SELECT res_status INTO v_ReservationStatus FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		        IF(v_ReservationStatus<>'DR') THEN
+			    RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationREError@') ;
+			END IF;
+		    ELSIF (CUR_M_Reservation.res_status IN ('HO')) THEN
+			RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationStockinHOStatus@') ;
+		    END IF; 
+
+		    DELETE FROM M_Reservation_Stock WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		    DELETE FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+ 	       END LOOP;
+       ELSE
+         RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+       END IF;
+  ELSE
+     RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+  END IF;
+END SWA_RESERVATION_REMOVE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportLibroInventariosYBalance12y13Data" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>  
+     
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    select '' as idorganizacion, '' as idperiodo, '' as periodo, '' as fechainicial, '' as fechafinal, '' as rownum, 
+           '' as cuo, '' as name, '' as taxid, '' as phydoc, '' as dateacct, '' as amt, '' as ad_org_id, '' as c_bpartner_id, 
+           '' as bp_document_type, '' as numberAccount, '' as CDPType, '' as correlativo 
+    from dual
+      ]]></Sql>
+  </SqlMethod>
+  
+    
+  <SqlMethod name="getSaldoCuenta12y13" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[        
+SELECT t.cuo, t.tercero as name, t.ruc as taxid, t.numero_doc as phydoc, t.fecha_doc as dateacct, sum(t.saldo) as amt, t.ad_org_id, t.c_bpartner_id, '' as bp_document_type 
+FROM 
+(select ci.c_invoice_id as cuo, COALESCE(fa.ACCTVALUE,'') as cod_cuenta, COALESCE(cbp.NAME,'Sin Tercero') AS tercero, COALESCE(cbp.taxid, '000') AS ruc, max(fa.dateacct) as fecha, COALESCE(ci.em_scr_physical_documentno,'') as numero_doc, 
+        case ci.issotrx when 'N' then ci.em_sco_newdateinvoiced WHEN 'Y' then ci.dateacct END as fecha_doc, sum(fa.amtacctdr) - sum(fa.amtacctcr) as saldo, max(fa.em_sco_regnumber) as correlativo, ci.AD_ORG_ID, ci.ad_client_id, max(cbp.c_bpartner_id) as c_bpartner_id
+   from fact_acct fa
+        inner JOIN c_invoice ci on (fa.em_sco_record3_id IS NULL and fa.record_id=ci.c_invoice_id) or fa.em_sco_record3_id=ci.c_invoice_id
+        LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+  where fa.factaccttype in ('N','O')
+  GROUP BY cuo, cod_cuenta, tercero, ruc, numero_doc, fecha_doc, ci.dateacct, fa.em_sco_regnumber, ci.AD_ORG_ID, ci.ad_client_id
+ having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0
+UNION 
+ select ci.sco_rendicioncuentas_id as cuo, COALESCE(fa.ACCTVALUE,'') as cod_cuenta, COALESCE(cbp.NAME,'Sin Tercero') AS tercero, COALESCE(cbp.taxid, '000') AS ruc, max(fa.dateacct) as fecha, COALESCE(ci.documentno,'') as numero_doc, 
+        ci.dategen as fecha_doc, sum( fa.amtacctdr) - sum(fa.amtacctcr) as saldo, max(fa.em_sco_regnumber) as correlativo, ci.AD_ORG_ID, ci.ad_client_id, max(cbp.c_bpartner_id) as c_bpartner_id
+   from fact_acct fa
+        inner JOIN sco_rendicioncuentas ci on (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_rendicioncuentas_id) or fa.em_sco_record3_id=ci.sco_rendicioncuentas_id
+        LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+  where fa.factaccttype in ('N','O')
+  GROUP BY cuo, cod_cuenta, tercero, ruc, numero_doc, fecha_doc, ci.dategen, fa.em_sco_regnumber, ci.AD_ORG_ID, ci.ad_client_id 
+  having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0 
+UNION 
+ select ci.sco_prepayment_id as cuo, COALESCE(fa.ACCTVALUE,'') as cod_cuenta, COALESCE(cbp.NAME,'Sin Tercero') AS tercero, COALESCE(cbp.taxid, '000') AS ruc, max(fa.dateacct) as fecha, COALESCE(ci.documentno,'') as numero_doc, 
+        ci.dategen as fecha_doc, sum(fa.amtacctdr) - sum(fa.amtacctcr) as saldo, max(fa.em_sco_regnumber) as correlativo, ci.AD_ORG_ID, ci.ad_client_id, max(cbp.c_bpartner_id) as c_bpartner_id
+   from fact_acct fa
+        inner JOIN sco_prepayment ci on (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_prepayment_id) or fa.em_sco_record3_id=ci.sco_prepayment_id
+        LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+  where fa.factaccttype in ('N','O')
+  GROUP BY cuo, cod_cuenta, tercero, ruc, numero_doc, fecha_doc, fa.dateacct, fa.em_sco_regnumber, ci.AD_ORG_ID, ci.ad_client_id 
+ having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0 
+UNION 
+ select ci.sco_internal_doc_id as cuo, COALESCE(fa.ACCTVALUE,'') as cod_cuenta, COALESCE(cbp.NAME,'Sin Tercero') AS tercero, COALESCE (cbp.taxid, '000') AS ruc, max(fa.dateacct) as fecha, COALESCE(ci.physical_documentno,'') as numero_doc, 
+        ci.dateinvoiced as fecha_doc, sum(fa.amtacctdr) - sum(fa.amtacctcr) as saldo, max(fa.em_sco_regnumber) as correlativo, ci.AD_ORG_ID, ci.ad_client_id, max(cbp.c_bpartner_id) as c_bpartner_id
+   from fact_acct fa
+        inner JOIN sco_internal_doc ci on (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_internal_doc_id) or fa.em_sco_record3_id=ci.sco_internal_doc_id 
+        LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id 
+  where fa.factaccttype in ('N','O')
+  GROUP BY cuo, cod_cuenta, tercero, ruc, numero_doc, fecha_doc, ci.dateinvoiced, fa.em_sco_regnumber, ci.AD_ORG_ID, ci.ad_client_id
+ having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0 
+UNION  
+ select fp.fin_payment_id as cuo, COALESCE(fa.ACCTVALUE,'') as cod_cuenta, COALESCE(cbp. NAME,'Sin Tercero') AS tercero, COALESCE(cbp.taxid, '000') AS ruc, fa.dateacct as fecha, COALESCE(null,'????') as numero_doc, 
+        fp.paymentdate as fecha_doc, sum(fa.amtacctdr) - sum(fa.amtacctcr) as saldo, max(fa.em_sco_regnumber) as correlativo, fp.ad_org_id, fp.ad_client_id, max(cbp.c_bpartner_id) as c_bpartner_id
+   from fact_acct fa
+        inner JOIN fin_payment fp on (fa.record_id=fp.fin_payment_id and fa.em_sco_record3_id is null and fa.record_id2 is null )
+        LEFT JOIN c_bpartner cbp on fp.c_bpartner_id=cbp.c_bpartner_id 
+  where fa.factaccttype in ('N','O')
+  GROUP BY cuo, cod_cuenta, tercero, ruc, numero_doc, fecha_doc, fecha, fp.paymentdate, fa.em_sco_regnumber, fp.ad_org_id, fp.ad_client_id
+ having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0
+) AS t 
+WHERE (substring (t.cod_cuenta from 1 for length(coalesce('1211101','')))) >= coalesce('1211101','')  
+  AND (substring (t.cod_cuenta from 1 for length(coalesce('1333304','')))) <= coalesce('1333304','')  
+  AND DATE_PART('year', t.fecha) = DATE_PART('year', to_date(?))
+  AND cast(t.fecha as date) <= cast(to_date(?) as date)  
+  AND t.ad_client_id IN ('1')  
+  AND t.ad_org_id IN('1') 
+  AND AD_ISORGINCLUDED(t.ad_org_id, ?, t.ad_client_id) <> -1   
+GROUP BY t.cuo, t.tercero, t.ruc, t.numero_doc, t.fecha_doc, t.ad_org_id, t.c_bpartner_id 
+HAVING sum(t.saldo)<>0 
+ORDER BY t.ruc, t.numero_doc
+]]></Sql>            
+    <Parameter name="parDateTo"/>
+    <Parameter name="parDateTo"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND t.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND t.ad_org_id IN(" text="'1'"/>        
+    <Parameter name="adOrgId" />
+   </SqlMethod> 
+
+
+	<SqlMethod name="getSaldoCuenta12y13V2" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql> <![CDATA[
+            select f.em_sco_regnumber as cuo, 
+            t.cuenta as numberAccount, 
+            coalesce((select code from scr_combo_item where scr_combo_item_id = t.documentTypeId), '0') as bp_document_type, 
+            coalesce(t.rucBp,'000') as taxid, 
+            coalesce(t.nameBp, 'Varios') as name, 
+            t.fechaDoc as dateacct, 
+            coalesce(t.numeroDoc, '') as phydoc, 
+            t.CDPType, 
+            t.saldo as amt, 
+            case f.factaccttype when 'O' then 'A' when 'N' then 'M' end || 
+                case when coalesce(f.em_sco_seqno, 0) > 99999 then to_char(f.em_sco_seqno) else coalesce(lpad(to_char(f.em_sco_seqno), 5, '0'), '00000') end as correlativo 
+            
+            from (
+            
+                select min(s.firstId) as  firstId, 
+                s.cuenta as cuenta, 
+                max(s.documentTypeId) as documentTypeId, 
+                s.rucBp as rucBp, 
+                s.nameBp as nameBp, 
+                s.fechaDoc as fechaDoc, 
+                s.numeroDoc as numeroDoc, 
+                s.CDPType as CDPType, 
+                sum(s.saldo) as saldo 
+            
+                from (
+                    select (fa.fact_acct_id) as firstId, 
+                    fa.acctvalue as cuenta, 
+                    bp.em_scr_combo_item_id as documentTypeId, 
+                    bp.taxid as rucBp, 
+                    bp.name as nameBp, 
+                    case inv.issotrx when 'N' then inv.em_sco_newdateinvoiced when 'Y' then inv.dateacct end as fechaDoc, 
+                    inv.em_scr_physical_documentno as numeroDoc,        
+                    coalesce(case inv.issotrx 
+                    when 'Y' then ite.code 
+                    when 'N' then 
+                        case doc.em_sco_specialdoctype
+                        when 'SCOAPCREDITMEMO' then '07'
+                        when 'SCOAPINVOICE' then ite.code
+                        when 'SCOAPSIMPLEPROVISIONINVOICE' then ite.code
+                        else '00' end 
+                    end, '00') as CDPType, 
+                    (fa.amtacctdr - fa.amtacctcr) as saldo 
+                    
+                    from fact_acct fa inner 
+                    join c_invoice inv on (fa.em_sco_record3_id is null and fa.record_id = inv.c_invoice_id) or fa.em_sco_record3_id = inv.c_invoice_id 
+                    left join c_bpartner bp on inv.c_bpartner_id = bp.c_bpartner_id 
+                    left join c_doctype doc on inv.c_doctypetarget_id = doc.c_doctype_id 
+                    left join scr_combo_item ite on inv.em_sco_podoctype_comboitem_id = ite.scr_combo_item_id  
+            
+                    where fa.factaccttype in ('N','O') 
+                    and date_part('year', fa.dateacct) = date_part('year', to_date(?)) 
+                    and cast(fa.dateacct as date) <= cast(to_date(?) as date) 
+                    and ad_isorgincluded(inv.ad_org_id, ?, inv.ad_client_id) <> -1 
+                    and (fa.acctvalue like '12%' or fa.acctvalue like '13%') 
+            
+                    union
+            
+                    select fa.fact_acct_id as firstId, 
+                    fa.acctvalue as cuenta, 
+                    bp.em_scr_combo_item_id as documentTypeId, 
+                    bp.taxid as rucBp, 
+                    bp.name as nameBp, 
+                    ren.dategen as fechaDoc, 
+                    ren.documentno as numeroDoc, 
+                    to_char('00') as CDPType, 
+                    (fa.amtacctdr - fa.amtacctcr) as saldo 
+                        
+                    from fact_acct fa 
+                    inner join sco_rendicioncuentas ren on fa.em_sco_record3_id = ren.sco_rendicioncuentas_id 
+                    left join c_bpartner bp on ren.c_bpartner_id = bp.c_bpartner_id 
+            
+                    where fa.factaccttype in ('N','O') 
+                    and date_part('year', fa.dateacct) = date_part('year', to_date(?)) 
+                    and cast(fa.dateacct as date) <= cast(to_date(?) as date) 
+                    and ad_isorgincluded(ren.ad_org_id, ?, ren.ad_client_id) <> -1 
+                    and (fa.acctvalue like '12%' or fa.acctvalue like '13%') 
+            
+                    union
+            
+                    select fa.fact_acct_id as firstId, 
+                    fa.acctvalue as cuenta, 
+                    bp.em_scr_combo_item_id as documentTypeId, 
+                    bp.taxid as rucBp, 
+                    bp.name as nameBp, 
+                    pre.dategen as fechaDoc, 
+                    pre.documentno as numeroDoc, 
+                    to_char('00') as CDPType, 
+                    (fa.amtacctdr - fa.amtacctcr) as saldo 
+                        
+                    from fact_acct fa 
+                    inner join sco_prepayment pre on fa.em_sco_record3_id = pre.sco_prepayment_id 
+                    left join c_bpartner bp on pre.c_bpartner_id = bp.c_bpartner_id 
+            
+                    where fa.factaccttype in ('N','O') 
+                    and date_part('year', fa.dateacct) = date_part('year', to_date(?)) 
+                    and cast(fa.dateacct as date) <= cast(to_date(?) as date) 
+                    and ad_isorgincluded(pre.ad_org_id, ?, pre.ad_client_id) <> -1 
+                    and (fa.acctvalue like '12%' or fa.acctvalue like '13%') 
+            
+                    union
+            
+                    select (fa.fact_acct_id) as firstId, fa.acctvalue as cuenta, 
+                    bp.em_scr_combo_item_id as documentTypeId, 
+                    bp.taxid as rucBp, 
+                    bp.name as nameBp, 
+                    doc.dateinvoiced as fechaDoc, 
+                    doc.physical_documentno as numeroDoc, 
+                    to_char('00') as CDPType, 
+                    (fa.amtacctdr - fa.amtacctcr) as saldo 
+                        
+                    from fact_acct fa 
+                    inner join sco_internal_doc doc on (fa.em_sco_record3_id is null and fa.record_id = doc.sco_internal_doc_id) or fa.em_sco_record3_id = doc.sco_internal_doc_id 
+                    left join c_bpartner bp on doc.c_bpartner_id = bp.c_bpartner_id 
+            
+                    where fa.factaccttype in ('N','O') 
+                    and date_part('year', fa.dateacct) = date_part('year', to_date(?)) 
+                    and cast(fa.dateacct as date) <= cast(to_date(?) as date) 
+                    and ad_isorgincluded(doc.ad_org_id, ?, doc.ad_client_id) <> -1 
+                    and (fa.acctvalue like '12%' or fa.acctvalue like '13%') 
+            
+                    union
+            
+                    select (fa.fact_acct_id) as firstId, 
+                    fa.acctvalue as cuenta, 
+                    bp.em_scr_combo_item_id as documentTypeId, 
+                    bp.taxid as rucBp, bp.name as nameBp, 
+                    pay.paymentdate as fechaDoc, 
+                    to_char('') as numeroDoc, 
+                    to_char('00') as CDPType, 
+                    (fa.amtacctdr - fa.amtacctcr) as saldo 
+                        
+                    from fact_acct fa 
+                    inner join fin_payment pay on (fa.record_id= pay .fin_payment_id and fa.em_sco_record3_id is null and fa.record_id2 is null) 
+                    left join c_bpartner bp on pay.c_bpartner_id = bp.c_bpartner_id 
+            
+                    where fa.factaccttype in ('N','O') 
+                    and date_part('year', fa.dateacct) = date_part('year', to_date(?)) 
+                    and cast(fa.dateacct as date) <= cast(to_date(?) as date) 
+                    and ad_isorgincluded(pay.ad_org_id, ?, pay.ad_client_id) <> -1 
+                    and (fa.acctvalue like '12%' or fa.acctvalue like '13%') 
+                ) as s
+            
+                group by s.cuenta, s.rucBp, s.nameBp, s.fechaDoc, s.numeroDoc, s.CDPType 
+            
+                having sum(s.saldo) <> 0
+            
+                order by s.cuenta, s.rucBp, s.fechaDoc, s.numeroDoc                 
+            
+            ) as t
+            join fact_acct f on t.firstId = f.fact_acct_id 
+        ]]></Sql>
+        
+        <Parameter name="parDateTo"/>
+        <Parameter name="parDateTo"/>
+        <Parameter name="adOrgId" />
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="adOrgId" />
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="adOrgId" />
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="adOrgId" />
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="parDateTo"/>
+	    <Parameter name="adOrgId" />
+	</SqlMethod> 
+   
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+  
+</SqlClass>

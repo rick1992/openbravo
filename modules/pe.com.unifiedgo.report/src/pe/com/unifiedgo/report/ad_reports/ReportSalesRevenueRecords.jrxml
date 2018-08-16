@@ -1,0 +1,1520 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReportSalesRevenueRecords" pageWidth="1476" pageHeight="842" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="1454" leftMargin="11" rightMargin="11" topMargin="20" bottomMargin="20">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="1.650000000000052"/>
+	<property name="ireport.x" value="1680"/>
+	<property name="ireport.y" value="5"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="DejaVu Sans" fontSize="11"/>
+	<style name="Report_Title" fontName="DejaVu Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="DejaVu Sans" fontSize="14"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="DejaVu Sans" fontSize="18" isBold="true"/>
+	<style name="GroupHeader_Gray" mode="Opaque" backcolor="#999999"/>
+	<style name="Detail_Line" fontName="DejaVu Sans" fontSize="11">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Report_Data_Label" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="DejaVu Sans" fontSize="11" isBold="false"/>
+	<style name="Report_Footer" isDefault="true" fontName="DejaVu Sans" fontSize="11"/>
+	<style name="Group_Data_Label" fontName="DejaVu Sans" fontSize="14" isBold="true"/>
+	<style name="Group_Data_Field" fontName="DejaVu Sans" fontSize="14"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="DejaVu Sans" fontSize="11"/>
+	<style name="Group_Footer" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<parameter name="Subtitle" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false">
+		<defaultValueExpression><![CDATA[new DecimalFormat("#,##0.00",new DecimalFormatSymbols(Locale.US))]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="dateFrom" class="java.util.Date"/>
+	<parameter name="dateTo" class="java.util.Date"/>
+	<parameter name="ticketMemoCount" class="java.lang.Integer"/>
+	<parameter name="invoiceMemoCount" class="java.lang.Integer"/>
+	<parameter name="creditMemoCount" class="java.lang.Integer"/>
+	<parameter name="debitMemoCount" class="java.lang.Integer"/>
+	<parameter name="Ruc" class="java.lang.String"/>
+	<parameter name="Razon" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[SELECT i.documentno nreg,i.c_invoice_id,i.dateinvoiced fec_emi,f.duedate fec_venc,
+        (CASE  dt.name WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Dedit Memo' THEN '08' else '' end) as tdcomp,
+        i.em_scr_physical_documentno serie, bp.taxid bpdocid,bp.name bpname, igv.taxbaseamt base, igv.taxamt t_igv,  i.grandtotal imptotal ,rf.dateinvoiced refdate,rf.tipodoc reftdcomp,rf.nroserie refseriep,
+        i.docstatus,ci.code bptd,0.00 as exon,0.0 inaf, 0.0 atrib, 0.0 currate, 0.0 taxtotal , 0.0 taxvalue, i.c_currency_id
+        FROM c_invoice i
+        JOIN fin_payment_schedule f on f.c_invoice_id=i.c_invoice_id
+        JOIN c_doctype dt on i.c_doctype_id=dt.c_doctype_id
+        JOIN c_bpartner bp on i.c_bpartner_id=bp.c_bpartner_id
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt,it.taxbaseamt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE em_sco_specialtax='SCOIGV')  igv on igv.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT i2.c_invoice_id,i2.dateinvoiced,(CASE  dt.name WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Dedit Memo' THEN '08' else '' end) as tipodoc,
+                    i2.em_scr_physical_documentno nroserie
+                    FROM c_invoice i2
+                    JOIN c_doctype dt on i2.c_doctype_id=dt.c_doctype_id ) rf on rf.c_invoice_id=i.em_sco_invoiceref_id
+        LEFT JOIN scr_combo_item ci on ci.scr_combo_item_id=bp.em_scr_combo_item_id
+        WHERE
+        i.docstatus IN ('CO' ,'VO')
+        AND dt.name IN ( 'AR Invoice','AR Ticket','AR Credit Memo','AR Dedit Memo','Return Material Sales Invoice' )
+        AND i.issotrx='Y'
+order by tdcomp,fec_emi,i.created]]>
+	</queryString>
+	<field name="nreg" class="java.lang.String"/>
+	<field name="c_invoice_id" class="java.lang.String"/>
+	<field name="fec_emi" class="java.util.Date"/>
+	<field name="fec_venc" class="java.util.Date"/>
+	<field name="tdcomp" class="java.lang.String"/>
+	<field name="serie" class="java.lang.String"/>
+	<field name="bpdocid" class="java.lang.String"/>
+	<field name="bpname" class="java.lang.String"/>
+	<field name="base" class="java.math.BigDecimal"/>
+	<field name="t_igv" class="java.math.BigDecimal"/>
+	<field name="imptotal" class="java.math.BigDecimal"/>
+	<field name="refdate" class="java.util.Date"/>
+	<field name="reftdcomp" class="java.lang.String"/>
+	<field name="refseriep" class="java.lang.String"/>
+	<field name="docstatus" class="java.lang.String"/>
+	<field name="bptd" class="java.lang.String"/>
+	<field name="exon" class="java.math.BigDecimal"/>
+	<field name="inaf" class="java.math.BigDecimal"/>
+	<field name="atrib" class="java.math.BigDecimal"/>
+	<field name="currate" class="java.math.BigDecimal"/>
+	<field name="taxtotal" class="java.math.BigDecimal"/>
+	<field name="taxvalue" class="java.math.BigDecimal"/>
+	<field name="c_currency_id" class="java.lang.String"/>
+	<field name="region" class="java.lang.String"/>
+	<field name="estado_factura_electronica" class="java.lang.String"/>
+	<field name="serienumber" class="java.lang.String"/>
+	<field name="docnumber" class="java.lang.String"/>
+	<field name="refserienumber" class="java.lang.String"/>
+	<field name="refdocnumber" class="java.lang.String"/>
+	<field name="invoiceseqno" class="java.lang.String"/>
+	<field name="proyecto" class="java.lang.String"/>
+	<field name="descripcion_documento" class="java.lang.String"/>
+	<variable name="base_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[$F{base}]]></variableExpression>
+	</variable>
+	<variable name="igv_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[($F{t_igv}!=null)?$F{t_igv}:new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="imptotal_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[$F{imptotal}]]></variableExpression>
+	</variable>
+	<variable name="serie" class="java.lang.String">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="numero" class="java.lang.String">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="serieref" class="java.lang.String">
+		<variableExpression><![CDATA[$F{refserienumber}]]></variableExpression>
+	</variable>
+	<variable name="numeroref" class="java.lang.String">
+		<variableExpression><![CDATA[$F{refdocnumber}]]></variableExpression>
+	</variable>
+	<variable name="exon_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[($F{exon}!=null)?$F{exon}:new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="inaf_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[($F{inaf}!=null)?$F{inaf}:new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="atrib_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[($F{atrib}!=null)?$F{atrib}:new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="isc_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="valorexporta_total" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="van" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[$F{imptotal}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="vienen" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc">
+		<variableExpression><![CDATA[$V{van}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="base_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{base}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="igv_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{t_igv}!=null)?$F{t_igv}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="imptotal_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{imptotal}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="exon_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{exon}!=null)?$F{exon}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="inaf_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{inaf}!=null)?$F{inaf}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="atrib_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{atrib}!=null)?$F{atrib}:new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="isc_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="valorexporta_total_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="base_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[$F{base}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="igv_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[($F{t_igv}!=null)?$F{t_igv}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="imptotal_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[$F{imptotal}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="exon_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[($F{exon}!=null)?$F{exon}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="inaf_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[($F{inaf}!=null)?$F{inaf}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="atrib_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[($F{atrib}!=null)?$F{atrib}:new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="isc_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="valorexporta_total_0" class="java.math.BigDecimal" resetType="Group" resetGroup="Preserie" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="van_exportacion" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="vienen_exportacion" class="java.math.BigDecimal" resetType="None">
+		<variableExpression><![CDATA[$V{van_exportacion}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="vienen_baseimp" class="java.math.BigDecimal" resetType="None">
+		<variableExpression><![CDATA[$V{van_baseimp}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="van_baseimp" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{base}!=null?$F{base}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="vienen_exonerada" class="java.math.BigDecimal" resetType="None">
+		<variableExpression><![CDATA[$V{van_exonerada}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="van_exonerada" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[$F{exon}!=null?$F{exon}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="vienen_inafecta" class="java.math.BigDecimal" resetType="None">
+		<variableExpression><![CDATA[$V{van_inafecta}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="van_inafecta" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[($F{inaf}!=null)?$F{inaf}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="vienen_isc" class="java.math.BigDecimal" resetType="None">
+		<variableExpression><![CDATA[$V{van_isc}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="van_isc" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="vienen_igv" class="java.math.BigDecimal" resetType="None">
+		<variableExpression><![CDATA[$V{van_igv}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="van_igv" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[($F{t_igv}!=null)?$F{t_igv}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="vienen_otrostri" class="java.math.BigDecimal" resetType="None">
+		<variableExpression><![CDATA[$V{van_otrostri}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="van_otrostri" class="java.math.BigDecimal" resetType="Group" resetGroup="TipoDoc" calculation="Sum">
+		<variableExpression><![CDATA[$F{atrib}!=null?$F{atrib}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="exon_1" class="java.math.BigDecimal" resetType="Column" calculation="Sum">
+		<variableExpression><![CDATA[$F{exon}]]></variableExpression>
+	</variable>
+	<variable name="base_1" class="java.math.BigDecimal" resetType="Column" calculation="Sum">
+		<variableExpression><![CDATA[$F{base}]]></variableExpression>
+	</variable>
+	<variable name="base_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[$F{base}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="igv_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[($F{t_igv}!=null)?$F{t_igv}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="imptotal_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[$F{imptotal}]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="exon_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[($F{exon}!=null)?$F{exon}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="inaf_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[($F{inaf}!=null)?$F{inaf}:new BigDecimal(0.00)]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="atrib_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[($F{atrib}!=null)?$F{atrib}:new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="isc_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<variable name="valorexporta_total_4" class="java.math.BigDecimal" resetType="Group" resetGroup="por region" calculation="Sum">
+		<variableExpression><![CDATA[new BigDecimal(0.00)]]></variableExpression>
+	</variable>
+	<group name="por region" isStartNewPage="true">
+		<groupExpression><![CDATA[$F{region}]]></groupExpression>
+		<groupHeader>
+			<band height="15">
+				<textField>
+					<reportElement x="0" y="0" width="206" height="15"/>
+					<textElement markup="none">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA["Región "+$F{region}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="12">
+				<staticText>
+					<reportElement key="staticText-6" style="GroupHeader_Gray" x="446" y="0" width="140" height="12" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Left" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Total Región: ]]></text>
+				</staticText>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="957" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{atrib_total_4}!=null?$P{NUMBERFORMAT}.format($V{atrib_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="645" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{base_total_4}!=null?$P{NUMBERFORMAT}.format($V{base_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="1022" y="0" width="70" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{imptotal_total_4}!=null?$P{NUMBERFORMAT}.format($V{imptotal_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="775" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{inaf_total_4}!=null?$P{NUMBERFORMAT}.format($V{inaf_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="892" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{igv_total_4}!=null?$P{NUMBERFORMAT}.format($V{igv_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="710" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{exon_total_4}!=null?$P{NUMBERFORMAT}.format($V{exon_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+					<reportElement x="586" y="0" width="59" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{valorexporta_total_4}!=null?$P{NUMBERFORMAT}.format($V{valorexporta_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="840" y="0" width="52" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{isc_total_4}!=null?$P{NUMBERFORMAT}.format($V{isc_total_4}):"0.00"]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<group name="TipoDoc">
+		<groupExpression><![CDATA[$F{tdcomp}]]></groupExpression>
+		<groupFooter>
+			<band height="18">
+				<textField isBlankWhenNull="true">
+					<reportElement x="446" y="0" width="140" height="12"/>
+					<textElement textAlignment="Left">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[($F{tdcomp}.equals("01"))?new String("Total Facturas"):($F{tdcomp}.equals("03"))?new String("Total Boletas"):($F{tdcomp}.equals("07"))?new String("Total Notas de Credito"):($F{tdcomp}.equals("08"))?new String("Total Notas de Debito"):""]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="646" y="0" width="64" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{base_total}!=null?$P{NUMBERFORMAT}.format($V{base_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="892" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{igv_total}!=null?$P{NUMBERFORMAT}.format($V{igv_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="1022" y="0" width="70" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{imptotal_total}!=null?$P{NUMBERFORMAT}.format($V{imptotal_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="710" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{exon_total}!=null?$P{NUMBERFORMAT}.format($V{exon_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="775" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{inaf_total}!=null?$P{NUMBERFORMAT}.format($V{inaf_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="957" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{atrib_total}!=null?$P{NUMBERFORMAT}.format($V{atrib_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="840" y="0" width="52" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{isc_total}!=null?$P{NUMBERFORMAT}.format($V{isc_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+					<reportElement x="586" y="0" width="59" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{valorexporta_total}!=null?$P{NUMBERFORMAT}.format($V{valorexporta_total}):"0.00"]]></textFieldExpression>
+				</textField>
+				<line>
+					<reportElement key="line-1" x="58" y="14" width="1396" height="1"/>
+					<graphicElement>
+						<pen lineStyle="Dashed"/>
+					</graphicElement>
+				</line>
+			</band>
+		</groupFooter>
+	</group>
+	<group name="Preserie">
+		<groupExpression><![CDATA[$V{serie}]]></groupExpression>
+		<groupFooter>
+			<band height="17">
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="957" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{atrib_total_0}!=null?$P{NUMBERFORMAT}.format($V{atrib_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="775" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{inaf_total_0}!=null?$P{NUMBERFORMAT}.format($V{inaf_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="892" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{igv_total_0}!=null?$P{NUMBERFORMAT}.format($V{igv_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="840" y="0" width="52" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{isc_total_0}!=null?$P{NUMBERFORMAT}.format($V{isc_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="645" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{base_total_0}!=null?$P{NUMBERFORMAT}.format($V{base_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+					<reportElement x="586" y="0" width="59" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{valorexporta_total_0}!=null?$P{NUMBERFORMAT}.format($V{valorexporta_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="1022" y="0" width="70" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{imptotal_total_0}!=null?$P{NUMBERFORMAT}.format($V{imptotal_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<textField pattern="" isBlankWhenNull="true">
+					<reportElement x="710" y="0" width="65" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{exon_total_0}!=null?$P{NUMBERFORMAT}.format($V{exon_total_0}):"0.00"]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement key="staticText-6" style="GroupHeader_Gray" x="446" y="0" width="69" height="12" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Left" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Total:]]></text>
+				</staticText>
+				<line>
+					<reportElement key="line-1" x="57" y="14" width="1397" height="1"/>
+					<graphicElement>
+						<pen lineStyle="Dotted"/>
+					</graphicElement>
+				</line>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="79" splitType="Stretch">
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="false">
+				<reportElement key="textField-15" style="Report_Footer" x="1394" y="18" width="60" height="16"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[new Date()]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="104" y="3" width="278" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.MonthToSpanish($P{dateFrom})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="3" y="19" width="99" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[RUC:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="104" y="19" width="279" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{Ruc}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement key="staticText-8" style="Report_Footer" x="1297" y="34" width="28" height="16">
+					<printWhenExpression><![CDATA[new Boolean($P{dateFrom}!=null)]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Del:  ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="3" y="35" width="99" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Razón  Social:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="104" y="35" width="278" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{Razon}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="1393" y="34" width="61" height="16"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$P{dateTo}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement key="staticText-8" style="Report_Footer" x="1340" y="18" width="53" height="16"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Impreso: ]]></text>
+			</staticText>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="1325" y="34" width="51" height="16"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$P{dateFrom}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement key="staticText-11" style="Report_Footer" x="1" y="50" width="1453" height="29"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="18" isBold="true" pdfFontName="Helvetica-Bold"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["REGISTRO DE VENTAS E INGRESOS" + " - " +$P{Razon}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="3" y="3" width="99" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Periodo:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-8" style="Report_Footer" x="874" y="-51" width="278" height="16"/>
+				<box topPadding="2" leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Aplicación > Contabilidad > Reportes > Registor de Ventas e Ingresos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-8" style="Report_Footer" x="1376" y="34" width="17" height="16">
+					<printWhenExpression><![CDATA[new Boolean($P{dateTo}!=null)]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[A:  ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-8" style="Report_Footer" x="999" y="1" width="455" height="16"/>
+				<box topPadding="2" leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Aplicación > Contabilidad > Reportes SUNAT > Registro de Ventas e Ingresos]]></text>
+			</staticText>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="68" splitType="Stretch">
+			<staticText>
+				<reportElement key="staticText-10" style="default" mode="Transparent" x="174" y="49" width="29" height="14" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo
+Doc]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-9" style="default" mode="Transparent" x="0" y="35" width="58" height="28" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nº
+Correlativo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-10" style="default" mode="Transparent" x="58" y="35" width="58" height="28" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha
+Emisión]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="174" y="35" width="122" height="14" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Comprobante de Pago]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-10" style="default" mode="Transparent" x="116" y="35" width="58" height="28" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha
+Vencimiento]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="203" y="49" width="30" height="14" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Serie]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="233" y="49" width="63" height="14" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Numero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="390" y="35" width="196" height="14" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Informacion del Cliente]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="390" y="49" width="20" height="14" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Tipo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="410" y="49" width="61" height="14" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Número]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="471" y="49" width="115" height="14" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Nombre o Razon Social]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-7" style="default" mode="Transparent" x="1092" y="35" width="44" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo Cambio]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-7" style="default" mode="Transparent" x="1022" y="35" width="70" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Importe Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-4" style="default" mode="Transparent" x="645" y="35" width="65" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Base Imponible]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-6" style="default" mode="Transparent" x="710" y="35" width="130" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Importe Op. No Gravadas]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-7" style="default" mode="Transparent" x="840" y="35" width="52" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[ISC]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-4" style="default" mode="Transparent" x="710" y="49" width="65" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Exonerada]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-4" style="default" mode="Transparent" x="775" y="49" width="65" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Inafecta]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-7" style="default" mode="Transparent" x="892" y="35" width="65" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[IGV]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-7" style="default" mode="Transparent" x="957" y="35" width="65" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Otros Trib. y Cargos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-6" style="default" mode="Transparent" x="1136" y="35" width="179" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Ref. del Comp. Pago]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-4" style="default" mode="Transparent" x="1136" y="49" width="47" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-4" style="default" mode="Transparent" x="1183" y="49" width="27" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[T.D.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-4" style="default" mode="Transparent" x="1210" y="49" width="33" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Serie]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-4" style="default" mode="Transparent" x="1243" y="49" width="72" height="14" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nº Comp.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-3" style="default" mode="Transparent" x="586" y="35" width="59" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Valor Exportacion]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-10" style="Report_Footer" x="1" y="1" width="350" height="12">
+					<printWhenExpression><![CDATA[$V{PAGE_NUMBER}>1]]></printWhenExpression>
+				</reportElement>
+				<box>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[REGISTRO DE VENTAS E INGRESOS]]></text>
+			</staticText>
+			<line>
+				<reportElement key="line-1" x="0" y="13" width="1454" height="1">
+					<printWhenExpression><![CDATA[$V{PAGE_NUMBER}>1]]></printWhenExpression>
+				</reportElement>
+			</line>
+			<textField pattern="" isBlankWhenNull="false">
+				<reportElement key="textField" style="Report_Footer" x="1431" y="0" width="23" height="13">
+					<printWhenExpression><![CDATA[$V{PAGE_NUMBER}>1]]></printWhenExpression>
+				</reportElement>
+				<box topPadding="2" leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Integer"><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="15" width="206" height="15"/>
+				<textElement markup="none">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Región "+$F{region}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement key="staticText-7" style="default" mode="Transparent" x="1315" y="35" width="53" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Estado Fact. Elec.
+]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="default" mode="Transparent" x="296" y="35" width="94" height="28" isPrintWhenDetailOverflows="true" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None" lineSpacing="Single" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true" isItalic="false" isUnderline="false" isStrikeThrough="false" pdfFontName="Helvetica" pdfEncoding="Cp1252" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[Proyecto]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-7" style="default" mode="Transparent" x="1368" y="35" width="86" height="28" backcolor="#FFFFFF"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Descripción Documento]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band height="12">
+			<printWhenExpression><![CDATA[new Boolean($V{van}!=null || $V{van}!=new BigDecimal(0.00))&&$V{PAGE_NUMBER}>1]]></printWhenExpression>
+			<staticText>
+				<reportElement x="538" y="0" width="48" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[VIENEN]]></text>
+			</staticText>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="1022" y="0" width="70" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen}!=null?$P{NUMBERFORMAT}.format($V{vienen}):"0.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="586" y="0" width="59" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen_exportacion}!=null?$P{NUMBERFORMAT}.format($V{vienen_exportacion}):"0.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="645" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen_baseimp}!=null?$P{NUMBERFORMAT}.format($V{vienen_baseimp}):"0.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="710" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen_exonerada}!=null?$P{NUMBERFORMAT}.format($V{vienen_exonerada}):"0.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="775" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen_inafecta}!=null?$P{NUMBERFORMAT}.format($V{vienen_inafecta}):"0.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="840" y="0" width="52" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen_isc}!=null?$P{NUMBERFORMAT}.format($V{vienen_isc}):"0.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="892" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen_igv}!=null?$P{NUMBERFORMAT}.format($V{vienen_igv}):"0.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="957" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{vienen_otrostri}!=null?$P{NUMBERFORMAT}.format($V{vienen_otrostri}):"0.0"]]></textFieldExpression>
+			</textField>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="13">
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="58" y="0" width="58" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{fec_emi}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="116" y="0" width="58" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{fec_venc}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="174" y="0" width="29" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{tdcomp}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="471" y="0" width="115" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{bpname}]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="586" y="0" width="59" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="645" y="0" width="65" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{base}!=null?$P{NUMBERFORMAT}.format($F{base}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="892" y="0" width="65" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{t_igv}!=null?$P{NUMBERFORMAT}.format($F{t_igv}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="840" y="0" width="52" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="775" y="0" width="65" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{inaf}!=null?$P{NUMBERFORMAT}.format($F{inaf}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="710" y="0" width="65" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{exon}!=null?$P{NUMBERFORMAT}.format($F{exon}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="1022" y="0" width="70" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{imptotal}!=null?$P{NUMBERFORMAT}.format($F{imptotal}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="1136" y="0" width="47" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{refdate}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="1183" y="0" width="27" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{reftdcomp}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="390" y="0" width="20" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{bptd}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="203" y="0" width="30" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{serienumber}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="233" y="0" width="63" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{docnumber}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="0" width="58" height="11"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{nreg}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="957" y="0" width="65" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{atrib}!=null?$P{NUMBERFORMAT}.format($F{atrib}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="1243" y="0" width="72" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{numeroref}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="1210" y="0" width="33" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{serieref}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.0000" isBlankWhenNull="true">
+				<reportElement x="1092" y="0" width="44" height="11">
+					<printWhenExpression><![CDATA[$F{currate}.compareTo(BigDecimal.ZERO)!=0]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[($F{currate}!=null)?$F{currate}: new BigDecimal(0.00)]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="410" y="0" width="61" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{bpdocid}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="1315" y="0" width="53" height="11"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{estado_factura_electronica}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="296" y="0" width="94" height="11"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{proyecto}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="1368" y="0" width="86" height="11"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{descripcion_documento}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band>
+			<printWhenExpression><![CDATA[new Boolean(($V{TipoDoc_COUNT}<$P{invoiceMemoCount} && $F{tdcomp}.equals("01"))||($V{TipoDoc_COUNT}<$P{ticketMemoCount} && $F{tdcomp}.equals("03"))||($V{TipoDoc_COUNT}<$P{creditMemoCount} && $F{tdcomp}.equals("07"))||($V{TipoDoc_COUNT}<$P{debitMemoCount} && $F{tdcomp}.equals("08")))]]></printWhenExpression>
+		</band>
+	</columnFooter>
+	<pageFooter>
+		<band height="16" splitType="Stretch">
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="1022" y="0" width="70" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van}!=null?$P{NUMBERFORMAT}.format($V{van}):"0.00"]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="538" y="0" width="48" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[VAN]]></text>
+			</staticText>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="957" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van_otrostri}!=null?$P{NUMBERFORMAT}.format($V{van_otrostri}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="892" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van_igv}!=null?$P{NUMBERFORMAT}.format($V{van_igv}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="840" y="0" width="52" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van_isc}!=null?$P{NUMBERFORMAT}.format($V{van_isc}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="775" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van_inafecta}!=null?$P{NUMBERFORMAT}.format($V{van_inafecta}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="710" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van_exonerada}!=null?$P{NUMBERFORMAT}.format($V{van_exonerada}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="645" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van_baseimp}!=null?$P{NUMBERFORMAT}.format($V{van_baseimp}):"0.00"]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="586" y="0" width="59" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$V{van_exportacion}!=null?$P{NUMBERFORMAT}.format($V{van_exportacion}):"0.00"]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<lastPageFooter>
+		<band height="12" splitType="Stretch">
+			<staticText>
+				<reportElement x="1" y="0" width="74" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Total Registros:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="75" y="0" width="37" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Integer"><![CDATA[$V{REPORT_COUNT}]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="586" y="0" width="59" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{valorexporta_total_1}!=null)? $P{NUMBERFORMAT}.format($V{valorexporta_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="840" y="0" width="52" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{isc_total_1}!=null)? $P{NUMBERFORMAT}.format($V{isc_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="1022" y="0" width="70" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{imptotal_total_1}!=null)? $P{NUMBERFORMAT}.format($V{imptotal_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="775" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{inaf_total_1}!=null)? $P{NUMBERFORMAT}.format($V{inaf_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="957" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{atrib_total_1}!=null)? $P{NUMBERFORMAT}.format($V{atrib_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="892" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{igv_total_1}!=null)? $P{NUMBERFORMAT}.format($V{igv_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="710" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{exon_total_1}!=null)? $P{NUMBERFORMAT}.format($V{exon_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+			<textField pattern="###0.00;-###0.00" isBlankWhenNull="true">
+				<reportElement x="645" y="0" width="65" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{base_total_1}!=null)? $P{NUMBERFORMAT}.format($V{base_total_1}).toString() : new String("0.00")]]></textFieldExpression>
+			</textField>
+		</band>
+	</lastPageFooter>
+	<summary>
+		<band splitType="Stretch"/>
+	</summary>
+</jasperReport>

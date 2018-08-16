@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>Generar Número Físico</title>
+    <link rel="shortcut icon" href="../../../../../../web/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" type="text/css" href="../../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+    
+    <script language="JavaScript" type="text/javascript" id="paramDirectory">
+      var baseDirectory = "../../../../../../web/";
+      var ePHYDOCNO = "";
+    </script>
+    <script language="JavaScript" src="../../../../../../web/js/messages.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+    <script language="JavaScript" type="text/javascript" id="paramLanguage">
+      var defaultLang = "en_US";
+    </script>
+    <script language="JavaScript" src="../../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/utils.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/appStatus.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/searchs.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/ajax.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/messages.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/calculator.js" type="text/javascript"></script>    
+    <script language="JavaScript" src="../../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+    <script language="JavaScript" src="../../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/org.openbravo.advpaymentmngt/FIN_Utilities.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../../web/js/appStatus.js" type="text/javascript"></script>               
+    <script type="text/javascript">
+      window.onunload = reloadOpener; // reloads opener on closing
+    </script>
+<script language="JavaScript" type="text/javascript">
+
+//prevent refocus after the tab containing this window
+//gets selected, this prevents change of scroll position
+//for that tab
+//OB_NoRefocusAfterTabSelection = true;
+</script>     
+
+<script language="JavaScript" type="text/javascript">    
+function setReadOnlyLogic(isElectronic) {
+   if (isElectronic==null) isElectronic=false;
+     var frm = document.frmMain;
+     //frm.elements["inpPhysicalDocNoFV"].disabled=isElectronic;
+     //frm.elements["inpPhysicalDocNoFV"].readOnly=isElectronic; //ejemplo: document.frmMain.elements['inpPaymentAmount'+key].readOnly = true;
+
+     //is electronic check is marked
+     if (isElectronic) {
+    	 frm.elements["inpPhysicalDocNoFV"].className += " readonly";
+    	 
+    	 displayLogicElement('lblSerieElectronica', true); 
+    	 displayLogicElement('inpsecEPhyDocNoId', true); 
+    	
+     } else {
+    	 frm.elements["inpPhysicalDocNoFV"].className = frm.elements["inpPhysicalDocNoFV"].className.replace(' readonly', '');
+    	 
+    	 displayLogicElement('lblSerieElectronica', false); 
+         displayLogicElement('inpsecEPhyDocNoId', false); 
+     }	    
+     return true;
+}	
+
+
+function getDefaultPhyDocNo() {
+    try {    	
+        var url = "../pe.com.unifiedgo.core.ad_actionbutton/GenerateSalesInvoicePhysicalDocNo.html";
+        var paramXMLReq = null;
+
+        return submitXmlHttpRequest(updatePhysicalDocNo, document.frmMain, "PHYSICALDOCNO", url, false, null, paramXMLReq);
+    } catch (e) {
+      alert(e);
+    }	
+}
+
+function updatePhysicalDocNo(paramXMLParticular, XMLHttpRequestObj) {
+    if (getReadyStateHandler(XMLHttpRequestObj)) {
+      try {
+        if (XMLHttpRequestObj.responseText) {
+          var resp = decodeJSON(XMLHttpRequestObj.responseText);
+          if (resp.PhysicalDocNo) {
+              document.getElementById('paramPhysicalDocNoFV').value = resp.PhysicalDocNo;
+              if(resp.isElectronicDocNo=="Y") {
+            	  ePHYDOCNO = resp.PhysicalDocNo;
+              } else {
+            	  ePHYDOCNO = "";
+              }
+              
+          } else {
+              document.getElementById('paramPhysicalDocNoFV').value = '';
+          }                    
+        }
+      } catch (e) {
+    	  console.log("error:"+e);
+      }
+    }
+    return true;
+}
+
+function validateReadOnlyLogic() {
+  var frm = document.frmMain;
+  
+  if (frm.inpIsElectronicInv.checked) {	  
+      if (typeof ePHYDOCNO!='undefined') {
+          document.getElementById('paramPhysicalDocNoFV').value = ePHYDOCNO;  
+      } else {
+          document.getElementById('paramPhysicalDocNoFV').value = "";
+      }  
+  } 
+  return true;
+}
+
+
+function checkEmptyFields(){
+    var frm = document.frmMain;
+    var phydocnofv_reg; //physical document No. format
+        
+    if (frm.paramPhysicalDocNoFV.value == null || frm.paramPhysicalDocNoFV.value == ""){
+        setWindowElementFocus(frm.paramPhysicalDocNoFV);
+        showJSMessage(7);
+        return false;
+    }
+    
+    //setting format for physical document number
+/*     if (frm.inpIsElectronicInv.checked) {
+    	phydocnofv_reg = new RegExp("^[A-Za-z0-9]{4}-[0-9]{8}", "i"); //electronic format        
+    	if(!frm.paramPhysicalDocNoFV.value.match(phydocnofv_reg) || frm.paramPhysicalDocNoFV.value.length != 13) {
+            setWindowElementFocus(frm.paramPhysicalDocNoFV);
+            showJSMessage("SSA_ePhyDocNo_IncorrectFormat");
+            return false;
+         }     
+    } else { */
+    	phydocnofv_reg = new RegExp("^.+-.+", "i"); //conventional format
+    	if(!frm.paramPhysicalDocNoFV.value.match(phydocnofv_reg)) {
+            setWindowElementFocus(frm.paramPhysicalDocNoFV);
+            showJSMessage("SCR_PhyDocNo_IncorrectFormat");
+            return false;
+         }     
+/*     } */             
+    return true;
+}
+
+
+    function resizeWindow() {
+        popupResizeTo(620, 400);
+    }
+    
+    
+    function onLoadDo(){        			      			  
+        this.windowTables = new Array(
+            new windowTableId('client', '')
+        );
+        setWindowTableParentElement();
+        enableShortcuts('popup');
+        setBrowserAutoComplete(false);
+                
+        try {
+            onloadFunctions();
+         } catch (e) {}
+                  
+/*         setReadOnlyLogic(false); */
+                
+        setWindowElementFocus('firstElement');
+        resizeWindow();               
+    }
+
+    function onResizeDo(){
+        resizeArea();
+    }
+    
+    </script>
+</head>
+
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" marginheight="0" marginwidth="0" >
+<div class="Popup_Status_Processing_Container_hidden" id="Processing_Container">  <div class="Popup_Status_Processing_Elements_Container" id="Processing_Container_Logo">
+    <div class="Popup_Status_Processing_logo">
+      <div class="Popup_Status_Processing_logo_dimension"></div>
+    </div>
+    <div class="Popup_Status_Processing_text">Processing...</div>
+  </div>
+</div><iframe name="hiddenFrame" style="display:none;"></iframe>
+<form id="form" method="post" action="GenerateSalesInvoicePhysicalDocNo.html" name="frmMain">    
+  <input type="hidden" name="Command"/>
+  <input type="hidden" name="IsPopUpCall" value="1"/>
+  <input type="hidden" name="inpcInvoiceId" value="" id="paramKey"/>
+  <input type="hidden" name="inpWindowId" value="" id="paramWindowId"/>
+  <input type="hidden" name="inpTabId" value="" id="paramTabId"/>
+  <input type="hidden" name="inpissotrx" value="" id="paramisSOTrx"/>    
+  
+    <div class="Popup_ContentPane_CircleLogo">
+      <div class="Popup_WindowLogo">
+        <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_process" src="../web/images/blank.gif" border="0/">
+      </div>
+    </div>
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+  <tbody>
+      <tr>
+        <td>
+          <table class="Popup_ContentPane_NavBar" cellpadding="0" cellspacing="0">
+            <tbody><tr class="Popup_NavBar_bg"><td></td>
+              <td class="Popup_NavBar_separator_cell"></td>
+              <td class="Popup_NavBar_bg_logo_left"></td>
+              <td class="Popup_NavBar_bg_logo" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;" width="1"><img src="../web/images/blank.gif" alt="Openbravo" title="Openbravo" id="openbravoLogo" class="Popup_NavBar_logo" border="0"></td>
+              <td class="Popup_NavBar_bg_logo_right"></td> 
+              <td class="Popup_NavBar_Popup_title_cell"><span id="processDescription">Generar Documentos de Facturación</span></td>
+              <td class="Popup_NavBar_separator_cell"></td>
+            </tr>
+          </tbody></table>
+        </td>
+      </tr>
+    
+      <tr>
+        <td>
+          <table class="Popup_ContentPane_SeparatorBar" cellpadding="0" cellspacing="0">
+            <tbody><tr>
+              <td class="Popup_SeparatorBar_bg"></td>
+            </tr>
+          </tbody></table>
+        </td>
+      </tr>
+    
+      <tr>
+        <td>
+          <table class="Popup_ContentPane_InfoBar" cellpadding="0" cellspacing="0">
+            <tbody><tr>
+              <td class="Popup_InfoBar_Icon_cell"><img src="../web/images/blank.gif" class="Popup_InfoBar_Icon_info" border="0"></td>
+              <td class="Popup_InfoBar_text_table">
+                <table>
+                  <tbody><tr>
+                    <td class="Popup_InfoBar_text">Generar Documento de Facturación</td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+          </tbody></table>
+        </td>
+      </tr>   
+
+      <tr>
+        <td>
+          
+           <table id="messageBoxID" class="MessageBoxHIDDEN" cellpadding="0" cellspacing="0">
+                <tbody>
+                <tr class="MessageBox_TopMargin">
+                  <td class="MessageBox_LeftMargin"></td>
+                  <td></td>
+                  <td class="MessageBox_RightMargin"></td>
+                </tr>
+                <tr>
+                  <td class="MessageBox_LeftMargin"></td>
+                  <td>
+                    <table class="MessageBox_Container" cellpadding="0" cellspacing="0">
+                      <tbody>
+                      <tr>
+                        <td class="MessageBox_LeftTrans">
+                          <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                            <tbody>
+                            <tr>
+                              <td class="MessageBox_TopLeft"></td>
+                            </tr>
+                            <tr>
+                              <td class="MessageBox_Left"></td>
+                            </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                        <td class="MessageBox_bg">
+                          <table class="MessageBox_Top">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <span>
+                                <table class="MessageBox_Body_ContentCell" cellpadding="0" cellspacing="0">
+                                  <tbody>
+                                  <tr>
+                                    <td class="MessageBox_Icon_ContentCell">
+                                      <div class="MessageBox_Icon"></div>
+                                    </td>
+                                    <td style="vertical-align: top;" id="messageBoxIDContent">
+                                      <span>
+                                        <div class="MessageBox_TextTitle" id="messageBoxIDTitle"></div>
+                                        <div class="MessageBox_TextDescription" id="messageBoxIDMessage"></div>
+                                        <div class="MessageBox_TextSeparator"></div>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                  </tbody>
+                                </table>
+                                </span>
+                              </td>
+                            </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                        <td class="MessageBox_RightTrans">
+                          <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                            <tbody>
+                            <tr>
+                              <td class="MessageBox_TopRight"></td>
+                            </tr>
+                            <tr>
+                              <td class="MessageBox_Right"></td>
+                            </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td rowspan="2" class="MessageBox_BottomLeft">
+                        </td>
+                        <td class="MessageBox_BottomTrans MessageBox_bg">
+                        </td>
+                        <td rowspan="2" class="MessageBox_BottomRight">
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="MessageBox_Bottom">
+                        </td>
+                      </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                  <td class="MessageBox_RightMargin"></td>
+                </tr>
+                <tr class="MessageBox_BottomMargin">
+                  <td class="MessageBox_LeftMargin"></td>
+                  <td></td>
+                  <td class="MessageBox_RightMargin"></td>
+                </tr>
+                </tbody>
+              </table> 
+        </td>
+      </tr>
+         
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client">       
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TablePopup">
+              <tbody>
+                <tr>
+                  <td class="TablePopup_OneCell_width"></td>
+                  <td class="TablePopup_OneCell_width"></td>
+                  <td class="TablePopup_OneCell_width"></td>
+                  <td class="TablePopup_OneCell_width"></td>
+                </tr>
+
+                <tr>         
+                  <td></td>         
+                  <td class=TitleCell><span class="LabelText" id="lblPhysicalDocNoFV">Nº Doc. Físico - FV/BV:</span></td>
+                  <td class="TextBox_ContentCell"> <input dojotype="openbravo:ValidationTextbox" onchange="return true;" class="dojoValidateValid TextBox_OneCell_width required" type="text" size="30" maxlength="30" name="inpPhysicalDocNoFV" id="paramPhysicalDocNoFV" value="" required></input>                                 
+                  <td></td>
+                </tr>    
+                
+                <tr>
+                  <td></td>   
+                  <td class="TitleCell"><span class="LabelText">Documento Electrónico</span></td>
+                  <td class="Radio_Check_ContentCell">
+                    <span class="Checkbox_container_NOT_Focused"><input type="checkbox" onchange="return true;" name="inpIsElectronicInv" id="fieldIsElectronicInv" value="Y"></input></span>
+                  </td>
+                  <td></td>     
+                </tr>   
+                
+<!--                 <tr>
+                  <td></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblSerieElectronica">Serie Eletrónica</span></td>      
+                  <td class="Combo_ContentCell"> 
+                    <select name="inpsecEPhyDocNoId"  id="inpsecEPhyDocNoId" class="ComboKey Combo_OneCell_width Combo_focus" onchange="logChanges(this); return true;">
+                      <div id="report_eSecPhyDocNo_Id"></div>
+                    </select>
+                  </td>
+                  <td></td>                  
+                </tr>                                                 
+ -->
+                <tr>
+                   <td colspan="4" height="20px"></td>
+                </tr>  
+
+                <tr>
+                  <td colspan="4"  align="center">
+                    <table>
+                      <tr>
+                      <td class="Button_RightAlign_ContentCell">
+                          <div>
+		                    <button type="button" 
+		                      id="buttonOK" 
+		                      class="ButtonLink"                      
+		                      onclick="if(checkEmptyFields()) { submitCommandForm('SAVE', false, null, null, null, true, true); return false; } "
+		                      onfocus="buttonEvent('onfocus', this); window.status='Accept'; return true;" 
+		                      onblur="buttonEvent('onblur', this);" 
+		                      onkeyup="buttonEvent('onkeyup', this);" 
+		                      onkeydown="buttonEvent('onkeydown', this);" 
+		                      onkeypress="buttonEvent('onkeypress', this);" 
+		                      onmouseup="buttonEvent('onmouseup', this);" 
+		                      onmousedown="buttonEvent('onmousedown', this);" 
+		                      onmouseover="buttonEvent('onmouseover', this); window.status='Accept'; return true;" 
+		                      onmouseout="buttonEvent('onmouseout', this);">
+		                      <table class="Button">
+		                        <tr>
+		                          <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Accept" title="Accept" src="../../../../../web/images/blank.gif" border="0" /></td>
+		                          <td class="Button_text Button_width">OK</td>
+		                          <td class="Button_right"></td>
+		                        </tr>
+		                      </table>
+		                    </button>
+                          </div>
+                        </td>
+                          <td class="Button_LeftAlign_ContentCell">
+                            <div>
+                                <button type="button" 
+                                  id="buttonCancel" 
+                                  class="ButtonLink" 
+                                  onclick="closePage();return false;" 
+                                  onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;" 
+                                  onblur="buttonEvent('onblur', this);" 
+                                  onkeyup="buttonEvent('onkeyup', this);" 
+                                  onkeydown="buttonEvent('onkeydown', this);" 
+                                  onkeypress="buttonEvent('onkeypress', this);" 
+                                  onmouseup="buttonEvent('onmouseup', this);" 
+                                  onmousedown="buttonEvent('onmousedown', this);" 
+                                  onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;" 
+                                  onmouseout="buttonEvent('onmouseout', this);">
+                                  <table class="Button">
+                                    <tr>
+                                      <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                                      <td class="Button_text Button_width">Cancel</td>
+                                      <td class="Button_right"></td>
+                                    </tr>
+                                  </table>
+                                </button>
+                            </div>
+                          </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>                                               
+     
+             </tbody></table>                                          
+      </div>
+    </td>
+  </tr>
+</tbody></table>
+</form>
+</body>
+</html>

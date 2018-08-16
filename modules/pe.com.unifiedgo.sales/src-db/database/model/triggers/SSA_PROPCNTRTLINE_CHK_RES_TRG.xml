@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PROPCNTRTLINE_CHK_RES_TRG">
+    <trigger name="SSA_PROPCNTRTLINE_CHK_RES_TRG" table="SSA_PROJPROP_CONTRACT_LINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Count NUMBER:= 0;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+v_Contract_ID VARCHAR2(32);
+v_Processed VARCHAR(60);
+v_DocStatus VARCHAR(60);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_Contract_ID:=:new.ssa_projprop_contract_id;
+  ELSE
+    v_Contract_ID:=:old.ssa_projprop_contract_id;
+  END IF;
+
+ SELECT PROCESSED,DOCSTATUS INTO v_Processed,v_DocStatus FROM ssa_projprop_contract WHERE ssa_projprop_contract_ID=v_Contract_ID;
+
+  IF UPDATING THEN
+    IF(v_Processed='Y'
+	   AND((COALESCE(:old.LINE, 0) <> COALESCE(:new.LINE, 0))
+             OR (COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+	     OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	     OR(COALESCE(:old.c_bpartner_id, '0') <> COALESCE(:new.c_bpartner_id, '0'))
+	     OR(COALESCE(:old.c_project_id, '0') <> COALESCE(:new.c_project_id,'0'))
+	     OR(COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:new.C_Currency_ID, '0'))
+	     OR(COALESCE(:old.m_pricelist_id, '0') <> COALESCE(:new.m_pricelist_id, '0'))
+	     OR(COALESCE(:old.priceactual, 0) <> COALESCE(:new.priceactual, 0))
+	     OR(COALESCE(:old.ssa_project_property_id, '0') <> COALESCE(:new.ssa_project_property_id, '0'))
+)    
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;   
+
+  END IF;
+
+  IF(DELETING) THEN
+    IF v_Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF v_Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+END SSA_PROPCNTRTLINE_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

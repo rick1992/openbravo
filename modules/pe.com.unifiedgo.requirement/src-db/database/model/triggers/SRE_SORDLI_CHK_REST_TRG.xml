@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_SORDLI_CHK_REST_TRG">
+    <trigger name="SRE_SORDLI_CHK_REST_TRG" table="SRE_SERVICEORDERLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_C_ORDER_ID VARCHAR2(32) ;
+  v_Docaction VARCHAR(60) ;
+  v_Docstatus VARCHAR(60);
+  v_DocumentNo C_ORDER.DocumentNO%TYPE;
+  v_IsSOTrx CHAR(1);
+  v_Message VARCHAR2(2000):='';
+  v_QTYVARIABLE CHAR(1);
+  v_productname m_product.name%TYPE;
+  v_isgeneric   CHAR(1);
+  v_productgroup_id VARCHAR(32);
+
+  v_orderCreditApprovedState VARCHAR(32);
+  v_orderDiscountApprovedState VARCHAR(32);
+  v_DocTypeTarget_ID VARCHAR(32);
+  v_specialDocType VARCHAR(60);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_ORDER_ID:=:NEW.C_ORDER_ID;
+  ELSE
+    v_C_ORDER_ID:=:OLD.C_ORDER_ID;
+  END IF;
+  IF UPDATING THEN
+    IF(COALESCE(:old.LINE, 0) <> COALESCE(:NEW.LINE, 0) OR COALESCE(:old.M_PRODUCT_ID, '0') <> COALESCE(:NEW.M_PRODUCT_ID, '0') OR COALESCE(:old.QTYORDERED, 0) <> COALESCE(:NEW.QTYORDERED, 0) OR COALESCE(:old.C_TAX_ID, '0') <> COALESCE(:NEW.C_TAX_ID, '0') OR COALESCE(:old.M_ATTRIBUTESETINSTANCE_ID, '0') <> COALESCE(:NEW.M_ATTRIBUTESETINSTANCE_ID, '0')) THEN
+      SELECT PROCESSED,
+        DOCACTION, DOCSTATUS, DocumentNo, ISSOTRX
+      INTO v_Processed,
+        v_Docaction, v_DocStatus, v_DocumentNo, v_IsSOTrx
+      FROM C_ORDER
+      WHERE C_ORDER_ID=v_C_ORDER_ID;
+
+      IF((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+          OR(COALESCE(:OLD.M_PRODUCT_ID, '0') <> COALESCE(:NEW.M_PRODUCT_ID, '0'))
+          OR(COALESCE(:OLD.QTYORDERED, 0) <> COALESCE(:NEW.QTYORDERED, 0))
+          OR(COALESCE(:OLD.C_TAX_ID, '0') <> COALESCE(:NEW.C_TAX_ID, '0'))
+          OR(COALESCE(:OLD.M_ATTRIBUTESETINSTANCE_ID, '0') <> COALESCE(:NEW.M_ATTRIBUTESETINSTANCE_ID, '0'))
+          OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+          OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+        ) THEN
+        IF (v_Processed='Y' AND v_Docaction <> 'CL') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+  
+  IF(DELETING OR INSERTING) THEN
+  SELECT PROCESSED,
+    DOCACTION
+  INTO v_Processed,
+    v_Docaction
+  FROM C_ORDER
+  WHERE C_ORDER_ID=v_C_ORDER_ID;
+    IF (v_Processed='Y' and v_Docaction<> 'CL') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF (INSERTING OR UPDATING) THEN
+    IF (:NEW.m_product_id IS NOT NULL) THEN
+      SELECT isgeneric, name INTO v_isgeneric, v_productname
+      FROM m_product
+      WHERE m_product_id = :NEW.m_product_id;
+      IF (v_isgeneric = 'Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@CannotUseGenericProduct@');
+      END IF;
+    END IF;
+  END IF;
+
+
+  --Update the productgroup
+  IF(INSERTING OR UPDATING) THEN
+    IF(:NEW.m_product_id IS NOT NULL) THEN
+      SELECT em_prdc_productgroup_id INTO v_productgroup_id FROM m_product WHERE m_product_id = :NEW.m_product_id;
+      IF(INSERTING) THEN
+        :NEW.prdc_productgroup_id := v_productgroup_id;
+      ELSE
+        IF(COALESCE(:OLD.m_product_id,'.')<>COALESCE(:NEW.m_product_id,'.')) THEN
+          :NEW.prdc_productgroup_id := v_productgroup_id;
+	END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  SELECT em_ssa_disc_eval_status, em_ssa_credit_eval_status, c_doctypetarget_id
+  INTO v_orderDiscountApprovedState, v_orderCreditApprovedState, v_DocTypeTarget_ID
+  FROM C_ORDER
+  WHERE C_ORDER_ID=v_C_ORDER_ID;
+
+  SELECT em_sco_specialdoctype INTO v_specialDocType
+    FROM c_doctype 
+   WHERE c_doctype_id = v_DocTypeTarget_ID;
+
+  IF UPDATING THEN
+    IF((v_orderDiscountApprovedState='TA' OR v_orderDiscountApprovedState='AP' OR v_orderDiscountApprovedState='NAP' OR v_orderCreditApprovedState='TA' OR v_orderCreditApprovedState='AP' OR v_orderCreditApprovedState='NAP') AND (v_specialDocType='SSASTANDARDORDER' OR v_specialDocType='SSAWAREHOUSEORDER' OR v_specialDocType='SSAPOSORDER')
+       AND (COALESCE(:old.LINE, 0) <> COALESCE(:NEW.LINE, 0) OR COALESCE(:old.M_PRODUCT_ID, '0') <> COALESCE(:NEW.M_PRODUCT_ID, '0') OR COALESCE(:old.QTYORDERED, 0) <> COALESCE(:NEW.QTYORDERED, 0) OR COALESCE(:old.C_TAX_ID, '0') <> COALESCE(:NEW.C_TAX_ID, '0') OR COALESCE(:old.M_ATTRIBUTESETINSTANCE_ID, '0') <> COALESCE(:NEW.M_ATTRIBUTESETINSTANCE_ID, '0'))) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesOrderNotDR@');
+    END IF;
+  END IF;
+  
+  IF(DELETING OR INSERTING) THEN
+    IF (v_orderDiscountApprovedState='TA' OR v_orderDiscountApprovedState='AP' OR v_orderDiscountApprovedState='NAP' OR v_orderCreditApprovedState='TA' OR v_orderCreditApprovedState='AP' OR v_orderCreditApprovedState='NAP') AND (v_specialDocType='SSASTANDARDORDER' OR v_specialDocType='SSAWAREHOUSEORDER' OR v_specialDocType='SSAPOSORDER') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesOrderNotDR@');
+    END IF;
+  END IF;
+  IF (INSERTING OR UPDATING) THEN
+    IF (v_orderDiscountApprovedState='TA' OR v_orderDiscountApprovedState='AP' OR v_orderDiscountApprovedState='NAP' OR v_orderCreditApprovedState='TA' OR v_orderCreditApprovedState='AP' OR v_orderCreditApprovedState='NAP') AND (v_specialDocType='SSASTANDARDORDER' OR v_specialDocType='SSAWAREHOUSEORDER' OR v_specialDocType='SSAPOSORDER') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesOrderNotDR@');
+    END IF;
+  END IF;
+
+
+END SRE_SORDLI_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE C_BPARTNER">
+    <table name="C_BPARTNER" primaryKey="C_BPARTNER_KEY">
+      <column name="EM_SSA_CREDITUSED" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_CREDITCURRENCY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default><![CDATA[308]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_UPDATECREDITUSED_PROC" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_ALLPERMISSIONFVTOBOE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_BILLCLOSURE" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_SPECIALBPTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_CLIENTBUSINESSCATEGORY" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_CLIENTSALESCATEGORY" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_USER_SALESREP_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="C_CURRENCY" name="EM_SSA_BP_CREDITCURR_FK">
+        <reference local="EM_SSA_CREDITCURRENCY_ID" foreign="C_CURRENCY_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_USER" name="EM_SSA_BP_USER_SALES_REP_FK">
+        <reference local="EM_SSA_USER_SALESREP_ID" foreign="AD_USER_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SSA_CLIENTBUSINESSCATEG_FK">
+        <reference local="EM_SSA_CLIENTBUSINESSCATEGORY" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SSA_CLIENTSALESCATEG_FK">
+        <reference local="EM_SSA_CLIENTSALESCATEGORY" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <index name="EM_SSA_BPARTNER_TAXID" unique="false">
+        <index-column name="TAXID"/>
+      </index>
+    </table>
+  </database>

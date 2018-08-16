@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_UPDATECREDITUSED">
+    <function name="SSA_UPDATECREDITUSED" type="NULL">
+      <parameter name="p_c_bpartner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_bpcreditused NUMBER;
+  v_ConvertedAmount NUMBER;
+  v_Creditcurrency_ID VARCHAR(32); 
+  v_AD_Org_ID VARCHAR(32);
+  BEGIN
+
+  SELECT AD_Org_ID, em_ssa_creditcurrency_ID
+    INTO v_AD_Org_ID, v_Creditcurrency_ID
+    FROM C_Bpartner
+  WHERE C_Bpartner_ID = p_c_bpartner_id AND
+        AD_Client_ID = p_ad_client_id FOR UPDATE;
+
+  IF(v_AD_Org_ID IS NULL OR v_AD_Org_ID='') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SSA_UpdateCreditUsedBPNotFound@');
+  END IF;
+
+  IF(v_Creditcurrency_ID IS NULL OR v_Creditcurrency_ID='') THEN
+    v_Creditcurrency_ID := '308'; --PEN ID
+  END IF;
+
+  ssa_getbp_usedcredit(p_c_bpartner_id, v_Creditcurrency_ID, v_bpcreditused);
+
+  UPDATE C_Bpartner 
+    SET  em_ssa_creditused = v_bpcreditused
+  WHERE C_Bpartner_ID = p_c_bpartner_id AND
+        AD_Client_ID = p_ad_client_id;
+
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SSA_UPDATECREDITUSED
+]]></body>
+    </function>
+  </database>

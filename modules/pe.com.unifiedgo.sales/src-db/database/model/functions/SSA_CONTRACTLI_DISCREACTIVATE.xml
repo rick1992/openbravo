@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_CONTRACTLI_DISCREACTIVATE">
+    <function name="SSA_CONTRACTLI_DISCREACTIVATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+-- Record Info
+  Cur_Pref RECORD;
+  v_disc_eval_status VARCHAR(60);
+  v_disc_eval_by VARCHAR(32);
+  v_client_id VARCHAR(32);
+  v_org_id VARCHAR(32);
+  v_contract_id VARCHAR(32);
+  v_contract_disc_eval_status VARCHAR(60);
+  v_contract_docstatus VARCHAR(60);
+  v_isAllPermissionUser CHAR(1);
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+      
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+    SELECT discount_eval_status, ssa_projprop_contract_id, discount_eval_by, ad_client_id, ad_org_id
+      INTO v_disc_eval_status, v_contract_id, v_disc_eval_by, v_client_id, v_org_id
+      FROM ssa_projprop_contract_line
+     WHERE ssa_projprop_contract_line_id = v_Record_ID;
+
+    SELECT docstatus, discount_eval_status
+      INTO v_contract_docstatus, v_contract_disc_eval_status
+      FROM ssa_projprop_contract
+     WHERE ssa_projprop_contract_id = v_contract_id;
+
+    IF(v_contract_docstatus<>'DR') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesContractCantBeEvaluated@');
+    END IF;
+
+    IF(v_contract_disc_eval_status='NAP') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_ContractDisapproved@');
+    END IF;
+
+    	
+    IF(v_disc_eval_status='NAP') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_ContractCantbeReEvaluated@');
+    END IF;
+        
+    IF(v_disc_eval_status<>'AP' AND v_disc_eval_status<>'NAP') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_ContractCantbeReEvaluated@');
+    END IF;
+
+
+    v_isAllPermissionUser:='N';
+    FOR Cur_Pref IN
+    (SELECT discount_evaluator_id
+       FROM SSA_Discount_Preference
+      WHERE approveall='Y'
+        AND isactive='Y'
+        AND ad_client_id=v_client_id
+        AND AD_ISORGINCLUDED(v_org_id, ad_org_id, v_client_id) > -1
+      ORDER BY created
+    )
+    LOOP
+        IF(Cur_Pref.discount_evaluator_id=v_User_ID) THEN
+           v_isAllPermissionUser:='Y';
+           EXIT;
+        END IF;
+    END LOOP; 
+
+    IF(v_isAllPermissionUser='N') THEN
+       IF(v_disc_eval_by<>v_User_ID) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SSA_UsrNoPermissionToReevalDisc@');
+       END IF;     
+    END IF;  
+
+    
+    IF(v_contract_disc_eval_status='AP' OR v_contract_disc_eval_status='NAP') THEN       
+       UPDATE ssa_projprop_contract 
+          SET discount_eval_status='TA' 
+        WHERE ssa_projprop_contract_id = v_contract_id; 	
+    END IF;     
+
+    UPDATE ssa_projprop_contract_line 
+       SET discount_eval_status='TA', discount_eval_updated = NULL, discount_eval_updatedby = NULL
+     WHERE ssa_projprop_contract_line_id = v_Record_ID;
+
+      
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSA_CONTRACTLI_DISCREACTIVATE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,206 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BOE_FROM_CHK_REST_TRG">
+    <trigger name="SCO_BOE_FROM_CHK_REST_TRG" table="SCO_BOE_FROM" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_SCO_Billofexchange_ID  VARCHAR2(32);
+  v_sumLinesAmount NUMBER;
+  v_RendCuentasRefund NUMBER;
+
+  v_invoiceOutstandingAmt NUMBER;
+  v_invoiceDocStatus VARCHAR(60);
+  v_invoiceDoctypeTarget_ID VARCHAR(32);
+  v_invoiceIsSimpleProvision VARCHAR(1):='N';
+  v_invoiceSwlrline_ID VARCHAR(32);
+  v_invoiceIsPaid VARCHAR(1):='N';
+
+  v_From_Currency_ID VARCHAR(32);
+  v_Currency_ID VARCHAR(32);
+  v_AD_Client_ID VARCHAR(32);
+  v_AD_Org_ID VARCHAR(32);
+  v_DateInvoiced DATE;
+  v_CBpartner_ID VARCHAR(32);
+  v_c_paymentterm_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  
+  v_ConvertedAmount NUMBER;
+
+  v_issotrx VARCHAR(1);
+  v_invoiceIssotrx VARCHAR(1);
+
+  v_is_allpermissionfvtoboe VARCHAR(1):='N';
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_SCO_Billofexchange_ID:=:NEW.SCO_Billofexchange_ID;
+  ELSE
+    v_SCO_Billofexchange_ID:=:OLD.SCO_Billofexchange_ID;
+  END IF;
+
+  SELECT PROCESSED,
+    C_CURRENCY_ID,DocStatus, specialdoctype, issotrx
+  INTO v_Processed,
+    v_Currency_ID, v_DocStatus, v_specialdoctype, v_issotrx
+  FROM SCO_Billofexchange
+  WHERE SCO_Billofexchange_ID=v_SCO_Billofexchange_ID;
+  IF UPDATING THEN
+    IF((v_Processed='Y') 
+      AND ((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+      OR(COALESCE(:OLD.SCO_Boe_From_ID, '0') <> COALESCE(:NEW.SCO_Boe_From_ID, '0'))
+      OR(COALESCE(:OLD.Amount, 0) <> COALESCE(:NEW.Amount, 0))
+      OR(COALESCE(:OLD.Convertedamount, 0) <> COALESCE(:NEW.Convertedamount, 0))
+      OR(COALESCE(:OLD.invoiceref_id, '0') <> COALESCE(:NEW.invoiceref_id, '0'))
+      OR(COALESCE(:OLD.doctyperef_id, '0') <> COALESCE(:NEW.doctyperef_id, '0'))
+      OR(COALESCE(:OLD.C_Bpartner_ID, '0') <> COALESCE(:NEW.C_Bpartner_ID, '0'))
+      OR(COALESCE(:OLD.C_Currency_ID, '0') <> COALESCE(:NEW.C_Currency_ID, '0'))
+      OR(COALESCE(:OLD.C_Paymentterm_ID, '0') <> COALESCE(:NEW.C_Paymentterm_ID, '0')) 
+      OR(COALESCE(:OLD.AD_ORG_ID, '0') <> COALESCE(:NEW.AD_ORG_ID, '0'))
+      OR(COALESCE(:OLD.isprepayment, '0') <> COALESCE(:NEW.isprepayment, '0'))
+      OR(COALESCE(:OLD.sco_prepayment_id, '0') <> COALESCE(:NEW.sco_prepayment_id, '0'))
+      OR(COALESCE(:OLD.AD_CLIENT_ID, '0') <> COALESCE(:NEW.AD_CLIENT_ID, '0'))
+      )) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF((DELETING OR INSERTING) AND (v_Processed='Y')) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.isprepayment = 'Y') THEN
+      IF(:NEW.sco_prepayment_id IS NULL) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidFrom@');
+      END IF;
+
+      --Check Prepayment Params
+      SELECT amount,docstatus, ispaid, C_Currency_ID, c_bpartner_id, issotrx
+        INTO v_invoiceOutstandingAmt, v_invoiceDocStatus, v_invoiceIsPaid, v_From_Currency_ID, v_CBpartner_ID, v_invoiceIssotrx
+      FROM SCO_Prepayment
+      WHERE SCO_Prepayment_ID = :NEW.sco_prepayment_id;
+
+      IF(v_invoiceDocStatus<>'CO' OR
+         v_invoiceIsPaid<>'N' OR v_CBpartner_ID<>:NEW.C_Bpartner_ID OR v_From_Currency_ID NOT IN (:NEW.C_Currency_ID,:NEW.C_Other_Currency_ID)
+         OR v_invoiceIssotrx<>v_issotrx) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidPrepRef@');
+      END IF; 
+
+      IF(v_invoiceOutstandingAmt <> :NEW.Amount) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidAmountPrepRef@');
+      END IF;
+
+      :NEW.invoiceref_id := NULL;
+      :NEW.doctyperef_id := NULL;
+
+    ELSE
+      IF(:NEW.invoiceref_id IS NULL OR :NEW.doctyperef_id IS NULL) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidFrom@');
+      END IF;
+
+      --Check Invoice Params
+      SELECT outstandingamt,docstatus,c_doctypetarget_id,
+             ispaid,
+	     AD_Client_ID, AD_Org_ID, C_Currency_ID, dateinvoiced, c_bpartner_id, c_paymentterm_id
+        INTO v_invoiceOutstandingAmt, v_invoiceDocStatus, v_invoiceDoctypeTarget_ID,
+             v_invoiceIsPaid,
+	     v_AD_Client_ID, v_AD_Org_ID, v_From_Currency_ID, v_DateInvoiced, v_CBpartner_ID, v_c_paymentterm_id
+        FROM C_Invoice
+        WHERE C_Invoice_ID = :NEW.invoiceref_id;
+
+        SELECT em_ssa_allpermissionfvtoboe 
+          INTO v_is_allpermissionfvtoboe
+          FROM c_bpartner 
+         WHERE c_bpartner_id=:NEW.C_Bpartner_ID;
+
+        IF(v_invoiceDoctypeTarget_ID<>:NEW.doctyperef_id OR v_invoiceDocStatus<>'CO' OR
+           v_invoiceIsPaid<>'N' OR v_CBpartner_ID<>:NEW.C_Bpartner_ID OR v_From_Currency_ID NOT IN (:NEW.C_Currency_ID,:NEW.C_Other_Currency_ID)) THEN
+           RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidInvoiceRef@');
+        END IF; 
+
+
+      IF(v_invoiceOutstandingAmt < :NEW.Amount) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidAmountRef@');
+      END IF;
+
+      :NEW.sco_prepayment_id := NULL;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.isprepayment,'')<>COALESCE(:NEW.isprepayment,'')
+    OR COALESCE(:OLD.doctyperef_id,'')<>COALESCE(:NEW.doctyperef_id,'')
+    OR COALESCE(:OLD.invoiceref_id,'')<>COALESCE(:NEW.invoiceref_id,'')
+    OR COALESCE(:OLD.sco_prepayment_id,'')<>COALESCE(:NEW.sco_prepayment_id,'')
+    OR COALESCE(:OLD.amount,0)<>COALESCE(:NEW.amount,0)
+    ) THEN
+
+     IF(:NEW.isprepayment = 'Y') THEN
+        IF(:NEW.sco_prepayment_id IS NULL) THEN
+           RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidFrom@');
+        END IF;
+
+        --Check Prepayment Params
+        SELECT amount,docstatus, ispaid, C_Currency_ID, c_bpartner_id, issotrx
+          INTO v_invoiceOutstandingAmt, v_invoiceDocStatus, v_invoiceIsPaid, v_From_Currency_ID, v_CBpartner_ID, v_invoiceIssotrx
+        FROM SCO_Prepayment
+        WHERE SCO_Prepayment_ID = :NEW.sco_prepayment_id;
+
+      IF(v_invoiceDocStatus<>'CO' OR
+         v_invoiceIsPaid<>'N' OR v_CBpartner_ID<>:NEW.C_Bpartner_ID OR v_From_Currency_ID NOT IN (:NEW.C_Currency_ID,:NEW.C_Other_Currency_ID)
+         OR v_invoiceIssotrx<>v_issotrx) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidPrepRef@');
+      END IF; 
+
+        IF(v_invoiceOutstandingAmt <> :NEW.Amount) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidAmountPrepRef@');
+        END IF;
+
+        :NEW.invoiceref_id := NULL;
+        :NEW.doctyperef_id := NULL;
+
+      ELSE
+        IF(:NEW.invoiceref_id IS NULL OR :NEW.doctyperef_id IS NULL) THEN
+           RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidFrom@');
+        END IF;
+
+        --Check Invoice Params
+        SELECT outstandingamt,docstatus,c_doctypetarget_id,
+               ispaid,
+	       AD_Client_ID, AD_Org_ID, C_Currency_ID, dateinvoiced, c_bpartner_id, c_paymentterm_id
+          INTO v_invoiceOutstandingAmt, v_invoiceDocStatus, v_invoiceDoctypeTarget_ID,
+               v_invoiceIsPaid,
+	       v_AD_Client_ID, v_AD_Org_ID, v_From_Currency_ID, v_DateInvoiced, v_CBpartner_ID, v_c_paymentterm_id
+          FROM C_Invoice
+          WHERE C_Invoice_ID = :NEW.invoiceref_id;
+
+          SELECT em_ssa_allpermissionfvtoboe 
+            INTO v_is_allpermissionfvtoboe
+            FROM c_bpartner 
+           WHERE c_bpartner_id=:NEW.C_Bpartner_ID;
+
+          IF(v_invoiceDoctypeTarget_ID<>:NEW.doctyperef_id OR v_invoiceDocStatus<>'CO' OR
+             v_invoiceIsPaid<>'N' OR v_CBpartner_ID<>:NEW.C_Bpartner_ID OR v_From_Currency_ID NOT IN (:NEW.C_Currency_ID,:NEW.C_Other_Currency_ID)) THEN
+             RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidInvoiceRef@');
+          END IF; 
+
+
+        IF(v_invoiceOutstandingAmt < :NEW.Amount) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEFromInvalidAmountRef@');
+        END IF;
+
+        :NEW.sco_prepayment_id := NULL;
+      END IF;
+
+    END IF;
+  END IF;
+
+  
+END SCO_BOE_FROM_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

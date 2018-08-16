@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_GLITEM_ACCTSCHE_CHK_TRG">
+    <trigger name="SCO_GLITEM_ACCTSCHE_CHK_TRG" table="C_GLITEM_ACCT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_acctschema_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF (INSERTING) THEN
+      SELECT c_acctschema_id
+        INTO v_acctschema_id
+        FROM c_validcombination
+      WHERE c_validcombination_id = :NEW.glitem_debit_acct;
+
+      IF(v_acctschema_id <> :NEW.c_acctschema_id) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_GlitemAcctInvDebitAcct@');
+      END IF;
+
+      SELECT c_acctschema_id
+        INTO v_acctschema_id
+        FROM c_validcombination
+      WHERE c_validcombination_id = :NEW.glitem_credit_acct;
+
+      IF(v_acctschema_id <> :NEW.c_acctschema_id) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_GlitemAcctInvCreditAcct@');
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.c_acctschema_id,'')<>COALESCE(:NEW.c_acctschema_id,'')
+      OR COALESCE(:OLD.glitem_debit_acct,'')<>COALESCE(:NEW.glitem_debit_acct,'')
+      OR COALESCE(:OLD.glitem_credit_acct,'')<>COALESCE(:NEW.glitem_credit_acct,'')
+      ) THEN
+        SELECT c_acctschema_id
+          INTO v_acctschema_id
+          FROM c_validcombination
+        WHERE c_validcombination_id = :NEW.glitem_debit_acct;
+
+        IF(v_acctschema_id <> :NEW.c_acctschema_id) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_GlitemAcctInvDebitAcct@');
+        END IF;
+  
+        SELECT c_acctschema_id
+          INTO v_acctschema_id
+          FROM c_validcombination
+        WHERE c_validcombination_id = :NEW.glitem_credit_acct;
+  
+        IF(v_acctschema_id <> :NEW.c_acctschema_id) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_GlitemAcctInvCreditAcct@');
+        END IF;
+      END IF;
+    END IF;
+
+END SCO_GLITEM_ACCTSCHE_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

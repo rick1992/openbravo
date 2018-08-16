@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteFlujoDeCajaData" package="pe.com.unifiedgo.report.ad_reports">
+    <SqlClassComment></SqlClassComment>
+    
+    <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select '' as rownum, '' as type , '' as tabletype, '' as description, '' as month, '' as year, '' as period, 
+                '' as paymentamt, '' as position, '' as adorgid, '' as orgname, '' as socialname, '' as startdate, '' as enddate, 
+                '' as name, '' as padre from dual
+            ]]>
+        </Sql>
+    </SqlMethod>
+    
+    <SqlMethod name="selectData" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+				select 
+				case when ftd.paymentamt > 0 or ftd.depositamt < 0 then 'EGRESOS'
+				when ftd.depositamt > 0 or ftd.paymentamt < 0 then 'INGRESOS'
+				end as type,
+				case when inv.c_invoice_id is not null then 'Documento'
+				when ite.c_glitem_id is not null then 'Concepto Contable'
+				else 'Otros' end as tabletype, 
+				coalesce((select name from c_doctype_trl t where t.c_doctype_id = doc.c_doctype_id and t.ad_language = 'es_PE'), doc.name, ite.name, 'Otros') as description, 
+				to_char(ftd.dateacct, 'MM') as month, 
+				to_char(ftd.dateacct, 'yyyy') as year, 
+				(case to_char(ftd.dateacct, 'MM') 
+					when '01' then 'ene'
+					when '02' then 'feb'
+					when '03' then 'mar'
+					when '04' then 'abr'
+					when '05' then 'may'
+					when '06' then 'jun'
+					when '07' then 'jul'
+					when '08' then 'ago'
+					when '09' then 'sep'
+					when '10' then 'oct'
+					when '11' then 'nov'
+					when '12' then 'dic'
+					else '' end) || ' - ' || to_char(ftd.dateacct, 'YY') as period, 
+				round(sum(case 
+				when ftd.paymentamt > 0 then ftd.paymentamt 
+				when ftd.paymentamt < 0 then abs(ftd.paymentamt) 
+				when ftd.depositamt > 0 then ftd.depositamt 
+				when ftd.depositamt < 0 then abs(ftd.depositamt) 
+				else 0.0 end), 2) as paymentamt, 
+				to_char('02') as position 
+
+				from sco_facc_transac_detail_v ftd 
+				join fin_financial_account fa on ftd.fin_financial_account_id = fa.fin_financial_account_id 
+				left join c_invoice inv on ftd.c_invoice_id = inv.c_invoice_id 
+				left join c_doctype doc on inv.c_doctypetarget_id = doc.c_doctype_id 
+				left join c_glitem ite on ftd.c_glitem_id = ite.c_glitem_id
+				
+				where (ftd.paymentamt <> 0 or ftd.depositamt <> 0)
+				
+				and ad_isorgincluded(fa.ad_org_id, ?, fa.ad_client_id) <> -1 
+				and ftd.dateacct >= to_date(?) and ftd.dateacct <= to_date(?)
+				
+				group by 1, 2, 3, 4, 5, 6, 8 
+				order by 5, 4, 1, 2, 3 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+        <Parameter name="dateFrom" />
+        <Parameter name="dateTo" />
+    </SqlMethod>
+    
+    
+    <SqlMethod name="selectIniciales" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            	select
+				to_char('CAJA INICIAL') as type, 
+				to_char('') as tabletype, 
+				to_char('') as description, 
+				to_char(ftd.dateacct, 'MM') as month, 
+				to_char(ftd.dateacct, 'yyyy') as year, 
+				(case to_char(ftd.dateacct, 'MM')
+					when '01' then 'ene'
+					when '02' then 'feb'
+					when '03' then 'mar'
+					when '04' then 'abr'
+					when '05' then 'may'
+					when '06' then 'jun'
+					when '07' then 'jul'
+					when '08' then 'ago'
+					when '09' then 'sep'
+					when '10' then 'oct'
+					when '11' then 'nov'
+					when '12' then 'dic'
+					else '' end) || ' - ' || to_char(ftd.dateacct, 'YY') as period, 
+				0.0 as paymentamt, 
+				to_char('01') as position
+				
+				from sco_facc_transac_detail_v ftd 
+				join fin_financial_account fa on ftd.fin_financial_account_id = fa.fin_financial_account_id
+				
+				where (ftd.paymentamt <> 0 or ftd.depositamt <> 0) 
+				and ad_isorgincluded(fa.ad_org_id, ?, fa.ad_client_id) <> -1 
+				and ftd.dateacct >= to_date(?) and ftd.dateacct <= to_date(?)
+				
+				group by 1, 2, 3, 4, 5, 6, 8 
+				order by 5, 4, 1, 2, 3 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+        <Parameter name="dateFrom" />
+        <Parameter name="dateTo" />
+    </SqlMethod>
+    
+    
+    
+    <SqlMethod name="selectSaldosFinales" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+				select 
+				to_char('CAJA FINAL') as type, 
+				to_char('') as tabletype, 
+				to_char('') as description, 
+				to_char(ftd.dateacct, 'MM') as month, 
+				to_char(ftd.dateacct, 'yyyy') as year, 
+				(case to_char(ftd.dateacct, 'MM') 
+					when '01' then 'ene' 
+					when '02' then 'feb' 
+					when '03' then 'mar' 
+					when '04' then 'abr' 
+					when '05' then 'may' 
+					when '06' then 'jun' 
+					when '07' then 'jul' 
+					when '08' then 'ago' 
+					when '09' then 'sep' 
+					when '10' then 'oct' 
+					when '11' then 'nov' 
+					when '12' then 'dic' 
+					else '' end) || ' - ' || to_char(ftd.dateacct, 'YY') as period, 
+					0.0 as paymentamt, 
+					to_char('03') as position 
+					
+					from sco_facc_transac_detail_v ftd 
+					join fin_financial_account fa on ftd.fin_financial_account_id = fa.fin_financial_account_id
+				
+					where (ftd.paymentamt <> 0 or ftd.depositamt <> 0) 
+					and ad_isorgincluded(fa.ad_org_id, ?, fa.ad_client_id) <> -1 
+					and ftd.dateacct >= to_date(?) and ftd.dateacct <= to_date(?)
+				
+					group by 1, 2, 3, 4, 5, 6 
+					order by 5, 4, 1, 2, 3 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+        <Parameter name="dateFrom" />
+        <Parameter name="dateTo" />
+    </SqlMethod>
+    
+    
+    
+    
+    
+    <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select name as orgname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select social_name as socialname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+    
+</SqlClass>

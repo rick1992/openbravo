@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_DUAFORMAT_TRG">
+    <trigger name="SIM_DUAFORMAT_TRG" table="SCO_DUA" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_strReplaced VARCHAR(50);
+  v_strDuaNumber VARCHAR(30);
+  v_part1 VARCHAR(30);
+  v_part2 VARCHAR(30);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+IF(INSERTING OR UPDATING)THEN
+  v_strReplaced:= replace(:NEW.sco_duanumber,'-','');
+
+  IF(char_length(v_strReplaced)<> 20)THEN
+   --RAISE NO_DATA_FOUND;
+  END IF;
+
+  v_strDuaNumber:= substr(v_strReplaced, 1, 3)
+                   ||'-' || substr(v_strReplaced, 4, 4)
+                   ||'-' || substr(v_strReplaced, 8, 2)
+                   ||'-' || substr(v_strReplaced, 10, 6)
+                   ||'-' || substr(v_strReplaced, 16, 2)
+                   ||'-' || substr(v_strReplaced, 18, 1)
+                   ||'-' || substr(v_strReplaced, 19, 2);
+                   
+   :NEW.sco_duanumber:= v_strDuaNumber;
+  
+END IF;
+
+
+
+
+
+
+
+END SIM_DUAFORMAT_TRG
+]]></body>
+    </trigger>
+  </database>

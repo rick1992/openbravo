@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_ORDERLINE_TRG2">
+    <trigger name="SIM_ORDERLINE_TRG2" table="SIM_ORDERIMPORTLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_amount NUMBER:=0;
+  v_qtyordered NUMBER:=0;
+  v_qtypending NUMBER:=0;
+  v_qtyinpartial NUMBER:=0;
+  v_percentinpartial NUMBER:=0;
+  v_percent_received NUMBER:=0;
+  v_received NUMBER:=0;
+  v_amount_received NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.sim_orderimport_id;
+ELSE
+  v_ID:=:NEW.sim_orderimport_id;
+END IF;
+
+select sum(linenetamt), sum(qtyordered),sum(qtyreserved),sum(received),sum(amount_received) INTO  v_amount,v_qtyordered,v_qtypending,v_received,v_amount_received from sim_orderimportline where sim_orderimport_id = v_ID;
+
+
+IF (v_amount IS NULL) THEN
+  v_amount=0;
+END IF;
+
+
+  v_qtyinpartial = v_qtyordered - v_qtypending;
+  IF (v_qtyinpartial = 0) THEN
+     v_percentinpartial = 0;
+  ELSE
+    v_percentinpartial = (v_qtyinpartial/v_qtyordered)*100;
+  END IF;
+
+  --Para Recepcion de Mercadeìa
+  IF(v_received = 0)THEN
+    v_percent_received = 0;
+   ELSE
+    v_percent_received = (v_received/v_qtyordered)*100;
+  END IF;
+
+
+UPDATE sim_orderimport
+    SET grandtotal = v_amount,
+        percent_inpartial = v_percentinpartial,
+        percent_received = v_percent_received,
+        qty_ordered = v_qtyordered,
+        qty_received = v_received,
+        amount_received = v_amount_received
+    WHERE sim_orderimport_id= v_ID;
+
+
+END SIM_ORDERLINE_TRG2
+]]></body>
+    </trigger>
+  </database>

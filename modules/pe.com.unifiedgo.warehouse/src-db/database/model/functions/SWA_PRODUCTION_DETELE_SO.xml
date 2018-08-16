@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_PRODUCTION_DETELE_SO">
+    <function name="SWA_PRODUCTION_DETELE_SO" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_docstatus VARCHAR2(60);
+  v_docaction VARCHAR2(60);
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  Cur_tmp RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+    --valdiaciones
+     FOR Cur_tmp IN (
+          SELECT * FROM M_TRANSACTION mt
+           INNER JOIN M_PRODUCTIONLINE pl ON mt.m_productionline_id = pl.m_productionline_id
+           INNER JOIN M_PRODUCTIONPLAN pp ON pl.m_productionplan_id = pp.m_productionplan_id
+           WHERE pp.m_production_id = v_Record_ID
+      )
+     LOOP
+        IF(Cur_tmp.iscostcalculated='Y')THEN
+          RAISE_APPLICATION_ERROR(-20000,'@swa_production_transaction_costcalculated@');
+        END IF;
+     END LOOP; 
+    --
+
+    update m_productionplan
+      set em_swa_serviceorderline_id = null
+     where m_production_id = v_Record_ID;
+
+    update m_production 
+      set em_swa_delete_link_service = 'Y',
+       em_swa_serviceorder_id = null
+     where m_production_id = v_Record_ID;
+
+
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_PRODUCTION_DETELE_SO
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_UNDO_M_INVENTORY">
+    <function name="SWA_UNDO_M_INVENTORY" type="NULL">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_m_inventory_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[CUR_Inventory RECORD;
+  CUR_Inventoryline RECORD;
+
+  v_Aux NUMBER;
+BEGIN
+
+  SELECT * INTO CUR_Inventory FROM M_Inventory WHERE AD_Client_ID = p_ad_client_id AND M_Inventory_ID = p_m_inventory_id FOR UPDATE;
+  
+  IF(COALESCE(CUR_Inventory.processed,'N') <> 'Y') THEN
+    RETURN;
+  END IF;
+
+  IF(CUR_Inventory.processing = 'Y') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SWA_UndoInventoryAlreadyProcessing@') ;
+  END IF; 
+
+  UPDATE M_Inventory SET processing='Y' WHERE AD_Client_ID = p_ad_client_id AND M_Inventory_ID = p_m_inventory_id;
+
+  FOR CUR_Inventoryline IN (SELECT * FROM M_Inventoryline WHERE AD_Client_ID = p_ad_client_id AND M_Inventory_ID = p_m_inventory_id)
+  LOOP
+    SELECT count(*)
+      INTO v_Aux
+      FROM M_Transaction
+    WHERE M_Inventoryline_ID = CUR_Inventoryline.m_inventoryline_id AND iscostcalculated = 'Y';
+
+    IF(v_Aux <> 0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SWA_UndoInventoryCostCalculatedLine@: ' || CUR_Inventoryline.line) ;
+    END IF;
+
+    DELETE FROM M_Transaction WHERE M_Inventoryline_ID = CUR_Inventoryline.m_inventoryline_id;
+  END LOOP;
+
+  UPDATE M_Inventory SET processing='N', processed='N' WHERE AD_Client_ID = p_ad_client_id AND M_Inventory_ID = p_m_inventory_id;
+END SWA_UNDO_M_INVENTORY
+]]></body>
+    </function>
+  </database>

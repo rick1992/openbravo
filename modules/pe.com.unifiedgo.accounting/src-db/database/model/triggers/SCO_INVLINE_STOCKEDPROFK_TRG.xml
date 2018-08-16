@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVLINE_STOCKEDPROFK_TRG">
+    <trigger name="SCO_INVLINE_STOCKEDPROFK_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_C_Invoice_ID VARCHAR(32);
+  v_invoice_issotrx VARCHAR(1);
+  v_invline_isstocked VARCHAR(1);
+  v_invline_producttype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING OR UPDATING) THEN
+      v_C_Invoice_ID := :NEW.C_Invoice_ID;
+    ELSE
+      v_C_Invoice_ID := :OLD.C_Invoice_ID;
+    END IF;
+
+    SELECT issotrx
+      INTO v_invoice_issotrx
+      FROM C_Invoice
+    WHERE C_Invoice_ID = v_C_Invoice_ID;
+
+    --only for purchase documents
+    IF(v_invoice_issotrx = 'N') THEN
+      IF(INSERTING) THEN
+        IF(:NEW.financial_invoice_line = 'N' AND :NEW.m_product_id IS NOT NULL) THEN
+          SELECT isstocked,producttype
+            INTO v_invline_isstocked, v_invline_producttype
+            FROM M_Product
+          WHERE M_Product_ID = :NEW.M_Product_ID;
+
+          IF((v_invline_isstocked='Y' AND v_invline_producttype='I') AND (:NEW.m_inoutline_id IS NULL AND :NEW.c_orderline_id IS NULL)) THEN
+            --RAISE_APPLICATION_ERROR(-20000, '@SCO_PurchaseInvLineWithoutReference@') ;
+          END IF;
+
+        END IF;
+      ELSIF(UPDATING) THEN
+        IF(COALESCE(:OLD.financial_invoice_line,'.')<>COALESCE(:NEW.financial_invoice_line,'.')
+           OR COALESCE(:OLD.m_product_id,'.')<>COALESCE(:NEW.m_product_id,'.')
+           OR COALESCE(:OLD.m_inoutline_id,'.')<>COALESCE(:NEW.m_inoutline_id,'.')
+           OR COALESCE(:OLD.c_orderline_id,'.')<>COALESCE(:NEW.c_orderline_id,'.')
+        ) THEN
+          IF(:NEW.financial_invoice_line = 'N' AND :NEW.m_product_id IS NOT NULL) THEN
+            SELECT isstocked,producttype
+              INTO v_invline_isstocked, v_invline_producttype
+              FROM M_Product
+            WHERE M_Product_ID = :NEW.M_Product_ID;
+
+            IF((v_invline_isstocked='Y' AND v_invline_producttype='I') AND (:NEW.m_inoutline_id IS NULL AND :NEW.c_orderline_id IS NULL)) THEN
+              --RAISE_APPLICATION_ERROR(-20000, '@SCO_PurchaseInvLineWithoutReference@') ;
+            END IF;
+
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+
+
+    END SCO_INVLINE_STOCKEDPROFK_TRG
+]]></body>
+    </trigger>
+  </database>

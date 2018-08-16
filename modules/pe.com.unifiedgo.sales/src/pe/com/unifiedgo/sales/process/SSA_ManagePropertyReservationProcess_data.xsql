@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="SSAManagePropertyReservationProcessData" package="pe.com.unifiedgo.sales.process">
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS prospect_id, '' AS documentno, 
+               '' AS M_INOUT_ID, '' AS FIN_PAYMENT_ID FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+   <SqlMethod name="getReservedProspects" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+      SELECT ssa_projprop_contract_id as prospect_id, documentno        
+        FROM ssa_projprop_contract
+       WHERE specialdoctype='SSAARPROSPECT'
+         AND docstatus='CO'
+         AND reservationdate IS NOT NULL
+         AND (CASE WHEN extract('ISODOW' FROM reservationdate)>=4 
+              THEN now() > (reservationdate + interval '4 days') 
+              ELSE now() > (reservationdate + interval '3 days')
+              END)          
+         AND EXISTS(select 1 from ssa_project_property p where p.docstatus='RESERVED' and p.ssa_project_property_id in (select cl.ssa_project_property_id FROM ssa_projprop_contract_line cl WHERE cl.ssa_projprop_contract_id = ssa_projprop_contract_id))         
+     ]]>
+   </Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="unreservePropertiesFromProspect" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+        UPDATE ssa_project_property 
+           SET docstatus='FREE', reservationdate=NULL, reservationuser=NULL 
+         WHERE ssa_project_property_id IN (SELECT ssa_project_property_id FROM ssa_projprop_contract_line WHERE ssa_projprop_contract_id = ?)
+           AND docstatus<>'SOLD';
+     ]]>
+   </Sql>
+   <Parameter name="ssa_projprop_contract_id"/>
+   </SqlMethod>
+
+   <SqlMethod name="unreserveProspect" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+        UPDATE ssa_projprop_contract 
+           SET reservationdate=NULL, reservationuser=NULL, reservelines='RESERVE' 
+         WHERE ssa_projprop_contract_id=?;
+     ]]>
+   </Sql>
+   <Parameter name="ssa_projprop_contract_id"/>
+   </SqlMethod>
+ 
+</SqlClass>

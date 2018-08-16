@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ResumenCobrosJRData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectDiff" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+
+		
+		SELECT
+			CASE
+		WHEN fp.c_bpartner_id IS NULL THEN
+			(
+				SELECT
+					cp2. NAME
+				FROM
+					c_bpartner cp2
+				WHERE
+					fpd.em_sco_c_bpartner_id = cp2.c_bpartner_id
+			)
+		ELSE
+			(
+				SELECT
+					cp2. NAME
+				FROM
+					c_bpartner cp2
+				WHERE
+					fp.c_bpartner_id = cp2.c_bpartner_id
+			)
+		END AS tercero,
+			CASE
+		WHEN fp.c_bpartner_id IS NULL THEN
+			(
+				SELECT
+					cp2. taxid
+				FROM
+					c_bpartner cp2
+				WHERE
+					fpd.em_sco_c_bpartner_id = cp2.c_bpartner_id
+			)
+		ELSE
+			(
+				SELECT
+					cp2. taxid
+				FROM
+					c_bpartner cp2
+				WHERE
+					fp.c_bpartner_id = cp2.c_bpartner_id
+			)
+		END AS ruc_tercero,
+		 fp.documentno AS planilla,
+		 fp.paymentdate AS fecha_cobro,
+		 fpd.invoiceno AS numero_documento,
+		 fpd.EM_Sco_Convert_Rate as tc,
+		
+		 ( select cursymbol from c_currency cc2 where cc2.c_currency_id= fpd.em_sco_doc_currency_id  ) as moneda_documento,
+		
+		fpd.paidamt as cobro_documento,
+		
+		 ( select cursymbol from c_currency cc2 where cc2.c_currency_id= fpd.Finacc_Currency_ID  ) as moneda_del_cobro,
+		
+		fpd.EM_Sco_Paymentamount as monto_del_cobro,
+		
+		fpd.em_sco_doc_currency_id as id_moneda_doc,
+		
+		fpd.Finacc_Currency_ID  as id_moneda_cobro,
+
+	coalesce(fpm.name ,'') as metodo_pago
+	
+	FROM
+		fin_payment fp
+	INNER JOIN fin_payment_detail_v fpd ON fp.fin_payment_id = fpd.fin_payment_id
+	left JOIN fin_paymentmethod fpm on fp.fin_paymentmethod_id=fpm.fin_paymentmethod_id
+	
+		WHERE
+			fp.isreceipt = 'Y' and
+			
+		fp.AD_CLIENT_ID IN ('1')
+        AND fp.AD_ORG_ID IN('1')
+        AND 1=1
+        
+	ORDER BY  coalesce(fpm.name ,''),1
+        
+
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+         
+    <Parameter name="adUserClient" type="replace" optional="true" after="fp.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND fp.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND fp.paymentdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND fp.paymentdate < TO_DATE(?)]]></Parameter>
+        <Parameter name="metodoPagoId" optional="true" after="AND 1=1"><![CDATA[ AND fp.fin_paymentmethod_id = (?)]]></Parameter>
+                <Parameter name="condicionesPagoId" optional="true" after="AND 1=1"><![CDATA[ AND fp.em_scr_paymenttype = (?)]]></Parameter>
+        
+
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  
+    <SqlMethod name="selectPaymentMethod" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+         SELECT NAME   FROM Fin_PaymentMethod
+       WHERE Fin_PaymentMethod_ID = ?
+       
+      ]]></Sql>
+    <Parameter name="idPaymentMethod"/>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="selectPaymentTerm" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+         SELECT NAME FROM C_PaymentTerm
+        WHERE C_PaymentTerm_ID = ?
+       
+      ]]></Sql>
+    <Parameter name="paymentTermId"/>
+  </SqlMethod>
+  
+  
+  
+  
+    <SqlMethod name="selectOrganization" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+           select name from ad_org where ad_org_id = ? 
+       
+      ]]></Sql>
+    <Parameter name="organizacion_id"/>
+  </SqlMethod>
+
+
+  <SqlMethod name="selectTipoPago" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT arlt.name from ad_reference ar
+		inner join ad_ref_list arl on ar.ad_reference_id=arl.ad_reference_id
+		inner JOIN ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+		 where 
+		ar.name='SCR_BoeTypeList'
+		
+		and arl.value=?
+       
+      ]]></Sql>
+    <Parameter name="tipoPagoId"/>
+  </SqlMethod>
+  
+
+</SqlClass>

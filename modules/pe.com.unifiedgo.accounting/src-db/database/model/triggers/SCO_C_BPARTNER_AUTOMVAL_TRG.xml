@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_C_BPARTNER_AUTOMVAL_TRG">
+    <trigger name="SCO_C_BPARTNER_AUTOMVAL_TRG" table="C_BPARTNER" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[  v_Correlativo NUMBER;
+  v_AD_LE_Org_ID VARCHAR(32);
+  v_Aux NUMBER;
+  v_AD_Org_ID VARCHAR(32);
+  v_bpartner_value_prefix VARCHAR(20);
+  v_bpartner_value_corr NUMBER;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+    
+    IF(:NEW.value='----') THEN
+
+      SELECT * INTO v_AD_LE_Org_ID from ad_get_org_le_bu(:NEW.AD_Org_ID,'LE');
+      SELECT AD_Org_ID, em_sco_bpartner_value_prefix, em_sco_bpartner_value_corr
+        INTO v_AD_Org_ID, v_bpartner_value_prefix, v_bpartner_value_corr
+        FROM AD_ORG
+      WHERE AD_Client_ID = :NEW.AD_Client_ID AND
+            AD_ORG_ID = v_AD_LE_Org_ID LIMIT 1 FOR UPDATE;
+
+      IF(v_bpartner_value_prefix IS NOT NULL AND v_bpartner_value_prefix<>'' AND v_bpartner_value_corr IS NOT NULL) THEN
+        :NEW.value := v_bpartner_value_prefix || to_char(v_bpartner_value_corr, 'FM000000000');
+        UPDATE AD_Org SET em_sco_bpartner_value_corr = em_sco_bpartner_value_corr+1 WHERE AD_Org_ID = v_AD_Org_ID;
+      END IF;
+
+    END IF;
+
+    END SCO_C_BPARTNER_AUTOMVAL_TRG
+]]></body>
+    </trigger>
+  </database>

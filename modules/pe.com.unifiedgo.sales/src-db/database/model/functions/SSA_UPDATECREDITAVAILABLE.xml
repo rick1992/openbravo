@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_UPDATECREDITAVAILABLE">
+    <function name="SSA_UPDATECREDITAVAILABLE" type="NULL">
+      <parameter name="p_c_bpartner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[Cur_Payment RECORD;
+  Cur_FinAccPaymentMethod RECORD;
+
+  v_creditavailable_PEN NUMBER;
+  v_creditavailable_USD NUMBER;
+  v_AD_Org_ID VARCHAR(32);  
+  v_AD_LE_Org_ID VARCHAR(32);
+  v_payment_seqnpaymentstatus VARCHAR(32);
+  v_tmptotal_seqnpaymentstatus VARCHAR(32);
+  v_total_seqnpaymentstatus VARCHAR(32);
+  BEGIN
+
+  SELECT AD_Org_ID
+    INTO v_AD_Org_ID
+    FROM C_Bpartner
+  WHERE C_Bpartner_ID = p_c_bpartner_id AND
+        AD_Client_ID = p_ad_client_id FOR UPDATE;
+
+  IF(v_AD_Org_ID IS NULL OR v_AD_Org_ID='') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SSA_updatecreditavailableBPNotFound@');
+  END IF;
+
+  SELECT * INTO v_AD_LE_Org_ID from ad_get_org_le_bu(v_AD_Org_ID,'LE');
+
+  DROP TABLE IF EXISTS  relatedchildorgs;
+  CREATE TEMPORARY TABLE relatedchildorgs( ad_org_id character varying(32) NOT NULL ) on commit drop;
+  INSERT INTO relatedchildorgs (
+        SELECT AD_Org_ID 
+          FROM AD_Org
+        WHERE AD_Client_ID = p_ad_client_id AND
+              AD_ISORGINCLUDED(AD_Org_ID,v_AD_LE_Org_ID,p_ad_client_id)<>-1
+  );
+
+
+  v_creditavailable_PEN := 0;
+  v_creditavailable_USD := 0;
+  FOR Cur_Payment IN
+    (SELECT acc.c_currency_id, p.FIN_Financial_Account_id, p.Fin_PaymentMethod_id, p.IsReceipt, p.status, p.generated_credit, p.used_credit
+       FROM FIN_Payment p, FIN_Financial_Account acc
+      WHERE p.c_bpartner_id=p_c_bpartner_id
+        AND p.ad_org_id IN (SELECT AD_Org_ID FROM relatedchildorgs)
+        AND p.Fin_Financial_Account_ID=acc.Fin_Financial_Account_ID
+	AND (acc.c_currency_id='308' OR acc.c_currency_id='100')
+        AND p.isreceipt='Y'
+        AND p.generated_credit!='0'
+        AND p.generated_credit!=p.used_credit
+      ORDER BY p.paymentdate, p.documentno)
+  LOOP
+     -- PEN
+     IF(Cur_Payment.c_currency_id='308') THEN
+	FOR Cur_FinAccPaymentMethod IN
+	 (SELECT accpm.* 
+	    FROM FIN_FinAcc_PaymentMethod accpm
+	   WHERE accpm.FIN_Financial_Account_id=Cur_Payment.FIN_Financial_Account_id)
+	LOOP
+	  IF (Cur_FinAccPaymentMethod.Fin_PaymentMethod_id=Cur_Payment.Fin_PaymentMethod_id) THEN
+	      IF (Cur_Payment.IsReceipt='Y') THEN                
+		  v_tmptotal_seqnpaymentstatus := Cur_FinAccPaymentMethod.payin_invoicepaidstatus;
+	      ELSE	
+		  v_tmptotal_seqnpaymentstatus := Cur_FinAccPaymentMethod.payout_invoicepaidstatus;
+	      END IF;
+	  END IF;
+	END LOOP;
+        v_payment_seqnpaymentstatus := aprm_seqnumberpaymentstatus(Cur_Payment.status);
+        v_total_seqnpaymentstatus := aprm_seqnumberpaymentstatus(v_tmptotal_seqnpaymentstatus);
+        IF (v_payment_seqnpaymentstatus >= v_total_seqnpaymentstatus) THEN
+            v_creditavailable_PEN := v_creditavailable_PEN + Cur_Payment.generated_credit - Cur_Payment.used_credit;
+        END IF;
+
+     -- USD
+     ELSE
+	FOR Cur_FinAccPaymentMethod IN
+	 (SELECT accpm.* 
+	    FROM FIN_FinAcc_PaymentMethod accpm
+	   WHERE accpm.FIN_Financial_Account_id=Cur_Payment.FIN_Financial_Account_id)
+	LOOP
+	  IF (Cur_FinAccPaymentMethod.Fin_PaymentMethod_id=Cur_Payment.Fin_PaymentMethod_id) THEN
+	      IF (Cur_Payment.IsReceipt='Y') THEN                
+		  v_tmptotal_seqnpaymentstatus := Cur_FinAccPaymentMethod.payin_invoicepaidstatus;
+	      ELSE	
+		  v_tmptotal_seqnpaymentstatus := Cur_FinAccPaymentMethod.payout_invoicepaidstatus;
+	      END IF;
+	  END IF;
+	END LOOP;
+        v_payment_seqnpaymentstatus := aprm_seqnumberpaymentstatus(Cur_Payment.status);
+        v_total_seqnpaymentstatus := aprm_seqnumberpaymentstatus(v_tmptotal_seqnpaymentstatus);
+        IF (v_payment_seqnpaymentstatus >= v_total_seqnpaymentstatus) THEN
+            v_creditavailable_USD := v_creditavailable_USD + Cur_Payment.generated_credit - Cur_Payment.used_credit;
+        END IF;
+     END IF;
+  END LOOP;    
+
+  DROP TABLE IF EXISTS  relatedchildorgs;
+
+  UPDATE C_Bpartner 
+     SET em_scr_creditavailPEN = v_creditavailable_PEN, em_scr_creditavailUSD = v_creditavailable_USD
+   WHERE C_Bpartner_ID = p_c_bpartner_id AND
+         AD_Client_ID = p_ad_client_id;
+
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SSA_UPDATECREDITAVAILABLE
+]]></body>
+    </function>
+  </database>

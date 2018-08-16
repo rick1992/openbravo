@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_CONTCTPAYSHED_CHK_RES_TRG">
+    <trigger name="SRE_CONTCTPAYSHED_CHK_RES_TRG" table="SRE_CONTRACT_PAYSCHEDULE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Count NUMBER:= 0;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF(:OLD.Processed='Y'
+	   AND((COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+	     OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+		 OR(COALESCE(:old.c_doctype_id, '0') <> COALESCE(:new.c_doctype_id,'0'))
+		 OR(COALESCE(:old.c_doctypetarget_id, '0') <> COALESCE(:new.c_doctypetarget_id,'0'))
+	     OR(COALESCE(:old.c_project_id, '0') <> COALESCE(:new.c_project_id,'0'))
+		 OR(COALESCE(:old.paymentdate, v_DateNull) <> COALESCE(:new.paymentdate, v_DateNull))
+)    
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;   
+
+
+     SELECT COUNT(*) INTO v_Count FROM sre_contract_paysched_line WHERE sre_contract_payschedule_ID=:OLD.sre_contract_payschedule_ID;       
+     IF(v_Count <> 0 
+	   AND((COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+	     OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	     OR(COALESCE(:old.c_project_id, '0') <> COALESCE(:new.c_project_id,'0')))        
+     )THEN
+       RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotEditContractWithLines@') ;
+     END IF;
+  END IF;
+
+  IF(DELETING) THEN
+    IF :OLD.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF :NEW.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+END SRE_CONTCTPAYSHED_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

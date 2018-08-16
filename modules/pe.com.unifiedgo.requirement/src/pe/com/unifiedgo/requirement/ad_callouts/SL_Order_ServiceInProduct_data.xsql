@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="SLOrderServiceInProductData" package="pe.com.unifiedgo.requirement.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_ORDER_ID AS ID, DATEORDERED, C_BPARTNER_ID, M_PRICELIST_ID, '' AS DATEINVOICED 
+        FROM C_ORDER WHERE C_ORDER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="selectInvoice" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_INVOICE_ID AS ID, DATEINVOICED, C_BPARTNER_ID, M_PRICELIST_ID
+      	FROM C_INVOICE WHERE C_INVOICE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cInvoiceId"/>
+  </SqlMethod>
+  <!--SqlMethod name="strMProductUOMID" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT M_PRODUCT_UOM_ID FROM M_PRODUCT_UOM WHERE M_PRODUCT_ID = ? AND C_UOM_ID = ?
+    </Sql>
+    <Parameter name="mProductId"/>
+    <Parameter name="cUOMId"/>
+  </SqlMethod-->
+  <SqlMethod name="hasSecondaryUOM" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT (CASE COUNT(*) WHEN 0 THEN 0 ELSE 1 END) AS TOTAL 
+      FROM M_PRODUCT_UOM 
+      WHERE M_PRODUCT_ID = ?
+    </Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+
+  <SqlMethod name="getOrgLocationId" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+	  	SELECT C_LOCATION_ID 
+	  		FROM AD_ORGINFO 
+	  		WHERE AD_Client_ID IN ('1') 
+	  		AND AD_Org_ID IN ('1')
+	 </Sql>
+     <Parameter name="adUserClient" type="replace" optional="true" after="AD_Client_ID IN (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="AD_Org_ID IN (" text="'1'"/>
+  </SqlMethod>
+
+  <SqlMethod name="getWarehouseOrg" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+	  SELECT AD_ORG_ID
+      FROM M_WAREHOUSE
+      WHERE M_WAREHOUSE_ID = ?
+	 </Sql>
+    <Parameter name="cWarehouseID"/>
+  </SqlMethod>
+
+  <SqlMethod name="getWarehouseOfOrg" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select min(w.m_warehouse_id)
+        from m_warehouse w
+        where w.ad_client_id=?
+          and (ad_isorgincluded(?,w.ad_org_id,?)<>-1
+            or ad_isorgincluded(w.ad_org_id,?,?)<>-1)
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+
+</SqlClass>

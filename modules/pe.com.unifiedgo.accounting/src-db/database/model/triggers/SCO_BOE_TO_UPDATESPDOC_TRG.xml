@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BOE_TO_UPDATESPDOC_TRG">
+    <trigger name="SCO_BOE_TO_UPDATESPDOC_TRG" table="SCO_BOE_TO" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    SELECT specialdoctype INTO v_specialdoctype FROM SCO_BILLOFEXCHANGE WHERE SCO_BILLOFEXCHANGE_ID = :NEW.SCO_BILLOFEXCHANGE_id;
+    :NEW.specialdoctype := v_specialdoctype;
+
+    END SCO_BOE_TO_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

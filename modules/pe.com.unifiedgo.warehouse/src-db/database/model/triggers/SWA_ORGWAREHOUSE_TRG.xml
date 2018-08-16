@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_ORGWAREHOUSE_TRG">
+    <trigger name="SWA_ORGWAREHOUSE_TRG" table="SWA_PERMISSIONS_WAREHOUSE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_orgWarehouse_ID VARCHAR(32);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(UPDATING) THEN
+    IF (:NEW.m_warehouse_id <> :OLD.m_warehouse_id) THEN
+	:NEW.orgwarehouse_id=(SELECT ad_org_id FROM m_warehouse WHERE m_warehouse_id=:NEW.m_warehouse_id);
+    END IF;
+  END IF; 
+
+  IF(INSERTING) THEN
+        :NEW.orgwarehouse_id=(SELECT ad_org_id FROM m_warehouse WHERE m_warehouse_id=:NEW.m_warehouse_id);
+  END IF;
+
+END SWA_ORGWAREHOUSE_TRG
+]]></body>
+    </trigger>
+  </database>

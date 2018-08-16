@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSH_PROCESS_TRANSPORTISTA">
+    <function name="SSH_PROCESS_TRANSPORTISTA" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_CountLines NUMBER:=1; -- Success
+  v_docstatus VARCHAR2(60);
+  v_docaction VARCHAR2(60);
+  v_docactionnew VARCHAR2(60);
+  
+
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+
+    --  FOLIO - DETERMINAR SI HAY  LINEAS
+
+    SELECT COUNT(ssh_trasportistaline_id)
+    INTO v_CountLines
+    FROM ssh_trasportistaline
+    WHERE ssh_transportista_id=v_Record_ID;
+
+    IF(v_CountLines = 0) THEN
+        v_Message := '@sim_folio_notlines@';
+        v_Result := 0; -- Error
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        RETURN;
+    END IF;
+    
+    
+    SELECT docstatus , docprocess
+      INTO v_docstatus, v_docaction
+    FROM ssh_transportista
+    WHERE ssh_transportista_id=v_Record_ID;
+    
+    IF(v_docaction = 'CO')THEN
+    -- IF(v_docstatus <> 'CO')THEN
+       --RAISE_APPLICATION_ERROR(-20000, '1');
+      v_docstatus:='CO';
+      v_docactionnew:='RE';
+      UPDATE ssh_transportista SET
+             docstatus=v_docstatus,
+             docprocess=v_docactionnew
+       WHERE ssh_transportista_id = v_Record_ID;
+    -- END IF;
+    END IF;
+
+    IF(v_docaction = 'RE')THEN
+     IF(v_docstatus <> 'DR')THEN
+      v_docstatus:='DR';
+      v_docactionnew:='CO';
+     -- RAISE_APPLICATION_ERROR(-20000, '2');
+      UPDATE ssh_transportista SET
+             docstatus=v_docstatus,
+             docprocess=v_docactionnew
+       WHERE ssh_transportista_id = v_Record_ID;
+     END IF;
+    END IF;
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSH_PROCESS_TRANSPORTISTA
+]]></body>
+    </function>
+  </database>

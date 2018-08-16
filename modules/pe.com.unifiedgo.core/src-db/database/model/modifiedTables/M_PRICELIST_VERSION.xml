@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE M_PRICELIST_VERSION">
+    <table name="M_PRICELIST_VERSION" primaryKey="M_PRICELIST_VERSION_KEY">
+      <column name="EM_SCR_ISBASEDONVERSION" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCR_PRILVERSION_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCR_CALBASEDVERSION" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="M_PRICELIST_VERSION" name="EM_SCR_PRIL_ID_FK">
+        <reference local="EM_SCR_PRILVERSION_ID" foreign="M_PRICELIST_VERSION_ID"/>
+      </foreign-key>
+      <check name="EM_SCR_PRIL_BV_CHK"><![CDATA[EM_SCR_ISBASEDONVERSION IN ('Y', 'N')]]></check>
+    </table>
+  </database>

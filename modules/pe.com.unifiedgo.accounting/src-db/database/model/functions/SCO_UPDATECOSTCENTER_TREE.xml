@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_UPDATECOSTCENTER_TREE">
+    <function name="SCO_UPDATECOSTCENTER_TREE" type="NULL">
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    CUR_Costcenter RECORD;
+    v_AD_Client_ID VARCHAR(32);
+    v_AD_Org_ID VARCHAR(32);
+    v_parent_costcenter_id VARCHAR(32);
+    v_parent_costcenter_value VARCHAR(60);
+BEGIN
+  v_AD_Client_ID:='AF645935B14444CA8AD4A94FE6B2AF68';
+  v_AD_Org_ID:='EE5977E45470425B832C1E1D7AEBC1AF';
+
+  UPDATE c_costcenter 
+    SET issummary='Y' 
+  WHERE AD_ISORGINCLUDED(ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+  AND value like '%00';
+
+  UPDATE c_costcenter 
+    SET issummary='N' 
+  WHERE AD_ISORGINCLUDED(ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+  AND value not like '%00';
+
+  --Level 1
+  UPDATE ad_treenode tn
+    SET parent_id = '0'
+  WHERE node_id IN (SELECT c.c_costcenter_id 
+                      FROM c_costcenter c 
+                    WHERE c.issummary='Y' and c.value like '%0000' and AD_ISORGINCLUDED(c.ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1)
+  AND AD_ISORGINCLUDED(tn.ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1;
+
+  --Level 2
+  FOR CUR_Costcenter IN
+    (SELECT * FROM C_Costcenter
+     WHERE AD_ISORGINCLUDED(ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+           AND issummary='Y' AND value like '%00' AND value not like '%0000')
+  LOOP
+    IF(char_length(CUR_Costcenter.value) <> '10') THEN
+      CONTINUE;
+    END IF;
+
+    v_parent_costcenter_value := substring(CUR_Costcenter.value from 1 for 6) || '0000';
+
+    SELECT c_costcenter_id
+      INTO v_parent_costcenter_id
+      FROM C_Costcenter
+    WHERE AD_ISORGINCLUDED(ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+    AND issummary='Y'
+    AND value = v_parent_costcenter_value LIMIT 1;
+
+    IF(v_parent_costcenter_id IS NOT NULL) THEN
+      UPDATE AD_Treenode tn
+        SET parent_id = v_parent_costcenter_id
+      WHERE AD_ISORGINCLUDED(tn.ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+      AND tn.node_id = CUR_Costcenter.c_costcenter_id;
+    END IF;
+
+  END LOOP;
+
+  --level 3
+  FOR CUR_Costcenter IN
+    (SELECT * FROM C_Costcenter
+     WHERE AD_ISORGINCLUDED(ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+           AND issummary='N')
+  LOOP
+    IF(char_length(CUR_Costcenter.value) <> '10') THEN
+      CONTINUE;
+    END IF;
+
+    v_parent_costcenter_value := substring(CUR_Costcenter.value from 1 for 8) || '00';
+
+    SELECT c_costcenter_id
+      INTO v_parent_costcenter_id
+      FROM C_Costcenter
+    WHERE AD_ISORGINCLUDED(ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+    AND issummary='Y'
+    AND value = v_parent_costcenter_value LIMIT 1;
+
+    IF(v_parent_costcenter_id IS NOT NULL) THEN
+      UPDATE AD_Treenode tn
+        SET parent_id = v_parent_costcenter_id
+      WHERE AD_ISORGINCLUDED(tn.ad_org_id, v_AD_Org_ID, v_AD_Client_ID) <> -1
+      AND tn.node_id = CUR_Costcenter.c_costcenter_id;
+    END IF;
+
+  END LOOP;
+
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_UPDATECOSTCENTER_TREE
+]]></body>
+    </function>
+  </database>

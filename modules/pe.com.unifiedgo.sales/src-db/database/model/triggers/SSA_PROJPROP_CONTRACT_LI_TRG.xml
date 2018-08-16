@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PROJPROP_CONTRACT_LI_TRG">
+    <trigger name="SSA_PROJPROP_CONTRACT_LI_TRG" table="SSA_PROJPROP_CONTRACT_LINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_projprop_contract_ID  VARCHAR2(32);
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_projprop_contract_ID:=:NEW.ssa_projprop_contract_ID;
+  ELSE
+    v_projprop_contract_ID:=:OLD.ssa_projprop_contract_ID;
+  END IF;
+
+  IF (INSERTING OR UPDATING) THEN
+
+    --Update Header Totalamount Value
+    IF(INSERTING) THEN
+      UPDATE ssa_projprop_contract SET grandtotal = grandtotal + :NEW.priceactual
+       WHERE ssa_projprop_contract_ID = v_projprop_contract_ID;
+    ELSE 
+      UPDATE ssa_projprop_contract SET grandtotal = (grandtotal + :NEW.priceactual - :OLD.priceactual)
+       WHERE ssa_projprop_contract_ID = v_projprop_contract_ID;
+    END IF;
+
+  END IF;
+
+
+  IF(DELETING) THEN
+    UPDATE ssa_projprop_contract SET grandtotal = grandtotal - :OLD.priceactual
+     WHERE ssa_projprop_contract_ID = v_projprop_contract_ID;
+  END IF;
+
+  END SSA_PROJPROP_CONTRACT_LI_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_TABLE_KEYCOL_VAL_TRG">
+    <trigger name="SCR_TABLE_KEYCOL_VAL_TRG" table="AD_TABLE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(:NEW.em_scr_keyword_column_id IS NOT NULL) THEN
+      SELECT ad_table_id INTO keycol_table_id FROM AD_Column WHERE AD_Column_ID = :NEW.em_scr_keyword_column_id;
+      IF(keycol_table_id IS NULL OR keycol_table_id<>:NEW.ad_table_id) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCR_InvalidKeyCol@');
+      END IF;
+    END IF;
+
+    END SCR_TABLE_KEYCOL_VAL_TRG
+]]></body>
+    </trigger>
+  </database>

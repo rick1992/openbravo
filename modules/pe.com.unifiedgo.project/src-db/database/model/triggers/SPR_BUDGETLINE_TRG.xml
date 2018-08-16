@@ -1,0 +1,147 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_BUDGETLINE_TRG">
+    <trigger name="SPR_BUDGETLINE_TRG" table="SPR_BUDGETLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2012 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+
+   TYPE RECORD IS REF CURSOR;
+   Cur_Offer RECORD;
+
+  v_OrderLine_Offer_ID VARCHAR2(32);
+  v_lineno NUMBER:=0;
+  v_Price NUMBER;
+  v_PriceNew NUMBER;
+  v_Amt NUMBER;
+  v_BPartner_ID VARCHAR2(32);
+  v_Order_ID VARCHAR2(32);
+  v_Insert BOOLEAN :=FALSE;
+  v_istaxincluded CHAR(1) ;
+  v_Precision NUMBER;
+  v_PriceList_ID VARCHAR2(32);
+  v_Processed CHAR(1) :='N';
+  v_ID VARCHAR2(32);
+  v_oldLine NUMBER;
+  v_newLineNetAmt NUMBER;
+  v_newLineAlternate NUMBER;
+  v_oldGrossAmt NUMBER:=0;
+  v_newGrossAmt NUMBER:=0;
+  v_totallines NUMBER:=0;
+  v_grandtotal NUMBER:=0;
+  v_taxAmt NUMBER;
+  v_Prec C_CURRENCY.STDPRECISION%TYPE;
+  v_BaseAmount C_TAX.BASEAMOUNT%TYPE;
+  v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
+  v_taxPrec NUMBER;
+  
+  v_specialdoctype VARCHAR(60);
+  v_ordertype_cmb_id VARCHAR(32);
+  v_ordertype VARCHAR(100);
+  v_newLineGrossAmt NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.spr_budget_id;
+ELSE
+  v_ID:=:NEW.spr_budget_id;
+END IF;
+
+
+  /**************************************************************************
+   * Calculate Tax, etc.
+   */
+ SELECT stdPrecision, m_pricelist.istaxincluded
+   INTO v_prec, v_istaxincluded
+ FROM spr_budget
+        JOIN c_currency ON spr_budget.c_currency_id = c_currency.c_currency_id
+        JOIN m_pricelist ON spr_budget.m_pricelist_id = m_pricelist.m_pricelist_id
+ WHERE spr_budget_id=v_ID;
+
+
+ 
+ --UGO Change: Make tax rounding to 5 decimals for more precision
+ v_taxPrec := v_prec;
+ IF(v_prec < 5) THEN
+   v_taxPrec := 5;
+ END IF;
+
+ v_oldLine:=0;
+ v_newLineNetAmt:=0;
+
+ IF (v_istaxincluded = 'Y') THEN
+  IF (DELETING) THEN
+    v_oldgrossamt := :old.line_gross_amount;
+  ELSIF (UPDATING) THEN
+    v_oldgrossamt := :old.line_gross_amount;
+    v_newgrossamt := :new.line_gross_amount;
+  ELSE
+    v_newgrossamt := :new.line_gross_amount;
+  END IF;
+ END IF;
+
+ IF(v_Processed='N') THEN
+  -- Calculate taxes
+  IF(UPDATING OR DELETING) THEN
+    v_oldLine:= COALESCE(:old.LineNetAmt,0);
+  END IF;  
+  IF (INSERTING OR UPDATING) THEN
+
+    v_newLineNetAmt:= COALESCE(:new.LineNetAmt,0);
+    
+    UPDATE spr_budget
+    SET TotalLines = TotalLines - v_oldLine + v_newLineNetAmt,
+        GrandTotal =  TotalLines - v_oldLine + v_newLineNetAmt + COALESCE(v_taxAmt, 0)
+    WHERE spr_budget_id = :new.spr_budget_id;
+
+    IF(:NEW.spr_budgetentry_id IS NOT NULL)THEN
+     UPDATE spr_budgetentry
+       SET linenetamt = linenetamt - v_oldLine + v_newLineNetAmt
+      WHERE spr_budgetentry_id = :NEW.spr_budgetentry_id;
+    END IF;
+    
+  ELSE -- DELETING
+   
+    UPDATE spr_budget
+    SET TotalLines = TotalLines - v_oldLine + v_newLineNetAmt,
+        GrandTotal = CASE v_istaxincluded
+                       WHEN 'Y' THEN grandtotal - v_oldgrossamt
+                       ELSE TotalLines - v_oldLine + v_newLineNetAmt + COALESCE(v_taxAmt, 0)
+                     END
+    --  Updated = SysDate -- Don't update as otherwise it does not save changes
+    WHERE spr_budget_id=:old.spr_budget_id;
+
+
+    IF(:OLD.spr_budgetentry_id IS NOT NULL)THEN
+     UPDATE spr_budgetentry
+       SET linenetamt = linenetamt - v_oldLine + v_newLineNetAmt
+      WHERE spr_budgetentry_id = :OLD.spr_budgetentry_id;
+    END IF;
+    
+  END IF;
+  
+
+ END IF;
+
+ 
+
+END SPR_BUDGETLINE_TRG
+]]></body>
+    </trigger>
+  </database>

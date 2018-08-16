@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_UPDATE_PS_AMOUNTS">
+    <function name="SCO_UPDATE_PS_AMOUNTS" type="NULL">
+      <parameter name="p_fin_payment_schedule_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_AD_Client_ID VARCHAR(32); 
+  v_AD_Org_ID VARCHAR(32);
+
+  v_Order_ID VARCHAR(32);
+  v_Invoice_ID VARCHAR(32);
+  v_Amount NUMBER;
+  v_paidamt NUMBER;
+  v_outstandingamt NUMBER;
+  v_paySched_duedate DATE;
+  v_invoiceTotalPaid NUMBER;
+  v_invoiceOutstandingAmt NUMBER;
+  v_invoiceDueAmt NUMBER;
+  v_invoiceFinalSettlementDate  DATE;
+  v_invoiceDate DATE;
+  v_firstduedate DATE;
+  v_daystilldue NUMBER;
+  v_Count NUMBER;
+
+  BEGIN
+
+  SELECT ad_client_id, ad_org_id, c_order_id, c_invoice_id, paidamt, outstandingamt, duedate
+    INTO v_AD_Client_ID, v_AD_Org_ID, v_Order_ID, v_Invoice_ID, v_paidamt, v_outstandingamt, v_paySched_duedate
+  FROM fin_payment_schedule WHERE fin_payment_schedule_id = p_fin_payment_schedule_id FOR UPDATE;
+
+  IF(v_Order_ID IS NULL AND v_Invoice_ID IS NULL) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SCO_UpdatePSError@');
+  END IF;
+
+  IF(v_Invoice_ID IS NOT NULL) THEN
+    SELECT totalpaid, outstandingamt, dueamt, dateInvoiced
+      INTO v_invoiceTotalPaid, v_invoiceOutstandingAmt, v_invoiceDueAmt, v_invoiceDate
+      FROM C_Invoice 
+    WHERE C_Invoice_ID = v_Invoice_ID FOR UPDATE;
+  END IF;
+
+
+  IF(v_outstandingamt - p_amount < 0) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SCO_UpdatePSError@');
+  END IF;
+
+  UPDATE FIN_Payment_Schedule 
+    SET paidamt = paidamt + p_amount,
+        outstandingamt = outstandingamt - p_amount
+  WHERE FIN_Payment_Schedule_ID= p_fin_payment_schedule_id;
+
+  --Update Inv Payment Monitor
+  IF(v_Invoice_ID IS NOT NULL) THEN
+    IF(v_paySched_duedate <= now()) THEN
+      v_invoiceDueAmt := v_invoiceDueAmt - p_Amount;
+    END IF;
+
+    v_invoiceTotalPaid := v_invoiceTotalPaid + p_Amount;
+    v_invoiceOutstandingAmt := v_invoiceOutstandingAmt - p_Amount;
+    UPDATE C_Invoice 
+      SET totalpaid = v_invoiceTotalPaid,
+          lastcalculatedondate = now(),
+          outstandingamt = v_invoiceOutstandingAmt,
+          dueamt = v_invoiceDueAmt
+    WHERE C_Invoice_ID = v_Invoice_ID;
+
+    IF(v_invoiceOutstandingAmt = 0) THEN
+	SELECT lastPayment
+          INTO v_invoiceFinalSettlementDate
+          FROM fin_payment_sched_inv_v
+        WHERE C_Invoice_ID = v_Invoice_ID;
+
+
+	IF(v_invoiceFinalSettlementDate IS NOT NULL) THEN
+	  UPDATE C_Invoice 
+            SET finalsettlement = v_invoiceFinalSettlementDate,
+		daysoutstanding =  v_invoiceDate::date - v_invoiceFinalSettlementDate::date,
+		ispaid = 'Y'
+	  WHERE C_Invoice_ID = v_Invoice_ID;
+	ELSE
+          UPDATE C_Invoice 
+            SET ispaid = 'Y'
+	  WHERE C_Invoice_ID = v_Invoice_ID;
+	END IF;
+    ELSE
+      UPDATE C_Invoice 
+        SET ispaid = 'N'
+      WHERE C_Invoice_ID = v_Invoice_ID;
+    END IF;
+
+    --Update daystilldue
+
+    SELECT min(duedate)
+      INTO v_firstduedate
+      FROM fin_payment_schedule
+    WHERE outstandingamt <> 0 AND
+          C_Invoice_ID = v_Invoice_ID;
+
+    IF(v_firstduedate IS NOT NULL) THEN
+      SELECT DATE_PART('day', v_firstduedate - now()) INTO v_daystilldue FROM DUAL;
+      UPDATE C_Invoice SET daystilldue = v_daystilldue + 1 WHERE C_Invoice_ID = v_Invoice_ID;
+    ELSE
+      UPDATE C_Invoice SET daystilldue = 0 WHERE C_Invoice_ID = v_Invoice_ID;
+    END IF;
+
+  END IF;
+
+  RETURN;
+END SCO_UPDATE_PS_AMOUNTS
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_COPY_PSD">
+    <function name="SCO_COPY_PSD" type="NULL">
+      <parameter name="p_fin_payment_scheduledetail_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_doubtfuldebt_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="pout_fin_payment_scheduledetail_id" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_AD_Client_ID VARCHAR(32); 
+  v_NextNo VARCHAR(32);
+
+  v_Count NUMBER;
+
+  BEGIN
+    SELECT AD_Client_ID INTO v_AD_Client_ID FROM FIN_Payment_Scheduledetail WHERE FIN_Payment_Scheduledetail_ID = p_fin_payment_scheduledetail_id;
+    Ad_Sequence_Next('FIN_Payment_Scheduledetail', v_AD_Client_ID, v_NextNo);
+
+    INSERT INTO fin_payment_scheduledetail(
+            fin_payment_scheduledetail_id, ad_client_id, ad_org_id, created, 
+            createdby, updated, updatedby, fin_payment_detail_id, fin_payment_schedule_order, 
+            fin_payment_schedule_invoice, amount, isactive, writeoffamt, 
+            iscanceled, c_bpartner_id, c_activity_id, m_product_id, c_campaign_id, 
+            c_project_id, c_salesregion_id, c_costcenter_id, user1_id, user2_id, 
+            doubtfuldebt_amount, isinvoicepaid, em_sco_isrendcuentapayment, 
+            em_sco_externalpayment, em_sco_iswithholdingpayment, em_sco_isboepayment)
+      (SELECT 
+	    v_NextNo, ad_client_id, ad_org_id, now(), 
+       	    p_user, now(), p_user, null, fin_payment_schedule_order, 
+            fin_payment_schedule_invoice, p_amount, isactive, writeoffamt, 
+            iscanceled, c_bpartner_id, c_activity_id, m_product_id, c_campaign_id, 
+            c_project_id, c_salesregion_id, c_costcenter_id, user1_id, user2_id, 
+            p_doubtfuldebt_amount, 'N', 'N', 
+            'N', 'N', 'N'
+       FROM fin_payment_scheduledetail WHERE fin_payment_scheduledetail_id = p_fin_payment_scheduledetail_id);
+
+    pout_FIN_payment_scheduledetail_ID := v_NextNo;
+END SCO_COPY_PSD
+]]></body>
+    </function>
+  </database>

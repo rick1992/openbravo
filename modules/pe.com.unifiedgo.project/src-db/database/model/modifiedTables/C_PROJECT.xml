@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE C_PROJECT">
+    <table name="C_PROJECT" primaryKey="C_PROJECT_KEY">
+      <column name="EM_SPR_ADJUSTED_PLANNEDAMT" primaryKey="false" required="true" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_OPERATIVE_EXPENSESAMT" primaryKey="false" required="true" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_COSTCENTER_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_EXEC_PLANNEDAMT" primaryKey="false" required="true" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_CHANGEPSTATUS_ID" primaryKey="false" required="false" type="VARCHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_CBOITEM_CONTRACTTYPE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_CBOITEM_BUILDINGTYPE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_PROJECT_GETEXPENSES" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SPR_LASTGETEXPENSESDATE" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SPR_PROJECT_CBOITEM_BT_FK">
+        <reference local="EM_SPR_CBOITEM_BUILDINGTYPE_ID" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SPR_PROJECT_CBOITEM_CT_FK">
+        <reference local="EM_SPR_CBOITEM_CONTRACTTYPE_ID" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <unique name="EM_SPR_PROJECTWAREHOUSE_UNIQ">
+        <unique-column name="M_WAREHOUSE_ID"/>
+        <unique-column name="AD_CLIENT_ID"/>
+        <unique-column name="AD_ORG_ID"/>
+      </unique>
+    </table>
+  </database>

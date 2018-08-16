@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_BP_CREDITLINE_TRG">
+    <trigger name="SCR_BP_CREDITLINE_TRG" table="C_BPARTNER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+  
+  IF(INSERTING) THEN
+    IF(:NEW.SO_CreditLimit>0) THEN
+      :NEW.EM_Scr_Hascredit:='Y';
+    ELSE 
+      :NEW.EM_Scr_Hascredit:='N';
+    END IF;
+    
+  ELSIF(UPDATING) THEN  
+    IF(COALESCE(:OLD.SO_CreditLimit,'0')<>COALESCE(:NEW.SO_CreditLimit,'0')) THEN
+       IF(:NEW.SO_CreditLimit>0) THEN
+          :NEW.EM_Scr_Hascredit:='Y';
+       ELSE 
+	  :NEW.EM_Scr_Hascredit:='N';
+       END IF;      
+    END IF;
+  END IF;
+
+  END SCR_BP_CREDITLINE_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportDiffInvoiceGSData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectDiff" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT *, abs(qtyinvoiced-qtydelivered) diff FROM 
+        (SELECT 
+        p.value,p.description,o.documentno orderno,ol.qtyordered, i.em_scr_physical_documentno invoiceno,
+        (CASE WHEN i.c_invoice_id is null then 0 else il.qtyinvoiced end )as qtyinvoiced,  
+        m.em_scr_physical_documentno deliverno,o.AD_CLIENT_ID,o.AD_ORG_ID,
+        (CASE WHEN m.m_inout_id is null then 0 else ml.movementqty end ) as qtydelivered, o.dateordered fecha,b.name cliente
+        FROM c_orderline ol  
+        LEFT JOIN c_order o on ol.c_order_id=o.c_order_id
+        LEFT JOIN m_inoutline ml on ml.c_orderline_id=ol.c_orderline_id
+        LEFT JOIN m_inout m on m.m_inout_id=ml.m_inout_id AND m.docstatus in ('CO')
+        LEFT JOIN c_invoiceline il on il.c_orderline_id=ol.c_orderline_id AND il.financial_invoice_line<>'Y'
+        LEFT JOIN c_invoice i on i.c_invoice_id=il.c_invoice_id AND i.docstatus in ('CO')
+        LEFT JOIN m_product p on p.m_product_id=ol.m_product_id
+        LEFT JOIN c_bpartner b on b.c_bpartner_id=o.c_bpartner_id
+        WHERE 
+        o.docstatus in ('CO')
+        AND o.issotrx='Y'
+        union all 
+        SELECT 
+        p.value,p.description,null as orderno,null as qtyordered,
+        i.em_scr_physical_documentno invoiceno,il.qtyinvoiced,
+        m.em_scr_physical_documentno deliverno,i.AD_CLIENT_ID,i.AD_ORG_ID,
+        (CASE WHEN m.m_inout_id is null then 0 else ml.movementqty end ) as qtydelivered,i.em_sco_newdateinvoiced fecha,b.name cliente
+        FROM c_invoiceline il 
+        LEFT JOIN c_invoice i on i.c_invoice_id=il.c_invoice_id 
+        LEFT JOIN m_inoutline ml on ml.m_inoutline_id=il.m_inoutline_id
+        LEFT JOIN m_inout m on m.m_inout_id=ml.m_inout_id AND m.docstatus in ('CO')
+        LEFT JOIN m_product p on p.m_product_id=il.m_product_id
+        LEFT JOIN c_bpartner b on b.c_bpartner_id=i.c_bpartner_id
+        WHERE 
+        i.docstatus in ('CO')
+        AND i.issotrx='Y'
+        AND il.financial_invoice_line<>'Y'
+        AND il.c_orderline_id is null
+        union all
+        SELECT
+        p.value,p.description,null as orderno,null as qtyordered,
+        i.em_scr_physical_documentno invoiceno,
+        (CASE WHEN i.c_invoice_id is null then 0 else il.qtyinvoiced end )as qtyinvoiced,
+        m.em_scr_physical_documentno deliverno,m.AD_CLIENT_ID,m.AD_ORG_ID,
+        ml.movementqty qtydelivered,m.movementdate fecha,b.name cliente
+        FROM m_inoutline ml
+        LEFT JOIN m_inout m on m.m_inout_id=ml.m_inout_id 
+        LEFT JOIN c_invoiceline il  on ml.m_inoutline_id=il.m_inoutline_id AND il.financial_invoice_line<>'Y'
+        LEFT JOIN c_invoice i on i.c_invoice_id=il.c_invoice_id AND i.docstatus in ('CO')
+        LEFT JOIN m_product p on p.m_product_id=ml.m_product_id
+        LEFT JOIN c_bpartner b on b.c_bpartner_id=m.c_bpartner_id
+        WHERE
+        m.docstatus in ('CO')
+        AND m.issotrx='Y'
+        AND ml.c_orderline_id is null) t    
+    WHERE
+        t.AD_CLIENT_ID IN ('1')
+        AND t.AD_ORG_ID IN('1')
+        AND 1=1
+    ORDER BY cliente,fecha
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="t.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND t.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND t.fecha >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND t.fecha < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>   
+    </SqlMethod>
+</SqlClass>

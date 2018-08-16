@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_PURCHASEORDER_DISAPPROVE">
+    <function name="SIM_PURCHASEORDER_DISAPPROVE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_reason VARCHAR2(300):= '';
+
+  Cur_Parameter RECORD;
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+
+BEGIN
+
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    IF (p_PInstance_ID IS NOT NULL)THEN
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        IF (Cur_Parameter.parametername = 'sim_reason_to_cancel') THEN
+            v_reason:=COALESCE(Cur_Parameter.p_string,'');
+        END IF;
+      END LOOP; -- Get Parameter
+    END IF;
+
+    
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+   /**
+    * Approve Sales Orders
+    * Sales Order Column: c_order.em_ssa_disc_evaluation_status
+    * c_order.em_ssa_disc_evaluation_status States:
+    *   - DR: Requirement Book
+    *   - CO: Requirement Completed
+    *   - CL: Requirement Closed
+    */
+
+    SELECT docstatus
+      INTO v_orderApprovedState
+    FROM sim_orderimport
+    WHERE sim_orderimport_id=v_Record_ID;
+    
+    IF (v_orderApprovedState LIKE 'VO') THEN
+        --v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        RETURN;
+    END IF; 
+
+    IF (v_orderApprovedState LIKE 'CL') THEN
+        --v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        RETURN;
+    END IF; 
+
+    UPDATE sim_orderimport 
+    SET docstatus='DR',
+        estado_intermedio='TE',
+        estado_aprobacion='NP',
+        evaluation_description = COALESCE(v_reason,'')
+    WHERE sim_orderimport_id=v_Record_ID;
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SIM_PURCHASEORDER_DISAPPROVE
+]]></body>
+    </function>
+  </database>

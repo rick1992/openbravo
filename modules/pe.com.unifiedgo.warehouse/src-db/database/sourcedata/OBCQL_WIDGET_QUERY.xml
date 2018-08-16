@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+<!--581E023918A84A1EB2D3D4C645D1EBE9--><OBCQL_WIDGET_QUERY>
+<!--581E023918A84A1EB2D3D4C645D1EBE9-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[581E023918A84A1EB2D3D4C645D1EBE9]]></OBCQL_WIDGET_QUERY_ID>
+<!--581E023918A84A1EB2D3D4C645D1EBE9-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--581E023918A84A1EB2D3D4C645D1EBE9-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--581E023918A84A1EB2D3D4C645D1EBE9-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--581E023918A84A1EB2D3D4C645D1EBE9-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[CB32FF931D524192A8BE1FAA1901CB32]]></OBKMO_WIDGET_CLASS_ID>
+<!--581E023918A84A1EB2D3D4C645D1EBE9-->  <HQL><![CDATA[select e.product.id as OrderId, 
+            e.organization.name as organizationName, 
+	    e.searchKey as value,
+	    e.commercialName as productName,
+            e.stockDisponible as stockonhand,
+            e.qtyavg as qtyavg
+from swa_product_stock_vs_avg e
+where e.client.id = :client
+ and e.organization.id in (:organizationList)
+ and e.organization.name like :organizationName
+ and @optional_filters@]]></HQL>
+<!--581E023918A84A1EB2D3D4C645D1EBE9-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--581E023918A84A1EB2D3D4C645D1EBE9--></OBCQL_WIDGET_QUERY>
+
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F--><OBCQL_WIDGET_QUERY>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[80C0F3E0EA2F41BAAEAF52FE02C87E4F]]></OBCQL_WIDGET_QUERY_ID>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[4AF55764FB9648C1869FC6DC1906F16B]]></OBKMO_WIDGET_CLASS_ID>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F-->  <HQL><![CDATA[select e.ordenDeTransferencia.id as repositionId, 
+            e.organization.name as organizationName, 
+            e.documentNo as documentNo, 
+            e.movementDate as movementDate, 
+            e.fromWarehouse.searchKey || ' - ' || e.fromWarehouse.name as fromWarehouseName, 
+            e.toWarehouse.searchKey || ' - ' || e.toWarehouse.name as toWarehouseName,  
+            e.cantEnDocSalida as qtyShipment, 
+            e.cantidadIngresada as qtyReceipt, 
+            e.qtydif as qtyPending
+from swa_repositionpendingrcpt e
+where e.client.id = :client
+ and e.organization.id in (:organizationList)
+ and e.organization.name like :organizationName
+ and @optional_filters@
+order by e.documentNo, e.movementDate]]></HQL>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--80C0F3E0EA2F41BAAEAF52FE02C87E4F--></OBCQL_WIDGET_QUERY>
+
+</data>

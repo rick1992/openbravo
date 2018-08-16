@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_MOVEMENTCODE_ACTION">
+    <function name="SWA_MOVEMENTCODE_ACTION" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_docaction VARCHAR2(60);
+  v_docstatus VARCHAR2(60);
+  v_Result NUMBER:=1; -- Success
+  v_fromrequerimiento_id VARCHAR2(32);
+  v_swa_requirement_request_id VARCHAR2(32);
+  is_requirement_trx char(1);
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  Cur_Parameter RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    FOR Cur_Parameter IN
+        (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+         FROM AD_PInstance i
+           LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+         WHERE i.AD_PInstance_ID=p_PInstance_ID
+         ORDER BY p.SeqNo) 
+      LOOP
+           IF (Cur_Parameter.ParameterName = 'docaction') THEN
+               v_docaction := Cur_Parameter.P_String;
+           END IF;
+	  v_Record_ID:=Cur_Parameter.Record_ID;
+          v_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+      DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+     FOR Cur_Parameter IN (
+       SELECT * FROM swa_movementcode where swa_movementcode_id = v_Record_ID FOR UPDATE
+     )
+     LOOP
+       IF(Cur_Parameter.processed = 'N')THEN
+	       v_docstatus:=Cur_Parameter.docstatus;
+	       IF(v_docstatus='DR' AND v_docaction='CO')THEN
+	       
+		 UPDATE swa_movementcode
+		    set docstatus='PD',
+			docaction='AP'
+		     WHERE swa_movementcode_id=Cur_Parameter.swa_movementcode_id;
+
+
+		  v_Message := '@swa_movementcodemustbeapproved@' || v_Message;       
+		  v_Result := 2;
+		  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+		  RETURN;
+	       ELSIF(v_docstatus='PD' AND v_docaction='AP')THEN
+	       
+		 UPDATE swa_movementcode
+		    set docstatus='CO',
+			docaction='RE'
+		     WHERE swa_movementcode_id=Cur_Parameter.swa_movementcode_id;
+		     
+	       ELSIF(v_docstatus='CO' AND v_docaction='RE')THEN
+	       
+		 UPDATE swa_movementcode
+		    set docstatus='DR',
+			docaction='CO'
+		     WHERE swa_movementcode_id=Cur_Parameter.swa_movementcode_id;
+
+	       ELSIF(v_docaction='VO')THEN
+		 
+		 UPDATE swa_movementcode
+		    set docstatus='VO',
+			docaction='--'
+		     WHERE swa_movementcode_id=Cur_Parameter.swa_movementcode_id;
+	       ELSE
+		 RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_invalidaction@');
+	       END IF;
+       ELSE
+       
+           RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_processed@');
+       END IF;
+       
+     END LOOP;
+     
+      
+      
+      
+
+   --  RAISE NO_DATA_FOUND;
+    
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_MOVEMENTCODE_ACTION
+]]></body>
+    </function>
+  </database>

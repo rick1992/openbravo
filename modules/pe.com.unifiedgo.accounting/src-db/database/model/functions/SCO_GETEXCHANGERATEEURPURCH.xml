@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_GETEXCHANGERATEEURPURCH">
+    <function name="SCO_GETEXCHANGERATEEURPURCH" type="NULL">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convratedate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convrate" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[BEGIN
+
+    SELECT conv.dividerate as convrate
+      INTO p_convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = p_ad_client_id
+      AND AD_ISORGINCLUDED(p_ad_org_id,conv.AD_Org_ID,p_ad_client_id) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '308'
+      AND conv.c_currency_id_to = '102'
+      AND TRUNC(conv.validfrom) <= TRUNC(p_convratedate)
+      AND TRUNC(conv.validto) >= TRUNC(p_convratedate);
+END SCO_GETEXCHANGERATEEURPURCH
+]]></body>
+    </function>
+  </database>

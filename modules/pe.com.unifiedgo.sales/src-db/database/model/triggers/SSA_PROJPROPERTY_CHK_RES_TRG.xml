@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PROJPROPERTY_CHK_RES_TRG">
+    <trigger name="SSA_PROJPROPERTY_CHK_RES_TRG" table="SSA_PROJECT_PROPERTY" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Project_ID VARCHAR(32);
+v_DocStatus VARCHAR(32);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF; 
+
+  IF INSERTING THEN
+    v_Project_ID := :NEW.c_project_id;
+  ELSE 
+    v_Project_ID := :OLD.c_project_id;
+  END IF;
+
+  SELECT projectStatus INTO v_DocStatus FROM c_project WHERE c_project_id=v_Project_ID;
+  IF DELETING THEN    
+    IF(v_DocStatus = 'SPR_FIN') THEN
+       RAISE_APPLICATION_ERROR(-20000, '@SPR_NotDeleteInProjectFinished@') ;
+    END IF;  
+
+    IF(:OLD.docstatus IN ('RESERVED','SOLD')) THEN
+       RAISE_APPLICATION_ERROR(-20000, '@SSA_PropertyIsNotFree@') ;
+    END IF;  
+
+    IF(EXISTS(SELECT 1 FROM SSA_ProjProp_Contract_Line WHERE SSA_Project_Property_ID=:OLD.SSA_Project_Property_ID)) THEN
+       RAISE_APPLICATION_ERROR(-20000, '@SSA_InmuebleInContractOrProspect@') ;
+    END IF;  
+  
+  END IF;
+
+
+END SSA_PROJPROPERTY_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

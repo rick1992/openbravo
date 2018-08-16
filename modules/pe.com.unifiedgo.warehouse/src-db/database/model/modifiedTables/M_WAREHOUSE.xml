@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE M_WAREHOUSE">
+    <table name="M_WAREHOUSE" primaryKey="M_WAREHOUSE_KEY">
+      <column name="EM_SWA_WAREHOUSETYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[NO]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SWA_PERCENTCONSIG_INSTOCK" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[100]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SWA_RECEIPT_LOCATOR_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SWA_ANNUL_LOCATOR_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SWA_C_BPARTNER_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SWA_ORGANIZATION_CHILD_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SWA_NOPICKING" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="M_LOCATOR" name="EM_SWA_ANNUL_LOCATOR_FK">
+        <reference local="EM_SWA_ANNUL_LOCATOR_ID" foreign="M_LOCATOR_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="EM_SWA_ORG_CHILF_FK">
+        <reference local="EM_SWA_ORGANIZATION_CHILD_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_BPARTNER" name="EM_SWA_PARTNER_FK">
+        <reference local="EM_SWA_C_BPARTNER_ID" foreign="C_BPARTNER_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="M_LOCATOR" name="EM_SWA_RECEIPT_LOCATOR_FK">
+        <reference local="EM_SWA_RECEIPT_LOCATOR_ID" foreign="M_LOCATOR_ID"/>
+      </foreign-key>
+    </table>
+  </database>

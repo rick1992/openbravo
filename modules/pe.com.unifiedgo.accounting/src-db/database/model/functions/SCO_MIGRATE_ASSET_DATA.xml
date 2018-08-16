@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_MIGRATE_ASSET_DATA">
+    <function name="SCO_MIGRATE_ASSET_DATA" type="NUMERIC">
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+  CUR_Mixrow RECORD;
+  CUR_Mixrow2 RECORD;
+  v_count NUMBER;
+  v_Aux NUMBER;
+ 
+  p_AD_Client_ID VARCHAR(32);
+  p_AD_Org_ID VARCHAR(32);
+ 
+  v_Asset_ID VARCHAR(32);
+  v_startdate DATE;
+
+  v_contractdate DATE;
+  v_leasingstartdate DATE;
+BEGIN
+
+  p_AD_Client_ID := 'AF645935B14444CA8AD4A94FE6B2AF68';
+  
+  p_AD_Org_ID := '3D64A6C76D214C31B43C58B8FF84CE50'; --COAM
+  --p_AD_Org_ID := 'A823605601994B658319133117D23344'; --CLUTE
+  --p_AD_Org_ID := 'EE5977E45470425B832C1E1D7AEBC1AF'; --LCE
+  --p_AD_Org_ID := 'BF292402F9764B409B71DAAE11B4F77D'; --GRGB
+
+
+  CREATE TEMPORARY TABLE mixrows
+  (
+     asset_value character varying(10) NOT NULL,
+     asset_startdate character varying(60) NOT NULL
+  ) on commit drop;
+  
+  --COPY mixrows FROM '/tmp/fechainicio_coam.txt';
+  --COPY mixrows FROM '/tmp/fechainicio_clute.txt';
+  --COPY mixrows FROM '/tmp/fechainicio_lce.txt';
+  --COPY mixrows FROM '/tmp/fechainicio_grgb.txt';
+
+  v_count := 0;
+  FOR CUR_Mixrow IN (SELECT * FROM mixrows)
+  LOOP
+    SELECT A_Asset_ID
+      INTO v_Asset_ID
+      FROM A_Asset
+    WHERE AD_Client_ID = p_AD_Client_ID
+    AND AD_ISORGINCLUDED(ad_org_id, p_AD_Org_ID,p_AD_Client_ID) <> -1
+    AND value = CUR_Mixrow.asset_value LIMIT 1;
+
+    IF(v_Asset_ID IS NOT NULL) THEN
+      IF(CUR_Mixrow.asset_startdate IS NULL OR CUR_Mixrow.asset_startdate='' OR CUR_Mixrow.asset_startdate='NULL') THEN
+        DBMS_OUTPUT.PUT_LINE( 'Asset:' || CUR_Mixrow.asset_value || ' null startdate');
+        CONTINUE;
+      END IF;
+
+      SELECT to_timestamp(CUR_Mixrow.asset_startdate, 'MM/DD/YYYY') INTO v_startdate;
+      IF(v_startdate IS NULL) THEN
+        DBMS_OUTPUT.PUT_LINE( 'Asset:' || CUR_Mixrow.asset_value || ' wrong startdate');
+        CONTINUE;
+      END IF;
+
+      UPDATE A_Asset
+        SET em_sco_ismigrated = 'Y',
+        em_sco_migr_amortstartdate = v_startdate
+      WHERE A_Asset_ID = v_Asset_ID;
+      DBMS_OUTPUT.PUT_LINE( 'Asset:' || CUR_Mixrow.asset_value || ' updated');
+    ELSE
+      DBMS_OUTPUT.PUT_LINE( 'Asset:' || CUR_Mixrow.asset_value || ' not found');
+    END IF;
+
+  END LOOP;
+
+
+  CREATE TEMPORARY TABLE mixrows2
+  (
+     asset_value character varying(10) NOT NULL,
+     contractnumber character varying(40),
+     contractdate character varying(60) NOT NULL,
+     leasingstartdate character varying(60) NOT NULL,
+     numberoffees NUMBER,
+     leasingamount numeric
+  ) on commit drop;
+
+  COPY mixrows2 FROM '/tmp/arrendamiento_coam.txt';
+
+  FOR CUR_Mixrow IN (SELECT * FROM mixrows2)
+  LOOP
+    SELECT A_Asset_ID
+      INTO v_Asset_ID
+      FROM A_Asset
+    WHERE AD_Client_ID = p_AD_Client_ID
+    AND AD_ISORGINCLUDED(ad_org_id, p_AD_Org_ID,p_AD_Client_ID) <> -1
+    AND value = CUR_Mixrow.asset_value LIMIT 1;
+
+    IF(v_Asset_ID IS NOT NULL) THEN
+
+      SELECT to_timestamp(CUR_Mixrow.contractdate, 'MM/DD/YYYY') INTO v_contractdate;
+      SELECT to_timestamp(CUR_Mixrow.leasingstartdate, 'MM/DD/YYYY') INTO v_leasingstartdate;
+      IF(v_contractdate IS NULL OR v_leasingstartdate IS NULL) THEN
+        DBMS_OUTPUT.PUT_LINE( 'Asset:' || CUR_Mixrow.asset_value || ' wrong contratdate of leasingstartdate');
+        CONTINUE;
+      END IF;
+
+      UPDATE A_Asset
+        SET em_sco_isleasing = 'Y',
+        em_sco_contractnumber = CUR_Mixrow.contractnumber,
+        em_sco_contractdate = v_contractdate,
+        em_sco_leasingstartdate = v_leasingstartdate,
+        em_sco_numberoffees = CUR_Mixrow.numberoffees,
+        em_sco_leasingamount = CUR_Mixrow.leasingamount
+      WHERE A_Asset_ID = v_Asset_ID;
+      DBMS_OUTPUT.PUT_LINE( 'Asset:' || CUR_Mixrow.asset_value || ' updated');
+    ELSE
+      DBMS_OUTPUT.PUT_LINE( 'Asset:' || CUR_Mixrow.asset_value || ' not found');
+    END IF;
+
+  END LOOP;
+
+  RETURN v_count;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN NULL;
+END SCO_MIGRATE_ASSET_DATA
+]]></body>
+    </function>
+  </database>

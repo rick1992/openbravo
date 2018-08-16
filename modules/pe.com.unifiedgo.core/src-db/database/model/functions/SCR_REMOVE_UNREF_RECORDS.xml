@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_REMOVE_UNREF_RECORDS">
+    <function name="SCR_REMOVE_UNREF_RECORDS" type="NULL">
+      <parameter name="p_tablename" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_pk_columnname" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[CUR_RefTable RECORD;
+  v_queryunion VARCHAR(10000);
+  v_deletequery VARCHAR(11000);
+BEGIN
+
+  p_tablename := lower(p_tablename);
+  p_pk_columnname := lower(p_pk_columnname);
+  v_queryunion := '';
+  FOR CUR_RefTable IN (
+    SELECT tc.table_schema, tc.constraint_name, tc.table_name, kcu.column_name, ccu.table_name
+    AS foreign_table_name, ccu.column_name AS foreign_column_name
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+    JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
+    WHERE constraint_type = 'FOREIGN KEY'
+    AND lower(ccu.table_name)=p_tablename
+    AND lower(ccu.column_name)=p_pk_columnname)
+  LOOP
+    v_queryunion := v_queryunion || ' (SELECT DISTINCT ON (' || CUR_RefTable.column_name || ') ' || CUR_RefTable.column_name || ' AS c_location_id FROM ' || CUR_RefTable.table_name || ' WHERE ' || CUR_RefTable.column_name || ' IS NOT NULL) UNION';
+  END LOOP;
+
+  IF(character_length(v_queryunion)>0) THEN
+    v_queryunion := '(' || v_queryunion || ' (SELECT NULL FROM DUAL WHERE 1 = 2))';
+  ELSE
+    RETURN;
+  END IF;
+
+  v_deletequery := 'DELETE FROM ' || p_tablename || ' WHERE '|| p_pk_columnname || ' NOT IN ' || v_queryunion; 
+  --RAISE NOTICE '%', v_deletequery;
+  EXECUTE IMMEDIATE v_deletequery;
+
+  RETURN;
+END SCR_REMOVE_UNREF_RECORDS
+]]></body>
+    </function>
+  </database>

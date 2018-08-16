@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_CURRENCY_PEN_CONVERT">
+    <function name="SSA_CURRENCY_PEN_CONVERT" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curfrom_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_PENCurrency_ID VARCHAR(32);
+  v_result NUMBER;
+BEGIN
+  SELECT C_Currency_ID INTO v_PENCurrency_ID 
+    FROM C_Currency 
+   WHERE ISO_Code='PEN' LIMIT 1;
+ 
+  SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(p_amount, p_curfrom_id, v_PENCurrency_ID, p_convdate, NULL,p_client_id, p_org_id), v_PENCurrency_ID, NULL)), 0) INTO v_result;
+  RETURN v_result;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SSA_CURRENCY_PEN_CONVERT
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_MOVEMENTLINE_LOCATOR_TRG">
+    <trigger name="SWA_MOVEMENTLINE_LOCATOR_TRG" table="M_MOVEMENTLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+  v_ID VARCHAR2(32);
+  V_WAREHOUSEMOVE VARCHAR2(32);
+  V_WAREHOUSE_FROMLOCA VARCHAR2(32);
+  V_WAREHOUSE_TOLOCA VARCHAR2(32);
+  
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  -- Get ID
+  IF(UPDATING OR INSERTING) THEN
+    v_ID:=:new.M_Movement_ID;
+
+    SELECT em_swa_m_warehouse_id INTO V_WAREHOUSEMOVE FROM M_MOVEMENT WHERE M_MOVEMENT_ID = v_ID;
+    SELECT M_WAREHOUSE_ID INTO V_WAREHOUSE_FROMLOCA  FROM M_LOCATOR WHERE M_LOCATOR_ID = :NEW.M_LOCATOR_ID;
+    SELECT M_WAREHOUSE_ID INTO V_WAREHOUSE_TOLOCA  FROM M_LOCATOR WHERE M_LOCATOR_ID = :NEW.M_LOCATORTO_ID;
+
+    IF(COALESCE(V_WAREHOUSEMOVE,'-') <> COALESCE(V_WAREHOUSE_FROMLOCA,'-'))THEN
+      RAISE_APPLICATION_ERROR(-20000, '@swa_movline_invalidlocatorfrom@' || ' @Inline@ ' ||COALESCE( :NEW.line, '0'));
+    END IF;
+
+    IF(COALESCE(V_WAREHOUSEMOVE,'-') <> COALESCE(V_WAREHOUSE_TOLOCA,'-'))THEN
+        RAISE_APPLICATION_ERROR(-20000, '@swa_movline_invalidlocatorto@' || ' @Inline@ ' ||COALESCE( :NEW.line, '0'));
+    END IF;
+  
+  END IF;
+  
+ 
+
+END SWA_MOVEMENTLINE_LOCATOR_TRG
+]]></body>
+    </trigger>
+  </database>

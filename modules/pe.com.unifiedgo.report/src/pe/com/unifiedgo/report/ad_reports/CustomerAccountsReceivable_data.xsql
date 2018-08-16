@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="CustomerAccountsReceivableData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectWithholding" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT 
+      '' as c_bpartner_id,'' as ad_org_id , '' as cliente,
+      
+      
+      r.dategen fecharet,ci.code bptd, bp.taxid bpdocid,bp.name bpname,rl.amount+fpd.paidamt amtbruto,rl.amount retencion,fpd.paidamt amtneto,r.docstatus,0 idGroup
+        FROM sco_pwithholding_receipt r
+        LEFT JOIN sco_pwithho_rec_line rl ON r.sco_pwithholding_receipt_id=rl.sco_pwithholding_receipt_id
+        LEFT JOIN c_bpartner bp ON rl.c_bpartner_id=bp.c_bpartner_id
+        LEFT JOIN fin_payment_detail_v fpd ON rl.fin_payment_scheduleref_id=fpd.fin_payment_sched_inv_id
+        LEFT JOIN scr_combo_item ci ON ci.scr_combo_item_id=bp.em_scr_combo_item_id
+        WHERE
+        r.docstatus IN ('CO', 'VO')
+        AND r.AD_CLIENT_ID IN ('1')
+        AND r.AD_ORG_ID IN('1')
+        AND 1=1        
+        ORDER BY bp.name,r.dategen
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND r.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND r.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND r.dategen >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND r.dategen < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="orgFamily" type="replace" optional="true" after="AND r.AD_ORG_ID IN(" text="'2'"/-->
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  
+  
+  
+    <SqlMethod name="selectClientesActivos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    	
+    	select distinct c_bpartner_id, ad_org_id  , (select coalesce(cb.taxid,'') || ' - ' || cb.name from c_bpartner cb where cb.c_bpartner_id=b.c_bpartner_id) as cliente from (
+		select distinct c_bpartner_id, ad_org_id from c_invoice where outstandingamt<>0 and docstatus='CO' and issotrx='Y'
+		
+		union all
+		select distinct c_bpartner_id, o.ad_org_id from c_order o inner join c_doctype dt ON o.c_doctype_id=dt.c_doctype_id
+		  where o.issotrx='Y' and docstatus='CO' and dt.em_sco_specialdoctype IN ('SSASTANDARDORDER','SSAPOSORDER','SSAWAREHOUSEORDER')
+		  and (select sum(qtyinvoiced) from c_orderline ol where ol.c_order_id=o.c_order_id)=0
+		union all
+		
+		select distinct a.c_bpartner_id, ad_org_id from (
+		select sum(pd.amount) as amt, inv.c_bpartner_id, inv.ad_org_id from fin_payment_detail pd INNER JOIN fin_payment_scheduledetail psd ON pd.fin_payment_detail_id=psd.fin_payment_detail_id
+		INNER JOIN c_invoice inv ON inv.c_invoice_id=psd.em_sco_invoice_glref_id
+		group by inv.c_bpartner_id, inv.ad_org_id) as a where a.amt<>0
+		
+		) as b
+    	
+        where 
+         b.ad_org_id in ('1')
+        AND 1=1        
+		order by 2,3
+			
+	      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="b.ad_org_id in (" text="'1'"/>
+
+  </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

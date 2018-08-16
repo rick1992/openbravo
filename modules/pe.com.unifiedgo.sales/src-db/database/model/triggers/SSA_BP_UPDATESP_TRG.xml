@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_BP_UPDATESP_TRG">
+    <trigger name="SSA_BP_UPDATESP_TRG" table="C_BPARTNER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_specialbptype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      v_specialbptype := '';
+
+      IF(:NEW.iscustomer = 'Y') THEN
+        IF(v_specialbptype <> '') THEN
+          v_specialbptype := v_specialbptype || '_';
+        END IF;
+        v_specialbptype := v_specialbptype || 'CUS';
+      END IF;
+
+      IF(:NEW.isvendor = 'Y') THEN
+        IF(v_specialbptype <> '') THEN
+          v_specialbptype := v_specialbptype || '_';
+        END IF;
+        v_specialbptype := v_specialbptype || 'VEN';
+      END IF;
+
+      IF(:NEW.isemployee = 'Y') THEN
+        IF(v_specialbptype <> '') THEN
+          v_specialbptype := v_specialbptype || '_';
+        END IF;
+        v_specialbptype := v_specialbptype || 'EMP';
+      END IF;
+
+      IF(:NEW.em_sco_isaval = 'Y') THEN
+        IF(v_specialbptype <> '') THEN
+          v_specialbptype := v_specialbptype || '_';
+        END IF;
+        v_specialbptype := v_specialbptype || 'AVA';
+      END IF;
+
+      :NEW.em_ssa_specialbptype := v_specialbptype;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.iscustomer, '') <> COALESCE(:NEW.iscustomer,'')
+         OR COALESCE(:OLD.isvendor, '') <> COALESCE(:NEW.isvendor,'')
+         OR COALESCE(:OLD.isemployee, '') <> COALESCE(:NEW.isemployee,'')
+         OR COALESCE(:OLD.em_sco_isaval, '') <> COALESCE(:NEW.em_sco_isaval,'')
+        ) THEN
+      
+        v_specialbptype := '';
+
+        IF(:NEW.iscustomer = 'Y') THEN
+          IF(v_specialbptype <> '') THEN
+            v_specialbptype := v_specialbptype || '_';
+          END IF;
+          v_specialbptype := v_specialbptype || 'CUS';
+        END IF;
+
+        IF(:NEW.isvendor = 'Y') THEN
+          IF(v_specialbptype <> '') THEN
+            v_specialbptype := v_specialbptype || '_';
+          END IF;
+          v_specialbptype := v_specialbptype || 'VEN';
+        END IF;
+
+        IF(:NEW.isemployee = 'Y') THEN
+          IF(v_specialbptype <> '') THEN
+            v_specialbptype := v_specialbptype || '_';
+          END IF;
+          v_specialbptype := v_specialbptype || 'EMP';
+        END IF;
+
+        IF(:NEW.em_sco_isaval = 'Y') THEN
+          IF(v_specialbptype <> '') THEN
+            v_specialbptype := v_specialbptype || '_';
+          END IF;
+          v_specialbptype := v_specialbptype || 'AVA';
+        END IF;
+
+        :NEW.em_ssa_specialbptype := v_specialbptype;
+        UPDATE C_Bpartner_Location SET em_ssa_specialbptype = v_specialbptype WHERE C_Bpartner_ID = :NEW.C_Bpartner_ID;
+      END IF;
+    END IF;
+
+    END SSA_BP_UPDATESP_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SCO_OTHER_PAYMENT_HISTORY_V">
+    <view name="SCO_OTHER_PAYMENT_HISTORY_V"><![CDATA[SELECT pd.fin_payment_detail_id AS sco_other_payment_history_v_id, pd.ad_client_id, pd.ad_org_id, pd.created, pd.createdby, pd.updated, pd.updatedby, pd.isactive, pd.em_sco_payoutprepayment, pd.amount + pd.writeoffamt AS amount, p.paymentdate, pd.em_sco_payoutrendcuentas FROM fin_payment_detail pd JOIN fin_payment p ON pd.fin_payment_id = p.fin_payment_id WHERE (p.status NOT IN ('RPAP', 'RPAE')) AND (pd.em_sco_payoutprepayment IS NOT NULL OR pd.em_sco_payoutrendcuentas IS NOT NULL)]]></view>
+  </database>

@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_COPY_ASSETACCT_FROMGROUP">
+    <function name="SCO_COPY_ASSETACCT_FROMGROUP" type="NULL">
+      <body><![CDATA[Cur_Asset_Group RECORD;
+Cur_Asset_Group_Acct RECORD;
+Cur_Asset RECORD;
+
+v_AD_Client_ID VARCHAR(32);
+
+BEGIN
+
+  v_AD_Client_ID := 'AF645935B14444CA8AD4A94FE6B2AF68';
+
+  FOR Cur_Asset_Group IN ( SELECT * FROM A_Asset_Group WHERE AD_Client_ID = v_AD_Client_ID) 
+  LOOP
+    
+    FOR Cur_Asset_Group_Acct IN ( SELECT * FROM A_Asset_Group_Acct WHERE AD_Client_ID = v_AD_Client_ID AND A_Asset_Group_ID = Cur_Asset_Group.A_Asset_Group_ID) 
+    LOOP
+      FOR Cur_Asset IN ( SELECT * FROM A_Asset WHERE AD_Client_ID = v_AD_Client_ID AND A_Asset_Group_ID = Cur_Asset_Group.A_Asset_Group_ID) 
+      LOOP
+        UPDATE A_Asset_Acct
+        SET a_depreciation_acct = Cur_Asset_Group_Acct.a_depreciation_acct,
+            a_accumdepreciation_acct = Cur_Asset_Group_Acct.a_accumdepreciation_acct
+        WHERE A_Asset_ID = Cur_Asset.A_Asset_ID
+        AND c_acctschema_id = Cur_Asset_Group_Acct.c_acctschema_id;
+      END LOOP;
+    END LOOP; 
+
+  END LOOP; 
+
+  RETURN;
+END SCO_COPY_ASSETACCT_FROMGROUP
+]]></body>
+    </function>
+  </database>

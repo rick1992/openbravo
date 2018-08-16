@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="DetalleProductosVendidosJRData" package="pe.com.unifiedgo.report.ad_reports" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT '' as ad_org_id, '' as salesrepname, '' as bptaxid, '' as bpname, 
+             '' as detail_saletype, '' as phydocno, '' as dateacct, '' as tc,
+             '' as productsk, '' as productname, '' as quantity, '' as pricelist, '' as priceunit, '' as discount, '' as linenetamt,
+             '' as currencycode            
+      FROM DUAL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSalesDetail" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+select org.ad_org_id,
+       coalesce(u.name,'--') as salesrepname, 
+       clnt.taxid as bptaxid, 
+       clnt.name as bpname,
+       dttrl.name as detail_saletype,
+       i.em_scr_physical_documentno as phydocno,
+       i.dateacct as dateacct, 
+       (case when i.em_sco_convrate=1 or i.em_sco_convrate is NULL then
+       (SELECT conv.dividerate FROM c_conversion_rate conv WHERE conv.AD_Client_ID = i.ad_client_id AND conv.conversionratetype = 'S' AND conv.c_currency_id = '308' AND conv.c_currency_id_to = '100' AND TRUNC(sco_datefortc(i.c_invoice_id)) BETWEEN TRUNC(conv.validfrom) AND TRUNC(conv.validto))
+       else i.em_sco_convrate end) as tc,
+       p.value as productsk, p.name as productname,
+       il.qtyinvoiced as quantity,
+       il.pricelist as pricelist,
+       il.priceactual as priceunit,
+       (case when abs(pricelist) = 0 then 0 else round(100*(1-priceactual/pricelist),2) end) as discount,
+       il.LineNetAmt as linenetamt,
+       curr.iso_code as currencycode    
+  from c_invoice i 
+       inner join c_invoiceline il on i.c_invoice_id=il.c_invoice_id
+       inner join c_bpartner clnt on i.c_bpartner_id=clnt.c_bpartner_id     
+       inner join ad_org org on i.ad_org_id=org.ad_org_id  
+       inner join c_currency curr on i.c_currency_id=curr.c_currency_id
+       inner join c_doctype_trl dttrl on i.c_doctypetarget_id=dttrl.c_doctype_id
+       inner join m_product p on il.m_product_id=p.m_product_id
+       left join ad_user u on i.salesrep_id=u.ad_user_id
+ where i.ad_client_id IN ('1')
+   and i.ad_org_id IN ('1')
+   and i.issotrx='Y'                
+   and i.docstatus='CO'
+   and il.financial_invoice_line='N'      
+   and 1=1 
+   and i.em_sco_specialdoctype in ('SCOARINVOICE','SCOARTICKET','SCOARINVOICERETURNMAT')              
+   and AD_ISORGINCLUDED(i.ad_org_id, ? ,i.ad_client_id) <> -1
+ order by i.em_scr_physical_documentno  
+      ]]>
+    </Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="i.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and i.ad_org_id IN (" text="'1'"/>        
+    <Parameter name="dateFrom" optional="true" after="and 1=1"><![CDATA[ and trunc(i.dateacct) >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="1=1"><![CDATA[ and trunc(i.dateacct) <= TO_DATE(?)]]></Parameter>
+        <Parameter name="clienteId" optional="true" after="1=1"><![CDATA[ and clnt.c_bpartner_id = ? ]]></Parameter>
+        <Parameter name="vendodorId" optional="true" after="1=1"><![CDATA[ and u.ad_user_id=(?)]]></Parameter>
+    
+    <Parameter name="adOrgId" />
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>  
+  
+  
+       <SqlMethod name="selectRUC" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TAXID
+        FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+    <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  
+</SqlClass>
+

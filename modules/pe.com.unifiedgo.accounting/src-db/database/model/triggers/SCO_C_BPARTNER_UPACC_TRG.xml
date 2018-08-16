@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_C_BPARTNER_UPACC_TRG">
+    <trigger name="SCO_C_BPARTNER_UPACC_TRG" table="C_BPARTNER" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+   TYPE RECORD IS REF CURSOR;
+   Cur_Vendor_Acct RECORD;
+   Cur_Customer_Acct RECORD;
+ 
+   Cur_New_Bp_Group_Acct RECORD;
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(COALESCE(:OLD.c_bp_group_id,'.')<>COALESCE(:NEW.c_bp_group_id,'.')) THEN
+    --Change Accts
+    --Vendor Accts:
+    FOR Cur_Vendor_Acct IN (SELECT * FROM C_Bp_Vendor_Acct WHERE C_Bpartner_ID = :NEW.C_Bpartner_ID)
+    LOOP
+      SELECT * 
+        INTO Cur_New_Bp_Group_Acct 
+        FROM C_Bp_Group_Acct 
+      WHERE c_acctschema_id = Cur_Vendor_Acct.c_acctschema_id AND
+            c_bp_group_id = :NEW.c_bp_group_id;
+
+      UPDATE C_Bp_Vendor_Acct SET
+        v_liability_acct = Cur_New_Bp_Group_Acct.v_liability_acct,
+        v_liability_services_acct = Cur_New_Bp_Group_Acct.v_liability_services_acct,
+        v_prepayment_acct = Cur_New_Bp_Group_Acct.v_prepayment_acct,
+        em_sco_poletra_acct = Cur_New_Bp_Group_Acct.em_sco_poletra_acct,
+        em_sco_poloan_acct  = Cur_New_Bp_Group_Acct.em_sco_poloan_acct
+      WHERE C_Bp_Vendor_Acct_ID = Cur_Vendor_Acct.C_Bp_Vendor_Acct_ID;
+
+    END LOOP;
+
+    --Customer Accts:
+    FOR Cur_Customer_Acct IN (SELECT * FROM C_Bp_Customer_Acct WHERE C_Bpartner_ID = :NEW.C_Bpartner_ID)
+    LOOP
+      SELECT * 
+        INTO Cur_New_Bp_Group_Acct 
+        FROM C_Bp_Group_Acct 
+      WHERE c_acctschema_id = Cur_Customer_Acct.c_acctschema_id AND
+            c_bp_group_id = :NEW.c_bp_group_id;
+
+      UPDATE C_Bp_Customer_Acct SET
+        c_receivable_acct = Cur_New_Bp_Group_Acct.c_receivable_acct,
+        c_prepayment_acct = Cur_New_Bp_Group_Acct.c_prepayment_acct,
+        em_sco_notacargo_acct = Cur_New_Bp_Group_Acct.em_sco_notacargo_acct,
+        em_sco_letra_acct = Cur_New_Bp_Group_Acct.em_sco_letra_acct,
+        em_sco_letradesc_acct = Cur_New_Bp_Group_Acct.em_sco_letradesc_acct,
+        em_sco_letracol_acct = Cur_New_Bp_Group_Acct.em_sco_letracol_acct,
+        em_sco_puenteletra_acct = Cur_New_Bp_Group_Acct.em_sco_puenteletra_acct,
+        em_sco_puentefactinv_acct = Cur_New_Bp_Group_Acct.em_sco_puentefactinv_acct,
+        em_sco_factinv_acct = Cur_New_Bp_Group_Acct.em_sco_factinv_acct,
+        em_sco_colfactinv_acct = Cur_New_Bp_Group_Acct.em_sco_colfactinv_acct
+      WHERE C_Bp_Customer_Acct_ID = Cur_Customer_Acct.C_Bp_Customer_Acct_ID;
+
+    END LOOP;
+
+  END IF;
+
+  END SCO_C_BPARTNER_UPACC_TRG
+]]></body>
+    </trigger>
+  </database>

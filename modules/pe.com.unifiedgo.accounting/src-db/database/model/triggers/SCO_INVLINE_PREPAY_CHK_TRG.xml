@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVLINE_PREPAY_CHK_TRG">
+    <trigger name="SCO_INVLINE_PREPAY_CHK_TRG" table="C_INVOICELINE" fires="before" insert="false" update="true" delete="true" foreach="row">
+      <body><![CDATA[    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF((DELETING) AND (:OLD.em_ssa_isprepayment_inline = 'Y')) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SSA_NoDeletePrepaymentLine@') ;
+  END IF;
+
+  END SCO_INVLINE_PREPAY_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_INSERTDBUPDATEDFIELDS">
+    <function name="SCR_INSERTDBUPDATEDFIELDS" type="NUMERIC">
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+  v_count NUMBER;
+  v_Aux NUMBER;
+  p_SCR_Combo_Item_ID VARCHAR(32);
+  CUR_Tab RECORD;
+  CUR_Field RECORD;
+  p_AD_Module_ID VARCHAR(32);
+  p_AD_User_ID VARCHAR(32);
+  p_AD_Table_ID VARCHAR(32);
+  v_client_column_id VARCHAR(32);
+  v_dbupdated_column_id VARCHAR(32);
+  v_nextseqno NUMBER;
+BEGIN
+
+  p_AD_Module_ID := '62F1B0F1536747E985A88EF843BF1210';
+  p_AD_User_ID := '100';
+  p_AD_Table_ID := 'D1A97202E832470285C9B1EB026D54E2';
+
+  SELECT AD_Column_ID 
+    INTO v_client_column_id
+    FROM AD_Column
+  WHERE AD_Table_ID = p_AD_Table_ID
+  AND lower(columnname) = 'ad_client_id' LIMIT 1;
+
+  SELECT AD_Column_ID 
+    INTO v_dbupdated_column_id
+    FROM AD_Column
+  WHERE AD_Table_ID = p_AD_Table_ID
+  AND lower(columnname) IN ('dbupdated','em_scr_dbupdated') LIMIT 1;
+
+  IF(v_client_column_id IS NULL OR v_dbupdated_column_id IS NULL) THEN
+    RAISE_APPLICATION_ERROR(-20000,'DATA NOT FOUND');
+  END IF;
+
+  v_count := 0;
+  FOR CUR_Tab IN (SELECT * FROM AD_Tab WHERE AD_Table_ID = p_AD_Table_ID FOR UPDATE)
+  LOOP
+    SELECT count(*)
+      INTO v_Aux
+      FROM AD_Field
+    WHERE AD_Tab_ID = CUR_Tab.AD_Tab_ID
+    AND AD_Column_ID = v_dbupdated_column_id LIMIT 1;
+
+    --dbupdated already exists
+    IF(v_Aux <>0) THEN
+      CONTINUE;
+    END IF;
+
+    --Find the AD_Client field so we can copy from it
+    SELECT *
+      INTO CUR_Field
+      FROM AD_Field
+    WHERE AD_Tab_ID = CUR_Tab.AD_Tab_ID
+    AND AD_Column_ID = v_client_column_id;
+
+    --Fidn the next seqno
+    SELECT COALESCE(MAX(SeqNo),0)+10 INTO v_nextseqno FROM AD_Field WHERE AD_Tab_ID=CUR_Tab.AD_Tab_ID;
+    IF(CUR_Field IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, 'UPDATED FIELD NOT FOUND FOR TAB:' || CUR_Tab.AD_Tab_ID);
+    END IF;
+
+    --Insert the field
+    AD_Sequence_Next('AD_Field', CUR_Field.AD_Client_ID, v_NextNo) ;
+    INSERT INTO ad_field(
+            ad_field_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+            updated, updatedby, name, description, help, iscentrallymaintained, 
+            ad_tab_id, ad_column_id, property, ignoreinwad, ad_fieldgroup_id, 
+            isdisplayed, displaylogic, displaylength, isreadonly, seqno, 
+            sortno, issameline, isfieldonly, isencrypted, showinrelation, 
+            isfirstfocusedfield, ad_module_id, grid_seqno, startinoddcolumn, 
+            startnewline, isshowninstatusbar, onchangefunction, clientclass, 
+            em_obuiapp_colspan, em_obuiapp_rowspan, em_obuiapp_validator, 
+            em_obuiapp_showsummary, em_obuiapp_summaryfn, em_obuisel_outfield_id)
+
+    VALUES (v_NextNo, CUR_Field.ad_client_id, CUR_Field.ad_org_id, 'Y', now(), p_AD_User_ID, 
+            now(), p_AD_User_ID, 'dbupdated', '', '', 'Y', 
+            CUR_Field.ad_tab_id, v_dbupdated_column_id, CUR_Field.property, CUR_Field.ignoreinwad, NULL, 
+            'N', NULL, 19, 'N', v_nextseqno, 
+            NULL, CUR_Field.issameline, CUR_Field.isfieldonly, CUR_Field.isencrypted, 'N',
+            'N', p_AD_Module_ID, NULL, CUR_Field.startinoddcolumn, 
+            'N', 'N', CUR_Field.onchangefunction, CUR_Field.clientclass, 
+            CUR_Field.em_obuiapp_colspan, CUR_Field.em_obuiapp_rowspan, CUR_Field.em_obuiapp_validator, 
+            CUR_Field.em_obuiapp_showsummary, CUR_Field.em_obuiapp_summaryfn, CUR_Field.em_obuisel_outfield_id
+    );
+    v_count := v_count + 1;
+
+  END LOOP;
+
+  RETURN v_count;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN NULL;
+END SCR_INSERTDBUPDATEDFIELDS
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_GLJOURNALLI_FACTACCT_TRG">
+    <trigger name="SCO_GLJOURNALLI_FACTACCT_TRG" table="GL_JOURNALLINE" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(UPDATING) THEN
+    IF(COALESCE(:OLD.em_sco_c_invoice_id, '')<>COALESCE(:NEW.em_sco_c_invoice_id,'')) THEN
+       UPDATE FACT_ACCT SET EM_SCO_RECORD3_ID=:NEW.em_sco_c_invoice_id WHERE RECORD_ID2=:NEW.GL_JOURNALLINE_ID;
+    END IF;
+  END IF;
+
+
+END SCO_GLJOURNALLI_FACTACCT_TRG
+]]></body>
+    </trigger>
+  </database>

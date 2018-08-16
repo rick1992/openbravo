@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteEstadosLetrasData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_cro_pag_imp" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+		  
+		  
+		  select
+		
+		ci.em_scr_physical_documentno as n_letra
+		
+		,sbe.dategen as fecha_creacion
+		
+		,(select cbp2.name from c_bpartner cbp2 where cbp2.c_bpartner_id=sbe.c_bpartner_id) as tercero
+		
+		,(select cc2.description from c_currency cc2
+		left join c_currency_trl cct2 on cc2.c_currency_id= cct2.c_currency_id
+		where cc2.c_currency_id=sbe.c_currency_id) as moneda
+		
+		, ci.grandtotal as monto
+		
+		, (case when ci.docstatus='CO' then ci.outstandingamt else ci.grandtotal end) as saldo
+		
+		,(select cbp2.name from c_bpartner cbp2 where cbp2.c_bpartner_id=sbe.aval_id) as aval
+		
+	
+		, (select coalesce(arlt2.name,arl2.name) from ad_ref_list arl2
+		left join ad_ref_list_trl arlt2 on arl2.ad_ref_list_id=arlt2.ad_ref_list_id
+		where arl2.value=ci.em_Sco_Boe_Type limit 1 ) as estado
+		
+		,(case when exists(select sbf2.isactive from sco_boe_from sbf2 where sbf2.invoiceref_id=ci.c_invoice_id ) then 'SI' else 'NO'  end) as renovada
+		
+		,sbf.invoiceref_id as factura_origen
+		
+		from sco_billofexchange sbe
+		inner join ad_org ao on sbe.ad_org_id=ao.ad_org_id
+		left join sco_boe_from sbf on  sbe.sco_billofexchange_id=sbf.sco_billofexchange_id
+		left join sco_boe_to sbt on sbe.sco_billofexchange_id=sbt.sco_billofexchange_id
+		left join c_invoice ci on sbt.sco_boe_to_id=ci.em_sco_boe_to_id
+	
+		where sbe.docstatus='CO' and ci.docstatus='CO' and 
+		 ao.ad_client_id IN ('1') 
+		and ao.ad_org_id in ('1') 
+		and 1=1   
+		order by sbe.created,sbf.invoiceref_id
+    
+       
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after=" ao.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and ao.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND sbe.dategen >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND sbe.dategen < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

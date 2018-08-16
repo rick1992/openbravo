@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="ReportBPDueDateDocumentsJRData" package="pe.com.unifiedgo.sales.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS CLIENTID, '' AS ORGID, '' AS INVOICEID, '' AS ORGNAME, '' AS SPECIALDOCTYPE,'' AS DOCTYPENAME, 
+          '' AS DOCUMENTNO, '' AS DUEDATE, '' AS AMOUNT, '' AS OUTSTANDING,
+          '' AS PAYTERMNAME, '' AS DAYSTILLNEXTDUE, '' AS CURRISOCODE, '' AS BPID, '' AS BPGROUPID,
+          '' AS BPNAME
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  
+ <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        select inv.ad_client_id as clientid,
+               inv.ad_org_id as orgid,
+               inv.c_invoice_id as invoiceid, 
+               org.name as orgname, 
+               inv.em_sco_specialdoctype as specialdoctype, 
+               (select dt_trl.name from c_doctype_trl dt_trl where dt_trl.c_doctype_id=inv.c_doctypetarget_id) as doctypename,                
+               inv.em_scr_physical_documentno as documentno,
+               to_char(trunc(inv.EM_Sco_Firstduedate),'DD-MM-YYYY') as duedate,
+               inv.outstandingamt as outstanding,
+               inv.grandtotal as amount,
+               (select pt.name from c_paymentterm pt where pt.c_paymentterm_id=inv.c_paymentterm_id) as paytermname, 
+               (inv.daystilldue || ' días') as daystillnextdue, 
+               (select curr.iso_code from c_currency curr where curr.c_currency_id=inv.c_currency_id) as currisocode,
+               inv.c_bpartner_id as bpid,
+               (select bp.taxid || ' - ' || bp.name from c_bpartner bp where bp.c_bpartner_id=inv.c_bpartner_id) as bpname 
+          from c_invoice inv 
+               inner join ad_org org on inv.ad_org_id=org.ad_org_id                             
+         where inv.isactive='Y'
+           and inv.docstatus='CO'
+           and inv.ispaid='N'
+           and inv.ad_client_id in ('1')                     
+           and inv.ad_org_id in ('1')           
+           and inv.em_sco_specialdoctype in ('SCOARINVOICE','SCOARTICKET','SCOARBOEINVOICE')                                
+           and (case to_char(?) when 'N' then (inv.outstandingamt>0
+                                               and trunc(inv.EM_Sco_Firstduedate)<=trunc(to_date(?)))
+                else inv.outstandingamt>0 end)        
+           and (select bp.taxid from c_bpartner bp where bp.c_bpartner_id=inv.c_bpartner_id)=?               
+           and AD_ISORGINCLUDED(inv.ad_org_id, ? ,inv.ad_client_id) <> -1                            
+         order by inv.ad_org_id, inv.c_bpartner_id, inv.EM_Sco_Firstduedate DESC                        
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="and inv.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and inv.ad_org_id in (" text="'1'"/>
+    <Parameter name="showAllDueDocuments"/>         
+    <Parameter name="dateTo"/>        
+    <Parameter name="bpTaxId"/>    
+    <Parameter name="adOrgId"/>           
+  </SqlMethod>
+    
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>  
+    
+  <SqlMethod name="selectBpartner" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_BPARTNER.TAXID || ' - ' || C_BPARTNER.NAME AS BPNAME
+          FROM C_BPARTNER WHERE C_BPARTNER.C_BPARTNER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBPartnerId"/>
+  </SqlMethod>
+</SqlClass>

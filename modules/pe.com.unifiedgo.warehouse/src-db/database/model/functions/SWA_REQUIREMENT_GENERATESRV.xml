@@ -1,0 +1,204 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_REQUIREMENT_GENERATESRV">
+    <function name="SWA_REQUIREMENT_GENERATESRV" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_LineSeqNo NUMBER:=0;
+  v_DocumentNo VARCHAR(30);
+  v_Result NUMBER:=1; -- Success
+-- Record Info
+  Cur_Parameter RECORD;
+  v_swa_requerimientoreposicion_id VARCHAR2(32);
+  v_Client_id VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+  v_createdby VARCHAR2(32);
+  v_m_warehouse VARCHAR2(32);
+  v_bpartner_id VARCHAR2(32);
+  v_doctype_create_id VARCHAR2(32);
+  v_bpartnerlocation_id VARCHAR2(32);
+  
+  v_swa_requerimientoDetail_id VARCHAR2(32);
+  v_CDocTypeID varchar2(32);
+  
+  v_Message_detail VARCHAR2(120);
+  v_Message_description VARCHAR2(120);
+  v_sco_specialdoctype VARCHAR2(60);
+  
+  v_requer_name VARCHAR2(100);
+  v_errormsg VARCHAR2(2000):='';
+
+  v_ad_pinstance_ID VARCHAR2(32);
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+  SELECT ad_client_id,ad_org_id, m_warehouse_id, c_bpartner_id, c_bpartner_location_id
+    INTO v_Client_id,v_ad_org_id,v_m_warehouse, v_bpartner_id, v_bpartnerlocation_id
+    FROM c_order 
+       WHERE c_order_id = v_Record_ID for update;
+
+
+  SELECT documentno INTO v_documentno FROM swa_requerimientoreposicion WHERE serviceorder_id = v_Record_ID limit 1;
+
+  IF(v_documentno IS NOT NULL)THEN
+   RAISE_APPLICATION_ERROR(-20000, '@swa_purchaseorderWithRequestService@' || v_documentno);
+  END IF;
+  
+  
+  
+  -- GET DOCTYPE
+   SELECT C_DocType_ID INTO v_CDocTypeID
+		FROM C_DOCTYPE
+		WHERE em_sco_specialdoctype='SWAREQUESTSERVICE'
+		AND ISACTIVE='Y' 
+		AND AD_Client_Id= v_Client_id
+		AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id) <> -1
+		AND COALESCE(isreturn, 'N') = 'N'
+		ORDER BY AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id),
+		IsDefault DESC,
+		C_DocType_ID;
+
+   IF (v_CDocTypeID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_missing_doctype_reqservice@');
+   END IF;
+-- END DOCTYPE
+
+v_sco_specialdoctype:='SWAINTERNALSHIPMENT';  --GUIA DE REMISION: SWAINTERNALSHIPMENT  | NOTA DE SALIDA: SWAMMDISPATCH
+
+
+--RAISE v_bpartner_id;
+
+--DOCTYPE GENERATE
+  SELECT C_DocType_ID INTO v_doctype_create_id
+		FROM C_DOCTYPE
+		WHERE em_sco_specialdoctype=v_sco_specialdoctype
+		AND ISACTIVE='Y' 
+		AND AD_Client_Id= v_Client_id
+		AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id) <> -1
+		AND COALESCE(isreturn, 'N') = 'N'
+		ORDER BY AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id),
+		IsDefault DESC,
+		C_DocType_ID;
+--END DOCTYPE GENERATE
+
+   
+
+  AD_Sequence_DocType(v_CDocTypeID, v_Client_id, 'Y', v_DocumentNo) ;
+   v_swa_requerimientoreposicion_id:=get_uuid();
+
+   
+   INSERT INTO swa_requerimientoreposicion
+    (swa_requerimientoreposicion_id,
+     ad_client_id,ad_org_id,isactive,
+     created,createdby, updated,updatedby,
+     from_m_warehouse_id,status,
+     pickinglist_state,c_doctype_id,documentno,serviceorder_id,
+     c_bpartner_id,c_bpartner_location_id, c_doctype_create_id
+    )
+   VALUES 
+    (v_swa_requerimientoreposicion_id,
+     v_Client_id,v_ad_org_id,'Y',
+     now(),v_User_ID, now(),v_User_ID,
+     v_m_warehouse,'DR',
+     'NG',v_CDocTypeID,v_DocumentNo,v_Record_ID,
+     v_bpartner_id, v_bpartnerlocation_id, v_doctype_create_id
+    );
+
+  --RAISE v_bpartner_id; 
+
+
+
+   FOR Cur_Parameter IN 
+   (
+    SELECT srv.m_product_id, srv.c_uom_id, sum(srv.qtyordered) as qtyordered
+      FROM SRE_Serviceorderline  srv
+       inner join m_product prd ON srv.m_product_id = prd.m_product_id
+     WHERE srv.c_orderline_id IN (SELECT C_ORDERLINE_ID
+                                         FROM C_ORDERLINE
+                                        WHERE C_ORDER_ID = v_Record_ID )
+        AND prd.isstocked = 'Y'
+      GROUP BY srv.m_product_id, srv.c_uom_id
+   )
+   LOOP     
+            v_LineSeqNo:= 10 + v_LineSeqNo;
+            v_swa_requerimientoDetail_id:=get_uuid();
+	    INSERT INTO swa_requerepo_detail
+	    (swa_requerepo_detail_id,ad_client_id,ad_org_id,line,isactive,created,createdby,
+	     updated,updatedby,m_product_id,c_uom_id, qtyordered,swa_requerimientoreposicion_id,status
+	    )
+	   VALUES 
+	    (v_swa_requerimientoDetail_id,v_Client_id,v_ad_org_id,v_LineSeqNo,'Y',now(),v_User_ID,
+             now(),v_User_ID,Cur_Parameter.m_product_id,Cur_Parameter.c_uom_id, Cur_Parameter.qtyordered,v_swa_requerimientoreposicion_id,
+             'PD'
+	    ); 
+   END LOOP;
+   
+   IF(v_LineSeqNo=0)THEN
+    RAISE_APPLICATION_ERROR(-20000, '@swa_service_whitout_linestoship@') ;
+   END IF;
+
+
+   /*Completando la Solitud de Servicio -- process SWA_Requirement Complete
+   */
+
+       v_ad_pinstance_ID:=get_uuid();
+	INSERT INTO Ad_PINSTANCE (
+	 ad_pinstance_id, ad_process_id, record_id,
+         AD_Client_ID, AD_Org_ID, IsActive, Created,
+	 CreatedBy, Updated, UpdatedBy,
+	 ad_user_id         
+	)
+	VALUES (
+	v_ad_pinstance_ID, '183931BF970346048E418CACAA862E62', v_swa_requerimientoreposicion_id,
+	v_Client_id, v_ad_org_id  , 'Y', now(),
+	v_User_ID,now(),v_User_ID,v_User_ID
+	);
+
+       SWA_REQUIREMENT_TOCOMPLETE(v_ad_pinstance_ID);
+
+       SELECT result, errormsg INTO v_Result, v_errormsg FROM AD_PINSTANCE WHERE AD_PINSTANCE_ID = v_ad_pinstance_ID;
+       v_Message:=v_errormsg;
+
+
+       IF(v_Result<>1)THEN
+         RAISE_APPLICATION_ERROR(-20000, 'Error al Completar Solicitud de Servicio' || ' ' ||v_errormsg);
+       END IF;
+     
+
+
+
+
+    v_Message:='@swa_created_repo_receip@' || v_DocumentNo;
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    v_Result := 1; -- Warning
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_REQUIREMENT_GENERATESRV
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_GET_PARALLEL_CURRENCY_CONV">
+    <function name="SSA_GET_PARALLEL_CURRENCY_CONV" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_from" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_to" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_ConvertedAmount NUMBER;
+BEGIN
+
+   SELECT COALESCE(SUM(C_Currency_Round(ssa_parallel_currency_conv(p_amount, p_currency_from, p_currency_to, p_convdate, NULL,p_ad_client_id, p_ad_org_id), p_currency_to, 'Y')), 0)
+      INTO v_ConvertedAmount;
+
+  RETURN v_ConvertedAmount;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SSA_GET_PARALLEL_CURRENCY_CONV
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportSalesPerceptionData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectPerception" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT 
+      	'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal,
+      
+      * FROM
+        ((select p.dategen fechapercep,ci.code bptd, bp.taxid bpdocid,bp.name bpname, p.percepcionamt +fp.amount amtbruto, p.percepcionamt perception,fp.amount amtneto,p.AD_CLIENT_ID,p.AD_ORG_ID,p.docstatus
+            FROM sco_percep_sales p
+            LEFT JOIN sco_percepsales_detail pl on p.sco_percep_sales_id=pl.sco_percep_sales_id
+            LEFT JOIN fin_payment_detail pd on pd.fin_payment_detail_id=pl.fin_payment_detail_id
+            LEFT JOIN fin_payment fp on fp.fin_payment_id=pd.fin_payment_id
+            LEFT JOIN c_bpartner bp ON p.c_bpartner_id=bp.c_bpartner_id
+            LEFT JOIN scr_combo_item ci ON ci.scr_combo_item_id=bp.em_scr_combo_item_id                   
+        UNION ALL
+        (select i.em_sco_newdateinvoiced fechapercep,ci.code bptd, bp.taxid bpdocid,bp.name bpname, it.taxamt+it.taxbaseamt amtbruto,it.taxamt perception,it.taxbaseamt amtneto,i.AD_CLIENT_ID,i.AD_ORG_ID,i.docstatus
+            from  c_invoice i
+            LEFT join c_invoicetax it on i.c_invoice_id=it.c_invoice_id
+            LEFT join c_tax t on it.c_tax_id=t.c_tax_id
+            LEFT JOIN c_bpartner bp ON i.c_bpartner_id=bp.c_bpartner_id
+            LEFT JOIN scr_combo_item ci ON ci.scr_combo_item_id=bp.em_scr_combo_item_id
+        WHERE t.em_sco_specialtax='SCOSINMEDIATEPERCEPTION'))) a
+    WHERE
+        a.docstatus in ('CO','VO')
+        AND a.AD_CLIENT_ID IN ('1')
+        AND a.AD_ORG_ID IN('1')
+        AND 1=1
+    ORDER BY a.bpname,a.fechapercep
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="a.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND a.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND a.fechapercep >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND a.fechapercep < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+     <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+   </SqlMethod>
+   
+  
+  
+</SqlClass>

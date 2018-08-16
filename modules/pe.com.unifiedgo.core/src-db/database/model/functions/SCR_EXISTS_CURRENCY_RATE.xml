@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_EXISTS_CURRENCY_RATE">
+    <function name="SCR_EXISTS_CURRENCY_RATE" type="VARCHAR">
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curfrom_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curto_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_exists VARCHAR(1);
+BEGIN
+
+  v_exists:='N';
+  DECLARE 
+    v_Rate NUMBER;
+  BEGIN
+
+    v_Rate:=C_Currency_Rate(p_CurFrom_ID, p_CurTo_ID, 'S', p_Client_ID, '0') ;
+    v_exists:='Y';
+  EXCEPTION
+  WHEN OTHERS THEN
+    v_exists:='N';
+  END;
+  RETURN v_exists;
+END SCR_EXISTS_CURRENCY_RATE
+]]></body>
+    </function>
+  </database>

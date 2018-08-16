@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="VersusComprasData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+   
+select 
+
+'' as m_inout_id, '' as movqty, '' as movementdate, '' as phydocno,
+uom.uomsymbol,
+i.c_invoice_id, i.em_sco_newdateinvoiced as fecha, il.c_invoiceline_id, il.c_orderline_id, il.m_inoutline_id, il.m_product_id, coalesce(o.c_order_id,'') as orderid, coalesce(o.documentno, '--') as orderno,
+p.value as productPk, p.name as productName, coalesce(ol.m_product_id,'') as pServicioPk, i.em_scr_physical_documentno, bp.taxid || ' - ' || bp.name as tercero, bp.c_bpartner_id,
+coalesce(( 
+select multiplyrate from c_conversion_rate cr where trunc(cr.validfrom)=trunc(case when em_sco_ismanualref='Y' THEN em_sco_manualinvoicerefdate WHEN em_sco_invoiceref_id IS NOT NULL THEN (SELECT iref.em_sco_newdateinvoiced FROM c_invoice iref WHERE iref.c_invoice_id=i.em_sco_invoiceref_id) ELSE i.em_sco_newdateinvoiced END) and 
+trunc(cr.validto)=trunc(case when em_sco_ismanualref='Y' THEN em_sco_manualinvoicerefdate WHEN em_sco_invoiceref_id IS NOT NULL THEN (SELECT iref.em_sco_newdateinvoiced FROM c_invoice iref WHERE iref.c_invoice_id=i.em_sco_invoiceref_id) ELSE i.em_sco_newdateinvoiced END) and cr.c_currency_id=i.c_currency_id and cr.c_currency_id_to='308' 
+),1) as tc, il.priceactual, sum(il.linenetamt) as totalamt, sum(il.qtyinvoiced) as qty, il.isdeferred, 
+case when i.c_currency_id='100' then 'USD' when i.c_currency_id='102' then 'EUR' else 'PEN' end as moneda 
+from c_invoice i inner join c_invoiceline il ON i.c_invoice_id=il.c_invoice_id 
+inner join m_product p ON p.m_product_id=il.m_product_id 
+inner join c_bpartner bp ON bp.c_bpartner_id=i.c_bpartner_id 
+inner join c_uom uom ON uom.c_uom_id=p.c_uom_id 
+left join c_orderline ol ON ol.c_orderline_id=il.c_orderline_id 
+left join c_order o ON o.c_order_id=ol.c_order_id  
+WHERE I.DATEACCT >= TO_DATE(?) AND I.DATEACCT <= TO_DATE(?) AND I.ISSOTRX='N' AND I.DOCSTATUS='CO' 
+AND AD_ISORGINCLUDED(I.AD_ORG_ID, ?, I.AD_CLIENT_ID)<>-1  
+AND 1=1 
+group by i.c_invoice_id, il.c_invoiceline_id, il.c_orderline_id, il.m_product_id, ol.m_product_id, 
+p.value, p.name, i.em_scr_physical_documentno, bp.taxid, bp.name, bp.c_bpartner_id, i.em_sco_ismanualref,i.em_sco_manualinvoicerefdate,i.em_sco_invoiceref_id,
+i.em_sco_newdateinvoiced, i.c_currency_id, il.isdeferred, il.priceactual, il.m_inoutline_id ,o.c_order_id, o.documentno ,uom.uomsymbol 
+order by il.m_product_id, i.em_sco_newdateinvoiced 
+
+      ]]></Sql>
+    
+    <Parameter name="parDateFrom" />
+    <Parameter name="parDateTo" />
+    <Parameter name="parOrg" />
+     <Parameter name="parPartner" optional="true" after="AND 1=1"><![CDATA[ AND bp.taxid = ? ]]></Parameter>
+     <Parameter name="parProduct" optional="true" after="AND 1=1"><![CDATA[ AND il.m_product_id = ? ]]></Parameter>
+    
+  </SqlMethod>
+
+
+  <SqlMethod name="selectInout" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+   select io.c_bpartner_id, bp.taxid || ' - ' || bp.name as tercero, iol.m_product_id, io.m_inout_id, iol.m_inoutline_id, iol.c_orderline_id, sum(iol.movementqty) as movqty, io.movementdate, io.documentno || ' - ' || io.em_scr_physical_documentno as phydocno,
+    coalesce(o.c_order_id,'') as orderid, coalesce(o.documentno, '--') as orderno,
+p.value as productPk, p.name as productName, uom.uomsymbol 
+from m_inout io inner join m_inoutline iol ON io.m_inout_id=iol.m_inout_id 
+inner join c_bpartner bp ON bp.c_bpartner_id=io.c_bpartner_id 
+inner join m_product p ON p.m_product_id=iol.m_product_id 
+inner join c_uom uom ON uom.c_uom_id=p.c_uom_id 
+left join c_orderline ol ON ol.c_orderline_id=iol.c_orderline_id 
+left join c_order o ON o.c_order_id=ol.c_order_id  
+where io.issotrx='N' AND io.DOCSTATUS='CO' AND  
+io.MOVEMENTDATE >= TO_DATE(?) AND io.MOVEMENTDATE <= TO_DATE(?)   
+AND AD_ISORGINCLUDED(io.AD_ORG_ID, ?, io.AD_CLIENT_ID)<>-1  AND 
+io.em_swa_combo_item_id IN ('61441D1714EB48C483BD9AE05A4A5F54', 
+'ABC78FD281E941DE80EB0AF83845CE10', 
+'FB8DE66F7DB544F0BDCB475B27B11538', 
+'3349FE0644FD4C70B03F27C202654868')  
+AND 1=1
+group by 
+io.c_bpartner_id, bp.taxid, bp.name, iol.m_product_id, io.m_inout_id, iol.m_inoutline_id, iol.c_orderline_id, 
+io.movementdate, io.documentno, io.em_scr_physical_documentno,
+o.c_order_id, o.documentno, p.value, p.name, uom.uomsymbol
+      ]]></Sql>
+    
+    <Parameter name="parDateFrom" />
+    <Parameter name="parDateTo" />
+    <Parameter name="parOrg" />
+     <Parameter name="parPartner" optional="true" after="AND 1=1"><![CDATA[ AND bp.taxid = ? ]]></Parameter>
+     <Parameter name="parProduct" optional="true" after="AND 1=1"><![CDATA[ AND iol.m_product_id = ? ]]></Parameter>
+   
+  </SqlMethod>
+  
+</SqlClass>

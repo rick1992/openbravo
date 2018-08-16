@@ -1,0 +1,773 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2007-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Reporte de Lista de Precios y Stock</title>
+    <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+     
+      <script language="JavaScript" type="text/javascript" id="paramDirectory">
+      var baseDirectory = "../../../../../web/";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" type="text/javascript" id="paramLanguage">
+        var defaultLang = "en_US";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>          
+      <script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojoConfig.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojo/dojo.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/org.openbravo.advpaymentmngt/FIN_Utilities.js" type="text/javascript"></script>                 
+      <script language="JavaScript" src="../../../../../web/js/DecimalFormat.js" type="text/javascript"></script>      
+      <script language="JavaScript" src="../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+      
+      <script type="text/javascript">
+        dojo.hostenv.writeIncludes(); //makes debugging in Venkman possible
+      </script>
+
+<script language="JavaScript" type="text/javascript">
+
+//prevent refocus after the tab containing this window
+//gets selected, this prevents change of scroll position
+//for that tab
+OB_NoRefocusAfterTabSelection = true;
+  
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramProductBrandArray">
+var arrProductBrand = null;
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramPENPriceListArray">
+var arrPENPriceList=null;
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramUSDPriceListArray">
+var arrUSDPriceList=null;
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramFirstLoad">
+var FirstLoad=null;
+</script>
+
+<script language="JavaScript" type="text/javascript">
+function clearOrgDependVars() {
+	clearProductLine();
+	clearMProduct();   
+	
+	refreshPENPriceList();
+    refreshUSDPriceList();
+    refreshProductBrand();
+}
+
+function clearProductLine(){    
+    var frmMain = document.frmMain;
+    frmMain.paramProductLineId.value = "";
+    frmMain.paramProductLineDescription.value = "";
+    sc_paramProductLineId.selectorField.setValue("");    
+}
+
+function clearMProduct(){
+    var frmMain = document.frmMain;
+    frmMain.paramProductId.value = "";
+    frmMain.paramProductDescription.value = "";
+    sc_paramProductId.selectorField.setValue("");    
+}
+
+function setSearchKeyFromProductLineDesc(){	
+    var frmMain = document.frmMain;
+
+    clearMProduct();
+    
+    var searchKey = ((sc_paramProductLineId.selectorField.getDisplayValue()).split("-")[0]).replace(" ","");  
+    if (searchKey != null && searchKey.length >= 1) {
+       frmMain.paramSearchKey.value = searchKey;
+    }
+}
+
+function setSearchKeyFromProductDesc(){
+    var frmMain = document.frmMain;
+
+    var searchKey = ((sc_paramProductId.selectorField.getDisplayValue()).split("-")[0]).replace(" ","");  
+    if (searchKey != null && searchKey.length >= 1) {
+       frmMain.paramSearchKey.value = searchKey;
+    }
+}
+
+function openProductStockDetails(adOrgId, mProductId, stockDisp, height, width) {
+	  if(mProductId=="--")
+		  return;
+	  
+	  var LayoutMDI = getFrame('LayoutMDI');
+      var url = LayoutMDI.OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormPriceListAndStockDetailsFilterJR.html';
+	  //var url = OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormPriceListAndStockDetailsFilterJR.html';
+	  if (height==null) height = 320;
+	  if (width==null) width = 770;
+	  var parameters = new Array();
+	  parameters = addArrayValue(parameters, "inpadOrgId", adOrgId, true);
+	  parameters = addArrayValue(parameters, "inpmProductId", mProductId, true);
+      parameters = addArrayValue(parameters, "inpStockDisp", stockDisp, true);
+      parameters = addArrayValue(parameters, "inpViewStkDetailData", "Y", true);      
+	  parameters = addArrayValue(parameters, "IsPopUpCall", "1", true);
+	  return openPopUp(url, 'Detalle de Stock de Producto', height, width, null, null, null, null, null, null, parameters);  
+}
+
+function openProductReservationDetails(adOrgId, mProductId, warehouseId, height, width) {
+	if(mProductId=="--")
+	   return;	
+	
+    var LayoutMDI = getFrame('LayoutMDI');
+    var url = LayoutMDI.OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormReservationAndStockDetailsFilterJR.html';
+    //var url = OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormReservationAndStockDetailsFilterJR.html';
+    if (height==null) height = 400;
+    if (width==null) width = 1150;
+    var parameters = new Array();
+    parameters = addArrayValue(parameters, "inpadOrgId", adOrgId, true);
+    parameters = addArrayValue(parameters, "inpmProductId", mProductId, true);
+    parameters = addArrayValue(parameters, "inpmWarehouseId", warehouseId, true);    
+    parameters = addArrayValue(parameters, "IsPopUpCall", "1", true);
+    return openPopUp(url, 'Detalle de Reservas de Producto', height, width, null, null, null, null, null, null, parameters);   
+}
+
+function OpenProductTab(id) {
+    var myframe = getFrame('LayoutMDI') || top.opener;
+    if (myframe) {
+        myframe.OB.Utilities.openDirectTab('180', id); //Product
+    }
+}
+
+function selectRowTable(cell) {
+    var trele=document.getElementById('documentsTable').getElementsByTagName("tr");
+    var classname;
+    for(var i=0;i<trele.length;i++)
+    {    
+         classname = trele[i].className;
+         trele[i].className= classname.replace("DataGrid_Body_Row_selected","");
+    }
+    cell.parentNode.parentNode.className = cell.parentNode.parentNode.className + ' DataGrid_Body_Row_selected';
+} 
+
+function callBackGrid(paramXMLParticular, XMLHttpRequestObj) {
+    var strText = '';
+    if (getReadyStateHandler(XMLHttpRequestObj)) {
+        try {
+          if (XMLHttpRequestObj.responseText) {
+            var resp = decodeJSON(XMLHttpRequestObj.responseText);
+            strText = resp.detailBody;
+            var aux = strText; //strText.substring(33, strText.length-8);
+
+            var tableBody = document.getElementById('sectionGridDetail');
+            var browserName = getBrowserInfo('name');
+            if (browserName.toUpperCase().indexOf('INTERNET EXPLORER') !== -1) {
+              var temp = document.createElement('span');
+              temp.id = 'temp';
+              temp.style.display = 'none';
+              var newRows = '<table><div id=\"sectionGridDetail\">'+ aux;
+              temp.innerHTML = newRows;
+              tableBody.parentNode.replaceChild(temp.firstChild.firstChild, tableBody);
+              if (temp.parentNode) {
+                temp.parentNode.removeChild(temp);
+              }
+            } else {
+              tableBody.innerHTML = aux;
+            }
+
+          } else {
+            document.getElementById('sectionGridDetail').innerHTML = '';
+          }
+        } catch (e) {
+        }
+    }
+    return true;
+}
+
+function loadGridList(productId) {
+	if (productId == null || productId == "")
+        return true;
+
+    document.getElementById('paramProductIdToShow').setAttribute('value', productId);
+    
+    try {
+      var url = "../pe.com.unifiedgo.sales.ad_reports/ReportPriceListAndStockFilterJR.html";
+      var paramXMLReq = null;
+      return submitXmlHttpRequest(callBackGrid, document.frmMain, 'GRIDLIST', url, false, null, paramXMLReq);
+    } catch (e) {
+      alert(e);
+    }  
+}
+	
+function validate() {
+    var frm = document.frmMain;
+    if (frm.inpOrgId.value == null || frm.inpOrgId.value == "") {
+        setWindowElementFocus(frm.inpOrgId);
+        showJSMessage(7);
+        return false;
+    }    
+    if (frm.inpSearchKey.value == null || frm.inpSearchKey.value == "") {
+        setWindowElementFocus(frm.inpSearchKey);
+        showJSMessage(7);
+        return false;
+    }           
+    if (frm.inpPENPriceList.value == null || frm.inpPENPriceList.value == "") {
+        setWindowElementFocus(frm.inpPENPriceList);
+        showJSMessage(7);
+        return false;
+    }
+    if (frm.inpUSDPriceList.value == null || frm.inpUSDPriceList.value == "") {
+        setWindowElementFocus(frm.inpUSDPriceList);
+        showJSMessage(7);
+        return false;
+    }  
+    
+    if (frm.inpStockMin.value != null && frm.inpStockMin.value != "") {
+        if (!isBetweenZeroAndMaxValue(frm.inpStockMin.value, "9999999")) {
+            setWindowElementFocus(frm.inpStockMin.value);
+            showJSMessage(9);
+            return false;
+        }
+    }    
+    if (frm.inpStockMax.value != null && frm.inpStockMax.value != "") {
+        if (!isBetweenZeroAndMaxValue(frm.inpStockMax.value, "9999999")) {
+            setWindowElementFocus(frm.inpStockMax.value);
+            showJSMessage(9);
+            return false;
+        }
+    }             
+    return true;
+}
+
+
+function displayAdvancedFilters(){
+    if (advancedFiltersrow1.style.display == 'none') {
+        displayLogicElement('advancedFiltersrow1', true);
+        displayLogicElement('advancedFiltersrow2', true);
+    }
+    else{
+        displayLogicElement('advancedFiltersrow1', false);
+        displayLogicElement('advancedFiltersrow2', false);
+    }    
+}
+
+function onloadFunctions(){
+}
+
+function changePrices(id, PENPrice, USDPrice, TaxRate) {
+	var Dscto_txt = document.getElementsByName("inpDscto" + id)[0];
+	var DsctoDscto_txt = document.getElementsByName("inpDsctoDscto" + id)[0];
+    if (!isBetweenZeroAndMaxValue(Dscto_txt.value, "100")) {
+    	Dscto_txt.value = "0"; 
+    }
+    if (!isBetweenZeroAndMaxValue(DsctoDscto_txt.value, "100")) {
+    	DsctoDscto_txt.value = "0"; 
+    }
+
+            
+    var df = new DecimalFormat("#,##0.00000");
+    var newPENPrice = 0, newPENIGV = 0, newPENPriceIGV = 0, newUSDPrice = 0, newUSDIGV = 0, newUSDPriceIGV = 0;
+    var PENPrice_lbl, PENIGV_lbl, PENPriceIGV_lbl, USDPrice_lbl, USDIGV_lbl, USDPriceIGV_lbl;
+    
+    console.log("PENPrice:"+PENPrice);
+    console.log("USDPrice:"+USDPrice);
+    
+    if (PENPrice != "--") {
+        PENPrice_lbl = document.getElementsByName("inpNewPENPrice" + id)[0];
+        PENIGV_lbl = document.getElementsByName("inpPENIGV" + id)[0];
+        PENPriceIGV_lbl = document.getElementsByName("inpPENPriceIGV" + id)[0];
+        
+        //calculating prices with discount
+        newPENPrice = (parseFloat(PENPrice) * (100 - parseFloat(Dscto_txt.value))) / 100.0;
+        newPENPrice = (newPENPrice * (100 - parseFloat(DsctoDscto_txt.value))) / 100.0;
+        PENPrice_lbl.innerHTML = df.format(newPENPrice.toFixed(5));        
+                
+        newPENIGV = (newPENPrice * parseFloat(TaxRate)) / 100.0;
+        PENIGV_lbl.innerHTML = df.format(newPENIGV.toFixed(5));
+        
+        newPENPriceIGV = (newPENPrice * (parseFloat(TaxRate)+100)) / 100.0;
+        PENPriceIGV_lbl.innerHTML = df.format(newPENPriceIGV.toFixed(5));           	                
+    }
+
+    if (USDPrice != "--") {
+        USDPrice_lbl = document.getElementsByName("inpNewUSDPrice" + id)[0];   
+        USDIGV_lbl = document.getElementsByName("inpUSDIGV" + id)[0];   
+        USDPriceIGV_lbl = document.getElementsByName("inpUSDPriceIGV" + id)[0];
+            
+        //calculating prices with discount
+        newUSDPrice = (parseFloat(USDPrice) * (100 - parseFloat(Dscto_txt.value))) / 100.0; 
+        newUSDPrice = (newUSDPrice * (100 - parseFloat(DsctoDscto_txt.value))) / 100.0; 
+        USDPrice_lbl.innerHTML = df.format(newUSDPrice.toFixed(5));
+        
+        newUSDIGV = (newUSDPrice * parseFloat(TaxRate)) / 100.0;
+        USDIGV_lbl.innerHTML = df.format(newUSDIGV.toFixed(5));
+        
+        newUSDPriceIGV = (newUSDPrice * (parseFloat(TaxRate)+100)) / 100.0;
+        USDPriceIGV_lbl.innerHTML = df.format(newUSDPriceIGV.toFixed(5));    
+    }    
+    return true;
+}
+</script>
+
+<script language="JavaScript" type="text/javascript">
+function refreshPENPriceList() {
+  var cmbPENPriceList = document.frmMain.inpPENPriceList;
+  changeComboData(cmbPENPriceList, arrPENPriceList, document.frmMain.inpOrgId.value, false);
+  return true;
+}
+
+function refreshUSDPriceList() {
+  var cmbUSDPriceList = document.frmMain.inpUSDPriceList;
+  changeComboData(cmbUSDPriceList, arrUSDPriceList, document.frmMain.inpOrgId.value, false);
+  return true;
+}
+
+function refreshProductBrand() {
+    var cmbProductBrand = document.frmMain.inpProductBrand;
+    changeComboData(cmbProductBrand, arrProductBrand, document.frmMain.inpOrgId.value, true);
+    return true;
+}
+
+function myResizeArea(isOnResize) {
+    var mnu = document.getElementById("client");
+    var filtertable = document.getElementById("filtertable");
+    var linestable = document.getElementById("linestable");
+   // var selectedtable = document.getElementById("selectedtable");
+    
+    linestable.style.height = ((mnu.clientHeight - (filtertable?filtertable.clientHeight:0))/4)-3;
+  //  selectedtable.style.height = ((mnu.clientHeight - (filtertable?filtertable.clientHeight:0))/2)-5;
+    linestable.style.width = mnu.clientWidth - 15; //filtertablew.clientWidth + 42;
+  //  selectedtable.style.width = mnu.clientWidth - 100;    
+}
+</script>
+
+<script language="JavaScript" type="text/javascript">
+    function onLoadDo(){
+        this.windowTables = new Array(
+          new windowTableId('client', 'buttonHTML')
+        );
+        setWindowTableParentElement();
+        this.tabsTables = new Array(
+          new tabTableId('tdtopTabs')
+        );
+        setTabTableParentElement();
+        enableShortcuts('edition');
+        setBrowserAutoComplete(false);
+        try {
+          onloadFunctions();
+        } catch (e) {}
+        resizeArea();
+        myResizeArea();
+        updateMenuIcon('buttonMenu');
+               
+        setWindowElementFocus('firstElement');     
+        
+        //displayAdvancedFilters();
+        console.log("aca load");
+        
+        if (FirstLoad == "YES") {
+        } else {
+            var selectedPENPriceList = document.frmMain.inpPENPriceList.value;
+            var selectedUSDPriceList = document.frmMain.inpUSDPriceList.value;
+            var selectedProductBrand = document.frmMain.inpProductBrand.value;
+            
+            refreshPENPriceList();
+            refreshUSDPriceList();
+            refreshProductBrand();
+            
+            document.frmMain.inpPENPriceList.value = selectedPENPriceList;
+            document.frmMain.inpUSDPriceList.value = selectedUSDPriceList;
+            document.frmMain.inpProductBrand.value = selectedProductBrand;
+        } 
+        
+        sc_paramOrgId.selectorField.setValue(document.getElementById("paramOrgDescription").value);
+        
+        sc_paramProductId.selectorField.setValue(document.getElementById("paramProductDescription").value);
+        
+        sc_paramProductLineId.selectorField.setValue(document.getElementById("paramProductLineDescription").value);
+                
+    }
+
+    function onResizeDo(){
+        resizeArea();
+    }       
+    
+    </script>
+</head>
+    <body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form method="post" action="ReportPriceListAndStockFilterJR.html" name="frmMain" id="form">
+  <input type="hidden" name="Command"></input>
+  <input type="hidden" name="IsPopUpCall" value="1"></input>
+  <input type="hidden" name="inpKey" value="" id="paramKey"></input>
+  <input type="hidden" name="inpwindowId" value="" id="window"></input>
+  <input type="hidden" name="inpTabId" value="" id="tab"></input>
+  <input type="hidden" name="inpProductIdToShow" id="paramProductIdToShow"></input>
+  
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"></tr>
+          <tr id="paramMainTabContainer"></tr>
+          <tr id="paramChildTabContainer"></tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: auto; display: none; border-bottom: 0px none;" id="client" >
+                <table class="dojoTabContainer" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                  <tr>
+                    <td>
+                      <table class="dojoTabPaneWrapper" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                        <tr>
+                          <td>
+                            <!-- MessageBox -->
+
+                            <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+                              <tbody>
+                              <tr class="MessageBox_TopMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr>
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td>
+
+                                  <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                                    <tbody>
+                                    <tr>
+                                      <td class="MessageBox_LeftTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopLeft"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Left"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                      <td class="MessageBox_bg">
+
+                                        <table class="MessageBox_Top">
+                                        <tbody>
+                                          <tr>
+                                            <td>
+                                              <span>
+                                              <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                                <tbody>
+                                                <tr>
+                                                  <td class="MessageBox_Icon_ContentCell">
+                                                    <div class="MessageBox_Icon"></div>
+                                                  </td>
+                                                  <td style="vertical-align: top;" id="messageBoxIDContent">
+                                                    <span>
+                                                      <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                                        xxInfo: AccessTableWithNoView
+                                                      </div>
+                                                      <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                                        xxThe current information is empty.
+                                                      </div>
+                                                      <div class="MessageBox_TextSeparator"></div>
+                                                    </span>
+                                                  </td>
+                                                </tr>
+                                                </tbody>
+                                              </table>
+                                              </span>
+                                            </td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+
+                                      </td>
+                                      <td class="MessageBox_RightTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopRight"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Right"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td rowspan="2" class="MessageBox_BottomLeft">
+                                      </td>
+                                      <td class="MessageBox_BottomTrans MessageBox_bg">
+                                      </td>
+                                      <td rowspan="2" class="MessageBox_BottomRight">
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="MessageBox_Bottom">
+                                      </td>
+                                    </tr>
+                                    </tbody>
+                                  </table>
+
+                                </td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr class="MessageBox_BottomMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            <!-- USER CONTROLS -->
+              <table class="Main_Client_TableEdition" style="width:80%;" id="filtertablew">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+            
+                <tr>
+                  <td class="TitleCell"> <span class="LabelText">Organización</span></td>
+                  <td class="Combo_ContentCell" colspan="2"> 
+                    <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                      <tr>
+                         <td>
+                           <script>
+                             var sc_paramOrgId = null;   
+                           </script>
+                           <input type="hidden" name="inpOrgId" id="paramOrgId" value="" onreset="sc_paramOrgId.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramOrgId.selectorField);"></input>
+                           <input type="hidden" id="paramOrgDescription" type="text"  name="inpOrgId_D" maxlength="20" value="" ></input> 
+                           <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/B00C076ACDE74479B9244AAE15C9FC1F?columnName=paramOrgId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=true&callOut=clearOrgDependVars&nozeroorg=yes&orgtype=childonly&WithTabFix=yes"></script>
+                         </td>
+                       </tr>
+                     </table>
+                  </td>                      
+                  <td class="TitleCell"><span class="LabelText">Impuesto</span></td>
+                  <td class="Combo_ContentCell" colspan="2"> 
+                    <select  name="inpcTaxId" id="inpcTaxId" class="ComboKey Combo_TwoCells_width" required="true">
+                      <div id="reportC_Tax_ID"></div>
+                    </select>
+                  </td> 
+                  <td class="Combo_ContentCell">  	                
+                </tr>
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Lista de Precios(PEN)</span></td>
+                  <td class="Combo_ContentCell" colspan="2"> 
+                    <select  name="inpPENPriceList" id="inpPENPriceList" class="ComboKey Combo_TwoCells_width" required="true">
+                      <div id="reportPENPriceList"></div>
+                    </select>
+                  </td>
+                  <td class="TitleCell"><span class="LabelText">Lista de Precios(USD)</span></td>
+                  <td class="Combo_ContentCell" colspan="2"> 
+                    <select  name="inpUSDPriceList" id="inpUSDPriceList" class="ComboKey Combo_TwoCells_width" required="true">
+                      <div id="reportUSDPriceList"></div>
+                    </select>
+                  </td>
+                  <td class="Combo_ContentCell"> 
+                </tr>
+                <tr>                                      
+                  <td class="TitleCell"><span class="LabelText">Cod.</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_OneCell_width required" type="text" name="inpSearchKey" id="paramSearchKey" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramSearchKey");</script>
+                  </td>  
+                  <td class="TitleCell"><span class="LabelText">Marca</span></td>
+                  <td class="Combo_ContentCell" colspan="2">
+                      <select name="inpProductBrand" id="inpProductBrand" class="Combo Combo_TwoCells_width Combo_focus">
+                          <option value=""><div id="reportProductBrand"></div></option>
+                      </select>
+                  </td>     
+                  <td class="Combo_ContentCell">                                                       
+                </tr>  
+                <tr>                   
+                  <td class="TitleCell"><span class="LabelText">Línea de Producto</span></td>
+                  <td class="Combo_ContentCell" colspan="2"> 
+                     <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                       <tr>
+                          <td>
+                            <script>
+                              var sc_paramProductLineId = null;   
+                            </script>
+                            <input type="hidden" name="inpProductLine" id="paramProductLineId" value="" onreset="sc_paramProductLineId.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramProductLineId.selectorField);"></input>
+                            <input type="hidden" id="paramProductLineDescription" type="text"  name="inpmProductLineId_D" maxlength="20" value="" ></input> 
+                            <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/4BBE665B21FD49EC93520B25B578DFB5?columnName=paramProductLineId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&restrictadorgid=inpOrgId&callOut=setSearchKeyFromProductLineDesc&WithTabFix=yes"></script>
+                          </td>
+                        </tr>
+                      </table>
+                   </td> 
+                   <td class="TitleCell"><span class="LabelText">Producto</span></td>
+                   <td class="Combo_ContentCell"> 
+                    <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                      <tr>
+                         <td>
+                           <script>
+                             var sc_paramProductId = null;   
+                           </script>
+                           <input type="hidden" name="inpmProductId" id="paramProductId" value="" onreset="sc_paramProductId.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramProductId.selectorField);"></input>
+                           <input type="hidden" id="paramProductDescription" type="text"  name="inpmProductId_D" maxlength="20" value="" ></input> 
+                           <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/2F5B9C9D5412473CB454D5C79806F178?columnName=paramProductId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&restrictadorgid=inpOrgId&restrictlineId=inpProductLine&callOut=setSearchKeyFromProductDesc&WithTabFix=yes"></script>
+                         </td>
+                       </tr>
+                     </table>
+                   </td> 
+                   <td class="Combo_ContentCell"> 
+                </tr>
+                <tr>                       
+                  <td class="TitleCell"><span class="LabelText">Stock min.</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input dojoType="openbravo:RealNumberTextbox" class="TextBox_OneCell_width" type="text" name="inpStockMin" maxlength="10" id="paramStockMin" value="" outputformat="qtyEdition"></input>
+                     <script>djConfig.searchIds.push("paramStockMin");</script>
+                  </td> 
+                  <td class="TitleCell"><span class="LabelText">Stock max.</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input dojoType="openbravo:RealNumberTextbox" class="TextBox_OneCell_width" type="text" name="inpStockMax" maxlength="10" id="paramStockMax" value="" outputformat="qtyEdition"></input>
+                     <script>djConfig.searchIds.push("paramStockMax");</script>
+                  </td> 
+                  <td class="Button_LeftAlign_ContentCell">
+                      <div>
+                        <button type="button" 
+                          id="buttonHTML" 
+                          class="ButtonLink" 
+                          onclick="submitCommandForm('EDIT_HTML', true, null, 'ReportPriceListAndStockFilterJR.html', '_self', null, false); return false;"
+                          onfocus="buttonEvent('onfocus', this); window.status='View Results in a New Window'; return true;" 
+                          onblur="buttonEvent('onblur', this);" 
+                          onkeyup="buttonEvent('onkeyup', this);" 
+                          onkeydown="buttonEvent('onkeydown', this);" 
+                          onkeypress="buttonEvent('onkeypress', this);" 
+                          onmouseup="buttonEvent('onmouseup', this);" 
+                          onmousedown="buttonEvent('onmousedown', this);" 
+                          onmouseover="buttonEvent('onmouseover', this); window.status='View Results in a New Window'; return true;" 
+                          onmouseout="buttonEvent('onmouseout', this);">
+                          <table class="Button">
+                            <tr>
+                              <td class="Button_left"><img class="Button_Icon Button_Icon_html" alt="View Results in a New Window" title="View Results in a New Window" src="../../../../../web/images/blank.gif" border="0" /></td>
+                              <td class="Button_text">Buscar</td>
+                              <td class="Button_right"></td>
+                            </tr>
+                          </table>
+                        </button>
+                      </div>
+                    </td>
+                </tr>   
+        </table>
+
+          <!-- OUTPUT -->
+          <div id="linestable" style="overflow: auto; /* padding-left: 15px; */">
+          <table id="documentsTable"> 
+            <tr>
+              <td>
+                <div style="height:10px;" />                 
+                <table cellspacing="0" cellpadding="1" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" id="selEliminar">
+                      <tr class="DataGrid_Body_Row"> 
+                        <th class="DataGrid_Header_Cell" width="20"></th>
+                        <th class="DataGrid_Header_Cell" width="72">Cod.</th>
+                        <!-- <th class="DataGrid_Header_Cell" width="7%">Marca</th> -->
+                        <th class="DataGrid_Header_Cell" width="350">Producto</th> 
+                        <th class="DataGrid_Header_Cell" width="80">P.Lista(S/.)</th>
+                        <th class="DataGrid_Header_Cell" width="80">P.Lista($)</th>                       
+                        <th class="DataGrid_Header_Cell" width="80">Stock</th>                        
+                        <th class="DataGrid_Header_Cell" width="60">Reserva</th>
+                        <th class="DataGrid_Header_Cell" width="60">Disp.</th>
+                        <th class="DataGrid_Header_Cell" width="300">Resumen Stock Disp.</th> 
+                        <th class="DataGrid_Header_Cell" width="54">Stock</th>
+                        <th class="DataGrid_Header_Cell" width="54">Reserva</th>            
+                      </tr>                                           
+                      <div id="myPLSSectionSelectedDetail"> 
+                        <tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow1xx">
+                          <td class="DataGrid_Body_Cell"><a href="#" onclick="selectRowTable(this); loadGridList('xx'); return true;" onmouseover="window.status='Detalle de Producto';return true;" onmouseout="window.status='';return true;" id="fieldProductDetail">
+                          <img src="../../../../../web/images/detail.png"></a></td>
+                          <td class="DataGrid_Body_Cell" id="fieldSearchKey">xxSearchKey</td>
+                          <!-- <td width="7%" class="DataGrid_Body_Cell" id="fieldBrand">xxBrand</td> -->
+                          <td class="DataGrid_Body_Cell"><a href="#" onclick="OpenProductTab('xx');return false;" onmouseover="window.status='Product';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldNameId"> 
+                              <span name="inpNamexx" id="fieldName">xx850000007</span></a></td>
+                          <td class="DataGrid_Body_Cell" id="fieldMainPENlistprice">xx</td>
+                          <td class="DataGrid_Body_Cell" id="fieldMainUSDlistprice">xx</td>                              
+                          <td class="DataGrid_Body_Cell" id="fieldStockOnHand">xxY</td>
+                          <td class="DataGrid_Body_Cell" id="fieldStockReserved">xxY</td>
+                          <td class="DataGrid_Body_Cell" id="fieldStockOnHandAvailable">xxY</td>   
+                          <td class="DataGrid_Body_Cell" id="fieldStockSummaryDetail">xxY</td>
+                          <td class="DataGrid_Body_Cell" style="text-align:center;"><a href="#" onclick="openProductStockDetails(document.frmMain.inpOrgId.value,'xx','yy'); return false;" onmouseover="window.status='Detalle de Stock';return true;" onmouseout="window.status='';return true;" id="fieldStockDetails">
+                              <img src="../../../../../web/images/stock.png"></a></td>
+                          <td class="DataGrid_Body_Cell" style="text-align:center;"><a href="#" onclick="openProductReservationDetails(document.frmMain.inpOrgId.value,'xx',''); return false;" onmouseover="window.status='Detalle de Reserva';return true;" onmouseout="window.status='';return true;" id="fieldReservationDetails">
+                              <img src="../../../../../web/images/stock_reservation.png"></a></td>
+                        </tr>                        
+                      </div>                  
+                </table>
+                <div style="height:7px;" />                          
+              </td>
+            </tr>            
+          </table>                       
+        </div>               
+        <!-- OUTPUT END -->
+        
+        <!-- USER CONTROLS -->
+        <div id="sectionGridDetail"></div>                                            
+        <!-- USER CONTROLS END--> 
+                                                                 
+                </td>
+              </tr>                                                      
+              </table>                       
+              </td>
+            </tr>               
+          </table>  
+        </div>             
+               
+        <div style="height:150px;" /> 
+        
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

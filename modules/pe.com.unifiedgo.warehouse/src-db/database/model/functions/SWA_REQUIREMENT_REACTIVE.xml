@@ -1,0 +1,171 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_REQUIREMENT_REACTIVE">
+    <function name="SWA_REQUIREMENT_REACTIVE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_documentno_inPL  VARCHAR2(30);
+  v_Result NUMBER:=1; -- Success
+  v_count_inPL NUMBER:=0; --OBTG:VARCHAR2--
+  v_repositiontrx CHAR;
+  v_m_inout_trx_id VARCHAR2(32);
+  v_swa_requirement_request_id VARCHAR2(32);
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  v_ReservationStatus VARCHAR(32);
+
+  CUR_M_Reservation RECORD;
+  Cur_Parameter RECORD;
+  Cur_Details RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+   /**
+    * Approve Sales Orders
+    * Sales Order Column: c_order.em_ssa_disc_evaluation_status
+    * c_order.em_ssa_disc_evaluation_status States:
+    *   - DR: Requirement Book
+    *   - CO: Requirement Completed
+    *   - CL: Requirement Closed
+    */
+
+    SELECT status,repositiontrx,swa_requirement_request_id
+      INTO v_orderApprovedState,v_repositiontrx,v_swa_requirement_request_id
+    FROM swa_requerimientoreposicion
+    WHERE swa_requerimientoreposicion_id=v_Record_ID for update;
+
+    SELECT count(obwpl_pickinglist_id) 
+      INTO v_count_inPL
+      FROM obwpl_pickinglist
+      WHERE em_swa_requerepo_id = v_Record_ID
+       AND pickliststatus <> 'CA';
+
+
+    IF(v_count_inPL > 0)THEN
+     RAISE_APPLICATION_ERROR(-20000,'@SWA_RepositionWithPL@') ;
+    END IF;
+
+
+    IF (v_orderApprovedState LIKE 'PD') THEN
+        UPDATE swa_requerimientoreposicion
+          set status='DR'
+          WHERE swa_requerimientoreposicion_id = v_Record_ID;
+          
+        v_Message := '';
+        v_Result := 1; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        RETURN;
+    END IF;
+    
+    IF (v_orderApprovedState LIKE 'CL') THEN
+        v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        RETURN;
+    END IF; 
+    IF (v_orderApprovedState LIKE 'DR') THEN
+        v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        RETURN;
+    END IF; 
+
+
+    IF (v_repositiontrx='Y') THEN
+     SELECT m_inout_id 
+       FROM m_inout 
+       INTO v_m_inout_trx_id
+      WHERE em_swa_requireposicion_id=v_Record_ID
+        AND docstatus IN ('DR','CO') LIMIT 1;
+
+       IF(v_m_inout_trx_id IS NOT NULL) THEN
+           RAISE_APPLICATION_ERROR(-20000,'@swa_noreactivatereposition_trx@') ;
+       END IF;
+    END IF;
+
+    --Si existe una solicitud de Transferencia Entonces debemos Cambiar el Estado de La Solicitud
+    --de Cada Linea de solicitud y las cantidades a confirmar
+       FOR Cur_Details IN (
+        SELECT requerepo_from_line_id
+          FROM swa_requerepo_detail 
+         WHERE swa_requerimientoreposicion_id =v_Record_ID
+          AND requerepo_from_line_id IS NOT NULL)
+      LOOP
+         UPDATE swa_requerepo_detail
+            SET qtyconfirm = 0,
+                   status = 'PD'
+          WHERE swa_requerepo_detail_id = Cur_Details.requerepo_from_line_id;  
+      END LOOP;
+    
+    --Fin de Reactivar Orden Asociada a Solicitud de Transferencia
+
+
+    UPDATE swa_requerimientoreposicion 
+    SET status='DR'
+    WHERE swa_requerimientoreposicion_id=v_Record_ID;
+
+
+
+    --Si Reactivamos tenemos que liberar la reserva
+     FOR Cur_Parameter IN(
+      SELECT *
+       FROM swa_requerepo_detail 
+      WHERE swa_requerimientoreposicion_id = v_Record_ID
+     )LOOP
+
+      FOR CUR_M_Reservation IN(
+       SELECT * 
+         FROM M_RESERVATION 
+        WHERE em_swa_requerepo_detail_id= Cur_Parameter.swa_requerepo_detail_id
+      )LOOP
+        IF(CUR_M_Reservation.res_status IN ('CO','CL')) THEN
+          M_RESERVATION_POST(NULL, CUR_M_Reservation.M_RESERVATION_ID ,'RE',CUR_M_Reservation.createdby) ;
+          SELECT res_status INTO v_ReservationStatus FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+	  IF(v_ReservationStatus<>'DR') THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationREError@') ;
+	  END IF;
+        ELSIF (CUR_M_Reservation.res_status IN ('HO')) THEN
+	 RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationStockinHOStatus@') ;
+        END IF; 
+
+        DELETE FROM M_Reservation_Stock WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+        DELETE FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+        
+      END LOOP;
+    END LOOP;
+    --Fin REACTIVAR LA RESERVA
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_REQUIREMENT_REACTIVE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INOUTLI_UPDATESPDOC_TRG">
+    <trigger name="SCO_INOUTLI_UPDATESPDOC_TRG" table="M_INOUTLINE" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    SELECT em_sco_specialdoctype INTO v_specialdoctype FROM M_Inout WHERE M_Inout_ID = :NEW.m_inout_id;
+    :NEW.em_sco_specialdoctype := v_specialdoctype;
+
+    END SCO_INOUTLI_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReporteEstadoSituacionFinanciera_pasivo_patrimonioExcel" pageWidth="400" pageHeight="551" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="400" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="2.0000000000000018"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="net.sf.jasperreports.print.keep.full.text" value="true"/>
+	<property name="net.sf.jasperreports.export.xls.white.page.background" value="false"/>
+	<property name="net.sf.jasperreports.export.xls.remove.empty.space.between.rows" value="false"/>
+	<property name="net.sf.jasperreports.export.xls.remove.empty.space.between.columns" value="false"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="table">
+		<box>
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table_TD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1">
+		<box>
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1_TH" mode="Opaque" backcolor="#F0F8FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1_CH" mode="Opaque" backcolor="#BFE1FF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="table 1_TD" mode="Opaque" backcolor="#FFFFFF">
+		<box>
+			<pen lineWidth="0.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<subDataset name="Table Dataset 1"/>
+	<subDataset name="Table Dataset 2"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="dateFrom" class="java.lang.String"/>
+	<parameter name="dateTo" class="java.lang.String"/>
+	<parameter name="CLIENTE" class="java.lang.String">
+		<defaultValueExpression><![CDATA["NADA"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ORGANIZACION" class="java.lang.String">
+		<defaultValueExpression><![CDATA["NADA"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="fechaIniAnioAnterior" class="java.lang.String"/>
+	<parameter name="fechaFinAnioAnterior" class="java.lang.String"/>
+	<parameter name="fechaIniAnioActual" class="java.lang.String"/>
+	<parameter name="fechaFinAnioActual" class="java.lang.String"/>
+	<parameter name="anio1" class="java.lang.String"/>
+	<parameter name="anio2" class="java.lang.String"/>
+	<parameter name="soloUnAnio" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[SELECT t.order1,t.order2,t.categoria,t.sub_categoria,t.grupo_categoria,
+	case when t.order1 in (1,2,3,4) then 'ACTIVOS CORRIENTES'
+	when t.order1 in (5,6) then 'ACTIVOS NO CORRIENTES'
+	WHEN t.order1 in (7,8,9) then 'PASIVOS CORRIENTES'
+	when t.order1 in (10,11) then 'PASIVOS NO CORRIENTES'
+	when t.order1 in (12) then 'PATRIMONIO'
+	ELSE '' end as tipo_grupo
+
+	,sum (t.saldo1*t.considerar) as saldo_anio_anterior
+	,sum (t.saldo2*t.considerar) as saldo_anio_actual
+
+  from
+(
+
+
+
+
+
+
+
+
+SELECT
+		sec.seqno as order1,
+		sesc.seqno as order2,
+		sec.description as categoria
+		,sesc.description as sub_categoria
+
+
+
+		,case greater_than_a_year when 'SCO_NONE' then
+			case when
+				sesa.consider = 'Y' AND sesa.considerwhen='SCO_PLUS' THEN
+					COALESCE(
+					(select sum(factnum) from
+					(
+						select sum(fa.amtacctdr - fa.amtacctcr) as factnum from fact_acct fa
+						where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+						and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+						and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioAnterior}) and to_date($P{fechaFinAnioAnterior})
+						group by fa.acctvalue
+					) as alias where factnum>0), 0.0)
+				when
+				sesa.consider = 'Y' AND sesa.considerwhen<>'SCO_PLUS' THEN
+					COALESCE(
+					(select sum(factnum) from
+					(
+						select sum(fa.amtacctdr - fa.amtacctcr) as factnum from fact_acct fa
+						where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+						and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+						and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioAnterior}) and to_date($P{fechaFinAnioAnterior})
+						group by fa.acctvalue
+					) as alias where factnum<0), 0.0)
+				else
+					COALESCE(
+					(select sum(fa.amtacctdr - fa.amtacctcr) from fact_acct fa
+					where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+					and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+					and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioAnterior}) and to_date($P{fechaFinAnioAnterior}))
+					,0.0)
+				end
+		when 'SCO_N' then
+					COALESCE(
+					(select sum(fa.amtacctdr - fa.amtacctcr) from fact_acct fa
+					where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+					and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+					and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioAnterior}) and to_date($P{fechaFinAnioAnterior})
+					and (extract(day from (case when fa.em_sco_fechavenc is null then fa.dateacct else fa.em_sco_fechavenc end) - now()) <= 365))
+					,0.0)
+
+		when 'SCO_Y' THEN
+				COALESCE(
+					(select sum(fa.amtacctdr - fa.amtacctcr) from fact_acct fa
+					where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+					and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+					and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioAnterior}) and to_date($P{fechaFinAnioAnterior})
+					and (extract(day from (case when fa.em_sco_fechavenc is null then fa.dateacct else fa.em_sco_fechavenc end - now())) > 365) )
+					,0.0)
+
+
+		else 0 end
+			as saldo1
+
+
+
+		,case greater_than_a_year when 'SCO_NONE' then
+
+			case when
+				sesa.consider = 'Y' AND sesa.considerwhen='SCO_PLUS' THEN
+					COALESCE(
+					(select sum(factnum) from
+					(
+						select sum(fa.amtacctdr - fa.amtacctcr) as factnum from fact_acct fa
+						where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+						and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+						and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioActual}) and to_date($P{fechaFinAnioActual})
+						group by fa.acctvalue
+					) as alias where factnum>0), 0.0)
+				when
+				sesa.consider = 'Y' AND sesa.considerwhen<>'SCO_PLUS' THEN
+					COALESCE(
+					(select sum(factnum) from
+					(
+						select sum(fa.amtacctdr - fa.amtacctcr) as factnum from fact_acct fa
+						where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+						and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+						and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioActual}) and to_date($P{fechaFinAnioActual})
+						group by fa.acctvalue
+					) as alias where factnum<0), 0.0)
+				else
+					COALESCE(
+					(select sum(fa.amtacctdr - fa.amtacctcr) from fact_acct fa
+					where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+					and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+					and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioActual}) and to_date($P{fechaFinAnioActual}))
+					,0.0)
+				end
+		when 'SCO_N' then
+			COALESCE(
+					(select sum(fa.amtacctdr - fa.amtacctcr) from fact_acct fa
+					where fa.factaccttype not in ('C') and fa.acctvalue like replace(sesa.account, '-','')
+					and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+					and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioActual}) and to_date($P{fechaFinAnioActual})
+					and (extract(day from (case when fa.em_sco_fechavenc is null then fa.dateacct else fa.em_sco_fechavenc end  - now())) <= 365)
+				)
+					,0.0)
+		when 'SCO_Y' THEN
+					COALESCE(
+					(select sum(fa.amtacctdr - fa.amtacctcr) from fact_acct fa
+					where fa.factaccttype not in ('C') and fa.acctvalue ilike replace(sesa.account, '-','')
+					and fa.ad_org_id in ($P!{ORGANIZACION}) and fa.ad_client_id=sec.ad_client_id
+					and cast(fa.dateacct as date ) BETWEEN to_date($P{fechaIniAnioActual}) and to_date($P{fechaFinAnioActual})
+					and (extract(day from (case when fa.em_sco_fechavenc is null then fa.dateacct else fa.em_sco_fechavenc end - now())) > 365) )
+					,0.0)
+
+
+		else 0 end
+			as saldo2
+
+
+
+
+
+
+		,case when sesa.account like '-%' then -1 else 1 end considerar
+
+		,(select COALESCE(arlt.name , arl.name) from ad_ref_list arl
+		inner join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+		where arl.value=sec.catgroup and arlt.ad_language='es_PE' limit 1) as grupo_categoria
+
+
+	FROM sco_eeff_category sec
+	left join sco_eeff_subcategory sesc on sec.sco_eeff_category_id=sesc.sco_eeff_category_id
+	left JOIN sco_eeff_subcat_accts sesa on sesc.sco_eeff_subcategory_id=sesa.sco_eeff_subcategory_id
+
+WHERE sec."type"='SCO_ESF'
+
+and
+
+		sec.ad_client_id in ($P!{CLIENTE}) AND
+
+		sec.ad_org_id in ($P!{ORGANIZACION})
+
+ and
+
+		sec.catgroup IN('SCO_BG_TP','SCO_BG_TPI')
+		order by 1,2) as t
+GROUP BY t.order1,t.order2,t.categoria,t.sub_categoria,t.grupo_categoria
+ORDER BY t.order1,t.order2]]>
+	</queryString>
+	<field name="order1" class="java.math.BigDecimal"/>
+	<field name="order2" class="java.math.BigDecimal"/>
+	<field name="categoria" class="java.lang.String"/>
+	<field name="subCategoria" class="java.lang.String"/>
+	<field name="grupoCategoria" class="java.lang.String"/>
+	<field name="tipoGrupo" class="java.lang.String"/>
+	<field name="saldoAnioAnterior" class="java.math.BigDecimal"/>
+	<field name="saldoAnioActual" class="java.math.BigDecimal"/>
+	<variable name="SHOWLOGO" class="java.lang.String"/>
+	<variable name="SHOWCOMPANYDATA" class="java.lang.String"/>
+	<variable name="saldo_anual_anterior_1" class="java.math.BigDecimal" resetType="Group" resetGroup="por_tipo_activo" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldoAnioAnterior}]]></variableExpression>
+		<initialValueExpression><![CDATA[BigDecimal.ZERO]]></initialValueExpression>
+	</variable>
+	<variable name="saldo_anual_actual_1" class="java.math.BigDecimal" resetType="Group" resetGroup="por_tipo_activo" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldoAnioActual}]]></variableExpression>
+		<initialValueExpression><![CDATA[BigDecimal.ZERO]]></initialValueExpression>
+	</variable>
+	<variable name="saldo_anual_anterior_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldoAnioAnterior}]]></variableExpression>
+		<initialValueExpression><![CDATA[BigDecimal.ZERO]]></initialValueExpression>
+	</variable>
+	<variable name="saldo_anual_actual_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldoAnioActual}]]></variableExpression>
+		<initialValueExpression><![CDATA[BigDecimal.ZERO]]></initialValueExpression>
+	</variable>
+	<group name="por_serie">
+		<groupExpression><![CDATA[]]></groupExpression>
+		<groupHeader>
+			<band/>
+		</groupHeader>
+		<groupFooter>
+			<band/>
+		</groupFooter>
+	</group>
+	<group name="por_tipo_activo">
+		<groupExpression><![CDATA[$F{tipoGrupo}]]></groupExpression>
+		<groupHeader>
+			<band/>
+		</groupHeader>
+		<groupFooter>
+			<band height="11">
+				<textField isBlankWhenNull="true">
+					<reportElement x="265" y="0" width="65" height="11">
+						<printWhenExpression><![CDATA[!$P{soloUnAnio}.equals("Y")]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{saldo_anual_anterior_1})]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement x="330" y="0" width="65" height="11"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{saldo_anual_actual_1})]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true">
+					<reportElement mode="Opaque" x="0" y="0" width="217" height="11" backcolor="#FFEAAB"/>
+					<textElement markup="none">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA["TOTAL "+$F{tipoGrupo}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="217" y="0" width="48" height="11"/>
+					<textElement textAlignment="Center" markup="none">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[]]></text>
+				</staticText>
+			</band>
+		</groupFooter>
+	</group>
+	<group name="por_categoria">
+		<groupExpression><![CDATA[$F{categoria}]]></groupExpression>
+		<groupHeader>
+			<band height="11">
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Opaque" x="0" y="0" width="217" height="11" backcolor="#FFEAAB"/>
+					<textElement>
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{categoria}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="330" y="0" width="65" height="11"/>
+					<textElement textAlignment="Right" markup="none">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[0.00]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="265" y="0" width="65" height="11">
+						<printWhenExpression><![CDATA[!$P{soloUnAnio}.equals("Y")]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" markup="none">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[0.00]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="217" y="0" width="48" height="11"/>
+					<textElement textAlignment="Center" markup="none">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band/>
+		</groupFooter>
+	</group>
+	<pageHeader>
+		<band height="22">
+			<textField>
+				<reportElement mode="Opaque" x="265" y="0" width="65" height="11" forecolor="#FFFFFF" backcolor="#000000">
+					<printWhenExpression><![CDATA[!$P{soloUnAnio}.equals("Y")]]></printWhenExpression>
+				</reportElement>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FF9933"/>
+					<topPen lineWidth="0.5" lineColor="#FF9933"/>
+					<leftPen lineWidth="0.5" lineColor="#FF9933"/>
+					<bottomPen lineWidth="0.5" lineColor="#FF9933"/>
+					<rightPen lineWidth="0.5" lineColor="#FF9933"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{anio1}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="330" y="0" width="65" height="11" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FF9933"/>
+					<topPen lineWidth="0.5" lineColor="#FF9933"/>
+					<leftPen lineWidth="0.5" lineColor="#FF9933"/>
+					<bottomPen lineWidth="0.5" lineColor="#FF9933"/>
+					<rightPen lineWidth="0.5" lineColor="#FF9933"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{anio2}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="265" y="11" width="65" height="11" forecolor="#FFFFFF" backcolor="#000000">
+					<printWhenExpression><![CDATA[!$P{soloUnAnio}.equals("Y")]]></printWhenExpression>
+				</reportElement>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FF9933"/>
+					<topPen lineWidth="0.5" lineColor="#FF9933"/>
+					<leftPen lineWidth="0.5" lineColor="#FF9933"/>
+					<bottomPen lineWidth="0.5" lineColor="#FF9933"/>
+					<rightPen lineWidth="0.5" lineColor="#FF9933"/>
+				</box>
+				<textElement textAlignment="Center" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[S/.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="330" y="11" width="65" height="11" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FF9933"/>
+					<topPen lineWidth="0.5" lineColor="#FF9933"/>
+					<leftPen lineWidth="0.5" lineColor="#FF9933"/>
+					<bottomPen lineWidth="0.5" lineColor="#FF9933"/>
+					<rightPen lineWidth="0.5" lineColor="#FF9933"/>
+				</box>
+				<textElement textAlignment="Center" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[S/.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="217" y="0" width="48" height="22" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FF9933"/>
+					<topPen lineWidth="0.5" lineColor="#FF9933"/>
+					<leftPen lineWidth="0.5" lineColor="#FF9933"/>
+					<bottomPen lineWidth="0.5" lineColor="#FF9933"/>
+					<rightPen lineWidth="0.5" lineColor="#FF9933"/>
+				</box>
+				<textElement textAlignment="Center" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[NOTA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="0" width="217" height="22" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FF9933"/>
+					<topPen lineWidth="0.5" lineColor="#FF9933"/>
+					<leftPen lineWidth="0.5" lineColor="#FF9933"/>
+					<bottomPen lineWidth="0.5" lineColor="#FF9933"/>
+					<rightPen lineWidth="0.5" lineColor="#FF9933"/>
+				</box>
+				<textElement markup="none">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[ACTIVOS]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="11">
+			<printWhenExpression><![CDATA[$F{subCategoria}!=null]]></printWhenExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement isPrintRepeatedValues="false" mode="Opaque" x="0" y="0" width="217" height="11" backcolor="#FFEAAB"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{subCategoria}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="265" y="0" width="65" height="11">
+					<printWhenExpression><![CDATA[!$P{soloUnAnio}.equals("Y")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{saldoAnioAnterior})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="330" y="0" width="65" height="11"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{saldoAnioActual})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="217" y="0" width="48" height="11"/>
+				<textElement textAlignment="Center" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+		</band>
+	</detail>
+</jasperReport>

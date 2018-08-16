@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE AD_USER">
+    <table name="AD_USER" primaryKey="AD_USER_KEY">
+      <column name="EM_SSA_SALES_AREA_CBO_ITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_SALES_OP_MOBILEACCESS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_SALES_CH_MOBILEACCESS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_CHK_ISSALESREP" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SSA_USER_SALES_AREA_CMB">
+        <reference local="EM_SSA_SALES_AREA_CBO_ITEM_ID" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <check name="EM_SSA_USER_SCH_MOBACC_CHK"><![CDATA[EM_SSA_SALES_CH_MOBILEACCESS IN ('Y', 'N')]]></check>
+      <check name="EM_SSA_USER_SOP_MOBACC_CHK"><![CDATA[EM_SSA_SALES_OP_MOBILEACCESS IN ('Y', 'N')]]></check>
+    </table>
+  </database>

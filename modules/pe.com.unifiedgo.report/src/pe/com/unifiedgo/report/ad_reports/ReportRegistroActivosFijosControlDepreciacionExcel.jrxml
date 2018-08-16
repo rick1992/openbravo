@@ -1,0 +1,1302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReportPurchaseWithholding" pageWidth="1729" pageHeight="802" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="1729" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="1.6500000000000905"/>
+	<property name="ireport.x" value="693"/>
+	<property name="ireport.y" value="0"/>
+	<property name="net.sf.jasperreports.print.keep.full.text" value="true"/>
+	<property name="net.sf.jasperreports.export.xls.white.page.background" value="false"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="DejaVu Sans" fontSize="11"/>
+	<style name="Report_Title" fontName="DejaVu Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="DejaVu Sans" fontSize="14"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="DejaVu Sans" fontSize="18" isBold="true"/>
+	<style name="GroupHeader_Gray" mode="Opaque" backcolor="#999999"/>
+	<style name="Detail_Line" fontName="DejaVu Sans" fontSize="11">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Report_Data_Label" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="DejaVu Sans" fontSize="11" isBold="false"/>
+	<style name="Report_Footer" isDefault="true" fontName="DejaVu Sans" fontSize="11"/>
+	<style name="Group_Data_Label" fontName="DejaVu Sans" fontSize="14" isBold="true"/>
+	<style name="Group_Data_Field" fontName="DejaVu Sans" fontSize="14"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="DejaVu Sans" fontSize="11"/>
+	<style name="Group_Footer" fontName="DejaVu Sans" fontSize="11" isBold="true"/>
+	<parameter name="Subtitle" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false">
+		<defaultValueExpression><![CDATA[new DecimalFormat("#,##0.00",new DecimalFormatSymbols(Locale.US))]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="dateFrom" class="java.util.Date"/>
+	<parameter name="dateTo" class="java.util.Date"/>
+	<parameter name="totalLines" class="java.lang.Integer" isForPrompting="false"/>
+	<parameter name="Razon" class="java.lang.String"/>
+	<parameter name="Ruc" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[select f.*,
+vida_util-vida_cumplida as vida_x_cumplir,
+depreciacion_acumulada + depreciacion_ejercicio as depreciacion_historica,
+depreciacion_acumulada + depreciacion_ejercicio as depreciacion_acumulada_inflasion,
+saldo_inicial-(depreciacion_acumulada + depreciacion_ejercicio) as activo_neto
+ from
+(select
+
+aa.ad_org_id,ao.name,
+
+aag.name as clase
+
+, (select cev.value from a_asset_acct aaa2
+left join c_validcombination cvc on aaa2.em_sco_assets_acct=cvc.c_validcombination_id
+inner join c_elementvalue cev on cvc.account_id=cev.c_elementvalue_id
+where aaa2.a_asset_id=aa.a_asset_id limit 1 ) as codigo_cuenta
+
+,aa.value as codigo_activo
+
+,aa.name as activo
+
+,( case when  aa.amortizationcalctype = 'PE' then 'porcentaje'
+	when  aa.amortizationcalctype = 'TI' then 'tiempo' end) as tipodepreciacion
+
+,( case when  aa.assetschedule = 'YE' then 'anual'
+	when  aa.assetschedule = 'MO' then 'mensual' end) as tiempo
+
+,to_char(aa.amortizationstartdate,'dd/mm/yyyy') as fecha_inicio
+
+,to_char(aa.datepurchased,'dd/mm/yyyy') as fecha_adquisicion
+
+,(
+case 	when  aa.amortizationcalctype = 'PE' then round( aa.annualamortizationpercentage/12,2)
+	when  aa.amortizationcalctype = 'TI' then
+		(select case when aa.assetschedule = 'YE' then round((aaml.amortization_percentage)/12,2)
+			when aa.assetschedule = 'MO' then (aaml.amortization_percentage) end
+		from a_amortizationline aaml
+		inner join a_amortization am2 on aaml.a_amortization_id=am2.a_amortization_id
+		where aaml.a_asset_id=aa.a_asset_id   and am2.startdate<=('2018-01-01') and am2.enddate>=('2018-01-01') limit 1)
+	end
+) as depreciacion
+
+,(case
+	when  aa.amortizationcalctype = 'TI' then coalesce( aa.uselifeyears*12,coalesce(aa.uselifemonths , 0))
+	when  aa.amortizationcalctype = 'PE' then
+	(select count(aaml.a_amortizationline_id) from a_amortizationline aaml
+		inner join a_amortization am2 on aaml.a_amortization_id=am2.a_amortization_id
+		where aaml.a_asset_id=aa.a_asset_id)*12
+end
+) as vida_util
+
+,((SELECT (DATE_PART('year', '2018-01-01'::date) - DATE_PART('year', aa.amortizationstartdate)) * 12 +
+              (DATE_PART('month', '2018-01-01'::date) - DATE_PART('month', aa.amortizationstartdate)))+1
+) as vida_cumplida
+
+,(select coalesce(arlt.name,coalesce(arl.name,'')) from ad_ref_list arl
+left join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+where  arl.value=aa.amortizationtype) as tipo_regresion
+
+,1 as cantidad
+
+,aa.Amortizationvalueamt as saldo_inicial
+
+,0.00 as adquisiciones_adicionales
+
+,1.0000 as mejoras
+
+,0.00 as retiro_bajas
+
+,aa.assetvalueamt as valor_historico
+
+,aa.assetvalueamt as valor_ajustado
+
+,aa.a_asset_id
+,(
+select sum(aaml.amortizationamt) from a_amortizationline aaml
+inner join a_amortization am2 on aaml.a_amortization_id=am2.a_amortization_id
+where aaml.a_asset_id=aa.a_asset_id and am2.startdate<=('2018-01-01'::date-interval '11 month') --
+and (case when aa.assetschedule = 'MO'  then
+case when am2.enddate<=('2018-01-01'::date-interval '11 month') then true else false end
+else true end )
+)+aa.Depreciatedpreviousamt as depreciacion_acumulada
+
+,(select sum(aaml.amortizationamt) from a_amortizationline aaml
+inner join a_amortization am2 on aaml.a_amortization_id=am2.a_amortization_id
+where aaml.a_asset_id=aa.a_asset_id  and am2.startdate>=('2018-01-01'::date-interval '11 month') and am2.startdate<='2018-01-01') as depreciacion_ejercicio
+
+,0.00 as depreciacion_bajas
+
+from a_asset aa
+inner join ad_org ao on aa.ad_org_id=ao.ad_org_id
+left join a_asset_group aag on aa.a_asset_group_id=aag.a_asset_group_id
+--where ao.ad_org_id='26C51A26367B4E97BEE8C6EC6ECD6F8B'
+) as  f]]>
+	</queryString>
+	<field name="ad_org_id" class="java.lang.String"/>
+	<field name="name" class="java.lang.String"/>
+	<field name="clase" class="java.lang.String"/>
+	<field name="codigo_cuenta" class="java.lang.String"/>
+	<field name="codigo_activo" class="java.lang.String"/>
+	<field name="activo" class="java.lang.String"/>
+	<field name="tipodepreciacion" class="java.lang.String"/>
+	<field name="tiempo" class="java.lang.String"/>
+	<field name="fecha_inicio" class="java.lang.String"/>
+	<field name="fecha_adquisicion" class="java.lang.String"/>
+	<field name="depreciacion" class="java.math.BigDecimal"/>
+	<field name="vida_util" class="java.math.BigDecimal"/>
+	<field name="vida_cumplida" class="java.lang.Double"/>
+	<field name="tipo_regresion" class="java.lang.String"/>
+	<field name="cantidad" class="java.lang.Integer"/>
+	<field name="saldo_inicial" class="java.math.BigDecimal"/>
+	<field name="adquisiciones_adicionales" class="java.math.BigDecimal"/>
+	<field name="mejoras" class="java.math.BigDecimal"/>
+	<field name="retiro_bajas" class="java.math.BigDecimal"/>
+	<field name="valor_historico" class="java.math.BigDecimal"/>
+	<field name="valor_ajustado" class="java.math.BigDecimal"/>
+	<field name="a_asset_id" class="java.lang.String"/>
+	<field name="depreciacion_acumulada" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio" class="java.math.BigDecimal"/>
+	<field name="depreciacion_bajas" class="java.math.BigDecimal"/>
+	<field name="vida_x_cumplir" class="java.lang.Double"/>
+	<field name="depreciacion_historica" class="java.math.BigDecimal"/>
+	<field name="depreciacion_acumulada_inflasion" class="java.math.BigDecimal"/>
+	<field name="activo_neto" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio1" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio2" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio3" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio4" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio5" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio6" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio7" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio8" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio9" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio10" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio11" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio12" class="java.math.BigDecimal"/>
+	<field name="depreciacion_anual" class="java.math.BigDecimal"/>
+	<variable name="variable" class="java.util.Properties" calculation="System">
+		<initialValueExpression><![CDATA[new Properties()]]></initialValueExpression>
+	</variable>
+	<variable name="qtyordered_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="qtyinvoiced_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="qtydelivered_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="diff_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="saldo_inicial_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldo_inicial}]]></variableExpression>
+	</variable>
+	<variable name="adquisiciones_adicionales_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{adquisiciones_adicionales}]]></variableExpression>
+	</variable>
+	<variable name="mejoras_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{mejoras}]]></variableExpression>
+	</variable>
+	<variable name="retiro_bajas_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{retiro_bajas}]]></variableExpression>
+	</variable>
+	<variable name="valor_historico_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{valor_historico}]]></variableExpression>
+	</variable>
+	<variable name="valor_ajustado_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{valor_ajustado}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_acumulada_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_acumulada}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_bajas_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_bajas}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_historica_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_historica}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_acumulada_inflasion_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_acumulada_inflasion}]]></variableExpression>
+	</variable>
+	<variable name="activo_neto_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{activo_neto}]]></variableExpression>
+	</variable>
+	<variable name="cuenta_categoria" class="java.math.BigDecimal" incrementType="Group" incrementGroup="POR_CLASE" calculation="Count">
+		<variableExpression><![CDATA[$F{clase}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="saldo_inicial_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{saldo_inicial}]]></variableExpression>
+	</variable>
+	<variable name="adquisiciones_adicionales_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{adquisiciones_adicionales}]]></variableExpression>
+	</variable>
+	<variable name="mejoras_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{mejoras}]]></variableExpression>
+	</variable>
+	<variable name="retiro_bajas_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{retiro_bajas}]]></variableExpression>
+	</variable>
+	<variable name="valor_historico_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{valor_historico}]]></variableExpression>
+	</variable>
+	<variable name="valor_ajustado_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{valor_ajustado}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_acumulada_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_acumulada}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_bajas_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_bajas}]]></variableExpression>
+	</variable>
+	<variable name="vida_x_cumplir_1" class="java.lang.Double" calculation="Sum">
+		<variableExpression><![CDATA[$F{vida_x_cumplir}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_historica_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_historica}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_acumulada_inflasion_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_acumulada_inflasion}]]></variableExpression>
+	</variable>
+	<variable name="activo_neto_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{activo_neto}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio1_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio1}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio2_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio2}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio3_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio3}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio4_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio4}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio5_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio5}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio6_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio6}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio7_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio7}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio8_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio8}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio9_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio9}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio10_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio10}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio11_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio11}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio12_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio12}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio1_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio1}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio2_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio2}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio3_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio3}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio4_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio4}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio5_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio5}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio6_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio6}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio7_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio7}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio8_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio8}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio9_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio9}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio10_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio10}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio11_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio11}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_ejercicio12_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_ejercicio12}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_anual_1" class="java.math.BigDecimal" resetType="Group" resetGroup="POR_CLASE" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_anual}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_anual_2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_anual}]]></variableExpression>
+	</variable>
+	<group name="POR_CLASE" isReprintHeaderOnEachPage="true">
+		<groupExpression><![CDATA[$F{clase}]]></groupExpression>
+		<groupHeader>
+			<band height="20">
+				<textField>
+					<reportElement x="0" y="5" width="701" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA["CLASE: " + ($V{cuenta_categoria}.add(new BigDecimal(1.00))).toString() +" "+$F{clase}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="37" splitType="Stretch">
+				<printWhenExpression><![CDATA[$F{clase}!=null]]></printWhenExpression>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="795" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio1_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="701" y="5" width="94" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{saldo_inicial_1}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement x="0" y="5" width="621" height="13"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA["Subtotal Clase : " + ($V{cuenta_categoria}.add(new BigDecimal(0.00))).toString()]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="865" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio2_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="935" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio3_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1005" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio4_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1075" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio5_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1145" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio6_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1565" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio12_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1495" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio11_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1215" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio7_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1285" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio8_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1425" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio10_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1355" y="5" width="70" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio9_1}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement x="1635" y="5" width="94" height="13">
+						<printWhenExpression><![CDATA[true]]></printWhenExpression>
+					</reportElement>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_anual_1}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<title>
+		<band height="74" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="47" width="1005" height="27"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="18" isBold="true"/>
+				</textElement>
+				<text><![CDATA["DEPORTE DE DEPRECIACION"]]></text>
+			</staticText>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="129">
+			<staticText>
+				<reportElement mode="Opaque" x="101" y="75" width="250" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Descripción]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="351" y="75" width="55" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Inicio]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="51" y="75" width="50" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Cuenta
+Contable
+del
+Activo Fijo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="501" y="75" width="40" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Vida Útil]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="461" y="75" width="40" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[(%) Depre ciación]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="621" y="75" width="50" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo Regresión]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="671" y="75" width="30" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Canti dad]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1425" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Octubre]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1635" y="75" width="94" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Acumulado]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="75" width="51" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Código
+relacionado
+con el
+Activo fijo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="406" y="75" width="55" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Adquisición]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="541" y="75" width="40" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Vida Cumplida]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="581" y="75" width="40" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Vida por Cumplir]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="701" y="75" width="94" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Saldo Inicial]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="101" y="0" width="360" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{Razon}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="12" width="101" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[RUC:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="0" width="101" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Razón  Social:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="101" y="12" width="360" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{Ruc}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="795" y="12" width="210" height="12"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Del: "+(new SimpleDateFormat("dd/MM/yyyy").format($P{dateFrom})).toString()+" Al: "+(new SimpleDateFormat("dd/MM/yyyy").format($P{dateTo})).toString()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="24" width="101" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Periodo:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-8" style="default" mode="Transparent" x="795" y="0" width="140" height="12"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Impreso: ]]></text>
+			</staticText>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="101" y="24" width="360" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.MonthToSpanish($P{dateTo})]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="false">
+				<reportElement key="textField-15" style="Report_Footer" x="935" y="0" width="70" height="12"/>
+				<box>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[new Date()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="795" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Enero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="865" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Febrero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="935" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Marzo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1005" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Abril]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1075" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Mayo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1145" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Junio]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1215" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Julio]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1285" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Agosto]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1355" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Setiembre]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1495" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Noviembre]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="1565" y="75" width="70" height="50" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Depreciación Diciembre]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="0" width="51" height="12"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{codigo_activo}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="51" y="0" width="50" height="12"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{codigo_cuenta}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="101" y="0" width="250" height="12"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{activo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="351" y="0" width="55" height="12"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{fecha_inicio}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="406" y="0" width="55" height="12"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{fecha_adquisicion}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="461" y="0" width="40" height="12">
+					<printWhenExpression><![CDATA[$F{depreciacion}.compareTo(BigDecimal.ZERO)!=0]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="501" y="0" width="40" height="12">
+					<printWhenExpression><![CDATA[$F{vida_util}.compareTo(BigDecimal.ZERO)!=0]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{vida_util}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="541" y="0" width="40" height="12"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{vida_cumplida}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="701" y="0" width="94" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{saldo_inicial}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="671" y="0" width="30" height="12"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Integer"><![CDATA[$F{cantidad}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="621" y="0" width="50" height="12"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{tipo_regresion}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="581" y="0" width="40" height="12"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{vida_x_cumplir}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="795" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio1}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement mode="Transparent" x="1635" y="0" width="94" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_anual}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="865" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="935" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio3}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1005" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio4}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1075" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio5}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1215" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio7}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1285" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio8}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1145" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio6}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1355" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio9}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1495" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio11}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1565" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio12}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1425" y="0" width="70" height="12">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_ejercicio10}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="15">
+			<staticText>
+				<reportElement x="621" y="2" width="80" height="13"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL FINAL: ]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="701" y="2" width="94" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{saldo_inicial_2}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="2" width="621" height="13"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1635" y="2" width="94" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_anual_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="795" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio1_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1145" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio6_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1215" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio7_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1495" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio11_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1425" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio10_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1565" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio12_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="935" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio3_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1285" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio8_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1005" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio4_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1355" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio9_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="865" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio2_2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="1075" y="2" width="70" height="13">
+					<printWhenExpression><![CDATA[true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_ejercicio5_2}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

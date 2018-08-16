@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_UPDWITHHODAT_TRG">
+    <trigger name="SCO_PAYMENT_UPDWITHHODAT_TRG" table="FIN_PAYMENT" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[  Cur_PWihholdingReceipt RECORD;
+  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(UPDATING) THEN
+      IF(COALESCE(:OLD.paymentdate,v_DateNull)<>COALESCE(:NEW.paymentdate,v_DateNull)) THEN
+        FOR Cur_PWihholdingReceipt IN
+            (SELECT * FROM SCO_Pwithholding_Receipt WHERE fin_withholdingpayment_id=:NEW.fin_payment_id FOR UPDATE)
+          LOOP
+	      IF(Cur_PWihholdingReceipt.docstatus <> 'DR') THEN
+                RAISE_APPLICATION_ERROR(-20000, '@SCO_ChangePayDateWithhoReNotinDR@');
+	      END IF;
+
+              UPDATE SCO_Pwithholding_Receipt SET dategen=:NEW.paymentdate, dateacct=:NEW.paymentdate WHERE SCO_Pwithholding_Receipt_ID = Cur_PWihholdingReceipt.SCO_Pwithholding_Receipt_ID;
+	  END LOOP;
+      END IF;    
+    END IF;
+
+    END SCO_PAYMENT_UPDWITHHODAT_TRG
+]]></body>
+    </trigger>
+  </database>

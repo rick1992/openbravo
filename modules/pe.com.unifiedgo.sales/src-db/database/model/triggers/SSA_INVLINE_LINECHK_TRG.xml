@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_INVLINE_LINECHK_TRG">
+    <trigger name="SSA_INVLINE_LINECHK_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF((:NEW.Financial_Invoice_Line = 'Y' AND :NEW.Account_ID IS NULL) OR 
+         ((:NEW.Financial_Invoice_Line = 'N' OR :NEW.Financial_Invoice_Line IS NULL) AND :NEW.M_Product_ID IS NULL)) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SSA_InvoiceBlankLine@');
+      END IF;          
+
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.Financial_Invoice_Line,'.')<>COALESCE(:NEW.Financial_Invoice_Line,'.')
+        OR COALESCE(:OLD.Account_ID,'.')<>COALESCE(:NEW.Account_ID,'.')
+        OR COALESCE(:OLD.M_Product_ID,'.')<>COALESCE(:NEW.M_Product_ID,'.')
+        ) THEN
+         IF((:NEW.Financial_Invoice_Line = 'Y' AND :NEW.Account_ID IS NULL) OR 
+            ((:NEW.Financial_Invoice_Line = 'N' OR :NEW.Financial_Invoice_Line IS NULL) AND :NEW.M_Product_ID IS NULL)) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_InvoiceBlankLine@');
+         END IF;   
+      END IF;
+    END IF;
+
+    --Validaciones para AR CREDIT MEMO - AP CREDIT MEMO
+    IF(INSERTING OR UPDATING)THEN
+     IF(:NEW.em_sim_apcredit_to_invline_id IS NOT NULL AND :NEW.em_sim_apcredit_to_shipline_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@sim_CreditToInvoiceLineShipmentVal@');
+     END IF;
+    END IF;
+    
+
+    END SSA_INVLINE_LINECHK_TRG
+]]></body>
+    </trigger>
+  </database>

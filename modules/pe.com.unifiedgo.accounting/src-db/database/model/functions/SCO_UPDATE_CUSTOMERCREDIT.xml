@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_UPDATE_CUSTOMERCREDIT">
+    <function name="SCO_UPDATE_CUSTOMERCREDIT" type="NULL">
+      <parameter name="p_c_bpartner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_add" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_AD_Client_ID VARCHAR(32); 
+  v_AD_Org_ID VARCHAR(32);
+
+  v_Count NUMBER;
+  BEGIN
+
+    IF(p_add = 'Y') THEN
+      UPDATE C_Bpartner
+        SET SO_CreditUsed = SO_CreditUsed + p_amount
+      WHERE C_Bpartner_ID = p_c_bpartner_id;
+    ELSE
+      UPDATE C_Bpartner
+        SET SO_CreditUsed = SO_CreditUsed - p_amount
+      WHERE C_Bpartner_ID = p_c_bpartner_id;
+    END IF;
+  RETURN;
+END SCO_UPDATE_CUSTOMERCREDIT
+]]></body>
+    </function>
+  </database>

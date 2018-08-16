@@ -1,0 +1,154 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_BUDGETENTRY_TRG">
+    <trigger name="SPR_BUDGETENTRY_TRG" table="SPR_BUDGETENTRY" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2012 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+
+   TYPE RECORD IS REF CURSOR;
+   Cur_Offer RECORD;
+   v_ID VARCHAR2(32);
+   v_currency_id VARCHAR2(32);
+   v_pricelist_id VARCHAR2(32);
+   v_Line NUMBER;
+   v_price NUMBER:=0; --OBTG:VARCHAR2--
+   
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.spr_budget_id;
+ELSE
+  v_ID:=:NEW.spr_budget_id;
+END IF;
+
+
+IF (INSERTING) THEN
+  IF(:NEW.spr_budgetitem_id IS NOT NULL)THEN
+
+   SELECT c_currency_id, m_pricelist_id
+     INTO v_currency_id, v_pricelist_id
+    FROM spr_budget where spr_budget_id = :NEW.spr_budget_id;
+
+    v_Line:=10;
+
+    FOR Cur_Offer IN (
+      SELECT spr_budgetitemline.* FROM spr_budgetitemline 
+        INNER JOIN m_product on spr_budgetitemline.m_product_id = m_product.m_product_id
+        WHERE spr_budgetitemline.spr_budgetitem_id = :NEW.spr_budgetitem_id
+           AND m_product.isactive='Y'
+    )
+    LOOP
+    
+
+     /**OBTENER EL PRECIO DE LISTA.
+     */
+
+
+   SELECT  cast(SUBSTRING(COALESCE(scr_getproductpricesbydate(:NEW.ad_client_id, :NEW.ad_org_id,Cur_Offer.m_product_id , v_pricelist_id,now())
+                      ,'1.00|')from 0 for position('|' in COALESCE(scr_getproductpricesbydate(:NEW.ad_client_id, :NEW.ad_org_id,Cur_Offer.m_product_id , v_pricelist_id,now())
+                      ,'1.00|'))) as NUMBER)
+       INTO v_price FROM DUAL;
+     
+
+     
+      INSERT INTO spr_budgetline 
+       (spr_budgetline_id, ad_client_id,ad_org_id,isactive,
+        created,createdby,updated,updatedby,
+        spr_budget_id, c_currency_id, m_product_id, c_uom_id,
+        qtyordered, qtyrequested, pricelist, priceactual, linenetamt,
+        c_tax_id, spr_budgetitem_id, line, spr_budgetentry_id
+       )
+      values (
+       get_uuid(), Cur_Offer.ad_client_id, Cur_Offer.ad_org_id, 'Y',
+       now(),:NEW.createdby,now(),:NEW.createdby,
+       :NEW.spr_budget_id, v_currency_id, Cur_Offer.m_product_id, Cur_Offer.c_uom_id,
+       Cur_Offer.qtyordered*:NEW.qtyordered, 0 , v_price, v_price , Cur_Offer.qtyordered*:NEW.qtyordered*v_price,
+       Cur_Offer.c_tax_id , :NEW.spr_budgetitem_id, v_line, :NEW.spr_budgetentry_id
+       );
+
+       v_Line = v_Line + 10;
+    END LOOP;
+  
+  END IF;
+END IF;
+
+
+IF (TG_OP='UPDATE') THEN
+  IF(:NEW.spr_budgetitem_id IS NOT NULL 
+     AND (:OLD.spr_budgetitem_id <> :NEW.spr_budgetitem_id 
+          OR :OLD.qtyordered <> :NEW.qtyordered )
+  )THEN
+
+
+   SELECT c_currency_id, m_pricelist_id
+     INTO v_currency_id, v_pricelist_id
+    FROM spr_budget where spr_budget_id = :NEW.spr_budget_id;
+  
+    DELETE FROM spr_budgetline WHERE spr_budgetentry_id = :NEW.spr_budgetentry_id;
+
+
+    v_Line:=10;
+
+    FOR Cur_Offer IN (
+      SELECT spr_budgetitemline.* FROM spr_budgetitemline 
+        INNER JOIN m_product on spr_budgetitemline.m_product_id = m_product.m_product_id
+        WHERE spr_budgetitemline.spr_budgetitem_id = :NEW.spr_budgetitem_id
+           AND m_product.isactive='Y'
+    )
+    LOOP
+
+      SELECT  cast(SUBSTRING(COALESCE(scr_getproductpricesbydate(:NEW.ad_client_id, :NEW.ad_org_id,Cur_Offer.m_product_id , v_pricelist_id,now())
+                      ,'1.00|')from 0 for position('|' in COALESCE(scr_getproductpricesbydate(:NEW.ad_client_id, :NEW.ad_org_id,Cur_Offer.m_product_id , v_pricelist_id,now())
+                      ,'1.00|'))) as NUMBER)
+       INTO v_price FROM DUAL;
+
+      INSERT INTO spr_budgetline 
+       (spr_budgetline_id, ad_client_id,ad_org_id,isactive,
+        created,createdby,updated,updatedby,
+        spr_budget_id, c_currency_id, m_product_id, c_uom_id,
+        qtyordered, qtyrequested, pricelist, priceactual, linenetamt,
+        c_tax_id, spr_budgetitem_id, line, spr_budgetentry_id
+       )
+      values (
+       get_uuid(), Cur_Offer.ad_client_id, Cur_Offer.ad_org_id, 'Y',
+       now(),:NEW.createdby,now(),:NEW.createdby,
+       :NEW.spr_budget_id, v_currency_id, Cur_Offer.m_product_id, Cur_Offer.c_uom_id,
+       Cur_Offer.qtyordered*:NEW.qtyordered, 0 , v_price, v_price , Cur_Offer.qtyordered*:NEW.qtyordered*v_price,
+       null , :NEW.spr_budgetitem_id, v_line, :NEW.spr_budgetentry_id
+       );
+
+       v_Line = v_Line + 10;
+    END LOOP;
+  
+  END IF;
+END IF;
+
+IF (TG_OP='DELETE') THEN
+ DELETE FROM spr_budgetline WHERE spr_budgetentry_id = :OLD.spr_budgetentry_id;
+END IF;
+
+
+
+ 
+
+END SPR_BUDGETENTRY_TRG
+]]></body>
+    </trigger>
+  </database>

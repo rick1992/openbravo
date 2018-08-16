@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_ASSET_ACCT_CHK_REST_TRG">
+    <trigger name="SCO_ASSET_ACCT_CHK_REST_TRG" table="A_ASSET_ACCT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+  v_A_ASSET_ID VARCHAR2(32) ;
+  v_asset_status VARCHAR(60);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_A_ASSET_ID:=:NEW.A_ASSET_ID;
+  ELSE
+    v_A_ASSET_ID:=:OLD.A_ASSET_ID;
+  END IF;
+  IF UPDATING THEN
+
+    SELECT EM_Sco_Asset_Status INTO v_asset_status FROM A_Asset WHERE A_Asset_ID = v_A_ASSET_ID;
+
+    IF(
+        (COALESCE(:OLD.a_asset_id, '0') <> COALESCE(:NEW.a_asset_id, '0'))
+      OR(COALESCE(:OLD.c_acctschema_id, '0') <> COALESCE(:NEW.c_acctschema_id, '0'))
+      OR(COALESCE(:OLD.ad_client_id, '0') <> COALESCE(:NEW.ad_client_id, '0'))
+      OR(COALESCE(:OLD.ad_org_id, '0') <> COALESCE(:NEW.ad_org_id, '0'))
+      OR(COALESCE(:OLD.isactive, '0') <> COALESCE(:NEW.isactive, '0'))
+      OR(COALESCE(:OLD.a_depreciation_acct, '0') <> COALESCE(:NEW.a_depreciation_acct, '0'))
+      OR(COALESCE(:OLD.a_accumdepreciation_acct, '0') <> COALESCE(:NEW.a_accumdepreciation_acct, '0'))
+      OR(COALESCE(:OLD.a_disposal_loss, '0') <> COALESCE(:NEW.a_disposal_loss, '0'))
+      OR(COALESCE(:OLD.a_disposal_gain, '0') <> COALESCE(:NEW.a_disposal_gain, '0'))
+      OR(COALESCE(:OLD.em_sco_alienation_exp_acct, '0') <> COALESCE(:NEW.em_sco_alienation_exp_acct, '0'))
+      OR(COALESCE(:OLD.em_sco_assets_acct, '0') <> COALESCE(:NEW.em_sco_assets_acct, '0'))
+
+      ) THEN
+
+      IF (v_asset_status='SCO_RET') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+      END IF;
+
+    END IF;
+
+  END IF;
+  
+  IF(DELETING OR INSERTING) THEN
+    SELECT EM_Sco_Asset_Status INTO v_asset_status FROM A_Asset WHERE A_Asset_ID = v_A_ASSET_ID;
+    IF (v_asset_status='SCO_RET') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+END SCO_ASSET_ACCT_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_A_ASSET_CHK_REST_TRG">
+    <trigger name="SCO_A_ASSET_CHK_REST_TRG" table="A_ASSET" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF(:OLD.em_sco_asset_status='SCO_RET'
+          AND(
+	       (COALESCE(:OLD.value, '0') <> COALESCE(:NEW.value, '0'))
+	       OR(COALESCE(:OLD.name, '0') <> COALESCE(:NEW.name, '0'))
+	       OR(COALESCE(:OLD.a_asset_group_id, '0') <> COALESCE(:NEW.a_asset_group_id, '0'))
+	       OR(COALESCE(:OLD.m_product_id, '0') <> COALESCE(:NEW.m_product_id, '0'))
+	       OR(COALESCE(:OLD.serno, '0') <> COALESCE(:NEW.serno, '0'))
+	       OR(COALESCE(:OLD.lot, '0') <> COALESCE(:NEW.lot, '0'))
+	       OR(COALESCE(:OLD.versionno, '0') <> COALESCE(:NEW.versionno, '0'))
+               OR(COALESCE(:OLD.guaranteedate, v_DateNull) <> COALESCE(:NEW.guaranteedate, v_DateNull))
+	       OR(COALESCE(:OLD.assetservicedate, v_DateNull) <> COALESCE(:NEW.assetservicedate, v_DateNull))
+	       OR(COALESCE(:OLD.isowned, '0') <> COALESCE(:NEW.isowned, '0'))
+	       OR(COALESCE(:OLD.assetdepreciationdate, v_DateNull) <> COALESCE(:NEW.assetdepreciationdate, v_DateNull))
+	       OR(COALESCE(:OLD.uselifeyears, 0) <> COALESCE(:NEW.uselifeyears, 0))
+	       OR(COALESCE(:OLD.uselifemonths, 0) <> COALESCE(:NEW.uselifemonths, 0))
+	       OR(COALESCE(:OLD.lifeuseunits, 0) <> COALESCE(:NEW.lifeuseunits, 0))
+	       OR(COALESCE(:OLD.useunits, 0) <> COALESCE(:NEW.useunits, 0))
+	       OR(COALESCE(:OLD.isdisposed, '0') <> COALESCE(:NEW.isdisposed, '0'))
+	       OR(COALESCE(:OLD.assetdisposaldate, v_DateNull) <> COALESCE(:NEW.assetdisposaldate, v_DateNull))
+	       OR(COALESCE(:OLD.isinposession, '0') <> COALESCE(:NEW.isinposession, '0'))
+	       OR(COALESCE(:OLD.m_locator_id, '0') <> COALESCE(:NEW.m_locator_id, '0'))
+	       OR(COALESCE(:OLD.c_bpartner_id, '0') <> COALESCE(:NEW.c_bpartner_id, '0'))
+	       OR(COALESCE(:OLD.c_location_id, '0') <> COALESCE(:NEW.c_location_id, '0'))
+	       OR(COALESCE(:OLD.isdepreciated, '0') <> COALESCE(:NEW.isdepreciated, '0'))
+	       OR(COALESCE(:OLD.ad_user_id, '0') <> COALESCE(:NEW.ad_user_id, '0'))
+	       OR(COALESCE(:OLD.amortizationenddate, v_DateNull) <> COALESCE(:NEW.amortizationenddate, v_DateNull))
+	       OR(COALESCE(:OLD.amortizationstartdate, v_DateNull) <> COALESCE(:NEW.amortizationstartdate, v_DateNull))
+	       OR(COALESCE(:OLD.annualamortizationpercentage, 0) <> COALESCE(:NEW.annualamortizationpercentage, 0))
+	       OR(COALESCE(:OLD.assetvalueamt, 0) <> COALESCE(:NEW.assetvalueamt, 0))
+	       OR(COALESCE(:OLD.c_currency_id, '0') <> COALESCE(:NEW.c_currency_id, '0'))
+	       OR(COALESCE(:OLD.datecancelled, v_DateNull) <> COALESCE(:NEW.datecancelled, v_DateNull))
+	       OR(COALESCE(:OLD.datepurchased, v_DateNull) <> COALESCE(:NEW.datepurchased, v_DateNull))
+	       OR(COALESCE(:OLD.m_attributesetinstance_id, '0') <> COALESCE(:NEW.m_attributesetinstance_id, '0'))
+	       OR(COALESCE(:OLD.residualassetvalueamt, 0) <> COALESCE(:NEW.residualassetvalueamt, 0))
+	       OR(COALESCE(:OLD.acctvalueamt, 0) <> COALESCE(:NEW.acctvalueamt, 0))
+	       OR(COALESCE(:OLD.amortizationvalueamt, 0) <> COALESCE(:NEW.amortizationvalueamt, 0))
+	       OR(COALESCE(:OLD.amortizationtype, '0') <> COALESCE(:NEW.amortizationtype, '0'))
+	       OR(COALESCE(:OLD.assetschedule, '0') <> COALESCE(:NEW.assetschedule, '0'))
+	       OR(COALESCE(:OLD.documentno, '0') <> COALESCE(:NEW.documentno, '0'))
+	       OR(COALESCE(:OLD.profit, 0) <> COALESCE(:NEW.profit, 0))
+	       OR(COALESCE(:OLD.qty, 0) <> COALESCE(:NEW.qty, 0))
+	       OR(COALESCE(:OLD.amortizationcalctype, '0') <> COALESCE(:NEW.amortizationcalctype, '0'))
+	       OR(COALESCE(:OLD.depreciatedplan, 0) <> COALESCE(:NEW.depreciatedplan, 0))
+	       OR(COALESCE(:OLD.depreciatedpreviousamt, 0) <> COALESCE(:NEW.depreciatedpreviousamt, 0))
+	       OR(COALESCE(:OLD.depreciatedvalue, 0) <> COALESCE(:NEW.depreciatedvalue, 0))
+	       OR(COALESCE(:OLD.issummary, '0') <> COALESCE(:NEW.issummary, '0'))
+	       OR(COALESCE(:OLD.isstatic , '0') <> COALESCE(:NEW.isstatic , '0'))
+	       OR(COALESCE(:OLD.is30daymonth, '0') <> COALESCE(:NEW.is30daymonth, '0'))
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF(DELETING) THEN
+    IF :OLD.em_sco_asset_status='SCO_RET' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF :NEW.em_sco_asset_status='SCO_RET' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+END SCO_A_ASSET_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

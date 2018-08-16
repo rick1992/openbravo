@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="SCOUtilsData" package="pe.com.unifiedgo.accounting">
+  <SqlClassComment></SqlClassComment>
+    <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS CONVERTED, '' AS PRICELIST, '' AS PRICESTD, '' AS PRICELIMIT,
+          '' AS AD_WINDOW_ID, '' AS PO_WINDOW_ID,
+          '' AS WINDOWNAME, '' AS TABNAME, '' AS NAME, '' AS AD_TAB_ID, 
+          '' AS C_CONVERSION_RATE_ID, '' AS CONVRATE, '' AS SCO_PARALLELCONV_RATE_ID,
+          '' AS M_PRICELIST_ID, '' AS CONVERTEDAMT FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+   <SqlMethod name="currencyConvert" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT C_Currency_Convert(TO_NUMBER(?), ?, ?,TO_DATE(?),TO_CHAR(?), ?, ?) AS CONVERTED FROM DUAL
+      </Sql>
+      <Parameter name="Amt"/>
+      <Parameter name="CurFrom_ID"/>
+      <Parameter name="CurTo_ID"/>
+      <Parameter name="Date"/>
+      <Parameter name="RateType"/>
+      <Parameter name="client"/>
+      <Parameter name="org"/>
+   </SqlMethod>
+   <SqlMethod name="currencyConvertionRate" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT C_Currency_Rate(?, ?,TO_DATE(?),TO_CHAR(?), ?, ?) AS CONVERTED FROM DUAL
+      </Sql>
+      <Parameter name="CurFrom_ID"/>
+      <Parameter name="CurTo_ID"/>
+      <Parameter name="Date"/>
+      <Parameter name="RateType"/>
+      <Parameter name="client"/>
+      <Parameter name="org"/>
+   </SqlMethod>
+   <SqlMethod name="getProductPricesByDate" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        <![CDATA[
+          SELECT COALESCE(pp.Pricelist,0) AS Pricelist, COALESCE(pp.Pricestd,0) AS Pricestd, 
+                 COALESCE(pp.Pricelimit,0) as Pricelimit
+          FROM M_ProductPrice pp, M_PriceList_Version plv
+          WHERE pp.M_PriceList_Version_ID = plv.M_PriceList_Version_ID
+          AND pp.M_Product_ID = ?
+          AND plv.isactive = 'Y'
+          AND plv.M_PriceList_ID = ?
+          AND plv.validfrom <= TO_DATE(?)
+          ORDER BY plv.validfrom DESC LIMIT 1
+        ]]>
+      </Sql>
+      <Field name="rownum" value="count"/>
+      <Parameter name="mProductId"/>
+      <Parameter name="mPricelistId"/>
+      <Parameter name="validfrom"/>
+    </SqlMethod>
+   <SqlMethod name="selectTab" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT W.AD_WINDOW_ID, '' AS PO_WINDOW_ID, W.NAME AS WINDOWNAME, T.NAME AS TABNAME, '' as NAME, t.AD_TAB_ID
+      FROM AD_WINDOW W, AD_TAB T 
+      WHERE W.AD_WINDOW_ID = T.AD_WINDOW_ID 
+      AND W.ISACTIVE = 'Y' 
+      AND T.ISACTIVE = 'Y' 
+      AND W.AD_WINDOW_ID = ? 
+      AND T.AD_TABLE_ID = ? 
+      ORDER BY T.TABLEVEL
+    </Sql>
+    <Parameter name="adWindowId"/>
+    <Parameter name="adTableId"/>
+   </SqlMethod>
+   <SqlMethod name="selectWindows" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_WINDOW_ID, PO_WINDOW_ID
+        FROM AD_TABLE 
+        WHERE AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTableId"/>
+   </SqlMethod>
+   <SqlMethod name="selectParent" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT W.AD_WINDOW_ID, '' AS PO_WINDOW_ID, W.NAME AS WINDOWNAME, T.NAME AS TABNAME, t.ad_tab_id 
+      FROM AD_WINDOW W, AD_TAB T 
+      WHERE W.AD_WINDOW_ID = T.AD_WINDOW_ID 
+      AND W.ISACTIVE = 'Y' 
+      AND T.ISACTIVE = 'Y' 
+      AND T.tablevel = 0 
+      AND W.AD_WINDOW_ID = ?
+      ORDER BY T.SEQNO 
+    </Sql>
+    <Parameter name="adWindowId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTableName" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TABLENAME
+        FROM AD_TABLE 
+        WHERE AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTableId"/>
+   </SqlMethod>
+   <SqlMethod name="selectKeyWordColumnName" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_Column.columnname
+        FROM AD_Column, AD_TABLE 
+        WHERE AD_TABLE.em_scr_keyword_column_id IS NOT NULL AND
+          AD_Column.AD_Column_ID = AD_TABLE.em_scr_keyword_column_id AND
+              AD_TABLE.AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTableId"/>
+   </SqlMethod>
+   <SqlMethod name="selectRedirectWindowId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_Window_ID
+        FROM SCR_Tabredirect 
+        WHERE keyword = ? AND
+              AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="keyword"/>
+    <Parameter name="adTableId"/>
+   </SqlMethod>
+   <SqlMethod name="getExchangeRateUSDPurch" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.dividerate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '308'
+      AND conv.c_currency_id_to = '100'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getExchangeRateUSDSales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.multiplyrate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '100'
+      AND conv.c_currency_id_to = '308'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getExchangeRateEURSales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.multiplyrate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '102'
+      AND conv.c_currency_id_to = '308'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getParallelExchangeRateUSDSales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.sco_parallelconv_rate_id , conv.multiplyrate as convrate
+      FROM sco_parallelconv_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '100'
+      AND conv.c_currency_id_to = '308'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   
+   <SqlMethod name="getExchangeRatePurch" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.dividerate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '308'
+      AND conv.c_currency_id_to = ?
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getMultiplyRateGenPurch" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[      
+      SELECT conv.c_conversion_rate_id, conv.dividerate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = ?
+      AND conv.c_currency_id_to = ?
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="cCurrencyToId"/>
+    <Parameter name="cCurrencyFromId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getMultiplyRateGenSales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[      
+      SELECT conv.c_conversion_rate_id,conv.multiplyrate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = ?
+      AND conv.c_currency_id_to = ?
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?));
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="cCurrencyFromId"/>
+    <Parameter name="cCurrencyToId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getInvoiceMultiplyRate" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT * FROM sco_invoice_getmultiplyrate(?, ?);
+      ]]>
+    </Sql>
+    <Parameter name="cInvoiceId"/>
+    <Parameter name="cCurrencyToId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getConvertedAmtPurch" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT COALESCE(ROUND(TO_NUMBER(?)/TO_NUMBER(?),TO_NUMBER(?)),0) AS convertedamt FROM DUAL
+      ]]>
+    </Sql>
+    <Parameter name="amount"/>
+    <Parameter name="exchangeRatePurch"/>
+    <Parameter name="pricePrecision"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getDiscount" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT CASE WHEN TO_NUMBER(?)=0 THEN 0 ELSE COALESCE(100 - ROUND(TO_NUMBER(?)*100/TO_NUMBER(?),2),0) END AS convertedamt FROM DUAL
+      ]]>
+    </Sql>
+    <Parameter name="pricelist"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="pricelist"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getRegNumberFromFactAcct" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT em_sco_regnumber FROM Fact_Acct 
+        WHERE ad_client_id = ? 
+        AND ad_table_id = ?
+        AND record_id = ?
+        LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adTableId"/>
+    <Parameter name="recordId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="isUseSalesTCOnly" type="preparedStatement" return="String" default="N">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT sco_isUseSalesTCOnly(?) AS usesalestconly FROM DUAL
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  </SqlClass>

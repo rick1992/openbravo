@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_CURRENCY_CONVERT_DOC">
+    <function name="SCO_CURRENCY_CONVERT_DOC" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_from" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_to" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_c_doctype_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_record_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_ad_table_ID VARCHAR(32);
+  v_ConvertedAmount NUMBER;
+BEGIN
+
+  SELECT ad_table_id
+    INTO v_ad_table_ID
+    FROM C_Doctype
+  WHERE C_DocType_ID = p_c_doctype_id;
+
+
+  SELECT sco_currency_convert_table(p_amount, p_currency_from, p_currency_to, p_convdate, v_ad_table_ID, p_record_id, p_ad_client_id, p_ad_org_id)
+    INTO v_ConvertedAmount
+  FROM DUAL;
+
+  RETURN v_ConvertedAmount;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SCO_CURRENCY_CONVERT_DOC
+]]></body>
+    </function>
+  </database>

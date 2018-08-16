@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_UPDATERECEIPT">
+    <function name="SWA_UPDATERECEIPT" type="NUMERIC">
+      <parameter name="v_contador" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[Cur_parameter RECORD;
+v_inout_other_id VARCHAR(32);
+v_em_scr_other_inoutline_id VARCHAR(32);
+v_contador NUMBER:=0;
+v_ResultStr VARCHAR2(2000):='';
+v_Message VARCHAR2(2000):='';
+v_Result NUMBER:=1;
+
+BEGIN
+
+  FOR Cur_parameter IN (
+          select distinct i.m_inout_id, i.documentno, i.docstatus, i.ad_org_id, i.created from m_inoutline l
+             join m_inout i on l.m_inout_id = i.m_inout_id
+            where i.EM_Ssa_Other_Inout_ID is null
+            and em_scr_other_inoutline_id is not null
+   )
+  LOOP
+          v_contador:=v_contador+1;
+           /*SELECT em_scr_other_inoutline_id 
+             INTO v_em_scr_other_inoutline_id 
+             FROM m_inoutline 
+            WHERE m_inout_id = Cur_parameter.m_inout_id 
+              AND em_scr_other_inoutline_id is not null limit 1;
+
+           IF(v_em_scr_other_inoutline_id IS NOT NULL) THEN
+           
+             SELECT M_INOUT_ID 
+               INTO v_inout_other_id 
+               FROM M_INOUTLINE 
+              WHERE M_INOUTLINE_ID = v_em_scr_other_inoutline_id;
+              
+           END IF;
+
+           IF(v_inout_other_id IS NOT NULL)THEN
+             UPDATE m_inout
+               set EM_Ssa_Other_Inout_ID  = v_inout_other_id
+             WHERE m_inout_id = Cur_parameter.m_inout_id;
+           END IF;*/
+    
+  END LOOP;
+
+  
+RETURN v_contador;
+END SWA_UPDATERECEIPT
+]]></body>
+    </function>
+  </database>

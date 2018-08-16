@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_REPO_VALIDATION_TRG">
+    <trigger name="SWA_REPO_VALIDATION_TRG" table="SWA_REQUEREPO_DETAIL" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_from_m_warehouse_id VARCHAR2(32);
+  v_doctype_id VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_docStatus  VARCHAR2(60);
+  v_specialdoctype VARCHAR2(60);
+  v_qty_available NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF(INSERTING OR UPDATING)THEN
+
+       IF(:NEW.QtyOrdered <= 0)THEN
+        RAISE_APPLICATION_ERROR(-20000,'@swa_badqtyline@');
+       END IF;
+	
+END IF;
+
+IF(UPDATING)THEN
+  IF (:OLD.requerepo_from_line_id IS NOT NULL)THEN
+      IF(:OLD.m_product_id <> :NEW.m_product_id)THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_valid_productfromrequest@');
+      END IF;
+  END IF;
+
+ IF(:OLD.qtyreceipt <> :NEW.qtyreceipt)THEN
+    SELECT C_DOCTYPE_ID INTO v_doctype_id FROM swa_requerimientoreposicion WHERE swa_requerimientoreposicion_id = :NEW.swa_requerimientoreposicion_id;
+    SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DOCTYPE WHERE C_DOCTYPE_ID = v_doctype_id;
+      IF(v_specialdoctype = 'SWAREQUESTSAMPE') THEN
+        :NEW.qtysamplereturned:=:NEW.qtyreceipt;
+      END IF;
+ END IF;
+  
+END IF;
+
+
+IF(DELETING)THEN
+  IF (:OLD.requerepo_from_line_id IS NOT NULL)THEN
+
+        UPDATE swa_requerepo_detail
+           SET status='VO'
+         WHERE swa_requerepo_detail_id = :OLD.requerepo_from_line_id;
+  
+    --- RAISE_APPLICATION_ERROR(-20000,'@swa_linefromrequest_nodelete@');
+  END IF;
+END IF;
+
+
+
+
+
+END SWA_REPO_VALIDATION_TRG
+]]></body>
+    </trigger>
+  </database>

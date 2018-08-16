@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_PURCHCONTRACT_UPDVAL_TRG">
+    <trigger name="SRE_PURCHCONTRACT_UPDVAL_TRG" table="SRE_PURCHASE_CONTRACT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+      :NEW.specialdoctype := v_specialdoctype;      
+
+    ELSE
+      IF(COALESCE(:OLD.c_doctypetarget_id,'')<>COALESCE(:NEW.c_doctypetarget_id,'')) THEN
+        SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+        :NEW.specialdoctype := v_specialdoctype;
+      END IF;
+    END IF;
+
+
+    END SRE_PURCHCONTRACT_UPDVAL_TRG
+]]></body>
+    </trigger>
+  </database>

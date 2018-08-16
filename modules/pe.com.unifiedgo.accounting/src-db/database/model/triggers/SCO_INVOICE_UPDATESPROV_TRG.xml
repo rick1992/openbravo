@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_UPDATESPROV_TRG">
+    <trigger name="SCO_INVOICE_UPDATESPROV_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_specialdoctype VARCHAR(60);  
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+          
+      SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+      :NEW.em_sco_specialdoctype := v_specialdoctype;
+
+      IF(v_specialdoctype = 'SCOAPSIMPLEPROVISIONINVOICE') THEN
+        :NEW.em_sco_issimpleprovision := 'Y';
+      ELSE
+        :NEW.em_sco_issimpleprovision := 'N';
+      END IF;
+
+    ELSE
+      IF(COALESCE(:OLD.c_doctypetarget_id,'')<>COALESCE(:NEW.c_doctypetarget_id,'')) THEN
+
+        SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+        :NEW.em_sco_specialdoctype := v_specialdoctype;
+
+        IF(v_specialdoctype = 'SCOAPSIMPLEPROVISIONINVOICE') THEN
+          :NEW.em_sco_issimpleprovision := 'Y';
+        ELSE
+          :NEW.em_sco_issimpleprovision := 'N';
+        END IF;
+
+      END IF;
+    END IF;
+
+    END SCO_INVOICE_UPDATESPROV_TRG
+]]></body>
+    </trigger>
+  </database>

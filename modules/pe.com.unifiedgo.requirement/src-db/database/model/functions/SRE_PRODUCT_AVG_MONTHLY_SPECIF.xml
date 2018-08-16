@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SRE_PRODUCT_AVG_MONTHLY_SPECIF">
+    <function name="SRE_PRODUCT_AVG_MONTHLY_SPECIF" type="NULL">
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="datefrom" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="dateto" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_warehouse_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_avg_monthly_sales" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[BEGIN
+    IF (p_warehouse_id IS NOT NULL) THEN
+        --Only for m_transaction consumptions in SRE_CONSUMPTRANSACTION_V view
+        SELECT COALESCE(round(sum(A.QTYORDERED)),0) INTO p_avg_monthly_sales
+          FROM (SELECT (CASE WHEN (C.MOVEMENTDATE>=(dateFrom) AND C.MOVEMENTDATE<=(dateTo)) THEN ABS(C.MOVEMENTQTY) ELSE 0 END) AS QTYORDERED  
+	          FROM SRE_CONSUMPTRANSACTION_V C
+		       INNER JOIN M_PRODUCT ON M_PRODUCT.M_PRODUCT_ID = C.M_PRODUCT_ID
+		       INNER JOIN M_LOCATOR ON M_LOCATOR.M_LOCATOR_ID = C.M_LOCATOR_ID
+		       INNER JOIN M_WAREHOUSE ON M_WAREHOUSE.M_WAREHOUSE_ID = M_LOCATOR.M_WAREHOUSE_ID
+   	         WHERE M_PRODUCT.AD_CLIENT_ID = p_client_id
+    	           AND M_PRODUCT.M_PRODUCT_ID = p_product_id
+	           AND M_WAREHOUSE.M_WAREHOUSE_ID = p_warehouse_id
+	           AND AD_ISORGINCLUDED(C.AD_ORG_ID, p_org_id, p_client_id) > -1
+	       ) A ; 
+
+    ELSE 
+	SELECT sre_product_avg_monthly_sales(p_org_id, p_client_id, p_product_id, datefrom, dateto) INTO p_avg_monthly_sales FROM DUAL;  
+    END IF;
+END SRE_PRODUCT_AVG_MONTHLY_SPECIF
+]]></body>
+    </function>
+  </database>

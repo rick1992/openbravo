@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_TAXCHK_TRG">
+    <trigger name="SCO_INVOICE_TAXCHK_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+  v_curr_stdprecision NUMBER;
+  v_convrate NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF(:NEW.em_sco_isdetraction_affected = 'Y') THEN
+        IF(:NEW.em_sco_detraction_percent IS NULL OR :NEW.em_sco_detraction_percent <= 0 OR :NEW.em_sco_codtabla5_cmb_item_id IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvInvalidDetraccInfo@');
+        END IF;
+      ELSE
+        :NEW.em_sco_detraction_percent := 0;
+        :NEW.em_sco_codtabla5_cmb_item_id := NULL;
+      END IF;
+
+      IF(:NEW.em_sco_iswithho_affected = 'Y') THEN
+        IF(:NEW.em_sco_withho_percent IS NULL OR :NEW.em_sco_withho_percent <= 0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvInvalidWithhoInfo@');
+        END IF;
+      ELSE
+        :NEW.em_sco_withho_percent := 0;
+      END IF;
+
+    ELSIF(UPDATING) THEN
+      IF(
+           COALESCE(:OLD.em_sco_isdetraction_affected,'.')<>COALESCE(:NEW.em_sco_isdetraction_affected,'.')
+        OR COALESCE(:OLD.em_sco_detraction_percent,-1)<>COALESCE(:NEW.em_sco_detraction_percent,-1)
+        OR COALESCE(:OLD.em_sco_codtabla5_cmb_item_id,'.')<>COALESCE(:NEW.em_sco_codtabla5_cmb_item_id,'.')
+        OR COALESCE(:OLD.em_sco_iswithho_affected,'.')<>COALESCE(:NEW.em_sco_iswithho_affected,'.')
+        OR COALESCE(:OLD.em_sco_withho_percent,-1)<>COALESCE(:NEW.em_sco_withho_percent,-1)
+        ) THEN
+        IF(:NEW.em_sco_isdetraction_affected = 'Y') THEN
+          IF(:NEW.em_sco_detraction_percent IS NULL OR :NEW.em_sco_detraction_percent <= 0 OR :NEW.em_sco_codtabla5_cmb_item_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_InvInvalidDetraccInfo@');
+          END IF;
+        ELSE
+          :NEW.em_sco_detraction_percent := 0;
+          :NEW.em_sco_codtabla5_cmb_item_id := NULL;
+        END IF;
+
+        IF(:NEW.em_sco_iswithho_affected = 'Y') THEN
+          IF(:NEW.em_sco_withho_percent IS NULL OR :NEW.em_sco_withho_percent <= 0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_InvInvalidWithhoInfo@');
+          END IF;
+        ELSE
+          :NEW.em_sco_withho_percent := 0;
+        END IF;
+      END IF;
+    END IF;
+
+
+    IF(TG_OP='UPDATE') THEN
+      IF(:NEW.issotrx='N' AND :OLD.docstatus='CO' AND :NEW.docstatus='CO' AND (
+         COALESCE(:OLD.em_sco_isdetraction_affected)<>COALESCE(:NEW.em_sco_isdetraction_affected)
+      OR COALESCE(:OLD.em_sco_detraction_percent)<>COALESCE(:NEW.em_sco_detraction_percent)
+      )) THEN
+        IF(:NEW.em_sco_isdetraction_affected = 'Y') THEN
+          IF(:NEW.c_currency_id = '308') THEN
+            :NEW.em_sco_detractamount := round(:NEW.grandtotal*:NEW.em_sco_detraction_percent/100);
+          ELSE
+            --for other currency first convert to pen, round it to 0 decimals and then convert it back rounding to stdprecision
+            SELECT stdprecision
+              INTO v_curr_stdprecision
+              FROM C_Currency
+            WHERE C_Currency_ID = :NEW.C_Currency_ID;
+
+            sco_invoice_convrate(:NEW.c_invoice_id, v_convrate);
+            :NEW.em_sco_detractamount := round(round(round(:NEW.grandtotal*:NEW.em_sco_detraction_percent/100, v_curr_stdprecision)*v_convrate)/v_convrate,v_curr_stdprecision);
+
+        END IF;
+      END IF;
+      END IF;
+    END IF;
+    END SCO_INVOICE_TAXCHK_TRG
+]]></body>
+    </trigger>
+  </database>

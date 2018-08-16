@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportResumenVentasData" package="pe.com.unifiedgo.report.ad_reports">
+    <SqlClassComment></SqlClassComment>
+    <SqlMethod name="selectVentas" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+        <![CDATA[
+            select inv.c_invoice_id as invoiceid,
+            case 
+                when typ.em_sco_specialdoctype = 'SCOARINVOICE' then 'FACTURA'
+                when typ.em_sco_specialdoctype = 'SCOARTICKET' then 'BOLETA'
+                when typ.em_sco_specialdoctype = 'SCOARCREDITMEMO' then 'NOTA DE CREDITO'
+                when typ.em_sco_specialdoctype = 'SCOARDEBITMEMO' then 'NOTA DE DEBITO'
+                end as tipodoc,
+            
+            (select name from ad_org where ad_org_id = inv.ad_org_id) as orgdoc,
+            coalesce(em_scr_physical_documentno,'000-00000') as nrofisico,
+            to_char(inv.dateacct,'DD-MM-YYYY') as fecemision,
+            (select name from fin_paymentmethod where fin_paymentmethod_id = inv.fin_paymentmethod_id) as metodopago,
+            coalesce((select name from c_paymentterm_trl where c_paymentterm_id = ter.c_paymentterm_id
+            and ad_language = ?),ter.name) as condpago,
+            bp.taxid as ruccliente,
+            bp.name as cliente,
+            
+            coalesce((select description||' ('||cursymbol||') ' from c_currency_trl 
+            where c_currency_id = cur.c_currency_id and ad_language = ?),
+            cur.description||' ('||cur.cursymbol||') ') as moneda,
+            
+            cur.iso_code as codmoneda,
+            
+            coalesce(inv.totallines,0.0) as valventa,
+            
+            coalesce((select i.taxamt from c_invoicetax i join c_tax t on i.c_tax_id = t.c_tax_id 
+            where t.em_sco_specialtax = 'SCOIGV' and i.c_invoice_id = inv.c_invoice_id),0.0) as igv,
+            
+            coalesce(inv.grandtotal,0.0) as total,
+            coalesce(totalpaid,0.00) as cobrado,
+            
+            (select em_scr_physical_documentno from m_inout i join m_inoutline l on i.m_inout_id = l.m_inout_id
+            join c_invoiceline il on l.m_inoutline_id = il.m_inoutline_id
+            where il.c_invoice_id = inv.c_invoice_id
+            order by il.created, il.line limit 1) as nroguia,
+            
+            (select documentno from c_order o join c_orderline l on o.c_order_id = l.c_order_id
+            join c_invoiceline il on l.c_orderline_id = il.c_orderline_id
+            where il.c_invoice_id = inv.c_invoice_id
+            order by il.created, il.line limit 1) as nropedventa,
+            
+            /*(select (select documentno from c_order where documentno = o.poreference limit 1) 
+            from c_order o join c_orderline l on o.c_order_id = l.c_order_id
+            join c_invoiceline il on l.c_orderline_id = il.c_orderline_id
+            where il.c_invoice_id = inv.c_invoice_id
+            order by il.created, il.line limit 1)*/
+            
+            coalesce(inv.poreference,'') as nrooc
+            
+            from c_invoice inv
+            join c_bpartner bp on inv.c_bpartner_id = bp.c_bpartner_id
+            join c_paymentterm ter on inv.c_paymentterm_id = ter.c_paymentterm_id
+            join c_currency cur on inv.c_currency_id = cur.c_currency_id
+            join c_doctype typ on inv.c_doctypetarget_id = typ.c_doctype_id
+            
+            where ad_isorgincluded(inv.ad_org_id,?,?)<>-1
+            and typ.em_sco_specialdoctype in ('SCOARINVOICE','SCOARTICKET','SCOARCREDITMEMO','SCOARDEBITMEMO')
+            and inv.docstatus = 'CO'
+            and inv.issotrx = 'Y'
+            and (inv.em_ssa_isprepayment = 'N' or inv.em_ssa_isprepayment is null)
+            AND 1=1
+            
+            order by 2,3,5,9
+    
+          
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="adLanguagePaymentTerm" />
+    <Parameter name="adLanguageCurrency" />
+    
+    
+    
+    <Parameter name="adOrgId" />
+    <Parameter name="adClienteId" />
+    
+    
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND inv.dateacct >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND inv.dateacct < TO_DATE(?)]]></Parameter>
+    
+    <Parameter name="cBpartnerId" optional="true" after="1=1"><![CDATA[ and inv.c_bpartner_id in (?)]]></Parameter>
+    
+    <Parameter name="finPaymentMethodId" optional="true" after="1=1"><![CDATA[ and inv.fin_paymentmethod_id in (?)]]></Parameter>
+    <Parameter name="cPaymentTerm" optional="true" after="1=1"><![CDATA[ and inv.c_paymentterm_id in (?)]]></Parameter>
+    
+    
+    <Parameter name="InvoiceDocNo" optional="true" after="1=1"><![CDATA[ and inv.em_scr_physical_documentno in (?)]]></Parameter>
+    
+    <Parameter name="ShipmentDocNo" optional="true" after="1=1"><![CDATA[ and (select io.em_scr_physical_documentno from m_inout io join m_inoutline l on io.m_inout_id = l.m_inout_id
+                            join c_invoiceline il on l.m_inoutline_id = il.m_inoutline_id join c_invoice i on il.c_invoice_id = i.c_invoice_id where i.c_invoice_id = inv.c_invoice_id
+                            and io.em_scr_physical_documentno in (?) order by il.created, il.line limit 1 ) is not null]]></Parameter>
+    
+    <Parameter name="OCClientDocNo" optional="true" after="1=1"><![CDATA[ and inv.poreference in (?) ]]></Parameter>
+    
+    
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  <SqlMethod name="selectPaymentMethod" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT name 
+        FROM fin_paymentmethod  
+        WHERE fin_paymentmethod_id=?
+      ]]></Sql>
+    <Parameter name="paymentMethodId"/>
+  </SqlMethod> 
+      <SqlMethod name="selectPaymentTerm" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT name 
+        FROM c_paymentterm  
+        WHERE c_paymentterm_id=?
+      ]]></Sql>
+    <Parameter name="paymentTermId"/>
+  </SqlMethod> 
+</SqlClass>

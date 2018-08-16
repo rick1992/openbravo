@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_BPARTNER_ADMINMOD_TRG">
+    <trigger name="SCR_BPARTNER_ADMINMOD_TRG" table="C_BPARTNER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      IF(COALESCE(:NEW.em_scr_adminmode,'N') = 'Y') THEN
+        :NEW.em_scr_adminmode_lastchdate = now();
+      END IF;
+    ELSE
+      IF(COALESCE(:NEW.em_scr_adminmode,'N') = 'Y') THEN
+        :NEW.em_scr_adminmode_lastchdate = now();
+      END IF;
+    END IF;
+
+    END SCR_BPARTNER_ADMINMOD_TRG
+]]></body>
+    </trigger>
+  </database>

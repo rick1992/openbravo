@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PROPCNTRTLINE_INSERT_TRG">
+    <trigger name="SSA_PROPCNTRTLINE_INSERT_TRG" table="SSA_PROJPROP_CONTRACT_LINE" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  v_disc_eval_status VARCHAR(60);
+  v_prospect_id VARCHAR(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+  IF INSERTING THEN
+     SELECT discount_eval_status, prospect_id 
+       INTO v_disc_eval_status, v_prospect_id
+       FROM ssa_projprop_contract
+      WHERE ssa_projprop_contract_id = :NEW.ssa_projprop_contract_id;      
+
+     IF(v_prospect_id IS NOT NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotInsertInContractWithProspect@') ;
+     END IF;              
+  END IF;
+
+
+
+  END SSA_PROPCNTRTLINE_INSERT_TRG
+]]></body>
+    </trigger>
+  </database>

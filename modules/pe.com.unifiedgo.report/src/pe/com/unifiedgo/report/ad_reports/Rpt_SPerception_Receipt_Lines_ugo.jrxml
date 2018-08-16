@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_PWithholding_Receipt_Lines_ugo" pageWidth="595" pageHeight="842" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="3.0"/>
+	<property name="ireport.x" value="896"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="PERCEPTION_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="ISTAXINCLUDED" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[-- COMPROBANTE DE PERCEPCION DE VENTA
+
+select per.sco_percep_sales_id as "PER_ID",
+
+(case 	when dtp.em_sco_specialdoctype = 'SCOARINVOICE' then 'Factura'
+	when dtp.em_sco_specialdoctype = 'SCOARCREDITMEMO' then 'Nota de Credito'
+	when dtp.em_sco_specialdoctype = 'SCOARINVOICERETURNMAT' then 'Nota de Credito'
+	when dtp.em_sco_specialdoctype = 'SCOARDEBITMEMO' then 'Nota de Debito'
+	when dtp.em_sco_specialdoctype = 'SCOARTICKET' then 'Boleta'
+	when dtp.em_sco_specialdoctype = 'SCOARBOEINVOICE' then 'Letra'
+		else '' end) as "TIPO_DOC",
+
+coalesce(inv.em_scr_physical_documentno,'') as "SER_NRO_DOC",
+
+inv.dateacct as "FEC_EMI",
+
+case when cur.iso_code = 'PEN' then coalesce(his.amount,0.00) else
+sco_currency_convert_table(coalesce(his.amount,0.00),
+(select c_currency_id from c_currency where iso_code = cur.iso_code),
+(select c_currency_id from c_currency where iso_code = 'PEN'),
+per.dategen, tab.ad_table_id, inv.c_invoice_id, inv.ad_client_id,
+inv.ad_org_id) end as "MONT_COB",
+
+(coalesce(his.perceptionamt,0.00)/coalesce(his.amount,1))*100 as "PORC_PERC",
+
+case when cur.iso_code = 'PEN' then coalesce(his.perceptionamt,0.00) else
+sco_currency_convert_table(coalesce(his.perceptionamt,0.00),
+(select c_currency_id from c_currency where iso_code = cur.iso_code),
+(select c_currency_id from c_currency where iso_code = 'PEN'),
+per.dategen, tab.ad_table_id,inv.c_invoice_id, inv.ad_client_id,
+inv.ad_org_id) end as "IMPORTE",
+
+case when cur.iso_code = 'PEN' then (coalesce(his.amount,0.00)+coalesce(his.perceptionamt,0.00)) else
+sco_currency_convert_table((coalesce(his.amount,0.00)+coalesce(his.perceptionamt,0.00)),
+(select c_currency_id from c_currency where iso_code = cur.iso_code),
+(select c_currency_id from c_currency where iso_code = 'PEN'),
+per.dategen, tab.ad_table_id,inv.c_invoice_id, per.ad_client_id,
+inv.ad_org_id) end  as "MONT_TOT"
+
+from sco_percep_sales per
+join sco_percepsales_detail det on per.sco_percep_sales_id = det.sco_percep_sales_id
+left join fin_payment_detail pdet on det.fin_payment_detail_id = pdet.fin_payment_detail_id
+left join sco_payment_history his on pdet.fin_payment_detail_id = his.fin_payment_detail_id
+
+join c_invoice inv on det.invoiceref_id = inv.c_invoice_id
+left join c_currency cur on inv.c_currency_id = cur.c_currency_id
+join c_doctype dtp on inv.c_doctypetarget_id = dtp.c_doctype_id
+left join ad_table tab on dtp.ad_table_id = tab.ad_table_id
+
+
+where per.isactive = 'Y'
+and det.isactive = 'Y'
+and per.sco_percep_sales_id in ($P{PERCEPTION_ID})
+
+--]]>
+	</queryString>
+	<field name="PER_ID" class="java.lang.String"/>
+	<field name="TIPO_DOC" class="java.lang.String"/>
+	<field name="SER_NRO_DOC" class="java.lang.String"/>
+	<field name="FEC_EMI" class="java.sql.Timestamp"/>
+	<field name="MONT_COB" class="java.math.BigDecimal"/>
+	<field name="PORC_PERC" class="java.math.BigDecimal"/>
+	<field name="IMPORTE" class="java.math.BigDecimal"/>
+	<field name="MONT_TOT" class="java.math.BigDecimal"/>
+	<variable name="TOTAL_PERC" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{IMPORTE}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<group name="W_RECEIPT_ID"/>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<rectangle>
+				<reportElement x="20" y="0" width="554" height="12"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<textField isBlankWhenNull="true">
+				<reportElement x="289" y="0" width="80" height="12"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{MONT_COB})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="20" y="0" width="109" height="12"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO_DOC}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="229" y="0" width="60" height="12"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMI}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="129" y="0" width="100" height="12"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{SER_NRO_DOC}==null?"":$F{SER_NRO_DOC}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="504" y="0" width="70" height="12"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{MONT_TOT})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="369" y="0" width="65" height="12"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PORC_PERC})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="434" y="0" width="70" height="12"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{IMPORTE})]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

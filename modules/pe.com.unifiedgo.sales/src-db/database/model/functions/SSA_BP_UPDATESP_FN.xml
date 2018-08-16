@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_BP_UPDATESP_FN">
+    <function name="SSA_BP_UPDATESP_FN" type="NULL">
+      <body><![CDATA[Cur_Partner RECORD;
+v_specialbptype VARCHAR(60);
+BEGIN
+
+  FOR Cur_Partner IN ( SELECT * FROM C_Bpartner FOR UPDATE) 
+  LOOP
+    v_specialbptype := '';
+    IF(Cur_Partner.iscustomer = 'Y') THEN
+      IF(v_specialbptype <> '') THEN
+        v_specialbptype := v_specialbptype || '_';
+      END IF;
+      v_specialbptype := v_specialbptype || 'CUS';
+    END IF;
+
+    IF(Cur_Partner.isvendor = 'Y') THEN
+      IF(v_specialbptype <> '') THEN
+        v_specialbptype := v_specialbptype || '_';
+      END IF;
+      v_specialbptype := v_specialbptype || 'VEN';
+    END IF;
+
+    IF(Cur_Partner.isemployee = 'Y') THEN
+      IF(v_specialbptype <> '') THEN
+        v_specialbptype := v_specialbptype || '_';
+      END IF;
+      v_specialbptype := v_specialbptype || 'EMP';
+    END IF;
+
+    IF(Cur_Partner.em_sco_isaval = 'Y') THEN
+      IF(v_specialbptype <> '') THEN
+        v_specialbptype := v_specialbptype || '_';
+      END IF;
+      v_specialbptype := v_specialbptype || 'AVA';
+    END IF;
+
+    UPDATE C_Bpartner SET em_ssa_specialbptype = v_specialbptype WHERE C_Bpartner_ID = CUR_Partner.C_Bpartner_ID;
+  END LOOP; 
+
+  RETURN;
+END SSA_BP_UPDATESP_FN
+]]></body>
+    </function>
+  </database>

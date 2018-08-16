@@ -1,0 +1,128 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PREPAYMENT_CHK_RES_TRG">
+    <trigger name="SCO_PREPAYMENT_CHK_RES_TRG" table="SCO_PREPAYMENT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+v_orderDocStatus VARCHAR(60);
+v_orderDoctypeTarget_ID VARCHAR(32);
+v_orderIsInvoiced VARCHAR(1);
+v_AD_Client_ID VARCHAR(32);
+v_AD_Org_ID VARCHAR(32); 
+v_orderCurrency_ID VARCHAR(32);
+v_orderCBpartner_ID VARCHAR(32);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF((:OLD.Processed='Y')
+          AND( (COALESCE(:OLD.C_BPartner_ID, '0') <> COALESCE(:NEW.C_BPartner_ID, '0'))
+	       OR(COALESCE(:OLD.C_Currency_ID, '0') <> COALESCE(:NEW.C_Currency_ID, '0'))
+               OR(COALESCE(:OLD.DOCUMENTNO, '.') <> COALESCE(:NEW.DOCUMENTNO, '.'))
+               OR(COALESCE(:OLD.C_DOCTYPE_ID, '0') <> COALESCE(:NEW.C_DOCTYPE_ID, '0'))
+               OR(COALESCE(:OLD.C_DOCTYPETARGET_ID, '0') <> COALESCE(:NEW.C_DOCTYPETARGET_ID, '0'))
+               OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+               OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+               OR(COALESCE(:old.amount, 0) <> COALESCE(:new.amount, 0))
+               OR(COALESCE(:old.preorderdoctype_id, '0') <> COALESCE(:new.preorderdoctype_id, '0'))
+               OR(COALESCE(:old.c_preorder_id, '0') <> COALESCE(:new.c_preorder_id, '0'))
+               OR(COALESCE(:old.haspreorder, '0') <> COALESCE(:new.haspreorder, '0'))
+               OR(COALESCE(:old.issotrx, '0') <> COALESCE(:new.issotrx, '0'))
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+
+    --AFTER PAYMENT RESTRICTIONS
+    IF((:OLD.Processed='Y') AND (COALESCE(:OLD.DATEGEN, v_DateNull) <> COALESCE(:NEW.DATEGEN, v_DateNull)
+      OR COALESCE(:old.paymentglitem_id, '0') <> COALESCE(:new.paymentglitem_id, '0'))) THEN
+      IF(:NEW.fin_payment_id IS NOT NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+      END IF;
+    END IF;
+
+  END IF;
+
+  IF(DELETING) THEN
+    IF ((:OLD.Processed='Y' OR :OLD.DocStatus<>'DR')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF ((:NEW.Processed='Y' OR :NEW.DocStatus<>'DR')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+
+
+  END IF;
+
+  --Check for preorder
+  IF(INSERTING) THEN
+    IF(:NEW.haspreorder = 'Y') THEN
+      IF(:NEW.preorderdoctype_id IS NULL OR :NEW.c_preorder_id IS NULL OR :NEW.preorderdoctype_id='' OR :NEW.c_preorder_id='') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_PrepaymentInvalidPreOrder@') ;
+      END IF;
+
+          --Check Order Params
+      SELECT docstatus,c_doctypetarget_id,
+             isinvoiced, AD_Client_ID, AD_Org_ID,
+             C_Currency_ID, c_bpartner_id
+      INTO   v_orderDocStatus, v_orderDoctypeTarget_ID,
+             v_orderIsInvoiced,v_AD_Client_ID, v_AD_Org_ID, 
+             v_orderCurrency_ID, v_orderCBpartner_ID
+      FROM C_Order
+      WHERE C_Order_ID = :NEW.c_preorder_id;
+
+      IF( v_orderDoctypeTarget_ID<>:NEW.preorderdoctype_id OR v_orderDocStatus<>'CO' OR
+          v_orderIsInvoiced<>'N' OR v_orderCBpartner_ID<>:NEW.C_Bpartner_ID OR v_orderCurrency_ID<>:NEW.C_Currency_ID) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_PrepaymentInvalidPreOrder@');
+      END IF;
+
+    ELSE
+      :NEW.preorderdoctype_id := NULL;
+      :NEW.c_preorder_id := NULL;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.C_Currency_ID,'')<>COALESCE(:NEW.C_Currency_ID,'')
+       OR COALESCE(:OLD.C_BPartner_ID,'')<>COALESCE(:NEW.C_BPartner_ID,'')
+       OR COALESCE(:OLD.haspreorder,'')<>COALESCE(:NEW.haspreorder,'')
+       OR COALESCE(:OLD.preorderdoctype_id,'')<>COALESCE(:NEW.preorderdoctype_id,'')
+       OR COALESCE(:OLD.c_preorder_id,'')<>COALESCE(:NEW.c_preorder_id,'')
+    ) THEN
+
+      IF(:NEW.haspreorder = 'Y') THEN
+        IF(:NEW.preorderdoctype_id IS NULL OR :NEW.c_preorder_id IS NULL OR :NEW.preorderdoctype_id='' OR :NEW.c_preorder_id='') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_PrepaymentInvalidPreOrder@') ;
+        END IF;
+
+          --Check Order Params
+        SELECT docstatus,c_doctypetarget_id,
+               isinvoiced, AD_Client_ID, AD_Org_ID,
+               C_Currency_ID, c_bpartner_id
+        INTO   v_orderDocStatus, v_orderDoctypeTarget_ID,
+               v_orderIsInvoiced,v_AD_Client_ID, v_AD_Org_ID, 
+             v_orderCurrency_ID, v_orderCBpartner_ID
+        FROM C_Order
+        WHERE C_Order_ID = :NEW.c_preorder_id;
+
+        IF( v_orderDoctypeTarget_ID<>:NEW.preorderdoctype_id OR v_orderDocStatus<>'CO' OR
+            v_orderIsInvoiced<>'N' OR v_orderCBpartner_ID<>:NEW.C_Bpartner_ID OR v_orderCurrency_ID<>:NEW.C_Currency_ID) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_PrepaymentInvalidPreOrder@');
+        END IF;
+
+      ELSE
+        :NEW.preorderdoctype_id := NULL;
+        :NEW.c_preorder_id := NULL;
+      END IF;
+
+    END IF;
+  END IF;
+
+END SCO_PREPAYMENT_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="CreateInternalOrderRequestData" package="pe.com.unifiedgo.warehouse.ad_actionButton">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS M_REQUISITIONLINE_ID, '' AS REQQTY, '' AS MATCHEDQTY, '' AS QTYTOORDER, 
+          '' AS M_PRICELIST_ID, '' AS NEEDBYDATE, '' AS PRICELIST, '' AS PRICE,
+          '' AS M_PRODUCT_ID, '' AS M_ATTRIBUTESETINSTANCE_ID, '' AS VENDOR_ID, '' AS VENDOR, 
+          '' AS PRODUCT, '' AS ATTRIBUTE, ''  AS REQUESTER, '' AS PRICELISTID, '' AS VENDORPRICELIST,
+          '' AS LOCKEDBY, '' AS LOCKQTY, '' AS LOCKPRICE, '' AS AD_ORG_ID, '' AS ORG, 
+          '' AS InvoiceRule, '' AS DeliveryRule, '' AS FreightCostRule, '' AS DeliveryViaRule,
+          '' AS PaymentRulePO, '' AS PO_PaymentTerm_ID, '' AS DESCRIPTION, '' AS C_UOM_ID, '' AS QUANTITYORDER, '' AS M_PRODUCT_UOM_ID,
+          '' AS PRICELIMIT, '' AS PRICEACTUAL, '' AS DISCOUNT, '' AS TAX, '' AS C_ORDERLINE_ID,
+          '' AS PADRE, '' AS ID, '' AS NAME, '' AS PRICESTD, '' AS TO_CLOSE, '' AS UOMNAME, '' AS SECUOMNAME, '' AS PO_PAYMENTMETHOD_ID,
+          '' as GROSS_UNIT, '' AS GROSS_AMT, '' AS PRIMARYPART , '' AS REQUISITIONID,'' AS productid,'' AS qtytransit, '' AS PRODUCTRESUMENID, '' AS QTYTRANSITRESUMEN, '' AS QTYDATETRANSIT, 
+          '' AS created, '' AS em_sre_fechaaprobado,'' AS internalnotes, '' AS em_swa_isrejected
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+   <SqlMethod name="updateRequisition" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE m_requisition 
+           SET docstatus = 'CO'
+         WHERE m_requisition_id = ?
+    ]]></Sql>
+    <Parameter name="mrequisitionId"/>
+   </SqlMethod>
+   <SqlMethod name="insertCOrderInternalRequisition" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_ORDER (C_ORDER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, DOCUMENTNO,
+        DOCSTATUS, DOCACTION, C_DOCTYPE_ID, C_DOCTYPETARGET_ID,
+        DATEORDERED, DATEPROMISED, DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, BILLTO_ID, C_CURRENCY_ID, 
+        PAYMENTRULE, C_PAYMENTTERM_ID, INVOICERULE, DELIVERYRULE, FREIGHTCOSTRULE, 
+        DELIVERYVIARULE, M_WAREHOUSE_ID, M_PRICELIST_ID, 
+        C_PROJECT_ID, C_ACTIVITY_ID, C_CAMPAIGN_ID, PRIORITYRULE, ISSOTRX,
+        FIN_PAYMENTMETHOD_ID,em_ssa_combo_item_id,em_ssa_comboitem_value,EM_Ssa_Specialdoctype)
+        VALUES (?,?,?,now(),?,now(),?,?,?,?,?,?,TO_DATE(?),TO_DATE(?),TO_DATE(?),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'5', 'N',
+        ?,?,?,?)
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="documentNo"/>
+    <Parameter name="docStatus"/>
+    <Parameter name="docAction"/>
+    <Parameter name="cDoctypeId"/>
+    <Parameter name="cDoctypetargetId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="datepromised"/>
+    <Parameter name="dateacct"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="cBpartnerLocationId"/>
+    <Parameter name="billtoId"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="paymentrule"/>
+    <Parameter name="cPaymenttermId"/>
+    <Parameter name="invoicerule"/>
+    <Parameter name="deliveryrule"/>
+    <Parameter name="freightcostrule"/>
+    <Parameter name="deliveryviarule"/>
+    <Parameter name="mWarehouseId"/>
+    <Parameter name="mPricelistId"/>
+    <Parameter name="cProjectId"/>
+    <Parameter name="cActivityId"/>
+    <Parameter name="cCampaignId"/>
+    <Parameter name="finPaymentMethodId"/>
+    <Parameter name="ssaComboItemId"/>
+    <Parameter name="ssaComboItemValue"/>
+    <Parameter name="ssaSpecialDoctype"/>
+  </SqlMethod>
+  <SqlMethod name="cBPartnerLocationId" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C_BPARTNER_LOCATION_ID) FROM C_BPARTNER_LOCATION
+        WHERE C_BPARTNER_ID = ?
+        AND C_BPartner_Location.IsActive='Y'
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="billto" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C_BPARTNER_LOCATION_ID) FROM C_BPARTNER_LOCATION
+        WHERE  C_BPartner_Location.IsBillTo='Y'
+        AND C_BPartner_Location.IsActive='Y'
+        AND C_BPARTNER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectVendorData" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT p.InvoiceRule, p.DeliveryRule, DeliveryViaRule,
+        p.PaymentRulePO, p.PO_PaymentTerm_ID, p.PO_PaymentMethod_ID
+      FROM C_BPartner p
+      WHERE p.C_BPartner_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectCboItemByValue" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT SCR_Combo_Item_ID FROM SCR_Combo_Item WHERE value = ?
+      ]]>
+    </Sql>
+    <Parameter name="cboValue"/>
+  </SqlMethod>
+  <SqlMethod name="linesToOrder" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_REQUISITIONLINE.M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE_ID, COALESCE(QTY,0) as LOCKQTY, M_REQUISITIONLINE.DESCRIPTION, C_UOM_ID, QUANTITYORDER, M_PRODUCT_UOM_ID,
+          M_REQUISITIONLINE_ID, '' AS C_ORDERLINE_ID,
+          COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE) AS PRICELIST,
+          COALESCE(M_PRODUCTPRICE.PRICELIMIT, LOCKPRICE) AS PRICELIMIT,
+          COALESCE(M_PRODUCTPRICE.PRICESTD, LOCKPRICE) AS PRICESTD,
+          CASE WHEN M_Pricelist.istaxincluded = 'Y' then C_GET_NET_PRICE_FROM_GROSS(C_GetTax(M_REQUISITIONLINE.M_PRODUCT_ID, to_date(?), ?, ?, ?, ?, null, 'N'), 
+                                                                                    ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD) * LOCKQTY,
+                                                                                         (SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)) , 
+                                                                                    ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD) * LOCKQTY,
+                                                                                         (SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)), 
+                                                                                    (SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?), LOCKQTY) 
+                                                ELSE ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD),(SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)) END AS PRICEACTUAL,
+          CASE WHEN COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE) = 0 THEN 0 ELSE
+                    ROUND((COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE) - COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD))/
+                           COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE)*100,
+                    (SELECT STDPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)) END AS DISCOUNT,
+          C_GetTax(M_REQUISITIONLINE.M_PRODUCT_ID, to_date(?), ?, ?, ?, ?, null, 'N') AS TAX,
+          CASE WHEN LOCKQTY < (M_REQUISITIONLINE.QTY - M_REQUISITIONLINE.ORDEREDQTY) THEN 'N' ELSE 'Y' END AS TO_CLOSE,
+          CASE WHEN M_Pricelist.istaxincluded = 'Y' THEN ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD),(SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)) ELSE 0 END AS GROSS_UNIT,
+          CASE WHEN M_Pricelist.istaxincluded = 'Y' THEN ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD)*LOCKQTY,(SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)) ELSE 0 END AS GROSS_AMT,
+          M_REQUISITIONLINE.needbydate
+          FROM M_REQUISITIONLINE LEFT JOIN M_PRODUCTPRICE
+                                         ON M_REQUISITIONLINE.M_PRODUCT_ID = M_PRODUCTPRICE.M_PRODUCT_ID
+                                            AND M_PRODUCTPRICE.M_PRICELIST_VERSION_ID = ?
+                               LEFT JOIN m_pricelist_version on M_PRODUCTPRICE.M_PRICELIST_VERSION_ID = m_pricelist_version.M_PRICELIST_VERSION_ID
+                               LEFT JOIN m_pricelist on m_pricelist_version.m_pricelist_id = m_pricelist.m_pricelist_id
+        WHERE 1=1 
+          AND M_REQUISITIONLINE.M_REQUISITION_ID = ? 
+          AND M_REQUISITIONLINE.REQSTATUS = 'O'
+	    GROUP BY M_REQUISITIONLINE.M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE_ID, LOCKQTY, M_REQUISITIONLINE.DESCRIPTION, C_UOM_ID, QUANTITYORDER, 
+	    M_PRODUCT_UOM_ID, M_REQUISITIONLINE_ID, M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE,
+	    M_PRODUCTPRICE.PRICELIMIT, M_PRODUCTPRICE.PRICESTD, M_Pricelist.istaxincluded, M_REQUISITIONLINE.needbydate,
+            M_REQUISITIONLINE.QTY, M_REQUISITIONLINE.ORDEREDQTY, SUPPLIERNOTES
+        ORDER BY MIN(M_REQUISITIONLINE.LINE), M_REQUISITIONLINE.M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE_ID, SUPPLIERNOTES, 
+                 ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD),(SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?))
+        ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="orderdate"/>
+    <Parameter name="org"/>
+    <Parameter name="warehouse"/>
+    <Parameter name="billto"/>
+    <Parameter name="shipto"/>
+    <Parameter name="currency"/>
+    <Parameter name="currency"/>
+    <Parameter name="currency"/>
+    
+    <Parameter name="currency"/>
+    <Parameter name="currency"/>
+    <Parameter name="orderdate"/>
+    <Parameter name="org"/>
+    <Parameter name="warehouse"/>
+    <Parameter name="billto"/>
+    <Parameter name="shipto"/>
+    
+    <Parameter name="currency"/>
+    <Parameter name="currency"/>
+    
+    <Parameter name="pricelistversion"/>
+    <Parameter name="parRequisitionLines" optional="true" type="argument" after="WHERE 1=1" text=" AND M_RequisitionLine_ID IN"/>
+    <Parameter name="parRequisitionId"/>
+    <Parameter name="currency"/>
+  </SqlMethod>
+   <SqlMethod name="getPricelistVersion" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_GET_PRICELIST_VERSION(?, to_date(?)) AS PRICELISTID
+        FROM DUAL
+        ]]></Sql>
+    <Parameter name="pricelist"/>
+    <Parameter name="orderdate"/>
+  </SqlMethod>
+  <SqlMethod name="insertCOrderline" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_ORDERLINE (C_ORDERLINE_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ORDER_ID, LINE, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, DATEORDERED, DATEPROMISED, 
+        DESCRIPTION, M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE_ID,
+        M_WAREHOUSE_ID, M_PRODUCT_UOM_ID, C_UOM_ID, QUANTITYORDER, QTYORDERED, C_CURRENCY_ID, 
+        PRICELIST, 
+        PRICEACTUAL, 
+        PRICELIMIT, C_TAX_ID, S_RESOURCEASSIGNMENT_ID, DISCOUNT, 
+        PRICESTD, GROSS_UNIT_PRICE, LINE_GROSS_AMOUNT)
+        VALUES (?,?,?,now(),?,now(),?,
+        ?,TO_NUMBER(?),?,?,TO_DATE(?),TO_DATE(?),
+        ?,?,?,
+        ?, ?, ?,TO_NUMBER(?),TO_NUMBER(?),?,
+        TO_NUMBER(?), 
+        M_GET_OFFERS_PRICE(to_date(now()),?,?,TO_NUMBER(?),TO_NUMBER(?),?),
+        TO_NUMBER(?), ?, ?,TO_NUMBER(?), 
+        TO_NUMBER(?),  TO_NUMBER(?), TO_NUMBER(?))
+      ]]>
+    </Sql>
+    <Parameter name="cOrderlineId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="cOrderId"/>
+    <Parameter name="line"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="cBpartnerLocationId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="datepromised"/>
+    <Parameter name="description"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="mAttributeSetInstanceId"/>
+    <Parameter name="mWarehouseId"/>
+    <Parameter name="mProductUomId"/>
+    <Parameter name="cUomId"/>
+    <Parameter name="quantityorder"/>
+    <Parameter name="qtyordered"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="priceactual"/>
+    <Parameter name="qtyordered"/>
+    <Parameter name="pricelistid"/>
+    <Parameter name="pricelimit"/>
+    <Parameter name="cTaxId"/>
+    <Parameter name="sResourceassignmentId"/>
+    <Parameter name="discount"/>
+    <Parameter name="priceactual"/>
+    <Parameter name="priceGross"/>
+    <Parameter name="lineGrossAmt"/>
+  </SqlMethod>
+   <SqlMethod name="insertRequisitionOrder" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO M_REQUISITIONORDER (M_REQUISITIONORDER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISACTIVE,
+        M_REQUISITIONLINE_ID, C_ORDERLINE_ID, QTY)
+        VALUES (?,?,?,now(),?,now(),?,'Y',
+        ?,?,TO_NUMBER(?))
+      ]]>
+    </Sql>
+    <Parameter name="mRequisitionOrderId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="mRequisitionLineId"/>
+    <Parameter name="cOrderLineId"/>
+    <Parameter name="qty"/>
+  </SqlMethod> 
+  <SqlMethod name="requisitionStatus" connection="true" type="callableStatement" return="object" object="CreateInternalOrderRequestData">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        CALL M_RequisitionLine_Status(null, ?, ?)
+      ]]></Sql>
+      <Parameter name="requisitionLineId"></Parameter>
+      <Parameter name="userId"></Parameter>
+   </SqlMethod>
+   <SqlMethod name="updateLock" type="preparedStatement"  return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE M_REQUISITIONLINE
+        SET LOCKQTY = to_number(?),
+            LOCKPRICE = to_number(?)
+        WHERE M_REQUISITIONLINE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="lockQty"/>
+    <Parameter name="lockPrice"/>
+    <Parameter name="mRequisitionLineId"/>
+  </SqlMethod>
+</SqlClass>

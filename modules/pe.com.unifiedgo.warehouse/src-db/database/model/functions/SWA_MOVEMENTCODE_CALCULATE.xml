@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_MOVEMENTCODE_CALCULATE">
+    <function name="SWA_MOVEMENTCODE_CALCULATE" type="NULL">
+      <parameter name="p_movementcode_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_qty_return NUMBER:=0;
+v_qtyavailable NUMBER:=0;
+v_warehouse_id VARCHAR2(32);
+qtyPendingtoInsert NUMBER;
+qtyInsert NUMBER;
+qtyavailabe NUMBER;
+v_Line NUMBER;
+Cur_parameters RECORD;
+Cur_movement RECORD;
+Cur_stock RECORD;
+v_product_info VARCHAR2(200);
+BEGIN
+
+  /**
+   Esta Función es para Insertar Lineas en la tabla swa_movementcode_line, esta calcula  las ubicaciones dónde 
+   esten los productos necesarios en la tabla swa_movementcode_plan
+  */
+  SELECT * INTO Cur_movement FROM SWA_MOVEMENTCODE WHERE SWA_MOVEMENTCODE_ID = p_movementcode_id FOR UPDATE;
+  v_warehouse_id:=Cur_movement.m_warehouse_id;
+  FOR Cur_parameters IN (
+    SELECT * FROM SWA_MOVEMENTCODE_PLAN WHERE SWA_MOVEMENTCODE_ID = p_movementcode_id FOR UPDATE
+  )
+  LOOP 
+    --Validando Stock
+     v_qtyavailable:= swa_product_getstock(Cur_parameters.m_product_id,v_warehouse_id,null,3);
+     IF(Cur_parameters.qtyordered > v_qtyavailable)THEN
+       SELECT value||' - ' || name INTO v_product_info FROM M_PRODUCT WHERE M_PRODUCT_ID = Cur_parameters.M_PRODUCT_ID;
+       RAISE_APPLICATION_ERROR(-20000,'@NotEnoughAvailableStock@' || ' - ' || v_product_info);
+     END IF;
+    -- END VALIDATION STOCK
+     qtyPendingtoInsert:=Cur_parameters.qtyordered;
+     qtyInsert:=0;
+    --Revisando Productos con ubicaciones
+      FOR Cur_stock IN(
+           SELECT * 
+             FROM swa_product_by_anaquel_v 
+            WHERE m_product_ID = Cur_parameters.M_PRODUCT_ID 
+              AND m_warehouse_id = v_warehouse_id
+              AND qtyonhand > 0 ORDER BY priorityno asc
+       )
+      LOOP
+        qtyavailabe:= Cur_stock.qtyonhand;
+        IF(qtyavailabe > qtyPendingtoInsert)THEN
+          qtyInsert:= qtyPendingtoInsert;
+        ELSE
+          qtyInsert:=qtyavailabe;
+        END IF;
+         v_Line:=10;
+
+         INSERT INTO SWA_MOVEMENTCODE_PRODUCT (
+           swa_movementcode_product_id, ad_client_id, ad_org_id, line, isactive,
+           created, createdby, updated, updatedby, 
+           m_product_id, qtyordered, m_locator_id,
+           m_to_product_id, m_to_locator_id,
+           swa_movementcode_id, c_uom_id, c_to_uom_id ,
+           swa_movementcode_plan_id
+        ) VALUES (
+          get_uuid(), Cur_parameters.ad_client_id, Cur_parameters.ad_org_id, v_Line, 'Y',
+           now(),  Cur_parameters.createdby, now(), Cur_parameters.createdby,
+          Cur_parameters.m_product_id, qtyInsert, Cur_stock.m_locator_id,
+          Cur_parameters.m_to_product_id,  Cur_stock.m_locator_id,
+          null, Cur_parameters.c_uom_id, Cur_parameters.c_to_uom_id, 
+          Cur_parameters.swa_movementcode_plan_id
+       );
+
+        
+        v_Line:=10 + v_Line;
+        qtyPendingtoInsert:=qtyPendingtoInsert-qtyInsert;
+        IF(qtyPendingtoInsert = 0)THEN
+         EXIT;
+        END IF;
+        
+      END LOOP;
+      IF(qtyPendingtoInsert>0)THEN
+              RAISE_APPLICATION_ERROR(-20000, '@swa_NotEnoughLocatorAvailaleforPicking@');
+      END IF;
+    --
+
+    --Reservando Movementcodeline con ubicaciones
+    --
+  END LOOP;
+END SWA_MOVEMENTCODE_CALCULATE
+]]></body>
+    </function>
+  </database>

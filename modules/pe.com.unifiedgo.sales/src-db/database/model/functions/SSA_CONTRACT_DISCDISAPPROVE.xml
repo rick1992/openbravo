@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_CONTRACT_DISCDISAPPROVE">
+    <function name="SSA_CONTRACT_DISCDISAPPROVE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+-- Record Info
+  v_disc_eval_status VARCHAR(32);
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, AD_User_ID
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+	
+    SELECT discount_eval_status
+      INTO v_disc_eval_status
+      FROM ssa_projprop_contract
+     WHERE ssa_projprop_contract_id=v_Record_ID;
+    
+    IF (v_disc_eval_status LIKE 'DR') THEN
+        v_Message := '@SSA_SalesContractCantBeEvaluated@';
+        v_Result := 2; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+	    RETURN;
+    END IF; 
+    IF (v_disc_eval_status LIKE 'NAP') THEN
+        v_Message := '@SSA_SalesContractCantBeEvaluated@';
+        v_Result := 2; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+	    RETURN;
+    END IF; 
+
+
+    UPDATE ssa_projprop_contract 
+       SET discount_eval_status='NAP', discount_eval_updatedby = v_User_ID, discount_eval_updated = now()
+     WHERE ssa_projprop_contract_id=v_Record_ID;       
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSA_CONTRACT_DISCDISAPPROVE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_M_INVENLINE_RECOUNT_TRG">
+    <trigger name="SCO_M_INVENLINE_RECOUNT_TRG" table="M_INVENTORYLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_Count NUMBER:=0;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF(:NEW.em_sco_firstcount IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidFirstCount@');
+      END IF;
+      IF(:NEW.em_sco_firstcount < 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidFirstCount@');
+      END IF; 
+
+      IF(:NEW.em_sco_secondcount IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSecondCount@');
+      END IF;
+      IF(:NEW.em_sco_secondcount < 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSecondCount@');
+      END IF;
+
+      :NEW.em_sco_countdiff := :NEW.em_sco_firstcount - :NEW.em_sco_secondcount;
+    ELSE
+	IF(COALESCE(:OLD.em_sco_firstcount,-1)<>COALESCE(:NEW.em_sco_firstcount,-1) OR
+	   COALESCE(:OLD.em_sco_secondcount,-1)<>COALESCE(:NEW.em_sco_secondcount,-1)) THEN
+          IF(:NEW.em_sco_firstcount IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidFirstCount@');
+          END IF;
+          IF(:NEW.em_sco_firstcount < 0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidFirstCount@');
+          END IF; 
+
+          IF(:NEW.em_sco_secondcount IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSecondCount@');
+          END IF;
+          IF(:NEW.em_sco_secondcount < 0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSecondCount@');
+          END IF;
+
+          :NEW.em_sco_countdiff := :NEW.em_sco_firstcount - :NEW.em_sco_secondcount;
+        END IF;
+
+    END IF;
+
+    END SCO_M_INVENLINE_RECOUNT_TRG
+]]></body>
+    </trigger>
+  </database>

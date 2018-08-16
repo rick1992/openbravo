@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_GETMAINMENU_FROM_WINDOW">
+    <function name="SCR_GETMAINMENU_FROM_WINDOW" type="NULL">
+      <parameter name="p_window_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_mainmenu_id" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_node_id VARCHAR(32);
+  v_parent_id VARCHAR(32);
+  vAux NUMBER;
+  v_limiter  NUMBER;
+BEGIN
+
+    SELECT tn.node_id, tn.parent_id 
+      INTO v_node_id, v_parent_id
+      FROM AD_Menu m, AD_Treenode tn
+    WHERE m.AD_Window_ID = p_window_id
+    AND m.isactive = 'Y'
+    AND m.AD_Menu_ID = tn.node_id
+    AND tn.AD_Tree_ID = '10' LIMIT 1;
+
+    IF(v_node_id IS NULL OR v_parent_id IS NULL) THEN
+      p_mainmenu_id := NULL;
+      RETURN;
+    ELSE
+      v_limiter := 0;
+      WHILE(v_parent_id <> '0' AND v_limiter<20)
+      LOOP
+        v_node_id := v_parent_id;
+        SELECT tn.parent_id INTO v_parent_id FROM ad_treenode tn WHERE tn.ad_tree_id = '10' and tn.node_id = v_node_id;
+        v_limiter := v_limiter + 1;
+      END LOOP;
+
+      IF(v_node_id = v_parent_id) THEN
+        p_mainmenu_id := NULL;
+        RETURN;
+      ELSE
+        SELECT Count(*) INTO vAux FROM AD_Menu WHERE AD_Menu_ID = v_node_id;
+        IF(vAux <> 0) THEN
+          p_mainmenu_id := v_node_id;
+        ELSE
+          p_mainmenu_id := NULL;
+        END IF;
+        RETURN;
+      END IF;
+    END IF;
+END SCR_GETMAINMENU_FROM_WINDOW
+]]></body>
+    </function>
+  </database>

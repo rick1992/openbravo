@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_GLJOURNALLINE_CPREP_TRG">
+    <trigger name="SCO_GLJOURNALLINE_CPREP_TRG" table="GL_JOURNALLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+  v_GL_JOURNAL_ID VARCHAR(32);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_GL_JOURNAL_ID:=:new.GL_JOURNAL_ID;
+  ELSE
+    v_GL_JOURNAL_ID:=:old.GL_JOURNAL_ID;
+  END IF;
+
+  IF(INSERTING) THEN
+
+    IF(COALESCE(:NEW.em_sco_createprep,'N') = 'Y') THEN
+      IF(:NEW.c_bpartner_id IS NULL OR :NEW.em_sco_prep_documentno IS NULL OR :NEW.em_sco_prep_issotrx IS NULL OR :NEW.em_sco_prep_dategen IS NULL OR :NEW.em_sco_prep_duedate IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_JournallineCreatePrepMissingData@');
+      END IF;
+    ELSE
+      :NEW.em_sco_prep_documentno := NULL;
+      :NEW.em_sco_prep_issotrx := 'N';
+      :NEW.em_sco_prep_dategen := NULL;
+      :NEW.em_sco_prep_duedate := NULL;
+    END IF;
+
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.em_sco_createprep,'') <> COALESCE(:NEW.em_sco_createprep,'')
+    OR COALESCE(:OLD.c_bpartner_id,'') <> COALESCE(:NEW.c_bpartner_id,'')
+    OR COALESCE(:OLD.em_sco_prep_documentno,'') <> COALESCE(:NEW.em_sco_prep_documentno,'')
+    OR COALESCE(:OLD.em_sco_prep_issotrx,'') <> COALESCE(:NEW.em_sco_prep_issotrx,'')
+    OR COALESCE(:OLD.em_sco_prep_dategen,v_DateNull) <> COALESCE(:NEW.em_sco_prep_dategen,v_DateNull)
+    OR COALESCE(:OLD.em_sco_prep_duedate,v_DateNull) <> COALESCE(:NEW.em_sco_prep_duedate,v_DateNull)) THEN
+      IF(COALESCE(:NEW.em_sco_createprep,'N') = 'Y') THEN
+        IF(:NEW.c_bpartner_id IS NULL OR :NEW.em_sco_prep_documentno IS NULL OR :NEW.em_sco_prep_issotrx IS NULL OR :NEW.em_sco_prep_dategen IS NULL OR :NEW.em_sco_prep_duedate IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_JournallineCreatePrepMissingData@');
+        END IF;
+      ELSE
+        :NEW.em_sco_prep_documentno := NULL;
+        :NEW.em_sco_prep_issotrx := 'N';
+        :NEW.em_sco_prep_dategen := NULL;
+        :NEW.em_sco_prep_duedate := NULL;
+      END IF;
+    END IF;
+  END IF;
+  
+
+  END SCO_GLJOURNALLINE_CPREP_TRG
+]]></body>
+    </trigger>
+  </database>

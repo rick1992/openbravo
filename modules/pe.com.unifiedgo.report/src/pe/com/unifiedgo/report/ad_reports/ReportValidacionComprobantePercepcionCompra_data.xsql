@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportValidacionComprobantePercepcionCompraData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectDiff" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+		select
+		
+		em_scr_physical_documentno as n_factura
+		
+		,ci.dateinvoiced as fecha_factura
+		
+		,outstandingamt as monto_fatura
+		
+		,coalesce(cit.taxamt,0.0) as percepcion_factura
+		
+		,(select name from c_bpartner cbp where cbp.c_bpartner_id=ci.c_bpartner_id) as tercero
+		
+		,spp.perceptionnumber  as n_comprobante
+		
+		,spp.dategen as fecha_comprobante
+		
+		,coalesce (sppd.amount,0.0) as percepcion_comprobante
+		
+		,cit.taxamt - coalesce (sppd.amount,0.0)  as saldo
+		
+		from c_invoice ci
+		inner join ad_org ao on ci.ad_org_id=ao.ad_org_id
+		inner join c_invoicetax cit on ci.c_invoice_id=cit.c_invoice_id
+		inner join c_tax ct on cit.c_tax_id=ct.c_tax_id
+		inner join sco_perceppurch_detail sppd on ci.c_invoice_id = sppd.invoiceref_id
+		inner join sco_percep_purch spp on spp.sco_percep_purch_id  =  sppd.sco_percep_purch_id
+		
+		where ct.em_sco_specialtax='SCOPCREDITPERCEPTION' AND 
+		spp.docstatus='CO' AND 
+		ao.AD_CLIENT_ID IN ('1')
+        AND ao.AD_ORG_ID IN('1')
+        AND 1=1
+        and 
+        
+        (case when to_char('Y') = to_char(?)  then 
+       
+		case when coalesce ((select sum(coalesce (sppd2.amount,0.0)) from sco_percep_purch spp2
+		inner join sco_perceppurch_detail sppd2 on spp2.sco_percep_purch_id = sppd2.sco_percep_purch_id
+		where sppd2.invoiceref_id=ci.c_invoice_id),0.0) < coalesce(cit.taxamt,0.0)   then true 
+		else false end
+		else true end )
+      
+		order by n_factura,fecha_factura
+
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+         
+    <Parameter name="adUserClient" type="replace" optional="true" after="ao.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND ao.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND ci.dateinvoiced >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND ci.dateinvoiced < TO_DATE(?)]]></Parameter>
+     <Parameter name="soloPendientes"/>
+
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+</SqlClass>

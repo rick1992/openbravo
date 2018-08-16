@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_CHK_WAREHOUSE_UPD_TRG">
+    <trigger name="SCR_CHK_WAREHOUSE_UPD_TRG" table="C_ORDER" fires="after" insert="false" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF (COALESCE(:OLD.M_Warehouse_ID, '0')!=COALESCE(:NEW.M_Warehouse_ID, '0')) THEN
+      --With C_Order Special Document Type
+      --Can modify warehouse on sales order: isstrx = Y         	 	
+      UPDATE C_OrderLine
+         SET em_Scr_Qty_Available=COALESCE(scr_getStockAvailable(:NEW.ad_client_id, :NEW.ad_org_id, NULL, C_OrderLine.m_product_id), 0),
+             em_Scr_Qty_Avail_Warehouse=COALESCE(scr_getStockAvailable(:NEW.ad_client_id, :NEW.ad_org_id, :NEW.m_warehouse_id, C_OrderLine.m_product_id), 0)         
+	  WHERE C_Order_ID = :NEW.C_Order_ID;  
+    END IF;
+  END IF;
+
+END SCR_CHK_WAREHOUSE_UPD_TRG
+]]></body>
+    </trigger>
+  </database>

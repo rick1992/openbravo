@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2014 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<REPORT>
+  <template file="RequisitionToOrder.html"/>
+  <PARAMETER id="paramToolBar" name="toolbar" default=""/>
+  <PARAMETER id="fieldCalendar" name="calendar" attribute="src" replace="es" default="en"/>
+  <PARAMETER id="paramDirectory" name="directory" default=""/>
+  <PARAMETER id="paramLanguage" name="paramLanguage" default=""/>
+  <PARAMETER id="paramProductId" name="paramProductId" attribute="value"/>
+  <PARAMETER id="paramProductDescription" name="paramProductDescription" attribute="value"/>
+  <PARAMETER id="paramDateFrom" name="dateFrom" attribute="value"/>
+  <PARAMETER id="paramDateFrom" name="displayFormat" attribute="displayformat"/>
+  <PARAMETER id="paramDateFrom" name="displayFormat" attribute="saveformat"/>
+  <PARAMETER id="paramDateTo" name="dateTo" attribute="value"/>
+  <PARAMETER id="paramDateTo" name="displayFormat" attribute="displayformat"/>
+  <PARAMETER id="paramDateTo" name="displayFormat" attribute="saveformat"/>
+  <PARAMETER id="paramRequester" name="paramRequester"/>
+  <PARAMETER id="paramBPartnerId" name="paramBPartnerId" attribute="value"/>
+  <PARAMETER id="paramBPartnerDescription" name="paramBPartnerDescription" attribute="value"/>
+  <PARAMETER id="paramBoolean" name="constant" default="Y"/>
+  <PARAMETER id="paramShowNullVendor" name="paramShowNullVendor" boolean="checked" withId="paramBoolean"/>
+  <PARAMETER id="paramAD_Org_ID" name="paramAdOrgId"/>
+  <PARAMETER id="paramDisable" name="disable" default="-1"/>
+  <PARAMETER id="paramCSS" name="theme" attribute="href" replace="Default"/>
+  <PARAMETER id="tdleftTabs" name="leftTabs" default=""/>
+  <PARAMETER id="paramParentTabContainer" name="parentTabContainer" default=" "/>
+  <PARAMETER id="paramMainTabContainer" name="mainTabContainer" default=" "/>
+  <PARAMETER id="paramChildTabContainer" name="childTabContainer" default=" "/>
+  <PARAMETER id="tdtopButtons" name="navigationBar" default=""/>
+  <PARAMETER id="messageBoxID" name="messageType" attribute="class" replace="yy" default="HIDDEN"/>
+  <PARAMETER id="messageBoxIDTitle" name="messageTitle" default=""/>
+  <PARAMETER id="messageBoxIDMessage" name="messageMessage" default=""/>
+  <PARAMETER id="paramRequisition_ID" name="paramRequisition_ID" default=""/>
+  <PARAMETER id="paramProductType_ID" name="paramProductType_ID" default=""/>
+  <PARAMETER id="paramProductGroup_ID" name="paramProductGroup" default=""/>
+  <PARAMETER id="paramProductCategory_ID" name="paramProductCategory" attribute="value"/>
+  <PARAMETER id="paramShowAll" name="paramShowAll" boolean="checked" withId="paramBoolean"/>
+  <PARAMETER id="paramShowExcluded" name="paramShowExcluded" boolean="checked" withId="paramBoolean"/>
+  <SUBREPORT id="reportRequester_ID" name="reportRequester_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramRequester"/>
+  </SUBREPORT>
+  <SUBREPORT id="reportAD_Org_ID" name="reportAD_Org_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramAD_Org_ID"/>
+  </SUBREPORT>
+  <SUBREPORT id="reportProductGroup_ID" name="reportProductGroup_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramProductGroup_ID"/>
+  </SUBREPORT>
+    
+  <SUBREPORT id="reportProductType_ID" name="reportProductType_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramProductType_ID"/>
+  </SUBREPORT>
+  <PARAMETER id="param2" name="param2" default="2"/>
+  
+  <PARAMETER id="paramRequisitionId" name="paramRequisitionId" attribute="value"/>
+  <PARAMETER id="paramRequisitionDescription" name="paramRequisitionDescription" attribute="value"/>
+  
+  <PARAMETER id="paramProjectId" name="paramProjectId" attribute="value"/>
+  <PARAMETER id="paramProjectDescription" name="paramProjectDescription" attribute="value"/>
+
+  <structure name="structureSearch">
+    <FIELD id="fieldRownum">rownum</FIELD>
+    <FUNCTION id="funcEvenOddRow" name="MODULE" arg1="fieldRownum" arg2="param2" format="integerEdition" attribute="class" replace="xx"/>
+    <FIELD id="fieldRequisitionLineId" attribute="value">mRequisitionlineId</FIELD>
+    <FIELD id="fieldNeedByDate">needbydate</FIELD>
+    <FIELD id="fieldProduct" replaceCharacters="html">product</FIELD>
+    <FIELD id="fieldAttribute" replaceCharacters="html">attribute</FIELD>
+    <FIELD id="fieldQuantity" format="euroEdition">qtytoorder</FIELD>
+    <FIELD id="fieldUnit" replaceCharacters="html">uomname</FIELD>
+    <FIELD id="fieldSecQuantity" format="euroEdition">quantityorder</FIELD>
+    <FIELD id="fieldSecUnit" replaceCharacters="html">secuomname</FIELD>
+    <FIELD id="fieldRequester" replaceCharacters="html">requester</FIELD>
+    <FIELD id="fieldVendor" replaceCharacters="html">vendor</FIELD>
+    <FIELD id="fieldPriceList" replaceCharacters="html">pricelistid</FIELD>
+    <FIELD id="fieldPrice" format="priceEdition">price</FIELD>
+    <FIELD id="fieldDateCreated" replaceCharacters="html">created</FIELD>
+    <FIELD id="fieldDateApproved" replaceCharacters="html">emSreFechaaprobado</FIELD>     
+    <FIELD id="fieldOrgName" replaceCharacters="html">orgname</FIELD>    
+    <FIELD id="fieldInternalCode" replaceCharacters="html">internalcode</FIELD>    
+    <FIELD id="fieldPrimaryPartner" replaceCharacters="html">PRIMARYPART</FIELD>
+    <FIELD id="fieldProject" replaceCharacters="html">project</FIELD>
+    <FIELD id="fieldDescription" replaceCharacters="html">reqdescription</FIELD>
+    
+    <FIELD id="fieldRequisition" replaceCharacters="html">REQUISITIONID</FIELD>
+    
+    <FIELD id="fieldRequisitionLineRejectId" attribute="name" replace="xx" >mRequisitionlineId</FIELD>
+    <FIELD id="fieldRequisitionLineRejectId" attribute="value">internalnotes</FIELD>
+    
+    
+    <SECTION id="sectionLinesDetail"/>
+  </structure>
+
+  <structure name="structureSelected">
+    <FIELD id="fieldSelectedRownum">rownum</FIELD>
+    <FUNCTION id="funcSelectedEvenOddRow" name="MODULE" arg1="fieldSelectedRownum" arg2="param2" format="integerEdition" attribute="class" replace="xx"/>
+    <FIELD id="fieldVendor" replaceCharacters="html">vendor</FIELD>
+    <FIELD id="fieldPricelist">pricelistid</FIELD>
+    <FIELD id="fieldSelectedReq" attribute="value">mRequisitionlineId</FIELD>
+    <FIELD id="fieldSelProduct" replaceCharacters="html">product</FIELD>
+    <FIELD id="fieldSelAttribute">attribute</FIELD>
+    <FIELD id="fieldSelNeedByDate" replaceCharacters="html">needbydate</FIELD>
+    <FIELD id="fieldReqQty" format="euroEdition">reqqty</FIELD>
+    <FIELD id="fieldMatchedQty" format="euroEdition">matchedqty</FIELD>
+    <FIELD id="fieldSelQty" format="euroEdition" attribute="value">lockqty</FIELD>
+    <FIELD id="fieldSelQty" attribute="name" replace="xx">mRequisitionlineId</FIELD>
+    <FIELD id="fieldSelPrice" format="priceEdition" attribute="value">lockprice</FIELD>
+    <FIELD id="fieldSelUnit" replaceCharacters="html">uomname</FIELD>
+    <FIELD id="fieldSelSecQuantity" format="euroEdition">quantityorder</FIELD>
+    <FIELD id="fieldSelSecUnit" replaceCharacters="html">secuomname</FIELD>
+    <FIELD id="fieldSelPrice" attribute="name" replace="xx">mRequisitionlineId</FIELD>
+    <FIELD id="fieldPriceList" format="priceEdition" replaceCharacters="html">pricelist</FIELD>
+    <FIELD id="fieldProjectDtl" replaceCharacters="html">project</FIELD>
+    <FIELD id="fieldDescription" replaceCharacters="html">reqdescription</FIELD>
+
+<!--     <SECTION id="sectionVendor" field="vendorId"/>
+    <SECTION id="sectionPriceList" field="mPricelistId"/> -->
+    <SECTION id="sectionSelectedDetail"/>
+  </structure>
+  
+   <structure name="structure3">
+    <FIELD id="fieldRownum3">rownum</FIELD>
+    <FUNCTION id="funcEvenOddRow2xx" name="MODULE" arg1="fieldRownum3" arg2="param2" format="integerEdition" attribute="class" replace="yy"/>
+    <FIELD id="fieldQtyInTransit" attribute="value" format="priceEdition">productID</FIELD>
+    <FIELD id="fieldQtyInTransit" replaceCharacters="html">qtyTransit</FIELD>
+    <FIELD id="fieldQtyInTransitResumen" replaceCharacters="html">productresumenid</FIELD>
+    <SECTION id="sectionOrg3" field="productID"/>  
+    <SECTION id="sectionSelectedDetail3"/>         
+  </structure>
+  
+  <DISCARD id="discard"/>
+</REPORT>

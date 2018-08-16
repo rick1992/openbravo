@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_ORDER_DBUPDATED_TRG">
+    <trigger name="SCR_ORDER_DBUPDATED_TRG" table="C_ORDER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(TG_OP='UPDATE') THEN
+      --Protect sensitive data from concurrent modification
+      IF(COALESCE(:OLD.totallines,0) <> COALESCE(:NEW.totallines,0)
+      OR COALESCE(:OLD.grandtotal,0) <> COALESCE(:NEW.grandtotal,0)
+      ) THEN
+        IF(TO_DATE(COALESCE(:NEW.em_scr_dbupdated,v_DateNull)) < TO_DATE(COALESCE(:OLD.em_scr_dbupdated,v_DateNull))) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@OBJSON_StaleDate@') ;
+        END IF;
+      END IF;
+    END IF;
+
+    IF(INSERTING) THEN
+      :NEW.em_scr_dbupdated := now();
+    ELSIF(UPDATING) THEN
+      IF row(:NEW.*) IS DISTINCT FROM row(:OLD.*) THEN
+        :NEW.em_scr_dbupdated := now();
+      END IF;
+    END IF;
+
+    END SCR_ORDER_DBUPDATED_TRG
+]]></body>
+    </trigger>
+  </database>

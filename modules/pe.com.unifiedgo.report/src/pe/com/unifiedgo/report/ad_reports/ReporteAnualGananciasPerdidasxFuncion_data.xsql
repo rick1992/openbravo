@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteAnualGananciasPerdidasxFuncionData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+  
+  
+   <SqlMethod name="select_categorias" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+    
+		    SELECT
+		    '' as idanio,
+		    '' as anio,
+			    	'' AS idorganizacion,
+					'' AS idperiodo,
+					'' AS periodo,
+					'' AS fechainicial,
+					'' AS fechafinal,
+								
+					'' as acctvalue,
+					0.00 as factamt,
+					0 as orden_mes,
+					''  as mes,
+		    
+					sec.seqno AS order1,
+					sesc.seqno AS order2,
+					sec.description AS categoria,
+					sesc.description AS sub_categoria,
+					CASE
+				WHEN sesa.account LIKE '-%' THEN
+					- 1
+				ELSE
+					1
+				END considerar,
+				(
+					SELECT
+						COALESCE (arlt. NAME, arl. NAME)
+					FROM
+						ad_ref_list arl
+					INNER JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+					WHERE
+						arl.
+					VALUE
+						= sec.catgroup
+					AND arlt.ad_language = 'es_PE'
+					LIMIT 1
+				) AS grupo_categoria,
+				CASE
+			WHEN sesc.sign = 'SCO_PLUS' THEN
+				1
+			ELSE
+				- 1
+				
+			END signo,
+			
+			coalesce(sesa.account,'???') as account ,
+			 sesa.consider,
+			 sesa.considerwhen,
+
+		0.00  AS monto_cuenta_mes,
+		0.00 AS monto_categoria_acumulado
+		FROM
+			sco_eeff_category sec
+		INNER JOIN sco_eeff_subcategory sesc ON sec.sco_eeff_category_id = sesc.sco_eeff_category_id
+		LEFT JOIN sco_eeff_subcat_accts sesa ON sesc.sco_eeff_subcategory_id = sesa.sco_eeff_subcategory_id
+		WHERE
+			sec. TYPE = 'SCO_GPF'
+		AND sec.ad_org_id in ('1')	
+		AND sec.ad_client_id in ('1')
+		
+		ORDER BY
+			1,
+			2
+		    
+
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="sec.ad_org_id in (" text="'1'"/>        
+
+    <Parameter name="adUserClient" type="replace" optional="true" after="sec.ad_client_id in (" text="'1'"/>
+    
+  </SqlMethod>
+  
+  
+  
+   <SqlMethod name="select_facts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+					SELECT
+				cy. YEAR AS ANIO,
+			    CAST(  EXTRACT (MONTH FROM cp.enddate) AS INTEGER) AS ORDEN_MES,
+						CASE EXTRACT (MONTH FROM cp.enddate)
+					WHEN 1 THEN
+						'ENERO'
+					WHEN 2 THEN
+						'FEBRERO'
+					WHEN 3 THEN
+						'MARZO'
+					WHEN 4 THEN
+						'ABRIL'
+					WHEN 5 THEN
+						'MAYO'
+					WHEN 6 THEN
+						'JUNIO'
+					WHEN 7 THEN
+						'JULIO'
+					WHEN 8 THEN
+						'AGOSTO'
+					WHEN 9 THEN
+						'SETIEMBRE'
+					WHEN 10 THEN
+						'OCTUBRE'
+					WHEN 11 THEN
+						'NOVIEMBRE'
+					WHEN 12 THEN
+						'DICIEMBRE'
+					END AS MES,
+						fa.acctvalue, SUM  (fa.amtacctdr - fa.amtacctcr) AS factamt
+					FROM
+						fact_acct fa
+					inner join c_period cp on cp.c_period_id= fa.c_period_id
+					inner join c_year cy on cp.c_year_id=cy.c_year_id
+					WHERE
+						fa.factaccttype NOT IN ('C')
+					AND fa.ad_org_id in ('1')
+					AND fa.ad_client_id in ('1')
+					AND CAST(  EXTRACT (MONTH FROM cp.enddate) AS INTEGER)  between CAST(? AS INTEGER) and CAST( ? AS INTEGER)
+					AND cy.year = ?
+					AND fa.factaccttype in ('O','N')
+					GROUP BY
+						1,2,3 ,4
+
+					order by 2,4
+	
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in (" text="'1'"/>
+    <Parameter name="mes1"/>
+    <Parameter name="mes2"/>
+    <Parameter name="anio"/>
+    
+    
+    
+  </SqlMethod>
+  
+
+
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+  
+
+  
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+     
+       <SqlMethod name="select_anios" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cy.c_year_id as idanio,
+	cy.year as anio
+	   
+	FROM c_year cy
+	INNER   join ad_org ao on cy.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where cy.isactive='Y'
+	ORDER BY 1,cy.year  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+     
+</SqlClass>

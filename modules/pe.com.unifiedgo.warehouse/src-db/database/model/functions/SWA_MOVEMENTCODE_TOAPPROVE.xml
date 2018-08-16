@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_MOVEMENTCODE_TOAPPROVE">
+    <function name="SWA_MOVEMENTCODE_TOAPPROVE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_org_id VARCHAR2(32);
+  v_client_id VARCHAR2(32);
+  v_docaction VARCHAR2(60);
+  v_docstatus VARCHAR2(60);
+  v_Result NUMBER:=1; -- Success
+  
+  v_pinstance_result AD_PInstance.result%TYPE;
+  v_pinstance_msg AD_PInstance.errormsg%TYPE;
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  v_pinstance_id VARCHAR(32);
+  Cur_Parameter RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+     SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+     SELECT ad_client_id,ad_org_id INTO v_client_id, v_org_id FROM SWA_MOVEMENTCODE WHERE SWA_MOVEMENTCODE_ID = p_PInstance_ID; 
+
+     v_pinstance_id := get_uuid();
+     INSERT INTO ad_pinstance (
+           ad_pinstance_id, ad_process_id, record_id, isactive, 
+           ad_user_id, ad_client_id, ad_org_id, created, createdby,
+           updated, updatedby
+     ) VALUES (
+           v_pinstance_id, 'E17C95536DDA4A42A5B6FE9EA1FF9D4D', v_record_id, 'Y', -- | 137 is m_productionrun | E17C95536DDA4A42A5B6FE9EA1FF9D4D es swa_production_createlines
+           v_User_ID, v_client_id, v_org_id, now(), v_User_ID,
+           now(), v_User_ID
+     );
+
+    
+       SWA_MOVEMENTCODE_TOCOMPLETE(v_pinstance_ID); 
+
+     SELECT result, errormsg
+       INTO v_pinstance_result, v_pinstance_msg
+       FROM ad_pinstance
+      WHERE ad_pinstance_id = v_pinstance_id;
+            
+      IF (v_pinstance_result = 0) THEN
+         RAISE_APPLICATION_ERROR(-20000, v_pinstance_msg);
+      END IF;
+    --
+
+     
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_MOVEMENTCODE_TOAPPROVE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE AD_ORG">
+    <table name="AD_ORG" primaryKey="AD_ORG_KEY">
+      <column name="EM_SCO_RETENCIONAGENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PERCEPCIONAGENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_HASGOODREP" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RENDCUENTAS_GLITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_INCTOPRICELIST" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_FCASHREP_GLITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_FOLFINACC_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_BPARTNER_VALUE_PREFIX" primaryKey="false" required="false" type="VARCHAR" size="20" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_BPARTNER_VALUE_CORR" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[1]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_FOLPAYMETHOD_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CHKFINACC_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CHKPAYMETHOD_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_WITHHOLDING_PERC" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[3]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_WITHHOLDING_MINAMT" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[700]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RETENCIONMSG" primaryKey="false" required="false" type="VARCHAR" size="100" autoIncrement="false">
+        <default><![CDATA[Incorporado al Régimen de AGENTES DE RETENCIÓN DE IGV (D.S. 096-2012) a partir del 01/06/2012]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_NOTISSUED_GLI_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_BOEINTERM_GLI_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ORGCORREL" primaryKey="false" required="false" type="VARCHAR" size="10" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="C_GLITEM" name="EM_SCO_ORG_BOEINT_GLI_FK">
+        <reference local="EM_SCO_BOEINTERM_GLI_ID" foreign="C_GLITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="FIN_FINANCIAL_ACCOUNT" name="EM_SCO_ORG_CHKFINACC_FK">
+        <reference local="EM_SCO_CHKFINACC_ID" foreign="FIN_FINANCIAL_ACCOUNT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="FIN_PAYMENTMETHOD" name="EM_SCO_ORG_CHKPAYME_FK">
+        <reference local="EM_SCO_CHKPAYMETHOD_ID" foreign="FIN_PAYMENTMETHOD_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_GLITEM" name="EM_SCO_ORG_FCASRP_GLITEM_FK">
+        <reference local="EM_SCO_FCASHREP_GLITEM_ID" foreign="C_GLITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="FIN_FINANCIAL_ACCOUNT" name="EM_SCO_ORG_FOLFINACC_FK">
+        <reference local="EM_SCO_FOLFINACC_ID" foreign="FIN_FINANCIAL_ACCOUNT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="FIN_PAYMENTMETHOD" name="EM_SCO_ORG_FOLPAYME_FK">
+        <reference local="EM_SCO_FOLPAYMETHOD_ID" foreign="FIN_PAYMENTMETHOD_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_GLITEM" name="EM_SCO_ORG_NOTISSUED_GLI_FK">
+        <reference local="EM_SCO_NOTISSUED_GLI_ID" foreign="C_GLITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_GLITEM" name="EM_SCO_ORG_RENDCUEN_GLITEM_FK">
+        <reference local="EM_SCO_RENDCUENTAS_GLITEM_ID" foreign="C_GLITEM_ID"/>
+      </foreign-key>
+      <unique name="EM_SCO_ORG_BPVALPRE_UNIQ">
+        <unique-column name="AD_CLIENT_ID"/>
+        <unique-column name="EM_SCO_BPARTNER_VALUE_PREFIX"/>
+      </unique>
+      <check name="EM_SCO_HASGOODREP_CHK"><![CDATA[EM_SCO_HASGOODREP IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_ORG_BPVALCORR_CHK"><![CDATA[EM_SCO_BPARTNER_VALUE_CORR > 0]]></check>
+      <check name="EM_SCO_PERCEPCIONAGENT_CHK"><![CDATA[EM_SCO_PERCEPCIONAGENT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_RETENCIONAGENT_CHK"><![CDATA[EM_SCO_RETENCIONAGENT IN ('Y', 'N')]]></check>
+    </table>
+  </database>

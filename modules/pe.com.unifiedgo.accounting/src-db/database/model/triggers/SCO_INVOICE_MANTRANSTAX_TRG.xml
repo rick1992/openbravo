@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_MANTRANSTAX_TRG">
+    <trigger name="SCO_INVOICE_MANTRANSTAX_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF (UPDATING) THEN
+      IF(COALESCE(:OLD.em_sco_ismanual_transtax,'')<> COALESCE(:NEW.em_sco_ismanual_transtax,'')) THEN
+        IF(:NEW.posted = 'Y') THEN
+			RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+        END IF;
+        IF(:NEW.em_sco_mtrtax_gljournal_id IS NOT NULL) THEN
+			RAISE_APPLICATION_ERROR(-20000, '@SCO_InvChManualTransTaxGLJournalExist@') ;
+        END IF;
+      END IF;
+    END IF;
+
+    END SCO_INVOICE_MANTRANSTAX_TRG
+]]></body>
+    </trigger>
+  </database>

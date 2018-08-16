@@ -1,0 +1,1031 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_SalesProspect_new" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="22" bottomMargin="22">
+	<property name="ireport.zoom" value="2.000000000000005"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="317"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_NAME" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'INVOICE'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="strDateFrom" class="java.lang.String"/>
+	<parameter name="strDateTo" class="java.lang.String"/>
+	<parameter name="RUC" class="java.lang.String"/>
+	<parameter name="ORGANIZACION" class="java.lang.String"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines2" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_TechoPropio_Lines" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines_Departamento" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines2_Departamento" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines_Estacionamiento" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines2_Estacionamiento" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines_Deposito" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="SUBREP_Rpt_SalesProspect_MiVivienda_Lines2_Deposito" class="net.sf.jasperreports.engine.JasperReport"/>
+	<queryString>
+		<![CDATA[select ppc.ssa_projprop_contract_id as ssa_projprop_contract_id,
+
+ppc.datedoc,
+ppc.documentno,
+
+bp.name as bpname,
+bp.taxid,
+
+loc.address1 || coalesce(' ' || loc.address2, '') || coalesce(' - ' || loc.city, '')
+|| coalesce(' - '|| (select name from c_region r where r.c_region_id = loc.c_region_id), '')  as address,
+
+
+(select i.phone from ssa_contact_information i where i.c_bpartner_id = bp.c_bpartner_id and i.isactive='Y' limit 1) as phone,
+(select i.phone2 from ssa_contact_information i where i.c_bpartner_id = bp.c_bpartner_id and i.isactive='Y' limit 1) as phone2,
+(select i.email from ssa_contact_information i where i.c_bpartner_id = bp.c_bpartner_id and i.isactive='Y' limit 1) as email,
+
+coalesce(sr.name, '')as salesrep,
+(select i.phone from ssa_contact_information i where i.c_bpartner_id=sr.c_bpartner_id and i.isactive='Y' limit 1) as salrepphone,
+ppc.isfirstvisit,
+
+coalesce(
+(select c_project_id from c_project where c_project_id = (select t.c_project_id from
+(select l.c_project_id, min(l.created) as created from ssa_projprop_contract_line l
+where l.ssa_projprop_contract_id = ppc.ssa_projprop_contract_id
+group by l.c_project_id) as t order by t.created limit 1)), 'EMPTY_ID') as "MV_PROJECT1_ID",
+
+coalesce(
+(select c_project_id from c_project where c_project_id = (select t.c_project_id from
+(select l.c_project_id, min(l.created) as created from ssa_projprop_contract_line l
+where l.ssa_projprop_contract_id = ppc.ssa_projprop_contract_id
+group by l.c_project_id) as t order by t.created limit 1 offset 1)), 'EMPTY_ID') as "MV_PROJECT2_ID",
+
+org.ad_org_id as "ORG_ID",
+inf.Your_Company_Document_Image as "ORG_IMAGE_ID",
+
+oloc.address1 || coalesce(' ' || oloc.address2, '') || coalesce(' - ' || oloc.city, '') || coalesce(' - '|| (select name from c_region r where r.c_region_id = oloc.c_region_id), '')  as orgaddress,
+
+(select value from scr_combo_item where scr_combo_item_id = ppc.cboitem_buildingtype_id) as buildtype
+
+from ssa_projprop_contract ppc
+
+join c_bpartner bp on ppc.c_bpartner_id = bp.c_bpartner_id
+left join c_bpartner_location bpl on ppc.c_bpartner_location_id = bpl.c_bpartner_location_id
+left join c_location loc on bpl.c_location_id = loc.c_location_id
+
+left join ad_user sr on ppc.salesrep_id = sr.ad_user_id
+,
+ad_org org
+join ad_orgtype t using (ad_orgtype_id)
+join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+left join c_location oloc on inf.c_location_id = oloc.c_location_id
+
+where ppc.ssa_projprop_contract_id in ($P{DOCUMENT_ID})
+and ad_isorgincluded(ppc.ad_org_id, org.ad_org_id, ppc.ad_client_id)<>-1
+and(t.IsLegalEntity='Y' or t.IsAcctLegalEntity='Y')
+and ppc.isactive = 'Y'
+
+limit 1
+
+--]]>
+	</queryString>
+	<field name="ssa_projprop_contract_id" class="java.lang.String"/>
+	<field name="datedoc" class="java.sql.Timestamp"/>
+	<field name="documentno" class="java.lang.String"/>
+	<field name="bpname" class="java.lang.String"/>
+	<field name="taxid" class="java.lang.String"/>
+	<field name="address" class="java.lang.String"/>
+	<field name="phone" class="java.lang.String"/>
+	<field name="phone2" class="java.lang.String"/>
+	<field name="email" class="java.lang.String"/>
+	<field name="salesrep" class="java.lang.String"/>
+	<field name="salrepphone" class="java.lang.String"/>
+	<field name="isfirstvisit" class="java.lang.String"/>
+	<field name="MV_PROJECT1_ID" class="java.lang.String"/>
+	<field name="MV_PROJECT2_ID" class="java.lang.String"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG_IMAGE_ID" class="java.lang.String"/>
+	<field name="orgaddress" class="java.lang.String"/>
+	<field name="buildtype" class="java.lang.String"/>
+	<variable name="SHOWLOGO" class="java.lang.String"/>
+	<variable name="SHOWCOMPANYDATA" class="java.lang.String"/>
+	<variable name="total1" class="java.math.BigDecimal"/>
+	<variable name="total2" class="java.math.BigDecimal"/>
+	<variable name="price1_1" class="java.math.BigDecimal"/>
+	<variable name="price1_2" class="java.math.BigDecimal"/>
+	<variable name="price2_1" class="java.math.BigDecimal"/>
+	<variable name="price2_2" class="java.math.BigDecimal"/>
+	<variable name="price3_1" class="java.math.BigDecimal"/>
+	<variable name="price3_2" class="java.math.BigDecimal"/>
+	<title>
+		<band height="222">
+			<textField isBlankWhenNull="true">
+				<reportElement x="450" y="45" width="120" height="15" forecolor="#FF0000"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["N° " + $F{documentno}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="500" y="2" width="70" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{datedoc}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="573" y="0" width="22" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="0" width="22" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<image hAlign="Center" vAlign="Top" isUsingCache="true">
+				<reportElement positionType="Float" x="22" y="0" width="150" height="60"/>
+				<imageExpression class="java.awt.Image"><![CDATA[org.openbravo.erpCommon.utility.Utility.showImage($F{ORG_IMAGE_ID})]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="450" y="2" width="50" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[FECHA:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="22" y="65" width="551" height="25"/>
+				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="0"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="12" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PROSPECTO DE VENTA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="22" y="90" width="551" height="25" forecolor="#FF0000">
+					<printWhenExpression><![CDATA[$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+				</reportElement>
+				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="0"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="SansSerif" size="12" isBold="false"/>
+				</textElement>
+				<text><![CDATA[TECHO PROPIO]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="573" y="140" width="22" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="122" y="148" width="451" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{address}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="102" y="174" width="150" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{email}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="142" y="135" width="431" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{bpname}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="266" y="187" width="30" height="13"/>
+				<box leftPadding="4" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[NO]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="135" width="100" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Nombres y Apellidos:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="192" y="161" width="50" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Celular:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="174" width="60" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[E-mail:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="246" y="187" width="20" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{isfirstvisit}.equalsIgnoreCase("N")?"X":""]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="102" y="161" width="80" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{phone}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="212" y="187" width="30" height="13"/>
+				<box leftPadding="4" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[SI]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="187" width="130" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[¿Primera vez que viene?]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="161" width="60" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Teléfono:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="242" y="161" width="80" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{phone2}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="350" y="161" width="50" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[D.N.I:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="148" width="80" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Dirección:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="192" y="187" width="20" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{isfirstvisit}.equalsIgnoreCase("Y")?"X":""]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="400" y="161" width="100" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{taxid}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="299" y="174" width="60" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[E-mail2:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="22" y="115" width="150" height="15" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box leftPadding="15" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[DATOS PERSONALES]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="22" y="205" width="150" height="15" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box leftPadding="15" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[PROYECTO INMOBILIARIO]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="22" y="90" width="551" height="25" forecolor="#FF0000">
+					<printWhenExpression><![CDATA[!$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+				</reportElement>
+				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="0"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="SansSerif" size="12" isBold="false"/>
+				</textElement>
+				<text><![CDATA[MI VIVIENDA]]></text>
+			</staticText>
+		</band>
+	</title>
+	<detail>
+		<band height="15" splitType="Stretch">
+			<printWhenExpression><![CDATA[!$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="15"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT1_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines}]]></subreportExpression>
+			</subreport>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="15"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT2_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines2}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band height="13">
+			<printWhenExpression><![CDATA[!$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT1_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="price1" toVariable="price1_1"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines_Departamento}]]></subreportExpression>
+			</subreport>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT2_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="price1" toVariable="price1_2"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines2_Departamento}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band height="13">
+			<printWhenExpression><![CDATA[!$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT1_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="price2" toVariable="price2_1"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines_Estacionamiento}]]></subreportExpression>
+			</subreport>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT2_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="price2" toVariable="price2_2"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines2_Estacionamiento}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band height="13">
+			<printWhenExpression><![CDATA[!$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT1_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="price3" toVariable="price3_1"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines_Deposito}]]></subreportExpression>
+			</subreport>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PROJECT_ID">
+					<subreportParameterExpression><![CDATA[$F{MV_PROJECT2_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="price3" toVariable="price3_2"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_MiVivienda_Lines2_Deposito}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band height="15">
+			<printWhenExpression><![CDATA[$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="595" height="15"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="DOCUMENT_ID">
+					<subreportParameterExpression><![CDATA[$F{ssa_projprop_contract_id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_SalesProspect_TechoPropio_Lines}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band height="111">
+			<printWhenExpression><![CDATA[!$F{buildtype}.equalsIgnoreCase("proyectoTipoTechoPropio")]]></printWhenExpression>
+			<staticText>
+				<reportElement mode="Opaque" x="22" y="20" width="150" height="15" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box leftPadding="15" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[PROCESO DE COMPRA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="80" width="171" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[2.- Monto de la separación:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="45" width="171" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[1.- Financiamiento:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="317" y="96" width="220" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="317" y="45" width="171" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[3.- Monto de la Inicial:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="317" y="80" width="171" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[4.- Descuento  Adicional:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="61" width="220" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="317" y="61" width="220" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineStyle="Dashed"/>
+					<topPen lineStyle="Dashed"/>
+					<leftPen lineStyle="Dashed"/>
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+					<rightPen lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="42" y="96" width="220" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="22" y="2" width="45" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement verticalAlignment="Bottom" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="67" y="2" width="220" height="13">
+					<printWhenExpression><![CDATA[!$F{MV_PROJECT1_ID}.equalsIgnoreCase("EMPTY_ID")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="1" rightPadding="1">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[($V{price1_1}==null?new BigDecimal("0.00"):$V{price1_1}).add($V{price2_1}==null?new BigDecimal("0.00"):$V{price2_1}).add($V{price3_1}==null?new BigDecimal("0.00"):$V{price3_1})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="307" y="2" width="45" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement verticalAlignment="Bottom" markup="none">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="352" y="2" width="220" height="13">
+					<printWhenExpression><![CDATA[!$F{MV_PROJECT2_ID}.equalsIgnoreCase("EMPTY_ID")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="1" rightPadding="1">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[($V{price1_2}==null?new BigDecimal("0.00"):$V{price1_2}).add($V{price2_2}==null?new BigDecimal("0.00"):$V{price2_2}).add($V{price3_2}==null?new BigDecimal("0.00"):$V{price3_2})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="352" y="2" width="220" height="13">
+					<printWhenExpression><![CDATA[$F{MV_PROJECT2_ID}.equalsIgnoreCase("EMPTY_ID")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="1" rightPadding="1">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[""]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="67" y="2" width="220" height="13">
+					<printWhenExpression><![CDATA[$F{MV_PROJECT1_ID}.equalsIgnoreCase("EMPTY_ID")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="1" rightPadding="1">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[""]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="18" splitType="Stretch">
+			<textField isBlankWhenNull="true">
+				<reportElement x="22" y="0" width="551" height="18"/>
+				<textElement textAlignment="Center" markup="none">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{orgaddress}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="225" splitType="Stretch">
+			<staticText>
+				<reportElement x="450" y="101" width="124" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<rectangle>
+				<reportElement x="42" y="85" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<rectangle>
+				<reportElement x="42" y="53" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="55" y="53" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Facebook]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="380" y="117" width="194" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineStyle="Dashed"/>
+					<topPen lineStyle="Dashed"/>
+					<leftPen lineStyle="Dashed"/>
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+					<rightPen lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="330" y="117" width="50" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Correo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="55" y="117" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Otros]]></text>
+			</staticText>
+			<rectangle>
+				<reportElement x="42" y="37" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="42" y="5" width="171" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[¿Cómo se enteró del proyecto?]]></text>
+			</staticText>
+			<rectangle>
+				<reportElement x="317" y="37" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<rectangle>
+				<reportElement x="42" y="117" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="330" y="21" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Contado]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="55" y="21" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Periódico]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="55" y="37" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Revista]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="317" y="5" width="171" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Forma de Pago]]></text>
+			</staticText>
+			<rectangle>
+				<reportElement x="42" y="21" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="55" y="85" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Adondevivir.com]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="55" y="69" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Página web]]></text>
+			</staticText>
+			<rectangle>
+				<reportElement x="42" y="69" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="55" y="101" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Paneles publicitarios]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="330" y="101" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Funcionario del Banco]]></text>
+			</staticText>
+			<rectangle>
+				<reportElement x="42" y="101" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<rectangle>
+				<reportElement x="317" y="53" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<rectangle>
+				<reportElement x="317" y="21" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="330" y="37" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Crédito directo]]></text>
+			</staticText>
+			<rectangle>
+				<reportElement x="317" y="101" width="13" height="13"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="330" y="53" width="120" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Crédito bancario]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="42" y="209" width="150" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[""]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="42" y="163" width="100" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Asesor comercial:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="22" y="140" width="150" height="15" forecolor="#FFFFFF" backcolor="#000000"/>
+				<box leftPadding="15" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[CONTACTO]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="347" y="163" width="60" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Teléfono:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="42" y="176" width="150" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{salesrep}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="347" y="176" width="150" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineStyle="Dashed"/>
+					<topPen lineStyle="Dashed"/>
+					<leftPen lineStyle="Dashed"/>
+					<bottomPen lineWidth="0.5" lineStyle="Dashed"/>
+					<rightPen lineStyle="Dashed"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{salrepphone}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="42" y="196" width="100" height="13"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Próxima cita:]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

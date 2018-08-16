@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+<!--092F67455F1E465599D62E511F8E7F59--><OBCQL_WIDGET_QUERY>
+<!--092F67455F1E465599D62E511F8E7F59-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[092F67455F1E465599D62E511F8E7F59]]></OBCQL_WIDGET_QUERY_ID>
+<!--092F67455F1E465599D62E511F8E7F59-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--092F67455F1E465599D62E511F8E7F59-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--092F67455F1E465599D62E511F8E7F59-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--092F67455F1E465599D62E511F8E7F59-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[4A90A02BE20349EE9AB1342994E59C47]]></OBKMO_WIDGET_CLASS_ID>
+<!--092F67455F1E465599D62E511F8E7F59-->  <HQL><![CDATA[select io.id as receiptId, io.organization.name as organizationName, io.documentNo as documentNo,
+       io.movementDate as movementDate, io.businessPartner.name as bpname
+from MaterialMgmtShipmentInOut as io
+where io.documentStatus = 'CO'
+  and io.sCOSpecialDocType='SWARFCRECEIPT'
+  and io.client.id = :client
+  and trunc(io.movementDate) >='01-01-2017'
+  and (select coalesce((case when coalesce((select COALESCE(sum(g.movementQuantity),0) from MaterialMgmtShipmentInOutLine g where g.shipmentReceipt.id=io.id),0)=0 then 0 else round(coalesce(sum(inv.invoicedQuantity),0)/(select COALESCE(sum(g.movementQuantity),0) from MaterialMgmtShipmentInOutLine g where g.shipmentReceipt.id=io.id)*100,0) end),0)
+   from MaterialMgmtShipmentInOutLine iol, 
+        InvoiceLine inv
+  where iol.id=inv.goodsShipmentLine.id and iol.reinvoice=true and iol.shipmentReceipt.id=io.id) <> 100
+  and io.organization.id in (:organizationList)
+  and io.organization.name like :organizationName
+  and @optional_filters@
+order by io.documentNo, io.movementDate]]></HQL>
+<!--092F67455F1E465599D62E511F8E7F59-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--092F67455F1E465599D62E511F8E7F59--></OBCQL_WIDGET_QUERY>
+
+<!--173DA90B8E564AF896EF4BE75249135D--><OBCQL_WIDGET_QUERY>
+<!--173DA90B8E564AF896EF4BE75249135D-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[173DA90B8E564AF896EF4BE75249135D]]></OBCQL_WIDGET_QUERY_ID>
+<!--173DA90B8E564AF896EF4BE75249135D-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--173DA90B8E564AF896EF4BE75249135D-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--173DA90B8E564AF896EF4BE75249135D-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--173DA90B8E564AF896EF4BE75249135D-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[FFA8BA99437E4902B204A830F1E91B7B]]></OBKMO_WIDGET_CLASS_ID>
+<!--173DA90B8E564AF896EF4BE75249135D-->  <HQL><![CDATA[select o.id as orderId, o.organization.name as organizationName, o.documentNo as documentNo,
+       o.orderDate as orderDate, o.businessPartner.name as bpname, coalesce(o.salesRepresentative.name,'--') as salesrep, o.grandTotalAmount as grandtotal, o.currency.iSOCode as currency
+from Order as o
+where o.documentStatus = 'CO'
+  and o.ssaSpecialdoctype='SSASTANDARDORDER'
+  and o.client.id = :client
+  and trunc(o.orderDate) >='01-01-2017'
+  and exists(select 1 from OrderLine ol where ol.salesOrder.id=o.id and ol.deliveredQuantity<ol.orderedQuantity)
+  and not exists(select 1 from OrderLine ol where ol.salesOrder.id=o.id and ol.invoicedQuantity<ol.orderedQuantity)
+  and o.organization.id in (:organizationList)
+  and o.organization.name like :organizationName
+  and @optional_filters@
+order by o.documentNo, o.orderDate]]></HQL>
+<!--173DA90B8E564AF896EF4BE75249135D-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--173DA90B8E564AF896EF4BE75249135D--></OBCQL_WIDGET_QUERY>
+
+<!--2366826220354F858015E9F42E8D6FD7--><OBCQL_WIDGET_QUERY>
+<!--2366826220354F858015E9F42E8D6FD7-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[2366826220354F858015E9F42E8D6FD7]]></OBCQL_WIDGET_QUERY_ID>
+<!--2366826220354F858015E9F42E8D6FD7-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--2366826220354F858015E9F42E8D6FD7-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--2366826220354F858015E9F42E8D6FD7-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--2366826220354F858015E9F42E8D6FD7-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[9D434A4431BE4B76A239C75E1630E6F7]]></OBKMO_WIDGET_CLASS_ID>
+<!--2366826220354F858015E9F42E8D6FD7-->  <HQL><![CDATA[SELECT o.organization.name as orgname, 
+       ol.product.id as productid,
+       p.searchKey as searchKey, 
+       p.name as name, 
+       p.prdcProductgroup.description as prdcProductgroup, 
+       ol.uOM.symbol as uom, 
+       o.currency.iSOCode as currency, 
+       sum(ol.orderedQuantity) as totalqtyordered, 
+       sum(ol.lineNetAmount) as totallineamt            
+FROM OrderLine ol, Order o, Product p           
+WHERE ol.salesOrder.id=o.id             
+AND ol.product.id = p.id              
+AND o.ssaSpecialdoctype='SSASTANDARDORDER'             
+AND o.salesTransaction='Y' AND o.documentStatus='CO'             
+AND o.currency.id=:currency
+AND o.client.id = :client
+AND o.organization.id in (:organizationList)
+AND o.organization.name like :organizationName
+AND o.orderDate BETWEEN :dateFrom AND now()        
+AND (SELECT SUM(ABS(ol1.orderedQuantity))-SUM(ABS(ol1.invoicedQuantity)) FROM OrderLine ol1 WHERE ol1.salesOrder.id=o.id)=0             
+AND @optional_filters@                  
+GROUP BY o.organization.name, ol.product.id, p.searchKey, p.name, p.prdcProductgroup.description, ol.uOM.symbol, o.currency.iSOCode
+ORDER BY totalqtyordered DESC, totallineamt DESC]]></HQL>
+<!--2366826220354F858015E9F42E8D6FD7-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--2366826220354F858015E9F42E8D6FD7--></OBCQL_WIDGET_QUERY>
+
+<!--2FD24345A4F04F69997BD718E1E6041D--><OBCQL_WIDGET_QUERY>
+<!--2FD24345A4F04F69997BD718E1E6041D-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[2FD24345A4F04F69997BD718E1E6041D]]></OBCQL_WIDGET_QUERY_ID>
+<!--2FD24345A4F04F69997BD718E1E6041D-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--2FD24345A4F04F69997BD718E1E6041D-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--2FD24345A4F04F69997BD718E1E6041D-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--2FD24345A4F04F69997BD718E1E6041D-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[D26BD64F32D3489197BD790F8723A9EF]]></OBKMO_WIDGET_CLASS_ID>
+<!--2FD24345A4F04F69997BD718E1E6041D-->  <HQL><![CDATA[SELECT inv.organization.name as orgname, 
+inv.businessPartner.id AS bpid, 
+inv.businessPartner.name AS bpname, 
+inv.businessPartner.taxID AS bptaxid, 
+inv.currency.id as currency, 
+sum(psd.outstandingAmount) AS totaloutstandingamt
+FROM Invoice inv, FIN_Payment_Schedule psd
+WHERE inv.id=psd.invoice.id
+AND inv.salesTransaction='Y' 
+AND psd.dueDate <= :dateTo
+AND inv.active='Y' 
+AND inv.documentStatus='CO' 
+AND inv.currency.id=:currency
+AND psd.outstandingAmount > 0
+AND inv.client.id = :client
+AND inv.organization.id in (:organizationList)
+AND inv.organization.name like :organizationName
+AND @optional_filters@
+GROUP BY inv.organization.name, inv.businessPartner.id, inv.businessPartner.name, inv.businessPartner.taxID, inv.currency.id
+ORDER BY totaloutstandingamt DESC, inv.businessPartner.name]]></HQL>
+<!--2FD24345A4F04F69997BD718E1E6041D-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--2FD24345A4F04F69997BD718E1E6041D--></OBCQL_WIDGET_QUERY>
+
+<!--3E1A7410868649398E6CFA9B5E2D1EF1--><OBCQL_WIDGET_QUERY>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[3E1A7410868649398E6CFA9B5E2D1EF1]]></OBCQL_WIDGET_QUERY_ID>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[5F9D9094B22940F2859182EF6FB5D586]]></OBKMO_WIDGET_CLASS_ID>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1-->  <HQL><![CDATA[SELECT o.organization.name as orgname, 
+       ol.product.id as productid,
+       p.searchKey as searchKey, 
+       p.name as name, 
+       p.prdcProductgroup.description as prdcProductgroup, 
+       ol.uOM.symbol as uom, 
+       o.currency.iSOCode as currency,                
+       sum(ol.orderedQuantity) as totalqtyordered, 
+       sum(ol.lineNetAmount) as totallineamt, 
+       sum((ol.unitPrice-pp.standardPrice)*ol.orderedQuantity) as margen          
+FROM OrderLine ol, Order o, Product p, PricingProductPrice pp         
+WHERE ol.salesOrder.id=o.id           
+AND ol.product.id = p.id             
+AND p.id=pp.product.id     
+AND o.ssaSpecialdoctype='SSASTANDARDORDER'             
+AND pp.priceListVersion.id=(SELECT plv.id
+                                                         FROM PricingPriceListVersion plv, PricingPriceList pl 
+                                                     WHERE plv.priceList.id=pl.id
+                                                            AND pl.salesPriceList='N'
+                                			    AND pl.currency.id=:currency
+                                                            AND AD_ISORGINCLUDED(pl.organization.id,p.organization.id, p.client.id) != -1
+                                                            AND plv.validFromDate=(SELECT MAX(plv1.validFromDate) FROM PricingPriceListVersion plv1 WHERE plv1.priceList.id = pl.id))
+AND o.salesTransaction='Y'  
+AND o.client.id = :client
+AND o.organization.id in (:organizationList)
+AND o.organization.name like :organizationName
+AND o.documentStatus='CO'             
+AND o.currency.id=:currency
+AND o.orderDate BETWEEN :dateFrom AND now()
+AND (ol.unitPrice-pp.standardPrice)!=0
+AND (SELECT SUM(ABS(ol1.orderedQuantity))-SUM(ABS(ol1.invoicedQuantity)) FROM OrderLine ol1 WHERE ol1.salesOrder.id=o.id)=0             
+AND @optional_filters@       
+GROUP BY o.organization.name,ol.product.id, p.searchKey, p.name, p.prdcProductgroup.description, ol.uOM.symbol, o.currency.iSOCode
+ORDER BY margen DESC, totalqtyordered ]]></HQL>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--3E1A7410868649398E6CFA9B5E2D1EF1--></OBCQL_WIDGET_QUERY>
+
+<!--426D44E371CB43D3BCDC8A69E716845B--><OBCQL_WIDGET_QUERY>
+<!--426D44E371CB43D3BCDC8A69E716845B-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[426D44E371CB43D3BCDC8A69E716845B]]></OBCQL_WIDGET_QUERY_ID>
+<!--426D44E371CB43D3BCDC8A69E716845B-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--426D44E371CB43D3BCDC8A69E716845B-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--426D44E371CB43D3BCDC8A69E716845B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--426D44E371CB43D3BCDC8A69E716845B-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[6AF227D4A6D940A8BE30B171D1E21D50]]></OBKMO_WIDGET_CLASS_ID>
+<!--426D44E371CB43D3BCDC8A69E716845B-->  <HQL><![CDATA[SELECT inv.organization.name as orgname, 
+inv.businessPartner.id AS bpid, 
+inv.businessPartner.name AS bpname, 
+inv.businessPartner.taxID AS bptaxid, 
+inv.currency.iSOCode as currency, 
+sum(inv.outstandingAmount) AS totaloutstandingamt
+FROM Invoice inv 
+WHERE inv.salesTransaction='Y' 
+AND inv.invoiceDate <= :dateTo
+AND inv.active='Y' 
+AND inv.documentStatus='CO' 
+AND inv.paymentComplete='N'
+AND inv.currency.id=:currency
+AND inv.outstandingAmount != 0
+AND inv.client.id = :client
+AND inv.organization.id in (:organizationList)
+AND inv.organization.name like :organizationName
+AND @optional_filters@
+GROUP BY inv.organization.name, inv.businessPartner.id, inv.businessPartner.name, inv.businessPartner.taxID, inv.currency.iSOCode ORDER BY totaloutstandingamt DESC, inv.businessPartner.name]]></HQL>
+<!--426D44E371CB43D3BCDC8A69E716845B-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--426D44E371CB43D3BCDC8A69E716845B--></OBCQL_WIDGET_QUERY>
+
+<!--938BA9B034DA4F818F02F4B177CF9253--><OBCQL_WIDGET_QUERY>
+<!--938BA9B034DA4F818F02F4B177CF9253-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[938BA9B034DA4F818F02F4B177CF9253]]></OBCQL_WIDGET_QUERY_ID>
+<!--938BA9B034DA4F818F02F4B177CF9253-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--938BA9B034DA4F818F02F4B177CF9253-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--938BA9B034DA4F818F02F4B177CF9253-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--938BA9B034DA4F818F02F4B177CF9253-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[1DB0CFF32C644271A420C38378952826]]></OBKMO_WIDGET_CLASS_ID>
+<!--938BA9B034DA4F818F02F4B177CF9253-->  <HQL><![CDATA[select o.id as orderId, o.organization.name as organizationName, o.documentNo as documentNo,
+       o.orderDate as orderDate, o.businessPartner.name as bpname, coalesce(o.salesRepresentative.name,'--') as salesrep, o.grandTotalAmount as grandtotal, o.currency.iSOCode as currency, o.ssaComboItem.name as orderType 
+from Order as o
+where o.documentStatus = 'CO'
+  and o.ssaSpecialdoctype='SSASTANDARDORDER'
+  and o.client.id = :client
+  and trunc(o.orderDate) >='01-01-2017'
+  and not exists(select 1 from OrderLine ol where ol.salesOrder.id=o.id and ol.deliveredQuantity<ol.orderedQuantity)
+  and exists(select 1 from OrderLine ol where ol.salesOrder.id=o.id and ol.invoicedQuantity<ol.orderedQuantity)
+  and o.organization.id in (:organizationList)
+  and o.organization.name like :organizationName
+  and @optional_filters@
+order by o.documentNo, o.orderDate]]></HQL>
+<!--938BA9B034DA4F818F02F4B177CF9253-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--938BA9B034DA4F818F02F4B177CF9253--></OBCQL_WIDGET_QUERY>
+
+<!--D2189A848EB144929CD92C24EED7E30B--><OBCQL_WIDGET_QUERY>
+<!--D2189A848EB144929CD92C24EED7E30B-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[D2189A848EB144929CD92C24EED7E30B]]></OBCQL_WIDGET_QUERY_ID>
+<!--D2189A848EB144929CD92C24EED7E30B-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--D2189A848EB144929CD92C24EED7E30B-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--D2189A848EB144929CD92C24EED7E30B-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--D2189A848EB144929CD92C24EED7E30B-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[8161B73651AD416CBAD82CD34C9F2AE8]]></OBKMO_WIDGET_CLASS_ID>
+<!--D2189A848EB144929CD92C24EED7E30B-->  <HQL><![CDATA[select io.id as receiptId, io.organization.name as organizationName, io.sCRPhysicalDocumentNo as physicalDocNo, io.documentNo as documentNo,
+       io.movementDate as movementDate, io.businessPartner.name as bpname
+from MaterialMgmtShipmentInOut as io
+where io.documentStatus = 'CO'
+  and io.sCOSpecialDocType='SWARTVRECEIPT'
+  and io.client.id = :client
+  and trunc(io.movementDate) >='01-01-2017'
+  and (select coalesce((case when coalesce((select COALESCE(sum(g.movementQuantity),0) from MaterialMgmtShipmentInOutLine g where g.shipmentReceipt.id=io.id),0)=0 then 0 else round(coalesce(sum(inv.invoicedQuantity),0)/(select COALESCE(sum(g.movementQuantity),0) from MaterialMgmtShipmentInOutLine g where g.shipmentReceipt.id=io.id)*100,0) end),0)
+   from MaterialMgmtShipmentInOutLine iol, 
+        InvoiceLine inv
+  where iol.id=inv.goodsShipmentLine.id and iol.reinvoice=true and iol.shipmentReceipt.id=io.id) <> 100
+  and io.organization.id in (:organizationList)
+  and io.organization.name like :organizationName
+  and @optional_filters@
+order by io.documentNo, io.movementDate]]></HQL>
+<!--D2189A848EB144929CD92C24EED7E30B-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--D2189A848EB144929CD92C24EED7E30B--></OBCQL_WIDGET_QUERY>
+
+<!--F475A3295EAA46C3A0EDD08A984F8333--><OBCQL_WIDGET_QUERY>
+<!--F475A3295EAA46C3A0EDD08A984F8333-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[F475A3295EAA46C3A0EDD08A984F8333]]></OBCQL_WIDGET_QUERY_ID>
+<!--F475A3295EAA46C3A0EDD08A984F8333-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--F475A3295EAA46C3A0EDD08A984F8333-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--F475A3295EAA46C3A0EDD08A984F8333-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--F475A3295EAA46C3A0EDD08A984F8333-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[495E0B7E15BD47F7858F008654A50D7F]]></OBKMO_WIDGET_CLASS_ID>
+<!--F475A3295EAA46C3A0EDD08A984F8333-->  <HQL><![CDATA[SELECT o.organization.name as orgname, 
+       o.salesRepresentative.id as salesRepId, 
+       o.salesRepresentative.name as salesRepName,
+       o.salesRepresentative.businessPartner.taxID as bpTaxID, 
+       o.salesRepresentative.businessPartner.name as bpName, 
+       o.currency.iSOCode as currency,
+       SUM(ol.orderedQuantity) as totalqtyordered, 
+       SUM(ol.lineNetAmount) as totallineamt            
+FROM OrderLine ol, Order o          
+WHERE ol.salesOrder.id=o.id                
+AND o.ssaSpecialdoctype='SSASTANDARDORDER'            
+AND o.salesTransaction='Y'              
+AND o.documentStatus='CO'              
+AND o.currency.id=:currency     
+AND o.client.id=:client   
+AND o.organization.id in (:organizationList)      
+AND o.organization.name like :organizationName
+AND o.orderDate BETWEEN :dateFrom AND now()      
+AND (SELECT SUM(ABS(ol1.orderedQuantity))-SUM(ABS(ol1.invoicedQuantity)) FROM OrderLine ol1 WHERE ol1.salesOrder.id=o.id)=0              
+AND @optional_filters@ 
+GROUP BY o.organization.name, o.salesRepresentative.id, o.salesRepresentative.name, o.salesRepresentative.businessPartner.taxID, o.salesRepresentative.businessPartner.name, o.currency.iSOCode
+ORDER BY totallineamt DESC, totalqtyordered DESC ]]></HQL>
+<!--F475A3295EAA46C3A0EDD08A984F8333-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--F475A3295EAA46C3A0EDD08A984F8333--></OBCQL_WIDGET_QUERY>
+
+<!--F792C4E981FF4AE08DF707FDD5D6DA69--><OBCQL_WIDGET_QUERY>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[F792C4E981FF4AE08DF707FDD5D6DA69]]></OBCQL_WIDGET_QUERY_ID>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[3A4A7C1792EB46B7A28BA191C327D353]]></OBKMO_WIDGET_CLASS_ID>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69-->  <HQL><![CDATA[select io.id as receiptId, io.organization.name as organizationName, io.sCRPhysicalDocumentNo as physicalDocNo, io.documentNo as documentNo,
+       io.movementDate as movementDate, io.businessPartner.name as bpname
+from MaterialMgmtShipmentInOut as io
+where io.documentStatus = 'CO'
+  and io.sCOSpecialDocType='SCOMMRECEIPT'
+  and io.sWAUpdateReason.searchKey in ('CompraImportacion','CompraNacional','CompraextraordinariaentreEmpresas','CompraextraordinariaentreEmpresasOut','CompraNacionalCASA','CompraNacionalGRGB','CompraMercaderiaRemate')
+  and io.client.id = :client
+  and trunc(io.movementDate) >='2017-01-08' 
+  and (
+  (not exists(select 1 from MaterialMgmtShipmentInOutLine iol where iol.shipmentReceipt.id=io.id and iol.salesOrderLine is not null) and
+   coalesce((select sum(il.invoicedQuantity) from InvoiceLine il, Invoice i where il.invoice.id=i.id and i.documentStatus='CO' and i.posted<>'sco_M' and    il.goodsShipmentLine.id in(select iol.id from MaterialMgmtShipmentInOutLine iol where iol.shipmentReceipt.id=io.id)),0)
+   <coalesce((select sum(iol.movementQuantity) from MaterialMgmtShipmentInOutLine iol where iol.shipmentReceipt.id=io.id),0)
+)
+or
+  (not exists(select 1 from MaterialMgmtShipmentInOutLine iol where iol.shipmentReceipt.id=io.id and iol.salesOrderLine is null) and 
+   exists(select 1 from OrderLine ol, Order o where ol.salesOrder.id=o.id and o.documentStatus='CO' and o.orderDate>'2017-01-08' and ol.id in  
+  (select iol.salesOrderLine.id from MaterialMgmtShipmentInOutLine iol where iol.shipmentReceipt.id=io.id) and ol.invoicedQuantity<ol.orderedQuantity and coalesce((select sum(il.invoicedQuantity) from InvoiceLine il where il.salesOrderLine.id=ol.id),0)<ol.orderedQuantity)
+  )
+)
+  and io.organization.id in (:organizationList)
+  and io.organization.name like :organizationName
+  and @optional_filters@
+order by io.documentNo, io.movementDate]]></HQL>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--F792C4E981FF4AE08DF707FDD5D6DA69--></OBCQL_WIDGET_QUERY>
+
+</data>

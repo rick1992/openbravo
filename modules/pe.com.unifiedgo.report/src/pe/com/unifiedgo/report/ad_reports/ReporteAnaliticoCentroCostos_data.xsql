@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteAnaliticoCentroCostosData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+
+ 
+
+
+<SqlMethod name="select_costos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+
+		SELECT 
+		
+		'' as idperiodo,'' as fechainicial, '' as fechafinal,'' as periodo,'' as idorganizacion, '' id, '' as idlibro,'' nombrelibro,
+		0.00 as saldo_inicial_costo,0.00 as saldo_inicial_cuenta,
+		case nmes    
+	    when '01' then 'ENERO'
+	    when '02' then 'FEBRERO'
+	    when '03' then 'MARZO'
+	    when '04' then 'ABRIL'
+	    when '05' then 'MAYO'
+	    when '06' then 'JUNIO'
+	    when '07' then 'JULIO'
+	    when '08' then 'AGOSTO'
+	    when '09' then 'SETIEMBRE'
+	    when '10' then 'OCTUBRE'
+	    when '11' then 'NOVIEMBRE'
+	    when '12' then 'DICIMBRE' END || ' - ' || to_char(dateacct,'YYYY') AS mes,
+	   
+	   * from (
+
+        select coalesce(cc.c_costcenter_id,'') as c_costcenter_id,acctvalue as cuenta, acctdescription descripcion,coalesce(cc.value,'00000') as codigo_centro
+        , coalesce (cc.name , 'NO ASIGNADO') AS centro_costo,fa.dateacct, to_char(fa.dateacct, 'MM') AS nmes , 
+        substring (fa.em_sco_regnumber from 1 for 2) as area,substring(fa. em_sco_regnumber from 4 for 5) as asiento, (fa.amtacctdr-fa.amtacctcr ) as monto
+        ,fa.fact_acct_id,coalesce(fa.description,'') description
+        
+        ,coalesce(ci.em_scr_physical_documentno,'')  as  num_fisico,COALESCE(ci.documentno ,fp.documentno,'') documento,coalesce(cbp.taxid,cbp2.taxid,'') as taxid
+        , fa.ad_table_id ,fa.em_sco_record3_table_id,em_sco_record3_id,record_id
+        
+          from fact_acct fa
+        left join c_costcenter cc on fa.c_costcenter_id=cc.c_costcenter_id
+        left join c_invoice ci on fa.record_id = ci.c_invoice_id
+        left join c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+        left join fin_payment fp on fa.record_id = fp.fin_payment_id
+        left join c_bpartner cbp2 on fp.c_bpartner_id=cbp2.c_bpartner_id
+        
+        where acctvalue like '9%' AND fa.em_sco_ismigrated='N'
+        and fa.ad_client_id in ('1') 
+        and fa.ad_org_id in ('1') 
+        and 1=1  and factaccttype = 'N'
+        
+        UNION 
+        
+        select coalesce(cc.c_costcenter_id,'') as c_costcenter_id,acctvalue as cuenta, acctdescription descripcion,coalesce(cc.value,'00000') as codigo_centro
+        , coalesce (cc.name , 'NO ASIGNADO') AS centro_costo,fa.dateacct , to_char(fa.dateacct, 'MM') AS nmes , 
+        substring (fa.em_sco_regnumber from 1 for 2) as area,substring(fa. em_sco_regnumber from 4 for 5) as asiento, (fa.amtacctdr-fa.amtacctcr ) as monto
+        ,fa.fact_acct_id,coalesce(fa.description,'') as description
+        
+        ,coalesce(ci.em_scr_physical_documentno,'') as fiscialnum,COALESCE(ci.documentno ,sid.documentno,'') documento,coalesce(  cbp.taxid,'') as taxid
+        
+        , fa.ad_table_id ,fa.em_sco_record3_table_id,em_sco_record3_id,record_id
+        
+          from fact_acct fa
+        left join c_costcenter cc on fa.c_costcenter_id=cc.c_costcenter_id
+        left join c_invoice ci on fa.em_sco_record3_id = ci.c_invoice_id
+        left join sco_internal_doc sid on fa.em_sco_record3_id=sid.sco_internal_doc_id
+        left join c_bpartner cbp on ci.c_bpartner_id = cbp.c_Bpartner_id or sid.c_bpartner_id = cbp.c_Bpartner_id
+        
+        
+        where acctvalue like '9%' AND fa.em_sco_ismigrated='Y'
+        and fa.ad_client_id in  ('1') 
+        and fa.ad_org_id in  ('1') 
+        and 2=2  and factaccttype = 'N'
+        
+        UNION 
+        
+        select coalesce(cc.c_costcenter_id,cc2.c_costcenter_id,cc3.c_costcenter_id,'') as c_costcenter_id, acctvalue as cuenta, acctdescription descripcion,coalesce(cc.value,cc2.value,cc3.value,'00000') as codigo_centro
+        , coalesce (cc.name,cc2.name,cc3.name , 'NO ASIGNADO') AS centro_costo,
+        
+        fa.dateacct, to_char(fa.dateacct, 'MM') AS nmes , 
+        substring (fa.em_sco_regnumber from 1 for 2) as area,substring(fa. em_sco_regnumber from 4 for 5) as asiento, (fa.amtacctdr-fa.amtacctcr ) as monto
+        ,fa.fact_acct_id,coalesce(fa.description,'') as description
+        
+        ,coalesce(ci.em_scr_physical_documentno,'') num_fisico,COALESCE(ci.documentno,'' ) documento,coalesce(cbp.taxid,'') as taxid
+        , fa.ad_table_id ,fa.em_sco_record3_table_id,em_sco_record3_id,record_id
+        
+          from fact_acct fa
+        left join c_costcenter cc on fa.c_costcenter_id=cc.c_costcenter_id
+        left join c_project cp on fa.c_project_id=cp.c_project_id
+        left join c_costcenter cc2 on cp.em_spr_costcenter_id=cc2.c_costcenter_id
+        left join c_invoice ci on fa.record_id = ci.c_invoice_id
+        left join c_project cp2 on ci.c_project_id = cp2.c_project_id
+        left join c_costcenter cc3 on cp2.em_spr_costcenter_id=cc3.c_costcenter_id
+        left join c_bpartner cbp on fa.c_bpartner_id=cbp.c_bpartner_id
+        
+        where acctvalue like '70%' 
+        and fa.ad_client_id in   ('1') 
+        and fa.ad_org_id in   ('1') 
+        and 3=3 and factaccttype = 'N'
+                
+        ) as t
+        
+        where 4=4
+        
+        order by codigo_centro,centro_costo,cuenta,dateacct
+			
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+     <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in (" text="'1'"/>
+     <Parameter name="parDateFrom" optional="true" after="and 1=1"><![CDATA[and trunc( fa.dateacct) >= TO_DATE(?) ]]></Parameter>
+     <Parameter name="parDateTo" optional="true" after="and 1=1"><![CDATA[and trunc(fa.dateacct) <= TO_DATE(?) ]]></Parameter>
+     <Parameter name="cuenta" optional="true" after="and 1=1"><![CDATA[and fa.acctvalue=? ]]></Parameter>
+     
+     
+     <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in  (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in  (" text="'1'"/>
+     <Parameter name="parDateFrom" optional="true" after="and 2=2"><![CDATA[and trunc( fa.dateacct) >= TO_DATE(?) ]]></Parameter>
+     <Parameter name="parDateTo" optional="true" after="and 2=2"><![CDATA[and trunc(fa.dateacct) <= TO_DATE(?) ]]></Parameter>
+     <Parameter name="cuenta" optional="true" after="and 2=2"><![CDATA[and fa.acctvalue=? ]]></Parameter>
+               
+     <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in   (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in   (" text="'1'"/>
+     <Parameter name="parDateFrom" optional="true" after="and 3=3"><![CDATA[and trunc( fa.dateacct) >= TO_DATE(?) ]]></Parameter>
+     <Parameter name="parDateTo" optional="true" after="and 3=3"><![CDATA[and trunc(fa.dateacct) <= TO_DATE(?) ]]></Parameter>
+     <Parameter name="cuenta" optional="true" after="and 3=3"><![CDATA[and fa.acctvalue=? ]]></Parameter>
+     
+     <Parameter name="centroCostoId" optional="true" after="4=4"><![CDATA[and t.c_costcenter_id=? ]]></Parameter>
+     <Parameter name="strRuc" optional="true" after="4=4"><![CDATA[and t.taxid like ? ]]></Parameter>
+     <Parameter name="nroDocumento" optional="true" after="4=4"><![CDATA[and ( t.num_fisico like ? ]]></Parameter>
+     <Parameter name="nroDocumento" optional="true" after="4=4"><![CDATA[or t.documento like ? ) ]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="select_saldo_incial" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+
+        SELECT codigo_centro,centro_costo,cuenta,sum(monto) as  monto
+        
+       from (
+
+        select acctvalue as cuenta, acctdescription descripcion,coalesce(cc.value,'00000') as codigo_centro
+        , coalesce (cc.name , 'NO ASIGNADO') AS centro_costo,to_char(fa.dateacct, 'TMMONTH-YYYY') AS mes , to_char(fa.dateacct, 'MM') AS nmes , 
+        substring (fa.em_sco_regnumber from 1 for 2) as area,fa. em_sco_regnumber as asiento, (fa.amtacctdr-fa.amtacctcr ) as monto
+        ,fa.fact_acct_id,fa.description
+        
+        ,ci.em_scr_physical_documentno num_fisico,COALESCE(ci.documentno ,fp.documentno) documento,coalesce(cbp.taxid,cbp2.taxid) as taxid
+        , fa.ad_table_id ,fa.em_sco_record3_table_id,em_sco_record3_id,record_id
+        
+          from fact_acct fa
+        left join c_costcenter cc on fa.c_costcenter_id=cc.c_costcenter_id
+        left join c_invoice ci on fa.record_id = ci.c_invoice_id
+        left join c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+        left join fin_payment fp on fa.record_id = fp.fin_payment_id
+        left join c_bpartner cbp2 on fp.c_bpartner_id=cbp2.c_bpartner_id
+        
+        where acctvalue like '9%' AND fa.em_sco_ismigrated='N'
+        and fa.ad_client_id in ('1') 
+        and fa.ad_org_id in ('1') 
+        and (case when to_date(?) = to_date(?) then fa.factaccttype = 'O' and trunc(fa.dateacct) = to_date(?) 
+        else  fa.factaccttype in('O','N') and  trunc(fa.dateacct) >= to_date(?) and trunc(fa.dateacct) < to_date(?) end)
+        
+        UNION 
+        
+        select acctvalue as cuenta, acctdescription descripcion,coalesce(cc.value,'00000') as codigo_centro
+        , coalesce (cc.name , 'NO ASIGNADO') AS centro_costo,to_char(fa.dateacct, 'TMMONTH-YYYY') AS mes , to_char(fa.dateacct, 'MM') AS nmes , 
+        substring (fa.em_sco_regnumber from 1 for 2) as area,fa. em_sco_regnumber as asiento, (fa.amtacctdr-fa.amtacctcr ) as monto
+        ,fa.fact_acct_id,fa.description
+        
+        ,'' fiscialnum,COALESCE(ci.documentno ,sid.documentno,'') documento,cbp.taxid
+        
+        , fa.ad_table_id ,fa.em_sco_record3_table_id,em_sco_record3_id,record_id
+        
+          from fact_acct fa
+        left join c_costcenter cc on fa.c_costcenter_id=cc.c_costcenter_id
+        left join c_invoice ci on fa.em_sco_record3_id = ci.c_invoice_id
+        left join sco_internal_doc sid on fa.em_sco_record3_id=sid.sco_internal_doc_id
+        left join c_bpartner cbp on ci.c_bpartner_id = cbp.c_Bpartner_id or sid.c_bpartner_id = cbp.c_Bpartner_id
+        
+        
+        where acctvalue like '9%' AND fa.em_sco_ismigrated='Y'
+        and fa.ad_client_id in  ('1') 
+        and fa.ad_org_id in  ('1') 
+        and (case when to_date(?) = to_date(?) then fa.factaccttype = 'O' and trunc(fa.dateacct) = to_date(?) 
+        else  fa.factaccttype in('O','N') and  trunc(fa.dateacct) >= to_date(?) and trunc(fa.dateacct) < to_date(?) end)
+        
+        UNION 
+        
+        select acctvalue as cuenta, acctdescription descripcion,coalesce(cc.value,cc2.value,cc3.value,'00000') as codigo_centro
+        , coalesce (cc.name,cc2.name,cc3.name , 'NO ASIGNADO') AS centro_costo,
+        
+        to_char(fa.dateacct, 'TMMONTH-YYYY') AS mes , to_char(fa.dateacct, 'MM') AS nmes , 
+        substring (fa.em_sco_regnumber from 1 for 2) as area,fa. em_sco_regnumber as asiento, (fa.amtacctdr-fa.amtacctcr ) as monto
+        ,fa.fact_acct_id,fa.description
+        
+        ,ci.em_scr_physical_documentno num_fisico,COALESCE(ci.documentno ) documento,cbp.taxid
+        , fa.ad_table_id ,fa.em_sco_record3_table_id,em_sco_record3_id,record_id
+        
+          from fact_acct fa
+        left join c_costcenter cc on fa.c_costcenter_id=cc.c_costcenter_id
+        left join c_project cp on fa.c_project_id=cp.c_project_id
+        left join c_costcenter cc2 on cp.em_spr_costcenter_id=cc2.c_costcenter_id
+        left join c_invoice ci on fa.record_id = ci.c_invoice_id
+        left join c_project cp2 on ci.c_project_id = cp2.c_project_id
+        left join c_costcenter cc3 on cp2.em_spr_costcenter_id=cc3.c_costcenter_id
+        left join c_bpartner cbp on fa.c_bpartner_id=cbp.c_bpartner_id
+        
+        where acctvalue like '70%' 
+        and fa.ad_client_id in   ('1') 
+        and fa.ad_org_id in   ('1') 
+        and (case when to_date(?) = to_date(?) then fa.factaccttype = 'O' and trunc(fa.dateacct) = to_date(?) 
+        else  fa.factaccttype in('O','N') and  trunc(fa.dateacct) >= to_date(?) and trunc(fa.dateacct) < to_date(?) end )
+                
+        ) as t
+        
+        group by 1,2,3
+        order by 1,2,3
+            
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+     <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in (" text="'1'"/>
+     <Parameter name="dateIniAnio" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+     <Parameter name="dateIniAnio" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+     
+     <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in  (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in  (" text="'1'"/>
+     <Parameter name="dateIniAnio" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+     <Parameter name="dateIniAnio" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+         
+     <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in   (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in   (" text="'1'"/>
+     <Parameter name="dateIniAnio" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+     <Parameter name="dateIniAnio" ></Parameter>
+     <Parameter name="parDateFrom" ></Parameter>
+    
+  </SqlMethod>
+  
+    <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+ 	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	/*where periodtype!='A'*/
+	ORDER BY 1,cp.startdate desc
+
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+  
+  
+
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectOrganization" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectRUC" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TAXID
+        FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+
+  
+ 
+
+  <SqlMethod name="selectSubaccountDescription" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT  COALESCE(TO_CHAR(VALUE),TO_CHAR('')) ||' - '|| COALESCE(TO_CHAR(NAME),TO_CHAR(''))
+      FROM C_ELEMENTVALUE
+      WHERE C_ELEMENTVALUE_ID = ?
+    ]]></Sql>
+    <Parameter name="elementValueId"/>
+  </SqlMethod>
+  <SqlMethod name="getFinancialOrgs" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql><![CDATA[
+     	SELECT NODE_ID AS ID
+	FROM AD_TREENODE
+	WHERE AD_TREE_ID = ?
+	AND (AD_ISORGINCLUDED(?, NODE_ID, ?) <> -1
+	  OR AD_ISORGINCLUDED(NODE_ID, ?, ?) <> -1)
+     ]]></Sql>
+     <Parameter name="adTreeId"/>
+     <Parameter name="adOrgId"/>
+     <Parameter name="adClientId"/>
+     <Parameter name="adOrgId"/>
+     <Parameter name="adClientId"/>
+  </SqlMethod>
+  
+  
+  
+     <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+    
+    
+  </SqlMethod>   
+  
+  		  <SqlMethod name="selectBPartner" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		      SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+		    </Sql>
+		    <Parameter name="cBpartnerId"/>
+ </SqlMethod>
+ 
+ 
+  <SqlMethod name="select_libros" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+
+				SELECT cas.C_ACCTSCHEMA_ID as idlibro, 
+		((CASE cas.isActive WHEN 'N' THEN '**' ELSE '' END) || cas.Name) as nombrelibro,
+		ao3.ad_org_id as idorganizacion
+				 FROM C_ACCTSCHEMA cas
+			INNER   join ad_org ao on cas.ad_org_id=ao.ad_org_id
+			LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+			on ao.social_name=ao3.social_name
+		ORDER BY ao3.name
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+
+     
+  
+
+</SqlClass>

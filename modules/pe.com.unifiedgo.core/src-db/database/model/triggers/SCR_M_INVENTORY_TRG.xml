@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_M_INVENTORY_TRG">
+    <trigger name="SCR_M_INVENTORY_TRG" table="M_INVENTORY" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Count NUMBER:=0;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF (UPDATING) THEN  
+        --Does not allow to change warehouse if inventory has lines asociated to it    
+        IF (:NEW.M_WAREHOUSE_ID!=:OLD.M_WAREHOUSE_ID) THEN
+	    SELECT COUNT(*)
+	    INTO v_Count
+	    FROM M_INVENTORYLINE
+	    WHERE M_INVENTORY_ID=:NEW.M_Inventory_ID;
+
+	    IF (v_Count>0) THEN
+	     RAISE_APPLICATION_ERROR(-20000, '@SCR_InventoryInvalidWarehouse@');
+	    END IF;
+       END IF;
+    END IF;
+
+END SCR_M_INVENTORY_TRG
+]]></body>
+    </trigger>
+  </database>

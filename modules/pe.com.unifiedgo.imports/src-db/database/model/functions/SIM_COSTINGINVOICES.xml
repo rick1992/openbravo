@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_COSTINGINVOICES">
+    <function name="SIM_COSTINGINVOICES" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_CountLines NUMBER:=1; -- Success
+  v_foliodua_id VARCHAR2(32);
+  v_folioimport_id VARCHAR(32);
+
+  v_invoice_id VARCHAR2(32);
+  v_Client_ID VARCHAR(32);
+  v_Org_ID VARCHAR(32);
+  v_Created_by VARCHAR(32);
+  
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  Cur_Parameter RECORD;
+  
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+SELECT ad_client_id, ad_org_id,sco_dua_id , sim_folioimport_id INTO v_Client_ID, v_Org_ID,v_foliodua_id, v_folioimport_id
+     FROM sim_imp_costing WHERE sim_imp_costing_id = v_Record_ID;
+
+  if(v_foliodua_id IS NULL) THEN
+    RAISE NO_DATA_FOUND ;
+  END IF; 
+
+
+--Primero Eliminamos Todo registro actual
+ UPDATE c_invoice
+    SET em_sim_imp_costing_id = NULL
+ WHERE em_sco_isimportation = 'Y'  AND em_sim_imp_costing_id = v_Record_ID;
+
+ DELETE FROM sim_imp_costinglines 
+   WHERE sim_imp_costing_id = v_Record_ID;
+----------------
+
+
+--Luego Actualizamos todos nuevamente  
+ UPDATE c_invoice
+    SET em_sim_imp_costing_id = v_Record_ID
+ WHERE em_sco_isimportation = 'Y'  AND em_sco_dua_id = v_foliodua_id;
+
+    v_Message := 'sucessfull';
+    v_Result := 1;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+    
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SIM_COSTINGINVOICES
+]]></body>
+    </function>
+  </database>

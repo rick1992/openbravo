@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_CLOSE_CURRENCY_CONVERT">
+    <function name="SCO_CLOSE_CURRENCY_CONVERT" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curfrom_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curto_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_Rate NUMBER;
+BEGIN
+  -- Return Amount
+  IF(p_Amount=0 OR p_CurFrom_ID=p_CurTo_ID) THEN
+    RETURN p_Amount;
+  END IF;
+  -- Return NULL
+  IF(p_Amount IS NULL OR p_CurFrom_ID IS NULL OR p_CurTo_ID IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  -- Get Rate
+  v_Rate:=sco_close_currency_rate(p_CurFrom_ID, p_CurTo_ID, p_ConvDate, p_Client_ID, p_Org_ID) ;
+  IF(v_Rate IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  -- Standard Precision
+  RETURN ROUND(p_Amount * v_Rate,  C_GET_CURRENCY_PRECISION(p_CurTo_ID, 'A')) ;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SCO_CLOSE_CURRENCY_CONVERT
+]]></body>
+    </function>
+  </database>

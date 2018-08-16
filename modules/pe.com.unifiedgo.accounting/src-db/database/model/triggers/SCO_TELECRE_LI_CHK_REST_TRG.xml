@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_TELECRE_LI_CHK_REST_TRG">
+    <trigger name="SCO_TELECRE_LI_CHK_REST_TRG" table="SCO_TELECREDIT_LINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency_ID     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_SCO_Telecredit_ID  VARCHAR2(32);
+
+  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+  v_invoiceDocStatus VARCHAR(60);
+  v_invoiceDoctypeTarget_ID VARCHAR(32);
+  v_invoiceIsPaid VARCHAR(1);
+  v_AD_Client_ID VARCHAR(32);
+  v_AD_Org_ID VARCHAR(32);
+  v_From_Currency_ID VARCHAR(32);
+  v_CBpartner_ID VARCHAR(32);
+  v_bpbankacc_bpartner_id VARCHAR(32);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_SCO_Telecredit_ID:=:NEW.SCO_Telecredit_ID;
+  ELSE
+    v_SCO_Telecredit_ID:=:OLD.SCO_Telecredit_ID;
+  END IF;
+
+  SELECT PROCESSED,
+    C_CURRENCY_ID,DocStatus
+  INTO v_Processed,
+    v_Currency_ID, v_DocStatus
+  FROM SCO_Telecredit
+  WHERE SCO_Telecredit_ID=v_SCO_Telecredit_ID;
+  IF UPDATING THEN
+    IF((v_Processed='Y') 
+      AND ((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+      OR(COALESCE(:OLD.SCO_Telecredit_ID, '0') <> COALESCE(:NEW.SCO_Telecredit_ID, '0'))
+      OR(COALESCE(:OLD.AD_ORG_ID, '0') <> COALESCE(:NEW.AD_ORG_ID, '0'))
+      OR(COALESCE(:OLD.AD_CLIENT_ID, '0') <> COALESCE(:NEW.AD_CLIENT_ID, '0'))
+      )) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF((DELETING OR INSERTING) AND (v_Processed='Y')) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+  END IF;
+
+  IF((INSERTING OR UPDATING)) THEN
+
+
+    IF(:NEW.paymenttype = 'SCO_AP') THEN
+      IF(:NEW.doctyperef_id IS NULL OR :NEW.invoiceref_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidTelecreditLine@') ;
+      END IF;
+
+      --Check Invoice Params
+      SELECT docstatus,c_doctypetarget_id,
+             ispaid,
+	     AD_Client_ID, AD_Org_ID, C_Currency_ID, c_bpartner_id
+        INTO v_invoiceDocStatus, v_invoiceDoctypeTarget_ID,
+             v_invoiceIsPaid,
+	     v_AD_Client_ID, v_AD_Org_ID, v_From_Currency_ID, v_CBpartner_ID
+        FROM C_Invoice
+      WHERE C_Invoice_ID = :NEW.invoiceref_id;
+     
+
+      IF( v_invoiceDoctypeTarget_ID<>:NEW.doctyperef_id OR v_invoiceDocStatus<>'CO' OR v_CBpartner_ID<>:NEW.C_Bpartner_ID) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidTelecreditLine@');
+      END IF;
+
+      :NEW.c_glitem_id := NULL;
+
+    ELSIF(:NEW.paymenttype = 'SCO_OTHER') THEN
+
+      IF(:NEW.C_Glitem_ID IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidTelecreditLine@') ;
+      END IF;
+
+      :NEW.invoiceref_id := NULL;
+      :NEW.doctyperef_id := NULL;
+
+    ELSE
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidTelecreditLine@');
+    END IF;
+
+  END IF;
+
+  --Check for valid c_bp_bankaccount_id
+  IF(INSERTING) THEN
+    SELECT C_Bpartner_ID
+      INTO v_bpbankacc_bpartner_id
+      FROM C_BP_Bankaccount
+    WHERE C_BP_Bankaccount_ID = :NEW.C_BP_Bankaccount_ID;
+
+    IF(v_bpbankacc_bpartner_id <> :NEW.C_Respbpartner_ID) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidTelecreditLine@');
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(:OLD.C_BP_Bankaccount_ID<>:NEW.C_BP_Bankaccount_ID OR :OLD.C_Bpartner_ID<>:NEW.C_Bpartner_ID) THEN
+      SELECT C_Bpartner_ID
+        INTO v_bpbankacc_bpartner_id
+        FROM C_BP_Bankaccount
+      WHERE C_BP_Bankaccount_ID = :NEW.C_BP_Bankaccount_ID;
+
+      IF(v_bpbankacc_bpartner_id <> :NEW.C_Respbpartner_ID) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidTelecreditLine@');
+      END IF;
+    END IF;
+  END IF;
+
+END SCO_TELECRE_LI_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,1443 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="EndYearCloseUtilityData" package="org.openbravo.erpCommon.businessUtility">
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+        SELECT '' as id, '' as name,
+          '' AS TOTALAMTDR, '' AS TOTALAMTCR, '' AS ACCOUNT_ID, '' as org, '' as acctvalue, '' as acctdescription, '' as value,
+          '' as c_bpartner_id, '' as record_id2, '' as m_product_id, '' as a_asset_id, '' AS REGCOUNT,
+          '' AS C_TAX_ID, '' AS C_PROJECT_ID, '' AS  C_ACTIVITY_ID, '' AS USER1_ID, '' AS  USER2_ID, '' AS  C_CAMPAIGN_ID,
+          '' AS  C_SALESREGION_ID, '' AS REG_FACT_ACCT_GROUP_ID, '' AS CLOSE_FACT_ACCT_GROUP_ID, '' AS DIVIDEUP_FACT_ACCT_GROUP_ID,
+          '' AS OPEN_FACT_ACCT_GROUP_ID, '' AS AD_ORG_CLOSING_ID, '' AS RECORD_ANALITYCS, '' AS AMTDRCRTOT , '' AS AMTACCTDR, '' AS AMTACCTCR,
+          '' AS AMTSOURCEDR, '' AS AMTSOURCECR, '' AS FACTACCTTYPE, '' AS EM_SCO_RECORD3_ID, '' AS C_CURRENCY_ID, '' AS FACT_ACCT_ID, '' AS arrcurrency
+        FROM DUAL
+     </Sql>
+     <Field name="rownum" value="count"/>
+  </SqlMethod>
+  <SqlMethod name="selectOPEntries" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ACCOUNT_ID, EM_SCO_RECORD3_ID, C_PROJECT_ID, ACCTVALUE, C_CURRENCY_ID, AMTSOURCEDR,  AMTSOURCECR, AMTACCTDR, AMTACCTCR
+        FROM FACT_ACCT
+        WHERE AD_CLIENT_ID = ?
+        AND AD_ISORGINCLUDED(AD_ORG_ID, ?, ?)<>-1 
+        AND factaccttype='O'
+        AND dateacct=TO_DATE(?) ORDER BY ACCTVALUE, ACCOUNT_ID, EM_SCO_RECORD3_ID, C_PROJECT_ID, C_CURRENCY_ID
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="date"/>
+  </SqlMethod>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select ad_org.ad_org_id as id, ad_org.name as name,
+          '' AS TOTALAMTDR, '' AS TOTALAMTCR, '' AS ACCOUNT_ID, '' as org, '' as acctvalue, '' as acctdescription, '' as value,
+          '' as c_bpartner_id, '' as record_id2, '' as m_product_id, '' as a_asset_id, '' AS REGCOUNT,
+          '' AS C_TAX_ID, '' AS C_PROJECT_ID, '' AS  C_ACTIVITY_ID, '' AS USER1_ID, '' AS  USER2_ID, '' AS  C_CAMPAIGN_ID,
+          '' AS  C_SALESREGION_ID, '' AS REG_FACT_ACCT_GROUP_ID, '' AS CLOSE_FACT_ACCT_GROUP_ID, '' AS DIVIDEUP_FACT_ACCT_GROUP_ID,
+        '' AS OPEN_FACT_ACCT_GROUP_ID, '' AS AD_ORG_CLOSING_ID, '' AS RECORD_ANALITYCS, '' AS AMTDRCRTOT 
+        from ad_org
+        where ad_org.isperiodcontrolallowed = 'Y'
+        and ad_client_id = ?
+        and ad_org_id in ('1')
+        and not exists (SELECT AD_ORG_CLOSING.AD_ORG_ID
+                        FROM AD_ORG_CLOSING
+                        WHERE C_YEAR_ID = ?
+                          AND AD_ORG_CLOSING.AD_ORG_ID=AD_ORG.AD_ORG_ID)
+        and ad_org.c_calendar_id=(select c_calendar_id from c_year where c_year_id=?)
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="and ad_org_id in (" text="'1'"/>
+    <Parameter name="c_year_id"/>
+    <Parameter name="c_year_id"/>
+  </SqlMethod>
+  <SqlMethod name="getTotalAmounts" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE((CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),0) AS TOTALAMTCR,
+        COALESCE((CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END),0) AS TOTALAMTDR
+        FROM FACT_ACCT
+        WHERE EXISTS (SELECT 1 FROM C_PERIOD P
+                  WHERE P.C_YEAR_ID = ?
+                  AND P.C_PERIOD_ID = FACT_ACCT.C_PERIOD_ID)
+        AND ACCOUNT_ID IN (SELECT C_ELEMENTVALUE_ID
+            FROM C_ELEMENTVALUE
+            WHERE C_ELEMENTVALUE.ACCOUNTTYPE = ?) 
+        AND AD_ISORGINCLUDED(AD_ORG_ID, ?, AD_CLIENT_ID)<>-1  
+        AND C_ACCTSCHEMA_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="c_year_id"/>
+    <Parameter name="accounttype"/>
+    <Parameter name="org"/>
+    <Parameter name="acctSchema"/>
+  </SqlMethod>
+  <SqlMethod name="insert" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO FACT_ACCT
+          (FACT_ACCT_ID, AD_CLIENT_ID, AD_ORG_ID,
+           ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+           C_ACCTSCHEMA_ID,ACCOUNT_ID, DATETRX, DATEACCT,
+           C_PERIOD_ID, AD_TABLE_ID, RECORD_ID,
+           POSTINGTYPE,C_CURRENCY_ID, AMTSOURCEDR,
+           AMTSOURCECR,AMTACCTDR, AMTACCTCR,
+           FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
+           ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
+           RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,
+           DESCRIPTION,C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,
+           USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID,em_sco_regnumber)
+        VALUES
+          ( ?,?,?,
+           'Y',now(),?,now(),?,
+           ?,?,TO_DATE(?),TO_DATE(?),
+           ?,?,?,
+           ?,?,TO_NUMBER(?),
+           TO_NUMBER(?),TO_NUMBER(?),TO_NUMBER(?),
+           ?,TO_NUMBER(?), 'R',
+           ?, ?, ?,
+           ?, ?, ?,
+           ?,?,?,?,
+           ?,?,?,?,?)
+      ]]>
+    </Sql>
+    <Parameter name="fact_acct_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="c_acctschema_id"/>
+    <Parameter name="account_id"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="ad_table_id"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="postingtype"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="amtsourcedr"/>
+    <Parameter name="amtsourcecr"/>
+    <Parameter name="amtacctdr"/>
+    <Parameter name="amtacctcr"/>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="seqno"/>
+    <Parameter name="acctdescription"/>
+    <Parameter name="value"/>
+    <Parameter name="bpartner"/>
+    <Parameter name="debtPayment"/>
+    <Parameter name="product"/>
+    <Parameter name="asset"/>
+    <Parameter name="description"/>
+    <Parameter name="c_tax_id"/>
+    <Parameter name="c_project_id"/>
+    <Parameter name="c_activity_id"/>
+    <Parameter name="user1_id"/>
+    <Parameter name="user2_id"/>
+    <Parameter name="c_campaign_id"/>
+    <Parameter name="c_salesregion_id"/>
+     <Parameter name="regnumber"/>
+  </SqlMethod>
+  <SqlMethod name="insertSelect" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO FACT_ACCT
+        (FACT_ACCT_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ACCTSCHEMA_ID,ACCOUNT_ID, DATETRX, DATEACCT,
+        C_PERIOD_ID, AD_TABLE_ID, RECORD_ID,
+        POSTINGTYPE,C_CURRENCY_ID, AMTSOURCEDR,
+        AMTSOURCECR,AMTACCTDR, AMTACCTCR,
+        FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
+        ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
+        RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,DESCRIPTION,
+        C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,
+        USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID,em_sco_regnumber )
+        SELECT get_UUID(), ?, ?,
+        'Y', now(), ?, now(), ?,
+        C_ACCTSCHEMA_ID, ACCOUNT_ID, to_date(?), to_date(?),
+        ?, '145', ?, 
+        'A', ?, (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END),
+        (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),
+        (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END), 
+        (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),
+        ?, to_number(?), ?, 
+        MAX(ACCTDESCRIPTION), MAX(ACCTVALUE) AS MAXACCTVALUE, NULL, 
+        NULL, NULL, NULL, ? ,
+        NULL,NULL,NULL,
+        NULL,NULL,NULL,NULL, ?
+        FROM FACT_ACCT
+        WHERE EXISTS (SELECT 1 FROM C_PERIOD P
+                  WHERE P.C_YEAR_ID = ?
+                  AND P.C_PERIOD_ID = FACT_ACCT.C_PERIOD_ID)
+        AND EXISTS (SELECT 1
+            FROM C_ELEMENTVALUE
+            WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN ('1')
+            AND ACCOUNT_ID = C_ELEMENTVALUE_ID)
+        AND AD_ISORGINCLUDED(AD_ORG_ID, ?, ?) <> -1
+        AND C_ACCTSCHEMA_ID = ?
+        AND (FACTACCTTYPE <>'C' or FACT_ACCT_GROUP_ID = ?) 
+        GROUP BY ACCOUNT_ID,C_ACCTSCHEMA_ID          
+        HAVING SUM(AMTACCTDR)-SUM(AMTACCTCR)<>0
+        order by MAXACCTVALUE
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="seqno"/>
+    <Parameter name="factAcctType"/>
+    <Parameter name="description"/>
+    <Parameter name="regnumber"/>
+    <Parameter name="year"/>
+    <Parameter name="accounttype" optional="true" type="replace" after="WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN (" text="'1'"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="acctSchema"/>
+    <Parameter name="divideUpFactAcctGroupId"/>
+  </SqlMethod>
+  
+   
+  <SqlMethod name="insertSelectOpening" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO FACT_ACCT
+        (FACT_ACCT_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ACCTSCHEMA_ID,ACCOUNT_ID, DATETRX, DATEACCT,
+        C_PERIOD_ID, AD_TABLE_ID, RECORD_ID,
+        POSTINGTYPE,C_CURRENCY_ID,AMTSOURCECR, 
+        AMTSOURCEDR, AMTACCTCR, AMTACCTDR,
+        FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
+        ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
+        RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,DESCRIPTION,
+        C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,
+        USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID, em_sco_regnumber)
+        SELECT get_UUID(), ?, ?,
+        'Y', now(), ?, now(), ?,
+        C_ACCTSCHEMA_ID, ACCOUNT_ID, to_date(?), to_date(?),
+        ?, '145', ?, 
+        'A', ?, (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END),
+        (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),
+        (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END), 
+        (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),
+        ?, to_number(?), ?, 
+        MAX(ACCTDESCRIPTION), MAX(ACCTVALUE) AS MAXACCTVALUE, NULL, 
+        NULL,NULL, NULL, ? ,
+        NULL,NULL, NULL,
+        NULL,NULL,NULL,NULL, ? 
+        FROM FACT_ACCT
+        WHERE EXISTS (SELECT 1 FROM C_PERIOD P
+                  WHERE P.C_YEAR_ID = ?
+                  AND P.C_PERIOD_ID = FACT_ACCT.C_PERIOD_ID)
+        AND EXISTS (SELECT 1
+            FROM C_ELEMENTVALUE
+            WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN ('1')
+            AND ACCOUNT_ID = C_ELEMENTVALUE_ID)
+        AND AD_ISORGINCLUDED(AD_ORG_ID, ?, ?) <> -1
+        AND C_ACCTSCHEMA_ID = ?
+        AND (FACTACCTTYPE <>'C' or FACT_ACCT_GROUP_ID = ?) 
+        GROUP BY ACCOUNT_ID, C_ACCTSCHEMA_ID
+        HAVING SUM(AMTACCTDR)-SUM(AMTACCTCR)<>0
+        order by MAXACCTVALUE
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="seqno"/>
+    <Parameter name="factAcctType"/>
+    <Parameter name="description"/>
+     <Parameter name="regnumber"/>
+    <Parameter name="year"/>
+    <Parameter name="accounttype" optional="true" type="replace" after="WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN (" text="'1'"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="acctSchema"/>
+    <Parameter name="divideUpFactAcctGroupId"/>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="insertSelectOpeningWithAnalitycs" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO FACT_ACCT
+        (FACT_ACCT_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ACCTSCHEMA_ID,ACCOUNT_ID, DATETRX, DATEACCT,
+        C_PERIOD_ID, em_sco_record3_table_id, em_sco_record3_id,AD_TABLE_ID, RECORD_ID,
+        POSTINGTYPE,C_CURRENCY_ID,AMTSOURCECR, 
+        AMTSOURCEDR, AMTACCTCR, AMTACCTDR,
+        FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
+        ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
+        RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,DESCRIPTION,
+        C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,
+        USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID, em_sco_regnumber)
+        SELECT * FROM 
+        (
+            SELECT get_UUID(), ?, ?,
+            'Y', now(), ?, now(), ?,
+            C_ACCTSCHEMA_ID, ACCOUNT_ID, to_date(?), to_date(?),
+            ?, '318', (CASE COALESCE(em_sco_record3_id,'') WHEN '' THEN record_id ELSE em_sco_record3_id END) AS RECORD_ANALITYCS, '100','NORECORD' ,
+            'A', ?, (CASE SIGN(SUM(AMTSOURCECR)-SUM(AMTSOURCEDR)) WHEN -1 THEN 0 ELSE (SUM(AMTSOURCECR)-SUM(AMTSOURCEDR)) END) AS CCR,
+            (CASE SIGN(SUM(AMTSOURCEDR)-SUM(AMTSOURCECR)) WHEN -1 THEN 0 ELSE (SUM(AMTSOURCEDR)-SUM(AMTSOURCECR)) END) AS DDR,
+            (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END), 
+            (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),
+            ?, to_number(?), ?, 
+            MAX(ACCTDESCRIPTION), MAX(ACCTVALUE) AS MAXACCTVALUE, NULL, 
+            NULL,NULL,NULL, ? ,
+            NULL,NULL,NULL,
+            NULL,NULL,NULL,NULL, ?
+            FROM FACT_ACCT INNER JOIN C_ELEMENTVALUE ON FACT_ACCT.ACCOUNT_ID=C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+            LEFT JOIN c_invoice i ON fact_acct.record_id=i.c_invoice_id
+            LEFT JOIN c_invoice i2 ON fact_acct.em_sco_record3_id=i2.c_invoice_id
+            WHERE C_ELEMENTVALUE.EM_SCO_REQUIRESANALYTICS='Y' AND (i.c_invoice_id IS NOT NULL OR i2.c_invoice_id IS NOT NULL) 
+            AND EXISTS (SELECT 1 FROM C_PERIOD P
+                      WHERE P.C_YEAR_ID = ?
+                      AND P.C_PERIOD_ID = FACT_ACCT.C_PERIOD_ID)
+            AND EXISTS (SELECT 1
+                FROM C_ELEMENTVALUE
+                WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN ('1')
+                AND ACCOUNT_ID = C_ELEMENTVALUE_ID)
+            AND AD_ISORGINCLUDED(FACT_ACCT.AD_ORG_ID, ?, ?) <> -1
+            AND FACT_ACCT.C_CURRENCY_ID= ? 
+            AND C_ACCTSCHEMA_ID = ?
+            AND (FACTACCTTYPE <>'C' or FACT_ACCT_GROUP_ID = ?) 
+            
+            GROUP BY ACCOUNT_ID, RECORD_ANALITYCS, C_ACCTSCHEMA_ID
+        ) AS AL
+        WHERE ACCOUNT_ID || '-' || RECORD_ANALITYCS  IN ('2')
+        order by MAXACCTVALUE
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="seqno"/>
+    <Parameter name="factAcctType"/>
+    <Parameter name="description"/>
+    <Parameter name="regnumber"/>
+    <Parameter name="year"/>
+    <Parameter name="accounttype" optional="true" type="replace" after="WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN (" text="'1'"/>
+    
+    
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="acctSchema"/>
+    <Parameter name="divideUpFactAcctGroupId"/>
+    
+    <Parameter name="allAnalitytics" optional="true" type="replace" after="WHERE ACCOUNT_ID || '-' || RECORD_ANALITYCS  IN (" text="'2'"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getAllAnalitycs" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+   SELECT account_id, RECORD_ANALITYCS, sum(AMTDRCR) AS AMTDRCRTOT FROM (
+ SELECT fa.account_id,  CASE COALESCE(em_sco_record3_id,'') WHEN '' THEN record_id ELSE em_sco_record3_id END AS RECORD_ANALITYCS,
+    coalesce(sum(AMTACCTDR),0)-coalesce(sum(AMTACCTCR),0) as AMTDRCR
+   from fact_acct fa INNER JOIN C_ELEMENTVALUE ON fa.ACCOUNT_ID=C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+    LEFT JOIN c_invoice i ON fa.record_id=i.c_invoice_id
+   LEFT JOIN c_invoice i2 ON fa.em_sco_record3_id=i2.c_invoice_id
+           
+   where
+   C_ELEMENTVALUE.EM_SCO_REQUIRESANALYTICS='Y' AND (i.c_invoice_id IS NOT NULL OR i2.c_invoice_id IS NOT NULL)
+   AND EXISTS (SELECT 1 FROM C_PERIOD P2
+                      WHERE P2.C_YEAR_ID = ?
+                      AND P2.C_PERIOD_ID = fa.C_PERIOD_ID)
+   AND AD_ISORGINCLUDED(fa.AD_ORG_ID, ?, ?) <> -1
+   GROUP BY fa.account_id, CASE COALESCE(em_sco_record3_id,'') WHEN '' THEN record_id ELSE em_sco_record3_id END
+ ) AS AL
+ GROUP BY account_id, RECORD_ANALITYCS
+ HAVING SUM(AMTDRCR)<>0
+ ]]>
+    </Sql>
+    <Parameter name="year"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="insertSelectOpeningWithAnalitycsNotInvoice" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO FACT_ACCT
+        (FACT_ACCT_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ACCTSCHEMA_ID,ACCOUNT_ID, DATETRX, DATEACCT,
+        C_PERIOD_ID, em_sco_record3_table_id, em_sco_record3_id, AD_TABLE_ID, RECORD_ID,
+        POSTINGTYPE,C_CURRENCY_ID,AMTSOURCECR, 
+        AMTSOURCEDR, AMTACCTCR, AMTACCTDR,
+        FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
+        ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
+        RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,DESCRIPTION,
+        C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,
+        USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID, em_sco_regnumber)
+        SELECT get_UUID(), ?, ?,
+        'Y', now(), ?, now(), ?,
+        C_ACCTSCHEMA_ID, ACCOUNT_ID, to_date(?), to_date(?),
+        ?, '145', CASE COALESCE(em_sco_record3_id,'') WHEN '' THEN record_id ELSE em_sco_record3_id END AS RECORD_ANALITYCS, '100','NORECORD', 
+        'A', ?, (CASE SIGN(SUM(AMTSOURCECR)-SUM(AMTSOURCEDR)) WHEN -1 THEN 0 ELSE (SUM(AMTSOURCECR)-SUM(AMTSOURCEDR)) END),
+        (CASE SIGN(SUM(AMTSOURCEDR)-SUM(AMTSOURCECR)) WHEN -1 THEN 0 ELSE (SUM(AMTSOURCEDR)-SUM(AMTSOURCECR)) END),
+        (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END), 
+        (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),
+        ?, to_number(?), ?, 
+        MAX(ACCTDESCRIPTION), MAX(ACCTVALUE) AS MAXACCTVALUE, NULL, 
+        NULL,NULL,NULL, ? ,
+        NULL,NULL,NULL,
+        NULL,NULL,NULL,NULL,? 
+        FROM FACT_ACCT INNER JOIN C_ELEMENTVALUE ON FACT_ACCT.ACCOUNT_ID=C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+        LEFT JOIN c_invoice i ON fact_acct.record_id=i.c_invoice_id
+        LEFT JOIN c_invoice i2 ON fact_acct.em_sco_record3_id=i2.c_invoice_id
+        WHERE C_ELEMENTVALUE.EM_SCO_REQUIRESANALYTICS='Y' AND (i.c_invoice_id IS NULL AND i2.c_invoice_id IS NULL) 
+        AND EXISTS (SELECT 1 FROM C_PERIOD P
+                  WHERE P.C_YEAR_ID = ?
+                  AND P.C_PERIOD_ID = FACT_ACCT.C_PERIOD_ID)
+        AND EXISTS (SELECT 1
+            FROM C_ELEMENTVALUE
+            WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN ('1')
+            AND ACCOUNT_ID = C_ELEMENTVALUE_ID)
+        AND AD_ISORGINCLUDED(FACT_ACCT.AD_ORG_ID, ?, ?) <> -1
+        AND FACT_ACCT.C_CURRENCY_ID= ? 
+        AND C_ACCTSCHEMA_ID = ?
+        AND (FACTACCTTYPE <>'C' or FACT_ACCT_GROUP_ID = ?) 
+        GROUP BY ACCOUNT_ID, RECORD_ANALITYCS, C_ACCTSCHEMA_ID
+        HAVING SUM(AMTACCTDR)-SUM(AMTACCTCR)<>0
+        order by MAXACCTVALUE
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="seqno"/>
+    <Parameter name="factAcctType"/>
+    <Parameter name="description"/>
+     <Parameter name="regnumber"/>
+    <Parameter name="year"/>
+    <Parameter name="accounttype" optional="true" type="replace" after="WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN (" text="'1'"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="acctSchema"/>
+    <Parameter name="divideUpFactAcctGroupId"/>
+  </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="insertSelectOpeningWithoutAnalitycs" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO FACT_ACCT
+        (FACT_ACCT_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ACCTSCHEMA_ID,ACCOUNT_ID, DATETRX, DATEACCT,
+        C_PERIOD_ID, em_sco_record3_table_id, em_sco_record3_id, AD_TABLE_ID, RECORD_ID,
+        POSTINGTYPE,C_CURRENCY_ID,AMTSOURCECR, 
+        AMTSOURCEDR, AMTACCTCR, AMTACCTDR,
+        FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
+        ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
+        RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,DESCRIPTION,
+        C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,
+        USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID, em_sco_regnumber)
+        SELECT get_UUID(), ?, ?,
+        'Y', now(), ?, now(), ?,
+        C_ACCTSCHEMA_ID, ACCOUNT_ID, to_date(?), to_date(?),
+        ?, '145', ?, '100','NORECORD',
+        'A', ?, (CASE SIGN(SUM(AMTSOURCECR)-SUM(AMTSOURCEDR)) WHEN -1 THEN 0 ELSE (SUM(AMTSOURCECR)-SUM(AMTSOURCEDR)) END),
+        (CASE SIGN(SUM(AMTSOURCEDR)-SUM(AMTSOURCECR)) WHEN -1 THEN 0 ELSE (SUM(AMTSOURCEDR)-SUM(AMTSOURCECR)) END),
+        (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END), 
+        (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),
+        ?, to_number(?), ?, 
+        MAX(ACCTDESCRIPTION), MAX(ACCTVALUE) AS MAXACCTVALUE, NULL, 
+        NULL,NULL,NULL, ? ,
+        NULL,NULL,NULL,
+        NULL,NULL,NULL,NULL,?
+        FROM FACT_ACCT INNER JOIN C_ELEMENTVALUE ON FACT_ACCT.ACCOUNT_ID=C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+        WHERE C_ELEMENTVALUE.EM_SCO_REQUIRESANALYTICS='N'
+        AND EXISTS (SELECT 1 FROM C_PERIOD P
+                  WHERE P.C_YEAR_ID = ?
+                  AND P.C_PERIOD_ID = FACT_ACCT.C_PERIOD_ID)
+        AND EXISTS (SELECT 1
+            FROM C_ELEMENTVALUE
+            WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN ('1')
+            AND ACCOUNT_ID = C_ELEMENTVALUE_ID)
+        AND AD_ISORGINCLUDED(FACT_ACCT.AD_ORG_ID, ?, ?) <> -1
+        AND FACT_ACCT.C_CURRENCY_ID= ? 
+        AND C_ACCTSCHEMA_ID = ?
+        AND (FACTACCTTYPE <>'C' or FACT_ACCT_GROUP_ID = ?) 
+        GROUP BY ACCOUNT_ID, C_ACCTSCHEMA_ID
+        HAVING SUM(AMTACCTDR)-SUM(AMTACCTCR)<>0
+        order by MAXACCTVALUE
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="seqno"/>
+    <Parameter name="factAcctType"/>
+    <Parameter name="description"/>
+     <Parameter name="regnumber"/>
+    <Parameter name="year"/>
+    <Parameter name="accounttype" optional="true" type="replace" after="WHERE C_ELEMENTVALUE.ACCOUNTTYPE IN (" text="'1'"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="acctSchema"/>
+    <Parameter name="divideUpFactAcctGroupId"/>
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="getEndDate" type="preparedStatement" return="Date">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ENDDATE FROM C_PERIOD WHERE C_PERIOD_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cPeriodId"/>
+  </SqlMethod>
+  <SqlMethod name="adTableId" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_TABLE_ID FROM AD_TABLE WHERE TABLENAME LIKE 'C_Period'
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="cCurrencyId" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_CURRENCY_ID FROM C_ACCTSCHEMA WHERE C_ACCTSCHEMA_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cAcctschemaId"/>
+  </SqlMethod>
+  <SqlMethod name="incomesummary" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_VALIDCOMBINATION.ACCOUNT_ID , C_ELEMENTVALUE.VALUE, C_ELEMENTVALUE.NAME
+      FROM C_ACCTSCHEMA_GL, C_VALIDCOMBINATION, C_ELEMENTVALUE
+      WHERE C_ACCTSCHEMA_GL.INCOMESUMMARY_ACCT = C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID
+      AND C_VALIDCOMBINATION.ACCOUNT_ID = C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+      AND C_ACCTSCHEMA_GL.C_ACCTSCHEMA_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cAcctschemaId"/>
+  </SqlMethod>
+  <SqlMethod name="retainedearning" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_VALIDCOMBINATION.ACCOUNT_ID , C_ELEMENTVALUE.VALUE, C_ELEMENTVALUE.NAME
+      FROM C_ACCTSCHEMA_GL, C_VALIDCOMBINATION, C_ELEMENTVALUE
+      WHERE C_ACCTSCHEMA_GL.RETAINEDEARNING_ACCT = C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID
+      AND C_VALIDCOMBINATION.ACCOUNT_ID = C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+      AND C_ACCTSCHEMA_GL.C_ACCTSCHEMA_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cAcctschemaId"/>
+  </SqlMethod>
+  <SqlMethod name="orgAcctschema" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select ad_org_acctschema_id
+        from ad_org_acctschema
+        where ad_org_id = ?
+        and c_acctschema_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="adOrgId"/>
+    <Parameter name="cAcctschemaId"/>
+  </SqlMethod>
+  <SqlMethod name="insertOrgClosing" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO AD_ORG_CLOSING (AD_ORG_CLOSING_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+                       C_YEAR_ID, AD_ORG_ACCTSCHEMA_ID, REG_FACT_ACCT_GROUP_ID, CLOSE_FACT_ACCT_GROUP_ID,
+                       DIVIDEUP_FACT_ACCT_GROUP_ID, OPEN_FACT_ACCT_GROUP_ID)
+        VALUES (GET_UUID(), ?, ?, 'Y', NOW(), ?, NOW(), ?,
+        ?, ?, ?, ?,
+        ?, ?)
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="c_year_id"/>
+    <Parameter name="adOrgAcctschemaId"/>
+    <Parameter name="reg_fact_acct_group_id"/>
+    <Parameter name="close_fact_acct_group_id"/>
+    <Parameter name="divideup_fact_acct_group_id"/>
+    <Parameter name="open_fact_acct_group_id"/>
+  </SqlMethod>
+  <SqlMethod name="getNextPeriod" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_PERIOD_ID
+        FROM C_PERIOD, C_YEAR Y
+        WHERE C_PERIOD.C_YEAR_ID =  Y.C_YEAR_ID
+        AND STARTDATE = (SELECT P.ENDDATE + 1 
+                FROM C_PERIOD P, C_YEAR
+                WHERE P.C_YEAR_ID =  C_YEAR.C_YEAR_ID
+                AND C_YEAR.C_CALENDAR_ID = Y.C_CALENDAR_ID
+                AND C_PERIOD_ID = ?)
+      ]]>
+    </Sql>
+    <Parameter name="cPeriodId"/>
+  </SqlMethod>
+  <SqlMethod name="getLastPeriod" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_PERIOD_ID FROM C_PERIOD
+        WHERE C_YEAR_ID = ?
+        AND PERIODNO = (SELECT MAX(PERIODNO) FROM C_PERIOD
+                        WHERE C_YEAR_ID = ?)
+      ]]>
+    </Sql>
+    <Parameter name="cYearId"/>
+    <Parameter name="cYearId"/>
+  </SqlMethod>
+  <SqlMethod name="insertClose" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO FACT_ACCT
+          (FACT_ACCT_ID, AD_CLIENT_ID, AD_ORG_ID,
+           ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+           C_ACCTSCHEMA_ID,ACCOUNT_ID, DATETRX, DATEACCT,
+           C_PERIOD_ID, AD_TABLE_ID, RECORD_ID,
+        POSTINGTYPE,C_CURRENCY_ID, AMTSOURCEDR,
+        AMTSOURCECR,AMTACCTDR, AMTACCTCR,
+        FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
+        ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
+        RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,
+        DESCRIPTION,
+        C_TAX_ID, C_PROJECT_ID, C_ACTIVITY_ID,
+        USER1_ID, USER2_ID, C_CAMPAIGN_ID,
+        C_SALESREGION_ID,em_sco_regnumber)
+        VALUES
+          (?,?,?,
+           'Y',now(),?,now(),?,
+           ?,?,TO_DATE(?),TO_DATE(?),
+           ?,?,?,
+           ?,?,TO_NUMBER(?),
+           TO_NUMBER(?),TO_NUMBER(?),TO_NUMBER(?),
+           ?,TO_NUMBER(?),?,
+           ?,?,?,
+           ?, ?, ?,
+           ?,
+           ?,?,?,
+           ?, ?, ?,
+           ?,?)
+      ]]>
+    </Sql>
+    <Parameter name="fact_acct_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="c_acctschema_id"/>
+    <Parameter name="account_id"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="ad_table_id"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="postingtype"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="amtsourcedr"/>
+    <Parameter name="amtsourcecr"/>
+    <Parameter name="amtacctdr"/>
+    <Parameter name="amtacctcr"/>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="seqno"/>
+    <Parameter name="factAcctType"/>
+    <Parameter name="acctdescription"/>
+    <Parameter name="value"/>
+    <Parameter name="bpartner"/>
+    <Parameter name="debtPayment"/>
+    <Parameter name="product"/>
+    <Parameter name="asset"/>
+    <Parameter name="description"/>
+    <Parameter name="cTaxId"/>
+    <Parameter name="cProjectId"/>
+    <Parameter name="cActivityId"/>
+    <Parameter name="User1Id"/>
+    <Parameter name="User2Id"/>
+    <Parameter name="CampaignId"/>
+    <Parameter name="SalesRegionId"/>
+    <Parameter name="regnumber"/>
+  </SqlMethod>
+  <SqlMethod name="getStartDate" type="preparedStatement" return="Date">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT STARTDATE FROM C_PERIOD WHERE C_PERIOD_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cPeriodId"/>
+  </SqlMethod>
+  <SqlMethod name="updateClose" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE C_PeriodControl
+        SET PeriodStatus = 'P', UPDATED = now(), UPDATEDBY = ?
+        WHERE PeriodStatus <> 'P'
+        AND C_PERIOD_ID IN (SELECT C_PERIOD_ID
+                FROM C_PERIOD
+                WHERE C_YEAR_ID = ?)
+        AND AD_ORG_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="user"/>
+    <Parameter name="cYearId"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+   <SqlMethod name="treeOrgAcctSchemas" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_ORG_id as org
+        FROM AD_ORG
+        WHERE AD_CLIENT_ID = ?
+        AND (AD_ISORGINCLUDED(AD_ORG_ID, ?, AD_CLIENT_ID) <> -1
+          OR AD_ISORGINCLUDED(?, AD_ORG_ID, AD_CLIENT_ID) <> -1)
+      ]]></Sql>
+        <Parameter name="clientId"/>
+        <Parameter name="orgId"/>
+        <Parameter name="orgId"/>
+   </SqlMethod>
+   <SqlMethod name="treeOrg" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_ORG_id as org
+        FROM AD_ORG
+        WHERE AD_CLIENT_ID = ?
+        AND AD_ISORGINCLUDED(AD_ORG_ID, ?, AD_CLIENT_ID) <> -1
+      ]]></Sql>
+        <Parameter name="clientId"/>
+        <Parameter name="orgId"/>
+   </SqlMethod>
+   <SqlMethod name="treeAcctSchema" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT C_ACCTSCHEMA_ID AS ID
+        FROM C_ACCTSCHEMA
+        WHERE AD_CLIENT_ID = ?
+        AND EXISTS (SELECT 1 FROM AD_ORG_ACCTSCHEMA
+        WHERE AD_ORG_ACCTSCHEMA.C_ACCTSCHEMA_ID = C_ACCTSCHEMA.C_ACCTSCHEMA_ID
+        AND EXISTS (SELECT 1
+            FROM AD_ORG
+            WHERE AD_CLIENT_ID = ?
+            AND (AD_ISORGINCLUDED(AD_ORG_ID, ?, AD_CLIENT_ID) <> -1 or 
+                AD_ISORGINCLUDED(?, AD_ORG_ID, AD_CLIENT_ID) <> -1)
+            AND AD_ORG.AD_ORG_ID = AD_ORG_ACCTSCHEMA.AD_ORG_ID))
+      ]]></Sql>
+        <Parameter name="clientId"/>
+        <Parameter name="clientId"/>
+        <Parameter name="organizationId"/>
+        <Parameter name="organizationId"/>
+   </SqlMethod>
+   <SqlMethod name="getRegCount" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+        SELECT COUNT(*) AS REGCOUNT FROM FACT_ACCT 
+        WHERE AD_CLIENT_ID = ? 
+        AND AD_ISORGINCLUDED(AD_ORG_ID, ?, ?) <> -1
+        AND C_ACCTSCHEMA_ID = ? 
+        AND C_PERIOD_ID = ?
+        AND FACTACCTTYPE = 'R'
+     ]]></Sql>
+    <Parameter name="clientId"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="clientId"/>
+    <Parameter name="c_acctschema_id"/>
+     <Parameter name="c_period_id"/>
+  </SqlMethod>
+  <SqlMethod name="balanceAmount" type="preparedStatement" return="string">
+    <SqlMethodComment>When balance is balanced this amount should be ZERO</SqlMethodComment>
+    <Sql><![CDATA[
+        select coalesce(sum(amtacctdr)-sum(amtacctcr),0)
+        from fact_acct, c_elementvalue
+        where fact_acct.account_id = c_elementvalue.c_elementvalue_id
+        and dateacct >= (select min(startdate) from c_period where c_year_id = ?)
+        and dateacct <= (select max(enddate) from c_period where c_year_id = ?)
+        and accounttype in ('E','R','A','L','O','M')
+        and fact_acct.c_acctschema_id = ?
+        and fact_acct.ad_org_id in ('1')
+     ]]></Sql>
+    <Parameter name="yearId"/>
+    <Parameter name="yearId"/>
+    <Parameter name="acctSchemaId"/>
+    <Parameter name="organizationList" optional="true" type="replace" after="and fact_acct.ad_org_id in (" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="selectYearNotClosed" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select 1 
+        from c_year y1, c_year y2
+        where y1.c_year_id = ?
+        and y1.c_calendar_id = y2.c_calendar_id
+        and y1.year>y2.year
+        and not exists (select 1 from ad_org_closing where ad_org_closing.c_year_id = y2.c_year_id)
+      ]]>
+    </Sql>
+    <Parameter name="cYearId"/>
+  </SqlMethod>
+  <SqlMethod name="selectUndoAllowed" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    select 1 from dual
+    where exists(select 1 
+            from c_year_close_v, c_year
+            where c_year_close_v.c_year_id = c_year.c_year_id
+            and c_year_close_v.c_calendar_id = (select c_calendar_id from c_year where c_year_id = ?)
+            and c_year.year > (select year from c_year where c_year_id = ?)
+            and c_year_close_v.status <> 'O')
+      ]]>
+    </Sql>
+    <Parameter name="cYearId"/>
+    <Parameter name="cYearId"/>
+  </SqlMethod>
+  <SqlMethod name="updatePeriodsOpen" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE C_PERIODCONTROL
+        SET PERIODSTATUS = 'C', UPDATED = now(), UPDATEDBY = ?
+        WHERE C_PERIOD_ID IN (SELECT C_PERIOD_ID
+                FROM C_PERIOD
+                WHERE C_YEAR_ID = ?)
+        AND AD_ORG_ID = ?
+        ]]>
+    </Sql>
+    <Parameter name="user"/>
+    <Parameter name="cYearId"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFactAcctGroupId" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT REG_FACT_ACCT_GROUP_ID, CLOSE_FACT_ACCT_GROUP_ID, DIVIDEUP_FACT_ACCT_GROUP_ID, OPEN_FACT_ACCT_GROUP_ID, AD_ORG_CLOSING_ID
+        FROM AD_ORG_CLOSING
+        WHERE AD_ORG_ID = ?
+        AND C_YEAR_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adOrgId"/>
+    <Parameter name="cYearId"/>
+  </SqlMethod>
+  <SqlMethod name="deleteOrgClosing" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      DELETE FROM AD_ORG_CLOSING WHERE AD_ORG_CLOSING_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adOrgClosingId"/>
+  </SqlMethod>
+  <SqlMethod name="deleteFactAcctClose" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      DELETE FROM FACT_ACCT
+      WHERE FACT_ACCT_GROUP_ID IN (?, ?, ?, ?)
+      AND AD_ISORGINCLUDED(FACT_ACCT.AD_ORG_ID, ?, FACT_ACCT.AD_CLIENT_ID)<>-1
+      ]]>
+    </Sql>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="open_acct_group_id"/>
+    <Parameter name="divideup_fact_acct_group_id"/>
+    <Parameter name="reg_fact_acct_group_id"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+  <SqlMethod name="getTotalAmountsLike" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT account_id, MAX(acctvalue) AS acctvalue,  COALESCE((CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END),0) AS TOTALAMTCR,
+        COALESCE((CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END),0) AS TOTALAMTDR 
+        FROM FACT_ACCT
+        WHERE EXISTS (SELECT 1 FROM C_PERIOD P
+                  WHERE P.C_YEAR_ID = ?
+                  AND P.C_PERIOD_ID = FACT_ACCT.C_PERIOD_ID)
+        AND ACCOUNT_ID IN (SELECT C_ELEMENTVALUE_ID
+            FROM C_ELEMENTVALUE
+            WHERE C_ELEMENTVALUE.VALUE LIKE ?) 
+        AND AD_ISORGINCLUDED(AD_ORG_ID, ?, AD_CLIENT_ID)<>-1   
+        AND C_ACCTSCHEMA_ID = ? 
+        GROUP BY account_id
+      ]]>
+    </Sql>
+    <Parameter name="c_year_id"/>
+    <Parameter name="value"/>
+    <Parameter name="org"/>
+    <Parameter name="acctSchema"/>
+  </SqlMethod>
+  <SqlMethod name="elementvalueByValue" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_VALIDCOMBINATION.ACCOUNT_ID , C_ELEMENTVALUE.VALUE, C_ELEMENTVALUE.NAME
+      FROM C_VALIDCOMBINATION, C_ELEMENTVALUE
+      WHERE 
+      C_VALIDCOMBINATION.ACCOUNT_ID = C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+      AND C_VALIDCOMBINATION.C_ACCTSCHEMA_ID = ?
+      AND C_ELEMENTVALUE.VALUE = ?
+      ]]>
+    </Sql>
+    <Parameter name="cAcctschemaId"/>
+    <Parameter name="value"/>
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="selectBicurrency" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+  select em_sco_record3_id as RECORD_ANALITYCS, ACCOUNT_ID, arrcurrency from (
+    select fact_acct.em_sco_record3_id,  fact_acct.ACCOUNT_ID,array_to_string(array_agg(fact_acct.c_currency_id), ',') as arrcurrency from fact_acct
+    inner join c_elementvalue on fact_acct.account_id = c_elementvalue.c_elementvalue_id 
+    where fact_acct.factaccttype='O'
+    and  c_elementvalue.em_sco_requiresanalytics='Y'
+    and fact_acct.dateacct=TO_DATE(?)
+    and AD_ISORGINCLUDED(fact_acct.AD_ORG_ID, ?, fact_acct.AD_CLIENT_ID)<>-1 
+    group by fact_acct.em_sco_record3_id, fact_acct.ACCOUNT_ID
+    ) as alias where arrcurrency like '%,%' and arrcurrency like '%308%' order by ACCOUNT_ID
+    ]]>
+  </Sql>
+    <Parameter name="date"/>
+    <Parameter name="ad_org_id"/>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="updateBicurrencyAmt" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+  
+  update fact_acct fa set amtacctdr=case when (amtacctdr-amtacctcr)>0 then (amtacctdr-amtacctcr) else 0 end,
+ amtacctcr=case when (amtacctcr-amtacctdr)>0 then (amtacctcr-amtacctdr) else 0 end
+ where COALESCE(fa.em_sco_record3_id,'')=COALESCE(?,'') and fa.account_id=? and fa.factaccttype='O' 
+ and AD_ISORGINCLUDED(fa.AD_ORG_ID, ?, fa.AD_CLIENT_ID)<>-1 and fa.dateacct=TO_DATE(?)
+  ]]>
+   </Sql>
+    <Parameter name="recordId"/>
+    <Parameter name="accountId"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="date"/>
+  </SqlMethod>
+  
+  <SqlMethod name="updateBicurrency" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+  update fact_acct fa set 
+ amtacctdr=amtacctdr+(select f2.amtacctdr from fact_acct f2 where COALESCE(f2.em_sco_record3_id,'')=COALESCE(?,'') and f2.account_id=? and f2.c_currency_id='308' and f2.factaccttype='O' 
+ and AD_ISORGINCLUDED(f2.AD_ORG_ID, ?, f2.AD_CLIENT_ID)<>-1 and f2.dateacct=TO_DATE(?)), 
+ amtacctcr=amtacctcr+(select f2.amtacctcr from fact_acct f2 where COALESCE(f2.em_sco_record3_id,'')=COALESCE(?,'') and f2.account_id=? and f2.c_currency_id='308' and f2.factaccttype='O' 
+ and AD_ISORGINCLUDED(f2.AD_ORG_ID, ?, f2.AD_CLIENT_ID)<>-1 and f2.dateacct=TO_DATE(?))
+ where COALESCE(fa.em_sco_record3_id,'')=COALESCE(?,'') and fa.account_id=? and fa.c_currency_id<>'308' and fa.factaccttype='O' 
+ and AD_ISORGINCLUDED(fa.AD_ORG_ID, ?, fa.AD_CLIENT_ID)<>-1 and fa.dateacct=TO_DATE(?)
+    ]]>
+   </Sql>
+    <Parameter name="recordId"/>
+    <Parameter name="accountId"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="date"/>
+    
+     <Parameter name="recordId"/>
+    <Parameter name="accountId"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="date"/>
+    
+     <Parameter name="recordId"/>
+    <Parameter name="accountId"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="date"/>
+  </SqlMethod>
+  
+  
+   <SqlMethod name="deleteBicurrency" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+  delete from fact_acct fa where COALESCE(fa.em_sco_record3_id,'')=COALESCE(?,'') and fa.account_id=? and fa.c_currency_id='308' and fa.factaccttype='O' 
+ and AD_ISORGINCLUDED(fa.AD_ORG_ID, ?, fa.AD_CLIENT_ID)<>-1 and fa.dateacct=TO_DATE(?)
+   ]]>
+   </Sql>
+    <Parameter name="recordId"/>
+    <Parameter name="accountId"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="date"/>
+    
+  </SqlMethod>
+  
+     <SqlMethod name="countNotPosted" type="preparedStatement" connection="true" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select count(*)
+        from
+        (select ad_client_id,dateacct
+        from c_invoice
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and docstatus <> 'VO'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='318' and ad_client_id=?)
+        and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,dateacct
+        from m_inout
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and issotrx = 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='319' and ad_client_id=?)
+        and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,dateacct
+        from C_Cash
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='407' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,statementdate as dateacct
+        from c_bankstatement
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='392' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,dateacct
+        from c_Settlement s
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800019' and ad_client_id=?)
+        and exists (select 1
+                    from c_debt_payment p
+                    where p.c_settlement_generate_id = s.c_settlement_id
+                    and p.isdirectposting='Y')
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,dateacct
+        from GL_Journal
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='224' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,movementdate as dateacct
+        from m_inventory
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='321' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,paymentdate as dateacct
+        from fin_payment
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and status <> 'RPVOID'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='D1A97202E832470285C9B1EB026D54E2' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,dateacct
+        from fin_finacc_transaction
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='4D8C3B3C31D1410DA046140C9F024D17' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,movementdate as dateacct
+        from m_movement
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='323' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        union all
+        select ad_client_id,dateacct
+        from c_dp_management
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800176' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+    union all
+        select ad_client_id,dateacct
+        from sco_swithholding_receipt   
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='251100CF447643CFAAFCF7F6A4975DA8' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+    union all
+        select ad_client_id,dateacct
+        from sco_pwithholding_receipt   
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='6E25DC026D874BD58792E1C3994CEF16' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+    union all
+        select ad_client_id,dateacct
+        from sco_billofexchange
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='29987BE302E04781BE3868E573123BDE' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+    union all
+        select ad_client_id,dateordered as dateacct
+        from swa_movementcode
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='CDCFC9F1E20B44D9B80B3C1F374BEA05' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+    union all
+        select ad_client_id,dateacct
+        from sim_imp_costing
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='5B7785A4E6B748D28DFB3E194411C5CB' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+    union all
+        select ad_client_id,dateacct
+        from sco_boe_to_discount
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='E0AFCD80B2324D9BA19B59B8022F617D' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+    union all
+        select ad_client_id,dateacct
+        from sco_factoringinvoice
+        where processed = 'Y'
+        and posted not in ('Y', 'D', 'sco_M')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='9845154D73A340FDB9F4ACD8A53B75A4' and ad_client_id=?)
+    and AD_ISORGINCLUDED(ad_org_id, ?, ?) > -1
+        ) AAA
+        where ad_client_id = ?
+        and 1=1
+   ]]>
+   </Sql>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adOrgId"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="and 1=1"><![CDATA[AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="and 1=1"><![CDATA[AND DATEACCT < TO_DATE(?) ]]></Parameter>
+    
+  </SqlMethod>
+  <SqlMethod name="getStartDateofYear" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT min(p.startdate)
+      FROM C_Period p, C_Year y
+      WHERE p.C_Year_ID = y.C_Year_ID
+      AND y.C_Year_ID = ?
+   ]]>
+   </Sql>
+    <Parameter name="cYearId"/>
+    
+  </SqlMethod>
+    <SqlMethod name="getEndDateofYear" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT max(p.enddate)
+      FROM C_Period p, C_Year y
+      WHERE p.C_Year_ID = y.C_Year_ID
+      AND y.C_Year_ID = ?
+   ]]>
+   </Sql>
+    <Parameter name="cYearId"/>
+    
+  </SqlMethod>
+  <SqlMethod name="insertSelectYearopStockBalance" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO sco_yearop_stock_balance(
+        sco_yearop_stock_balance_id, ad_client_id, ad_org_id, isactive, 
+        created, createdby, updated, updatedby, dateacct, m_warehouse_id, 
+        m_product_id, initqty)
+        SELECT 
+        get_UUID(), ?, ?, 'Y',
+        now(), ?, now(), ?, TRUNC(TO_DATE(?)), T.m_warehouse_id,
+        T.m_product_id, SUM(T.initqty)
+        FROM
+         (SELECT mt.m_product_id, mw.m_warehouse_id,SUM (mt.movementqty) AS initqty
+          FROM m_transaction mt
+          INNER JOIN m_locator lo ON mt.m_locator_id = lo.m_locator_id
+          INNER JOIN m_warehouse mw ON lo.m_warehouse_id = mw.m_warehouse_id
+          WHERE mt.AD_Client_ID = ?
+          AND AD_ISORGINCLUDED(mt.AD_ORG_ID, ?, ?)<>-1
+          AND Trunc(mt.movementdate) >= TRUNC(To_date(?))
+          AND Trunc(mt.movementdate) < TRUNC(To_date(?))
+          GROUP BY mt.m_product_id, mw.m_warehouse_id
+          UNION ALL
+          SELECT ypbal.m_product_id, ypbal.m_warehouse_id, ypbal.initqty
+          FROM sco_yearop_stock_balance ypbal
+          WHERE ypbal.AD_Client_ID = ?
+          AND AD_ISORGINCLUDED(ypbal.AD_ORG_ID, ?, ?)<>-1
+          AND TRUNC(ypbal.dateacct) = TRUNC(TO_DATE(?))) T
+        GROUP BY T.m_product_id, T.m_warehouse_id
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="dateTo"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="dateTo"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="dateFrom"/>
+  </SqlMethod>
+  <SqlMethod name="deleteYearopStockBalanceEntries" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      DELETE FROM sco_yearop_stock_balance
+      WHERE AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(AD_ORG_ID, ?, ?)<>-1
+      AND TRUNC(dateacct) = TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="dateacct"/>
+  </SqlMethod>
+  <SqlMethod name="insertSelectYearopFinaccBalance" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO sco_yearop_finacc_balance(
+        sco_yearop_finacc_balance_id, ad_client_id, ad_org_id, isactive, 
+        created, createdby, updated, updatedby, dateacct, fin_financial_account_id, 
+        initbalance)
+        SELECT 
+        get_UUID(), ?, ?, 'Y',
+        now(), ?, now(), ?, TRUNC(TO_DATE(?)), T.fin_financial_account_id,
+        SUM(T.initbalance)
+        FROM
+         (SELECT ft.fin_financial_account_id ,SUM (ft.depositamt - ft.paymentamt) AS initbalance
+          FROM fin_finacc_transaction ft
+          WHERE ft.AD_Client_ID = ?
+          AND AD_ISORGINCLUDED(ft.AD_ORG_ID, ?, ?)<>-1
+          AND Trunc(ft.statementdate) >= TRUNC(To_date(?))
+          AND Trunc(ft.statementdate) < TRUNC(To_date(?))
+          GROUP BY ft.fin_financial_account_id
+          UNION ALL
+          SELECT finacc.fin_financial_account_id, COALESCE(YPB1.initbalance, finacc.initialbalance) AS initbalance
+          FROM fin_financial_account finacc
+          LEFT JOIN 
+            (
+              SELECT ypbal.fin_financial_account_id, ypbal.initbalance
+                FROM sco_yearop_finacc_balance ypbal
+              WHERE ypbal.AD_Client_ID = ?
+              AND AD_ISORGINCLUDED(ypbal.AD_ORG_ID, ?, ?)<>-1
+              AND TRUNC(ypbal.dateacct) = TRUNC(TO_DATE(?))
+            ) AS YPB1 ON finacc.fin_financial_account_id = YPB1.fin_financial_account_id
+          WHERE finacc.AD_Client_ID = ?
+          AND AD_ISORGINCLUDED(finacc.AD_ORG_ID, ?, ?)<>-1) T
+        GROUP BY T.fin_financial_account_id
+      ]]>
+    </Sql>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="ad_user_id"/>
+    <Parameter name="dateTo"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="dateTo"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="ad_client_id"/>
+  </SqlMethod>
+  <SqlMethod name="deleteYearopFinaccBalanceEntries" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      DELETE FROM sco_yearop_finacc_balance
+      WHERE AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(AD_ORG_ID, ?, ?)<>-1
+      AND TRUNC(dateacct) = TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="dateacct"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrderedFactAcctbyGroup" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT fact_acct_id FROM Fact_Acct 
+      WHERE AD_Client_ID = ?
+      AND fact_acct_group_id = ?
+      ORDER BY dateacct, acctvalue, c_currency_id, amtsourcedr, amtsourcecr, amtacctdr, amtacctcr, record_id, record_id2, em_sco_record3_id, description
+    ]]>
+  </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="factAcctGroupId"/>
+  </SqlMethod>
+  <SqlMethod name="updateFactAcctScoSeqno" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE Fact_Acct SET em_sco_seqno = TO_NUMBER(?) 
+      WHERE AD_Client_ID = ?
+      AND Fact_Acct_ID = ?
+    ]]>
+   </Sql>
+    <Parameter name="scoSeqno"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="factAcctId"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteContableVerificacionGuiasRemisionData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_cro_pag_imp" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		        
+		select 
+			'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal,
+		f.*
+		,(case when f.estado='AA' then substring(f.numero_serie from 1 for (f.posicion-1)) else '0' end) as serie
+		,(case when f.estado='AA' then substring(f.numero_serie from (f.posicion+1) for 20) else '0' end) as numero 
+		,(case when f.estado='AA' then (substring(f.numero_serie from 1 for (f.posicion-1)))::int else 0 end) as serie_n 
+		,(case when f.estado='AA' then (substring(f.numero_serie from (f.posicion+1) for 20))::int else 0 end) as numero_n 
+		 from 
+		(select distinct  
+		
+		mio.documentno as n_documento
+		
+		,position ('-' in mio.em_scr_physical_documentno ) as posicion
+		
+		,mio.em_scr_physical_documentno as numero_serie
+		
+		,( case when  (coalesce(mio.em_scr_physical_documentno,'') ='') then 'SIN NUMERO ASIGNADO'
+			when position ('-' in mio.em_scr_physical_documentno ) = 0  then 'FORMATO DE NUMERACION INVALIDA' 
+			else 
+			
+			(case when  (substring(mio.em_scr_physical_documentno from 1 for (position ('-' in mio.em_scr_physical_documentno )-1)) !~ '^[0-9]+$') 
+			or  (substring(mio.em_scr_physical_documentno from (position ('-' in mio.em_scr_physical_documentno )+1) for 20) !~ '^[0-9]+$') then 'FORMATO DE NUMERACION INVALIDA' 
+			else 'AA' end
+			 
+			 ) end 
+		 ) as estado
+		 
+		,(select coalesce(cdt2.name,coalesce(cd2.name)) from c_doctype cd2
+		left join c_doctype_trl cdt2 on cd2.c_doctype_id=cdt2.c_doctype_id 
+		 where cd2.c_doctype_id=mio.c_doctype_id and ad_language='es_PE' ) as tipodoc
+		 
+		 ,case when mio.docstatus = 'CO' THEN 'COMPLETADO' ELSE 'ANULADO' END as estado_doc 
+		
+		from m_inout  mio 
+		inner join ad_org ao on  mio.ad_org_id=ao.ad_org_id
+		inner join c_doctype cd on mio.c_doctype_id=cd.c_doctype_id
+
+		where  
+		 cd.em_sco_specialdoctype in ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT','SWARTVRECEIPT','SCOTRANSFERDOCUMENT')
+		AND ( mio.docstatus = ('CO') or ( mio.docstatus = ('VO') and trim( coalesce(mio.em_scr_physical_documentno,''),'0') not  in ('','-')))
+		and ao.ad_client_id in ('1') 
+		and ao.ad_org_id in ('1') 
+		and 1=1 
+		
+		union all
+		
+		SELECT DISTINCT
+			mio.documentno AS n_documento,
+			POSITION (
+				'-' IN mio.physical_documentno
+			) AS posicion,
+			mio.physical_documentno AS numero_serie,
+			(
+				CASE
+				WHEN (
+					COALESCE (
+						mio.physical_documentno,
+						''
+					) = ''
+				) THEN
+					'SIN NUMERO ASIGNADO'
+				WHEN POSITION (
+					'-' IN mio.physical_documentno
+				) = 0 THEN
+					'FORMATO DE NUMERACION INVALIDA'
+				ELSE
+					(
+						CASE
+						WHEN (
+							SUBSTRING (
+								mio.physical_documentno
+								FROM
+									1 FOR (
+										POSITION (
+											'-' IN mio.physical_documentno
+										) - 1
+									)
+							) !~ '^[0-9]+$'
+						)
+						OR (
+							SUBSTRING (
+								mio.physical_documentno
+								FROM
+									(
+										POSITION (
+											'-' IN mio.physical_documentno
+										) + 1
+									) FOR 20
+							) !~ '^[0-9]+$'
+						) THEN
+							'FORMATO DE NUMERACION INVALIDA'
+						ELSE
+							'AA'
+						END
+					)
+				END
+			) AS estado,
+			(
+				SELECT
+					COALESCE (
+						cdt2. NAME,
+						COALESCE (cd2. NAME)
+					)
+				FROM
+					c_doctype cd2
+				LEFT JOIN c_doctype_trl cdt2 ON cd2.c_doctype_id = cdt2.c_doctype_id
+				WHERE
+					cd2.c_doctype_id = mio.c_doctype_id
+				AND ad_language = 'es_PE'
+			) AS tipodoc
+			
+			,case when mio.docstatus = 'CO' THEN 'COMPLETADO' ELSE 'ANULADO' END as estado_doc 
+
+			
+		FROM
+			sco_transferinout mio
+		INNER JOIN ad_org ao ON mio.ad_org_id = ao.ad_org_id
+		inner join c_doctype cd on mio.c_doctype_id=cd.c_doctype_id
+
+		WHERE
+		 cd.em_sco_specialdoctype in ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT','SWARTVRECEIPT','SCOTRANSFERDOCUMENT')
+				AND ( mio.docstatus = ('CO') or ( mio.docstatus = ('VO') and trim( coalesce(mio.physical_documentno,''),'0') not  in ('','-')))
+				
+				AND  ao.ad_client_id IN ('1') 
+				AND  ao.ad_org_id IN ('1')
+				AND 2 = 2
+		
+				) as f
+				
+				order by f.estado,serie_n,numero_n
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+         <Parameter name="adUserClient1" type="replace" optional="true" after="and ao.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg1" type="replace" optional="true" after="and ao.ad_org_id in (" text="'1'"/>
+    <Parameter name="parDateFrom1" optional="true" after="1=1"><![CDATA[ AND mio.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo1" optional="true" after="1=1"><![CDATA[ AND mio.movementdate < TO_DATE(?)]]></Parameter>
+    
+     <Parameter name="adUserClient2" type="replace" optional="true" after="AND  ao.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg2" type="replace" optional="true" after="AND  ao.ad_org_id IN (" text="'1'"/>
+    <Parameter name="parDateFrom2" optional="true" after="2=2"><![CDATA[ AND mio.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="2=2"><![CDATA[ AND mio.movementdate < TO_DATE(?)]]></Parameter>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+  
+</SqlClass>

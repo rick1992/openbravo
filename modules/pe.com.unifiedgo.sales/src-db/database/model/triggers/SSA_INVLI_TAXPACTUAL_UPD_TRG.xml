@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_INVLI_TAXPACTUAL_UPD_TRG">
+    <trigger name="SSA_INVLI_TAXPACTUAL_UPD_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_priceprecision NUMBER;
+v_rate NUMBER;
+v_new_tax_priceactual NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT rate
+      INTO v_rate
+      FROM C_Tax
+    WHERE C_Tax_ID = :NEW.C_Tax_ID;
+
+    SELECT curr.priceprecision
+      INTO v_priceprecision
+      FROM C_Currency curr, C_Invoice inv
+    WHERE inv.C_Invoice_ID = :NEW.C_Invoice_ID
+          AND inv.C_Currency_ID = curr.C_Currency_ID;
+
+    IF(INSERTING) THEN
+      
+      IF(v_rate IS NULL OR v_rate <= 0 ) THEN
+        :NEW.em_ssa_taxpriceactual := :NEW.priceactual;
+      ELSE
+        v_new_tax_priceactual := :NEW.priceactual + round(:NEW.priceactual*v_rate/100, v_priceprecision);
+        IF(:NEW.em_ssa_taxpriceactual IS NULL) THEN
+          :NEW.em_ssa_taxpriceactual := v_new_tax_priceactual;
+        ELSE
+          IF(abs(v_new_tax_priceactual - :NEW.em_ssa_taxpriceactual) > 0.0001) THEN
+            :NEW.em_ssa_taxpriceactual := v_new_tax_priceactual;
+          END IF;
+        END IF;
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.c_tax_id,'.')<>COALESCE(:NEW.c_tax_id,'.') OR :OLD.priceactual<>:NEW.priceactual OR :OLD.qtyinvoiced<>:NEW.qtyinvoiced) THEN
+        IF(v_rate IS NULL OR v_rate <= 0 ) THEN
+          :NEW.em_ssa_taxpriceactual := :NEW.priceactual;
+        ELSE
+          v_new_tax_priceactual := :NEW.priceactual + round(:NEW.priceactual*v_rate/100, v_priceprecision);
+          IF(:NEW.em_ssa_taxpriceactual IS NULL) THEN
+            :NEW.em_ssa_taxpriceactual := v_new_tax_priceactual;
+          ELSE
+            IF(abs(v_new_tax_priceactual - :NEW.em_ssa_taxpriceactual) > 0.0001) THEN
+              :NEW.em_ssa_taxpriceactual := v_new_tax_priceactual;
+            END IF;
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+END SSA_INVLI_TAXPACTUAL_UPD_TRG
+]]></body>
+    </trigger>
+  </database>

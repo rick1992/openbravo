@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_M_INVENTORY_RECOUNT_TRG">
+    <trigger name="SCO_M_INVENTORY_RECOUNT_TRG" table="M_INVENTORY" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_Count NUMBER:=0;
+  v_surpluswarehouse_id VARCHAR(32);
+  v_missingwarehouse_id VARCHAR(32);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF(:NEW.em_sco_surpluswarehouse_id IS NOT NULL) THEN
+        IF(:NEW.em_sco_surpluslocator_id IS NOT NULL) THEN
+	  SELECT m_warehouse_id
+	    INTO v_surpluswarehouse_id
+	    FROM M_Locator
+	  WHERE M_Locator_ID = :NEW.em_sco_surpluslocator_id;
+
+	  IF(:NEW.em_sco_surpluswarehouse_id <> v_surpluswarehouse_id) THEN
+	     RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSurplusLocator@');
+	  END IF;
+
+	ELSE
+	  RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSurplusLocator@');
+	END IF;
+      ELSE
+	:NEW.em_sco_surpluslocator_id := NULL;
+      END IF;
+
+      IF(:NEW.em_sco_missingwarehouse_id IS NOT NULL) THEN
+        IF(:NEW.em_sco_missinglocator_id IS NOT NULL) THEN
+	  SELECT m_warehouse_id
+	    INTO v_missingwarehouse_id
+	    FROM M_Locator
+	  WHERE M_Locator_ID = :NEW.em_sco_missinglocator_id;
+
+	  IF(:NEW.em_sco_missingwarehouse_id <> v_missingwarehouse_id) THEN
+	     RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidMissingLocator@');
+	  END IF;
+
+	ELSE
+	  RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidMissingLocator@');
+	END IF;
+      ELSE
+	:NEW.em_sco_missinglocator_id := NULL;
+      END IF;
+    ELSE
+	IF(COALESCE(:OLD.em_sco_surpluswarehouse_id,'.')<>COALESCE(:NEW.em_sco_surpluswarehouse_id,'.') OR
+	   COALESCE(:OLD.em_sco_surpluslocator_id,'.')<>COALESCE(:NEW.em_sco_surpluslocator_id,'.')) THEN
+          IF(:NEW.em_sco_surpluswarehouse_id IS NOT NULL) THEN
+            IF(:NEW.em_sco_surpluslocator_id IS NOT NULL) THEN
+	      SELECT m_warehouse_id
+	        INTO v_surpluswarehouse_id
+	        FROM M_Locator
+	      WHERE M_Locator_ID = :NEW.em_sco_surpluslocator_id;
+
+	      IF(:NEW.em_sco_surpluswarehouse_id <> v_surpluswarehouse_id) THEN
+	         RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSurplusLocator@');
+	      END IF;
+
+	    ELSE
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidSurplusLocator@');
+	    END IF;
+          ELSE
+	    :NEW.em_sco_surpluslocator_id := NULL;
+          END IF;
+	END IF;
+
+	IF(COALESCE(:OLD.em_sco_missingwarehouse_id,'.')<>COALESCE(:NEW.em_sco_missingwarehouse_id,'.') OR
+	   COALESCE(:OLD.em_sco_missinglocator_id,'.')<>COALESCE(:NEW.em_sco_missinglocator_id,'.')) THEN
+          IF(:NEW.em_sco_missingwarehouse_id IS NOT NULL) THEN
+            IF(:NEW.em_sco_missinglocator_id IS NOT NULL) THEN
+	      SELECT m_warehouse_id
+	        INTO v_missingwarehouse_id
+	        FROM M_Locator
+	      WHERE M_Locator_ID = :NEW.em_sco_missinglocator_id;
+
+	      IF(:NEW.em_sco_missingwarehouse_id <> v_missingwarehouse_id) THEN
+	         RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidMissingLocator@');
+	      END IF;
+
+	    ELSE
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_RecountInvalidMissingLocator@');
+	    END IF;
+          ELSE
+	    :NEW.em_sco_missinglocator_id := NULL;
+          END IF;
+	END IF;
+    END IF;
+
+    END SCO_M_INVENTORY_RECOUNT_TRG
+]]></body>
+    </trigger>
+  </database>

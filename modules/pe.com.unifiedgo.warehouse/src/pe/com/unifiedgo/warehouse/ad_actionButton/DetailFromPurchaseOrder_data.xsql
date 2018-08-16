@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="DetailFromPurchaseOrderData" package="pe.com.unifiedgo.warehouse.ad_actionButton">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS ad_client_id,  '' AS c_orderline_id, '' AS line, '' AS m_product_id, '' AS value, 
+               '' AS name, '' AS priceactual, '' AS qtyordered, '' AS linenetamt 
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  
+  
+
+  <SqlMethod name="selectOrderDetailInformation" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT l.ad_client_id, l.c_orderline_id , l.line , l.m_product_id,p.value, p.name, l.priceactual, 
+             l.qtyordered , l.linenetamt
+        FROM c_orderline l , m_product p
+       WHERE p.m_product_id = l.m_product_id
+       AND l.c_order_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  
+
+</SqlClass>

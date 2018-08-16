@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_TRANSACT_UPDTRXPDATE_TRG">
+    <trigger name="SCO_TRANSACT_UPDTRXPDATE_TRG" table="M_TRANSACTION" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_DateNull DATE := TO_DATE('01-01-1900', 'DD-MM-YYYY');
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    :NEW.trxprocessdate := :NEW.movementdate; 
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.movementdate,v_DateNull)<>COALESCE(:NEW.movementdate,v_DateNull)) THEN
+      :NEW.trxprocessdate := :NEW.movementdate; 
+    END IF;
+  END IF;
+
+  END SCO_TRANSACT_UPDTRXPDATE_TRG
+]]></body>
+    </trigger>
+  </database>

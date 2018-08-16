@@ -1,0 +1,175 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVLINE_UPDATESP_TRG">
+    <trigger name="SCO_INVLINE_UPDATESP_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_specialtax VARCHAR(60);
+  v_combo_cat_value VARCHAR(40);
+  v_old_combo_cat_value VARCHAR(40);
+  v_combo_item_id VARCHAR(32);
+  v_issotrx VARCHAR(1);
+  v_C_Invoice_ID VARCHAR(32);
+  v_taxmotive_value VARCHAR(40);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING OR UPDATING) THEN
+      v_C_Invoice_ID := :NEW.C_Invoice_ID;
+    ELSE
+      v_C_Invoice_ID := :OLD.C_Invoice_ID;
+    END IF;
+
+    SELECT issotrx
+      INTO v_issotrx
+      FROM C_Invoice
+    WHERE C_Invoice_ID = v_C_Invoice_ID;
+
+    IF(INSERTING) THEN
+      IF(:NEW.c_tax_id IS NOT NULL) THEN
+        SELECT em_sco_specialtax INTO v_specialtax FROM C_Tax WHERE C_Tax_ID = :NEW.c_tax_id;
+        :NEW.em_scr_specialtax := v_specialtax;
+      END IF;
+    ELSE
+      IF(COALESCE(:OLD.c_tax_id,'')<>COALESCE(:NEW.c_tax_id,'')) THEN
+        IF(:NEW.c_tax_id IS NOT NULL) THEN
+          SELECT em_sco_specialtax INTO v_specialtax FROM C_Tax WHERE C_Tax_ID = :NEW.c_tax_id;
+          :NEW.em_scr_specialtax := v_specialtax;
+	ELSE
+	  :NEW.em_scr_specialtax := NULL;
+	END IF;
+      END IF;
+    END IF;
+
+
+    --Put the em_scr_combo_item_id
+    v_combo_cat_value := NULL;
+    IF(INSERTING) THEN
+      IF(:NEW.em_scr_specialtax IS NOT NULL AND :NEW.em_scr_combo_item_id IS NULL) THEN
+        IF(v_issotrx = 'Y') THEN
+          IF(:NEW.em_scr_specialtax = 'SCOEXEMPT') THEN
+            v_combo_cat_value := 'docVentaTaxExcento';
+	  END IF;
+        ELSE
+	  IF(:NEW.em_scr_specialtax = 'SCOEXEMPT') THEN
+            v_combo_cat_value := 'docCompraTaxExcento';
+	  ELSIF(:NEW.em_scr_specialtax = 'SCOIGV') THEN
+            v_combo_cat_value := 'docCompraTaxIGV';
+	  END IF;
+        END IF;
+
+	IF(v_combo_cat_value IS NOT NULL) THEN
+	  SELECT SCR_Combo_Item.SCR_Combo_Item_ID
+	    INTO v_combo_item_id
+	    FROM SCR_Combo_Category, SCR_Combo_Item
+	  WHERE SCR_Combo_Category.SCR_Combo_Category_ID = SCR_Combo_Item.SCR_Combo_Category_ID AND
+	        AD_ISORGINCLUDED(:NEW.AD_Org_ID, SCR_Combo_Category.AD_Org_ID, :NEW.AD_Client_ID)<>-1 AND
+	        SCR_Combo_Category.AD_Client_ID = :NEW.AD_Client_ID AND
+	        SCR_Combo_Category.value = v_combo_cat_value ORDER BY SCR_Combo_Item.seqno LIMIT 1;
+
+	  :NEW.em_scr_combo_item_id := v_combo_item_id;
+	ELSE
+	  :NEW.em_scr_combo_item_id := NULL;
+	END IF;
+
+      END IF;
+    ELSE
+      IF(COALESCE(:OLD.em_scr_specialtax,'')<>COALESCE(:NEW.em_scr_specialtax,'')) THEN
+        IF(:NEW.em_scr_specialtax IS NOT NULL) THEN
+          IF(v_issotrx = 'Y') THEN
+            IF(:NEW.em_scr_specialtax = 'SCOEXEMPT') THEN
+              v_combo_cat_value := 'docVentaTaxExcento';
+	    END IF;
+          ELSE
+	    IF(:NEW.em_scr_specialtax = 'SCOEXEMPT') THEN
+              v_combo_cat_value := 'docCompraTaxExcento';
+	    ELSIF(:NEW.em_scr_specialtax = 'SCOIGV') THEN
+              v_combo_cat_value := 'docCompraTaxIGV';
+	    END IF;
+          END IF;
+
+	  IF(v_combo_cat_value IS NOT NULL) THEN
+
+	    IF(:NEW.em_scr_combo_item_id IS NOT NULL) THEN
+	      SELECT SCR_Combo_Category.value
+                INTO v_old_combo_cat_value
+                FROM SCR_Combo_Item, SCR_Combo_Category
+              WHERE SCR_Combo_Item.SCR_Combo_Category_ID = SCR_Combo_Category.SCR_Combo_Category_ID AND
+                    SCR_Combo_Item_ID = :NEW.em_scr_combo_item_id;
+	    ELSE
+	      v_old_combo_cat_value := NULL;
+            END IF;
+
+	    IF(v_old_combo_cat_value IS NULL OR (v_old_combo_cat_value <> v_combo_cat_value)) THEN     
+
+	      SELECT SCR_Combo_Item.SCR_Combo_Item_ID
+	        INTO v_combo_item_id
+	        FROM SCR_Combo_Category, SCR_Combo_Item
+	      WHERE SCR_Combo_Category.SCR_Combo_Category_ID = SCR_Combo_Item.SCR_Combo_Category_ID AND
+	            AD_ISORGINCLUDED(:NEW.AD_Org_ID, SCR_Combo_Category.AD_Org_ID, :NEW.AD_Client_ID)<>-1 AND
+	            SCR_Combo_Category.AD_Client_ID = :NEW.AD_Client_ID AND
+	            SCR_Combo_Category.value = v_combo_cat_value ORDER BY SCR_Combo_Item.seqno LIMIT 1;
+
+	      :NEW.em_scr_combo_item_id := v_combo_item_id;
+	    END IF;
+	  ELSE
+	    :NEW.em_scr_combo_item_id := NULL;
+	  END IF;
+	ELSE
+	  :NEW.em_scr_combo_item_id := NULL;
+        END IF;
+      END IF;
+    END IF;
+
+
+    --Update em_scr_taxmotivecmbi_value
+    IF(INSERTING) THEN
+      SELECT value
+        INTO v_taxmotive_value
+        FROM SCR_Combo_Item
+      WHERE SCR_Combo_Item_ID = :NEW.em_scr_combo_item_id;
+      :NEW.em_scr_taxmotivecmbi_value := v_taxmotive_value;
+
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.em_scr_combo_item_id,'.')<>COALESCE(:NEW.em_scr_combo_item_id,'.')) THEN
+        SELECT value
+          INTO v_taxmotive_value
+          FROM SCR_Combo_Item
+        WHERE SCR_Combo_Item_ID = :NEW.em_scr_combo_item_id;
+        :NEW.em_scr_taxmotivecmbi_value := v_taxmotive_value;
+      END IF;
+    END IF;
+
+    --No Emitidas Tax Motive Eval
+    IF(INSERTING) THEN
+      IF(:NEW.em_scr_taxmotivecmbi_value = 'PCTE-No-Emitido') THEN
+	:NEW.priceactual := 0;
+	:NEW.linenetamt := 0;
+	:NEW.taxbaseamt :=0;
+	:NEW.line_gross_amount := 0;
+	:NEW.gross_unit_price := 0;
+	:NEW.pricestd := 0;
+	:NEW.taxamt := 0;
+      ELSE
+        :NEW.em_sco_unissuedlinenetamt := 0;
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.em_scr_taxmotivecmbi_value,'.')<>COALESCE(:NEW.em_scr_taxmotivecmbi_value,'.')) THEN
+        IF(:NEW.em_scr_taxmotivecmbi_value = 'PCTE-No-Emitido') THEN
+	  :NEW.priceactual := 0;
+	  :NEW.linenetamt := 0;
+	  :NEW.taxbaseamt :=0;
+	  :NEW.line_gross_amount := 0;
+	  :NEW.gross_unit_price := 0;
+	  :NEW.pricestd := 0;
+	  :NEW.taxamt := 0;
+        ELSE
+          :NEW.em_sco_unissuedlinenetamt := 0;
+        END IF;
+      END IF;
+    END IF;
+
+    END SCO_INVLINE_UPDATESP_TRG
+]]></body>
+    </trigger>
+  </database>

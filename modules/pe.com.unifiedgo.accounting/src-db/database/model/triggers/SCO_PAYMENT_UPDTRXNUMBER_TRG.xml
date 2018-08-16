@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_UPDTRXNUMBER_TRG">
+    <trigger name="SCO_PAYMENT_UPDTRXNUMBER_TRG" table="FIN_PAYMENT" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[v_fin_finacc_transaction_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(COALESCE(:OLD.referenceno,'') <> COALESCE(:NEW.referenceno,'') AND :NEW.status IN ('PWNC', 'RDNC')) THEN
+      SELECT fin_finacc_transaction_id
+        INTO v_fin_finacc_transaction_id
+        FROM FIN_Finacc_Transaction
+      WHERE FIN_Payment_ID = :NEW.FIN_Payment_ID;
+
+      IF(v_fin_finacc_transaction_id IS NOT NULL) THEN
+        UPDATE FIN_Finacc_Transaction
+          SET em_sco_trxnumber = :NEW.referenceno
+        WHERE FIN_Finacc_Transaction_ID = v_fin_finacc_transaction_id;
+      END IF;
+
+    END IF;
+
+    END SCO_PAYMENT_UPDTRXNUMBER_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_AREASCHEMA_CHK_RES_TRG">
+    <trigger name="SCO_AREASCHEMA_CHK_RES_TRG" table="SCO_AREASCHEMA" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_qtyfactacct NUMBER;
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF DELETING THEN 
+	select count(fact_acct_id) INTO v_qtyfactacct FROM FACT_ACCT where C_PERIOD_ID = :OLD.C_PERIOD_ID AND EM_SCO_AREA_ID = :OLD.SCO_AREA_ID;
+	IF(v_qtyfactacct>0) THEN 
+	 RAISE NO_DATA_FOUND ;
+	END IF;
+  END IF;
+
+END SCO_AREASCHEMA_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="DocLineBillofExchangeData" package="pe.com.unifiedgo.accounting.posting">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT sco_boe_from.sco_boe_from_ID as boelineid, sco_boe_from.AD_CLIENT_ID, sco_boe_from.AD_ORG_ID AS AD_ORG_ID,
+          sco_boe_from.ISACTIVE, sco_boe_from.sco_billofexchange_id, 
+        sco_boe_from.LINE, sco_boe_from.amount as AMOUNT, C_INVOICE.C_BPARTNER_ID, 
+        sco_boe_from.INVOICEREF_ID, C_INVOICE.C_CURRENCY_ID, sco_boe_from.SCO_PREPAYMENT_ID,
+        'Y' as isfrom FROM sco_boe_from INNER JOIN C_INVOICE ON sco_boe_from.INVOICEREF_ID = C_INVOICE.C_INVOICE_ID 
+        INNER JOIN sco_billofexchange ON sco_boe_from.sco_billofexchange_id = sco_billofexchange.sco_billofexchange_id
+        WHERE sco_boe_from.sco_billofexchange_id = ?
+        UNION ALL
+        SELECT sco_boe_from.sco_boe_from_ID as boelineid, sco_boe_from.AD_CLIENT_ID, sco_boe_from.AD_ORG_ID AS AD_ORG_ID,
+          sco_boe_from.ISACTIVE, sco_boe_from.sco_billofexchange_id, 
+        sco_boe_from.LINE, sco_boe_from.amount as AMOUNT, SCO_PREPAYMENT.C_BPARTNER_ID, 
+        sco_boe_from.INVOICEREF_ID, SCO_PREPAYMENT.C_CURRENCY_ID, sco_boe_from.SCO_PREPAYMENT_ID,
+        'Y' as isfrom FROM sco_boe_from INNER JOIN SCO_PREPAYMENT ON sco_boe_from.SCO_PREPAYMENT_ID = SCO_PREPAYMENT.SCO_PREPAYMENT_ID 
+        INNER JOIN sco_billofexchange ON sco_boe_from.sco_billofexchange_id = sco_billofexchange.sco_billofexchange_id
+        WHERE sco_boe_from.sco_billofexchange_id = ?
+        UNION ALL
+        SELECT sco_boe_to.sco_boe_to_ID as boelineid, sco_boe_to.AD_CLIENT_ID, sco_boe_to.AD_ORG_ID AS AD_ORG_ID,
+          sco_boe_to.ISACTIVE, sco_boe_to.sco_billofexchange_id, 
+        sco_boe_to.LINE, C_INVOICE.grandtotal as AMOUNT, C_INVOICE.C_BPARTNER_ID, 
+        sco_boe_to.C_INVOICE_ID as INVOICEREF_ID, C_INVOICE.C_CURRENCY_ID, NULL AS SCO_PREPAYMENT_ID,
+        'N' as isfrom FROM sco_boe_to INNER JOIN C_INVOICE ON sco_boe_to.c_invoice_id = C_INVOICE.C_INVOICE_ID 
+        INNER JOIN sco_billofexchange ON sco_boe_to.sco_billofexchange_id = sco_billofexchange.sco_billofexchange_id
+        WHERE sco_boe_to.sco_billofexchange_id = ?
+        ORDER BY LINE
+     ]]>
+     </Sql>
+     <Parameter name="sco_billofexchange_Id"/>
+     <Parameter name="sco_billofexchange_Id"/>
+     <Parameter name="sco_billofexchange_Id"/>
+   </SqlMethod>
+  <SqlMethod name="selectTotal" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT sco_boe_from.sco_boe_from_ID as boelineid, sco_boe_from.AD_CLIENT_ID, sco_boe_from.AD_ORG_ID AS AD_ORG_ID,
+          sco_boe_from.ISACTIVE, sco_boe_from.sco_billofexchange_id, 
+        sco_boe_from.LINE, sco_boe_from.amount as AMOUNT, C_INVOICE.C_BPARTNER_ID, 
+        sco_boe_from.INVOICEREF_ID, C_INVOICE.C_CURRENCY_ID, sco_boe_from.SCO_PREPAYMENT_ID,
+        'Y' as isfrom FROM sco_boe_from INNER JOIN C_INVOICE ON sco_boe_from.INVOICEREF_ID = C_INVOICE.C_INVOICE_ID 
+        INNER JOIN sco_billofexchange ON sco_boe_from.sco_billofexchange_id = sco_billofexchange.sco_billofexchange_id
+        WHERE sco_boe_from.sco_billofexchange_id = ?
+        UNION ALL
+        SELECT sco_boe_from.sco_boe_from_ID as boelineid, sco_boe_from.AD_CLIENT_ID, sco_boe_from.AD_ORG_ID AS AD_ORG_ID,
+          sco_boe_from.ISACTIVE, sco_boe_from.sco_billofexchange_id, 
+        sco_boe_from.LINE, sco_boe_from.amount as AMOUNT, SCO_PREPAYMENT.C_BPARTNER_ID, 
+        sco_boe_from.INVOICEREF_ID, SCO_PREPAYMENT.C_CURRENCY_ID,sco_boe_from.SCO_PREPAYMENT_ID,
+        'Y' as isfrom FROM sco_boe_from INNER JOIN SCO_PREPAYMENT ON sco_boe_from.SCO_PREPAYMENT_ID = SCO_PREPAYMENT.SCO_PREPAYMENT_ID 
+        INNER JOIN sco_billofexchange ON sco_boe_from.sco_billofexchange_id = sco_billofexchange.sco_billofexchange_id
+        WHERE sco_boe_from.sco_billofexchange_id = ?
+        UNION ALL
+        SELECT sco_boe_to.sco_boe_to_ID as boelineid, sco_boe_to.AD_CLIENT_ID, sco_boe_to.AD_ORG_ID AS AD_ORG_ID,
+          sco_boe_to.ISACTIVE, sco_boe_to.sco_billofexchange_id, 
+        sco_boe_to.LINE, C_INVOICE.grandtotal as AMOUNT, C_INVOICE.C_BPARTNER_ID, 
+        sco_boe_to.C_INVOICE_ID as INVOICEREF_ID, C_INVOICE.C_CURRENCY_ID, NULL AS SCO_PREPAYMENT_ID,
+        'N' as isfrom FROM sco_boe_to INNER JOIN C_INVOICE ON sco_boe_to.c_invoice_id = C_INVOICE.C_INVOICE_ID 
+        INNER JOIN sco_billofexchange ON sco_boe_to.sco_billofexchange_id = sco_billofexchange.sco_billofexchange_id
+        WHERE sco_boe_to.sco_billofexchange_id = ?
+        ORDER BY LINE
+     ]]>
+     </Sql>
+     <Parameter name="sco_billofexchange_Id"/>
+     <Parameter name="sco_billofexchange_Id"/>
+     <Parameter name="sco_billofexchange_Id"/>
+   </SqlMethod>
+   
+  </SqlClass>

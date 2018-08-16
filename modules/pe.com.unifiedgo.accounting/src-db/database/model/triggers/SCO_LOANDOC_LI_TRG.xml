@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_LOANDOC_LI_TRG">
+    <trigger name="SCO_LOANDOC_LI_TRG" table="SCO_LOANDOC_LINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_SCO_Loan_Doc_ID  VARCHAR2(32);
+  v_newboeamt NUMBER;
+  v_oldboeamt NUMBER;
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_SCO_Loan_Doc_ID:=:NEW.SCO_Loan_Doc_ID;
+  ELSE
+    v_SCO_Loan_Doc_ID:=:OLD.SCO_Loan_Doc_ID;
+  END IF;
+
+  IF (INSERTING OR UPDATING) THEN
+
+    --Update Header Totalamount Value
+    IF(INSERTING) THEN
+      UPDATE SCO_Loan_Doc SET totalamount = totalamount + :NEW.amount
+    WHERE SCO_Loan_Doc_ID = :NEW.SCO_Loan_Doc_ID;
+    ELSE 
+      UPDATE SCO_Loan_Doc SET totalamount = (totalamount + :NEW.amount - :OLD.amount)
+    WHERE SCO_Loan_Doc_ID = :NEW.SCO_Loan_Doc_ID;
+    END IF;
+
+  END IF;
+
+
+  IF(DELETING) THEN
+
+    --Update Header Totalamount Value
+    UPDATE SCO_Loan_Doc SET totalamount = totalamount - :OLD.amount
+    WHERE SCO_Loan_Doc_ID = :OLD.SCO_Loan_Doc_ID;
+  END IF;
+
+  END SCO_LOANDOC_LI_TRG
+]]></body>
+    </trigger>
+  </database>

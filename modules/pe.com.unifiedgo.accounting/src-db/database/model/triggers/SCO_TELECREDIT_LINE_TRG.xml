@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_TELECREDIT_LINE_TRG">
+    <trigger name="SCO_TELECREDIT_LINE_TRG" table="SCO_TELECREDIT_LINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_SCO_Telecredit_ID  VARCHAR2(32);
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_SCO_Telecredit_ID:=:NEW.SCO_Telecredit_ID;
+  ELSE
+    v_SCO_Telecredit_ID:=:OLD.SCO_Telecredit_ID;
+  END IF;
+
+  IF (INSERTING OR UPDATING) THEN
+    --Update Header Totalamount Value
+    IF(INSERTING) THEN
+      UPDATE SCO_Telecredit SET totalamount = totalamount + :NEW.amount
+    WHERE SCO_Telecredit_ID = :NEW.SCO_Telecredit_ID;
+    ELSE
+      IF(COALESCE(:OLD.amount, '0') <> COALESCE(:NEW.amount, '0')) THEN
+          UPDATE SCO_Telecredit SET totalamount = (totalamount + :NEW.amount - :OLD.amount)
+        WHERE SCO_Telecredit_ID = :NEW.SCO_Telecredit_ID;
+      END IF;
+    END IF;
+
+
+  END IF;
+
+  IF(DELETING) THEN
+    --Update Header Totalamount Value
+      UPDATE SCO_Telecredit SET totalamount = totalamount - :OLD.amount
+    WHERE SCO_Telecredit_ID = :OLD.SCO_Telecredit_ID;
+  END IF;
+
+  END SCO_TELECREDIT_LINE_TRG
+]]></body>
+    </trigger>
+  </database>

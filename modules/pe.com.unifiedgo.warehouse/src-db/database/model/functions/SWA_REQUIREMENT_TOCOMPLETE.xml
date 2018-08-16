@@ -1,0 +1,288 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_REQUIREMENT_TOCOMPLETE">
+    <function name="SWA_REQUIREMENT_TOCOMPLETE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  countLines NUMBER:=0; -- Success
+  v_partner_id VARCHAR2(32);
+  v_from_warehouse VARCHAR2(32);
+  v_doctype_id VARCHAR2(32);
+  v_to_warehouse VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+  v_ware_ad_org_id VARCHAR2(32);
+  v_ad_client_id VARCHAR2(32);
+  v_m_reservation_id VARCHAR2(32);
+  v_warehouse_sample_id VARCHAR2(32);
+  v_c_uom_id VARCHAR2(32);
+  v_em_swa_organization_child_id VARCHAR2(32);
+  v_name_product VARCHAR2(100); 
+  v_repositiontrx CHAR;
+  v_swa_requirement_request_id VARCHAR2(32);
+  v_specialdoctype VARCHAR2(32);
+  v_reservation_id VARCHAR2(32);
+  
+
+-- Record Info
+  Cur_Parameter VARCHAR%ROWTYPE; --OBTG:VARCHAR2--
+  Cur_Details RECORD;
+  v_orderApprovedState VARCHAR2(32);
+  v_aux NUMBER:=0;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+   /**
+    * Approve Sales Orders
+    * Sales Order Column: c_order.em_ssa_disc_evaluation_status
+    * c_order.em_ssa_disc_evaluation_status States:
+    *   - DR: Requirement Book
+    *   - CO: Requirement Completed
+    *   - CL: Requirement Closed
+    */
+ 
+
+    SELECT ad_client_id,ad_org_id,c_doctype_id,status,c_bpartner_id, from_m_warehouse_id , to_m_warehouse_id, repositiontrx, swa_requirement_request_id
+      INTO v_ad_client_id,v_ad_org_id,v_doctype_id ,v_orderApprovedState, v_partner_id, v_from_warehouse , v_to_warehouse , v_repositiontrx, v_swa_requirement_request_id
+    FROM swa_requerimientoreposicion
+    WHERE swa_requerimientoreposicion_id=v_Record_ID for update;
+
+
+   SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DOCTYPE WHERE C_DOCTYPE_ID = v_doctype_id;
+    
+   IF (v_partner_id IS NULL) THEN --Validación para cualquier swa_requirementreposition
+        RAISE_APPLICATION_ERROR(-20000,'@swa_not_have_employee@');
+   END IF;
+
+
+   --Validacion lineas repetidas con el mismo producto
+   IF(v_specialdoctype IN ('SWAREPOSITION','SWAREQUESTSAMPE','SWAREQUESTSERVICE','SWAREPOSITIONDIRECT'))THEN
+      FOR Cur_Details IN (
+                      SELECT count(*), p.value || ' ' || p.name as info FROM swa_requerepo_detail rd
+                       INNER JOIN M_PRODUCT p ON rd.m_product_id = p.m_product_id
+                       WHERE rd.swa_requerimientoreposicion_id = v_Record_ID
+                       GROUP BY rd.M_PRODUCT_ID, p.value, p.name
+                       HAVING count(*)>1
+                      )
+      LOOP
+         RAISE_APPLICATION_ERROR(-20000,'@swa_request_repeat_product@' || ' - ' ||COALESCE(Cur_Details.info,'-'));
+       END LOOP;
+   END IF;
+
+
+ --Validacion para Muestras
+  IF(v_orderApprovedState='DR' AND v_specialdoctype='SWAREQUESTSAMPE')THEN
+
+     IF(v_to_warehouse IS NULL)THEN
+               --Si la muestra no tiene seleccionada un almacèn de Muestras, entonces debemos de insertar uno tipo MT
+         SELECT M_WAREHOUSE_id 
+           INTO v_warehouse_sample_id
+           FROM M_WAREHOUSE 
+          WHERE em_swa_warehousetype = 'MU'
+            AND isactive='Y'
+            AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_ad_client_id) <> -1 limit 1;
+
+         IF(v_warehouse_sample_id IS NULL)THEN
+             RAISE_APPLICATION_ERROR(-20000,'@swa_nowarehousetosample@');
+         END IF;
+
+         UPDATE swa_requerimientoreposicion
+	    SET to_m_warehouse_id=v_warehouse_sample_id
+ 	  WHERE swa_requerimientoreposicion_id =v_Record_ID;
+     END IF;
+  
+     UPDATE swa_requerimientoreposicion
+	       SET status='PD'
+	     WHERE swa_requerimientoreposicion_id =v_Record_ID;
+
+     v_Message := '@swa_samplerequestmustbeapproved@' || v_Message;       
+     v_Result := 2;
+     AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+     RETURN;
+  END IF;
+
+  IF(v_orderApprovedState='DR' AND v_specialdoctype='SWAREQUESTSERVICE')THEN
+
+     IF(v_to_warehouse IS NULL)THEN
+               --Si la muestra no tiene seleccionada un almacèn de Muestras, entonces debemos de insertar uno tipo MT
+         SELECT M_WAREHOUSE_id 
+           INTO v_warehouse_sample_id
+           FROM M_WAREHOUSE 
+          WHERE em_swa_warehousetype = 'SRV'
+            AND isactive='Y'
+            AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_ad_client_id) <> -1 
+           order by created 
+            limit 1;
+
+         IF(v_warehouse_sample_id IS NULL)THEN
+             RAISE_APPLICATION_ERROR(-20000,'@swa_nowarehousetoservice@');
+         END IF;
+
+         UPDATE swa_requerimientoreposicion
+	    SET to_m_warehouse_id=v_warehouse_sample_id
+ 	  WHERE swa_requerimientoreposicion_id =v_Record_ID;
+     END IF;
+  
+  END IF;
+
+
+
+  
+ 
+ /*
+    em_sco_specialdoctype = 'SWAREPOSITION' Orden de Transferencia                repositiontrx N
+    em_sco_specialdoctype = 'SWAREQUESTREPOSITION' Solicitud de Transferencia     repositiontrx N
+    em_sco_specialdoctype = 'SWAREQUESTSAMPE' Orden de Muestra 
+    em_sco_specialdoctype = 'SWAREQUESTSERVICE' Orden de Servicio
+    em_sco_specialdoctype = 'SWAREPOSITIONIN' Recepcion de Transferencia          repositiontrx Y
+    em_sco_specialdoctype = 'SWARETURNREQUESTSAMPLE' Retorno de Muestras          repositiontrx Y
+    
+ */
+
+  
+  IF(v_from_warehouse IS NOT NULL)THEN
+          SELECT ad_org_id 
+	    INTO v_ware_ad_org_id 
+	    FROM m_warehouse 
+	   WHERE m_warehouse_id =v_from_warehouse;
+	   
+	  IF(AD_ISORGINCLUDED(v_ad_org_id, v_ware_ad_org_id, v_ad_client_id)=-1)THEN
+	   RAISE_APPLICATION_ERROR(-20000,'@swa_from_warehouse_nopermit@');
+	  END IF;
+  END IF;
+
+  IF(v_to_warehouse IS NOT NULL)THEN
+     SELECT ad_org_id , em_swa_organization_child_id
+       INTO v_ware_ad_org_id , v_em_swa_organization_child_id
+       FROM m_warehouse 
+      WHERE m_warehouse_id =v_to_warehouse;
+   
+     IF(AD_ISORGINCLUDED(v_ad_org_id, v_ware_ad_org_id , v_ad_client_id)=-1)THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_to_warehouse_nopermit@');
+     END IF;
+
+     IF(v_em_swa_organization_child_id IS NULL AND v_specialdoctype = 'SWAREQUESTREPOSITION')THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_warehouse_not_orgchild@');
+     END IF;
+ END IF;
+
+    
+
+   IF (COALESCE(v_from_warehouse,'-') = COALESCE(v_to_warehouse,'-')) THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_reposition_equal_warehouses@');
+   END IF;
+
+   SELECT count(swa_requerepo_detail_id) INTO countLines FROM swa_requerepo_detail WHERE swa_requerimientoreposicion_id = v_Record_ID;
+   IF(countLines =0) THEN
+     RAISE_APPLICATION_ERROR(-20000,'@swa_repositionhasnotLines@') ;
+   END IF;
+ 
+
+   
+   --Validacion si Existe una Solicitud Relacionada
+   --Si se completa una Orden de Transferencia Teniendo lineas asociadas de una solicitud de transferencia
+   --Entonces se deberan actualizar las cantidades confirmadas y los estados de las lineas
+   IF(v_swa_requirement_request_id IS NOT NULL)THEN  --
+      FOR Cur_Details IN (
+        SELECT qtyordered , requerepo_from_line_id
+          FROM swa_requerepo_detail 
+         WHERE swa_requerimientoreposicion_id =v_Record_ID
+          AND requerepo_from_line_id IS NOT NULL)
+      LOOP
+         IF(Cur_Details.requerepo_from_line_id IS NOT NULL)THEN
+            UPDATE swa_requerepo_detail
+               SET qtyconfirm = Cur_Details.qtyordered,
+                    status = 'CO'
+           WHERE swa_requerepo_detail_id = Cur_Details.requerepo_from_line_id;
+         END IF;
+      END LOOP;
+   END IF;
+   ---End Validacion de Solicitud Relacionada
+   
+
+
+    /*Creando Reserva. Esto cuando se registra la transferencia
+    v_specialdoctype = SWAREPOSITION - ENVIO DE TRANSFERENCIA  - SE HACE RESERVA
+    */
+    --(FIXED)FIXME_ENERO TODO LO DE ABAJO ESTA COMENTADO NO QUIERO QUE RESERVE POR AHORA ESTO SE DEBE DESCOMENTAR DE ENERO 
+    IF(v_specialdoctype IN ('SWAREPOSITION','SWAREQUESTSAMPE','SWAREQUESTSERVICE','SWAREPOSITIONDIRECT') AND v_orderApprovedState IN ('DR','PD'))THEN  --Solo La Orden de Transferencia, Muestras y Servicio podrá hacer reservas al registrarse
+	    FOR Cur_Parameter IN(
+	      SELECT *
+	       FROM swa_requerepo_detail 
+	      WHERE swa_requerimientoreposicion_id = v_Record_ID
+	        AND qtyordered > 0
+	    ) 
+	    LOOP
+	       IF (Cur_Parameter.qtyordered <= 0) THEN
+		RAISE_APPLICATION_ERROR(-20000,'@swa_repositionqtyinvalid@') ;
+	       END IF;
+
+	      --get UOM_ID
+	       SELECT c_uom_id,name INTO v_c_uom_id, v_name_product FROM m_product WHERE m_product_id =Cur_Parameter.m_product_id;
+
+	       IF(v_c_uom_id IS NULL)THEN
+		    RAISE_APPLICATION_ERROR(-20000,'@swa_notuom_forproduct@' || ' - ' || v_name_product) ;
+	       END IF;
+	      -- 
+
+	       v_m_reservation_id:=get_uuid();
+	     --Creando reserva para la transferencia
+	       INSERT INTO M_RESERVATION(
+		m_reservation_id, ad_client_id,ad_org_id,isactive,
+		created,createdby,updated,updatedby,
+		m_product_id,quantity,c_uom_id,em_swa_requerepo_detail_id,
+		res_status,res_process,m_warehouse_id
+	       )
+	       VALUES (
+		v_m_reservation_id,Cur_Parameter.ad_client_id, Cur_Parameter.ad_org_id,'Y',
+		now(),Cur_Parameter.createdby, now(), Cur_Parameter.createdby,
+		Cur_Parameter.m_product_id, Cur_Parameter.qtyordered, v_c_uom_id, Cur_Parameter.swa_requerepo_detail_id,
+		'DR','PR',v_from_warehouse
+	       );
+
+
+	       M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',Cur_Parameter.createdby) ;
+		 
+	    END LOOP;
+   END IF;--END RESERVAS
+
+
+  
+   UPDATE swa_requerimientoreposicion 
+    SET status='CO'
+    WHERE swa_requerimientoreposicion_id=v_Record_ID;
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_REQUIREMENT_TOCOMPLETE
+]]></body>
+    </function>
+  </database>

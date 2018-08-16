@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2014 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<REPORT>
+  <template file="ReportResumenVentas.html"/>
+  <PARAMETER id="paramToolBar" name="toolbar" default=""/>
+  <PARAMETER id="fieldCalendar" name="calendar" attribute="src" replace="es" default="en"/>
+  <PARAMETER id="paramDirectory" name="directory" default=""/>
+  <PARAMETER id="paramLanguage" name="paramLanguage" default=""/>
+  <PARAMETER id="paramDocDate" name="docDate" attribute="value"/>
+    <PARAMETER id="paramDocDate" name="docDatedisplayFormat" attribute="displayformat" replace="xx"/>
+    <PARAMETER id="paramDocDate" name="docDatesaveFormat" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramProyDate" name="proyDate" attribute="value"/>
+    <PARAMETER id="paramProyDate" name="proyDatedisplayFormat" attribute="displayformat" replace="xx"/>
+    <PARAMETER id="paramProyDate" name="proyDatesaveFormat" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramBPartnerId" name="paramBPartnerId" attribute="value"/>
+  <PARAMETER id="paramBPartnerDescription" name="paramBPartnerDescription" attribute="value"/>     
+  <PARAMETER id="paramGroupId" name="groupId" default="0"/>
+  <PARAMETER id="paramCSS" name="theme" attribute="href" replace="Default"/>
+  <PARAMETER id="tdleftTabs" name="leftTabs" default=""/>
+  <PARAMETER id="paramParentTabContainer" name="parentTabContainer" default=" "/>
+  <PARAMETER id="paramMainTabContainer" name="mainTabContainer" default=" "/>
+  <PARAMETER id="paramChildTabContainer" name="childTabContainer" default=" "/>
+  <PARAMETER id="tdtopButtons" name="navigationBar" default=""/>
+  <PARAMETER id="messageBoxID" name="messageType" attribute="class" replace="yy" default="HIDDEN"/>
+  <PARAMETER id="messageBoxIDTitle" name="messageTitle" default=""/>
+  <PARAMETER id="messageBoxIDMessage" name="messageMessage" default=""/>
+  <PARAMETER id="inpRecord" name="paramRecord" attribute="value" default=""/>
+  <PARAMETER id="inpTable" name="paramTable" attribute="value" default=""/>
+  <PARAMETER id="fieldCheck" name="check" default="Y"/>
+ 
+  <PARAMETER id="paramOrgId" name="OrgId" attribute="value"/>
+  <PARAMETER id="paramOrgDescription" name="OrgDescription" attribute="value"/>    
+        
+  <PARAMETER id="FIN_Paymentmethod_ID" name="paymentMethod" attribute="value"/>
+  <PARAMETER id="FIN_Paymentmethod_Desc" name="paymentMethodDescription" attribute="value"/>    
+  
+  <PARAMETER id="C_Paymentterm_ID" name="paymentTerm" attribute="value"/>
+  <PARAMETER id="C_Paymentterm_Desc" name="paymentTermDescription" attribute="value"/>    
+  
+  <PARAMETER id="paramInvoiceDocNo" name="InvoiceDocNo" attribute="value"/>
+  <PARAMETER id="paramShipmentDocNo" name="ShipmentDocNo" attribute="value"/>
+  <PARAMETER id="paramOCClientDocNo" name="OCClientDocNo" attribute="value"/>
+
+  <PARAMETER id="paramFirstLoad" name="FirstLoad"/>
+
+  <PARAMETER id="param2" name="param2" default="2"/>
+  <PARAMETER id="secTable" name="secTable" default=""/>
+   
+  <structure name="structure1">
+
+    <FIELD id="fieldRownum1">rownum</FIELD>
+    <FUNCTION id="funcEvenOddRow1xx" name="MODULE" arg1="fieldRownum1" arg2="param2" format="integerEdition" attribute="class" replace="yy"/>
+    <FIELD id="fieldIdentifier" attribute="onclick" replace="xx">identifier</FIELD>
+    <FIELD id="fieldIdentifier" attribute="onclick" replace="yy">dateacct</FIELD>
+    <FIELD id="fieldDateacct">dateacct</FIELD>
+    <FIELD id="fieldDateacct" attribute="style" replace="xx">newstyle</FIELD>
+    <FIELD id="fieldName" replaceCharacters="html">name</FIELD>
+    <FIELD id="fieldValue" replaceCharacters="html">value</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="xx">id</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="yy">adTableId</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="zz">docbasetype</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="ww">tabId</FIELD>
+    <FUNCTION id="functionOrderJournal" name="ORDER" attribute="value">identifier</FUNCTION>
+    <SECTION id="sectionDateAcct" field="dateacct"/>
+    <SECTION id="sectionJournal" field="identifier"/>
+    <SECTION id="sectionDetail"/>
+
+  </structure>
+  <DISCARD id="discard"/>
+</REPORT>

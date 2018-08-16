@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ProductAvgMonthlySalesExcel" pageWidth="1271" pageHeight="595" orientation="Landscape" whenNoDataType="NoDataSection" columnWidth="1211" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="1.126972201352368"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCDATE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="MONTH2" class="java.lang.String"/>
+	<parameter name="MONTH3" class="java.lang.String"/>
+	<parameter name="MONTH4" class="java.lang.String"/>
+	<parameter name="MONTH5" class="java.lang.String"/>
+	<parameter name="MONTH6" class="java.lang.String"/>
+	<parameter name="MONTH7" class="java.lang.String"/>
+	<parameter name="MONTH8" class="java.lang.String"/>
+	<parameter name="MONTH9" class="java.lang.String"/>
+	<parameter name="MONTH10" class="java.lang.String"/>
+	<parameter name="MONTH11" class="java.lang.String"/>
+	<parameter name="MONTH12" class="java.lang.String"/>
+	<parameter name="NUMMONTHS" class="java.lang.String"/>
+	<parameter name="MONTH1" class="java.lang.String"/>
+	<field name="searchkey" class="java.lang.String"/>
+	<field name="name" class="java.lang.String"/>
+	<field name="avgmonthlysales2" class="java.lang.String"/>
+	<field name="avgmonthlysales3" class="java.lang.String"/>
+	<field name="avgmonthlysales4" class="java.lang.String"/>
+	<field name="internalcode" class="java.lang.String"/>
+	<field name="avgmonthlysales5" class="java.lang.String"/>
+	<field name="avgmonthlysales6" class="java.lang.String"/>
+	<field name="avgmonthlysales7" class="java.lang.String"/>
+	<field name="avgmonthlysales8" class="java.lang.String"/>
+	<field name="avgmonthlysales9" class="java.lang.String"/>
+	<field name="avgmonthlysales10" class="java.lang.String"/>
+	<field name="avgmonthlysales11" class="java.lang.String"/>
+	<field name="avgmonthlysales12" class="java.lang.String"/>
+	<field name="avgmonthlysales1" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band splitType="Stretch"/>
+	</title>
+	<pageHeader>
+		<band height="121" splitType="Stretch">
+			<staticText>
+				<reportElement key="staticText-2" style="Detail_Header" x="0" y="95" width="61" height="25"/>
+				<box leftPadding="2"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="DejaVu Sans" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Cod.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-17" style="Report_Footer" x="0" y="-1" width="312" height="25"/>
+				<textElement>
+					<font fontName="DejaVu Sans"/>
+				</textElement>
+				<text><![CDATA[Reporte de Consumo de Compras por Producto]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-18" style="Detail_Header" x="122" y="95" width="190" height="25"/>
+				<box leftPadding="2"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="DejaVu Sans" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Producto]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="121" y="43" width="69" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{DOCDATE}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="1" y="43" width="117" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<text><![CDATA[Fecha del Documento:]]></text>
+			</staticText>
+			<textField>
+				<reportElement mode="Opaque" x="386" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH2}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="461" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH3}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="536" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH4}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement key="staticText-2" style="Detail_Header" x="61" y="95" width="61" height="25"/>
+				<box leftPadding="2"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="DejaVu Sans" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Cod. Interno]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="121" y="67" width="69" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMMONTHS}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="1" y="67" width="117" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<text><![CDATA[Meses:]]></text>
+			</staticText>
+			<textField>
+				<reportElement mode="Opaque" x="611" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH5}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="686" y="95" width="75" height="26" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH6}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="761" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH7}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="836" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH8}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="911" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH9}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="986" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH10}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="1061" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH11}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="1136" y="95" width="75" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH12}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="312" y="95" width="74" height="25" forecolor="#FFFFFF" backcolor="#5D5D5D"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8" isStrikeThrough="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{MONTH1}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band splitType="Stretch"/>
+	</columnHeader>
+	<detail>
+		<band height="25" splitType="Stretch">
+			<textField>
+				<reportElement x="1" y="0" width="60" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{searchkey}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="122" y="0" width="190" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{name}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="386" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales2}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="461" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales3}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="536" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8" isItalic="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales4}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="61" y="0" width="61" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{internalcode}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="611" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales5}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="686" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales6}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="761" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales7}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="836" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales8}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="911" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales9}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="986" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales10}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="1061" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales11}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="1136" y="0" width="75" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales12}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="312" y="0" width="74" height="20"/>
+				<textElement>
+					<font fontName="DejaVu Sans" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{avgmonthlysales1}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+	<lastPageFooter>
+		<band height="40" splitType="Stretch"/>
+	</lastPageFooter>
+	<summary>
+		<band splitType="Stretch"/>
+	</summary>
+</jasperReport>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    *************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html 
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License. 
+    * The Original Code is Openbravo ERP. 
+    * The Initial Developer of the Original Code is Openbravo SLU 
+    * All portions are Copyright (C) 2009 Openbravo SLU 
+    * All Rights Reserved. 
+    * Contributor(s):  ______________________________________.
+    ************************************************************************
+-->
+
+<SqlClass name="PrintControllerData" package="org.openbravo.erpCommon.utility.reporting.printing">
+    <SqlClassComment></SqlClassComment>
+    
+    <SqlMethod name="selectInvoices" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            SELECT C_Invoice_ID as ID
+            FROM C_Invoice
+            WHERE C_Invoice_ID IN ('1')
+            ORDER BY DocumentNo ASC
+            ]]>
+        </Sql>
+        <Parameter name="Id" optional="true" type="replace" after="WHERE C_Invoice_ID IN (" text="'1'"/>
+    </SqlMethod>
+    
+    <SqlMethod name="selectOrders" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            SELECT C_Order_ID as ID
+            FROM C_Order
+            WHERE C_Order_ID IN ('1')
+            ORDER BY DocumentNo ASC
+            ]]>
+        </Sql>
+        <Parameter name="Id" optional="true" type="replace" after="WHERE C_Order_ID IN (" text="'1'"/>
+    </SqlMethod>
+    
+    <SqlMethod name="selectPayments" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            SELECT fin_payment_id as ID
+            FROM fin_payment
+            WHERE fin_payment_id IN ('1')
+            ORDER BY documentno ASC
+            ]]>
+        </Sql>
+        <Parameter name="Id" optional="true" type="replace" after="WHERE fin_payment_id IN (" text="'1'"/>
+    </SqlMethod>
+    
+   <SqlMethod name="updatePicking_UserPicker" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE obwpl_pickinglist SET em_swa_user_pickero = ? WHERE obwpl_pickinglist_id = ?
+    ]]></Sql>
+    <Parameter name="aduserId"/>
+    <Parameter name="pickinglistId"/>
+   </SqlMethod>
+    
+   <SqlMethod name="updateInvoice_PhysicalDocNo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE c_invoice SET em_scr_physical_documentno = ? WHERE c_invoice_id = ?
+    ]]></Sql>
+    <Parameter name="physicaldocno"/>
+    <Parameter name="cInvoiceId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="updateInOut_PhysicalDocNo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE m_inout SET em_scr_physical_documentno = ? WHERE m_inout_id = ?
+    ]]></Sql>
+    <Parameter name="physicaldocno"/>
+    <Parameter name="mInOutId"/>
+   </SqlMethod>   
+   
+   <SqlMethod name="updateOrderPrintInfo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE c_order SET isprinted='Y', dateprinted=NOW() WHERE c_order_id = ?
+    ]]></Sql>
+    <Parameter name="cOrderId"/>
+   </SqlMethod>
+      
+   <SqlMethod name="updateInvoicePrintInfo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE c_invoice SET isprinted='Y', dateprinted=NOW() WHERE c_invoice_id = ?
+    ]]></Sql>
+    <Parameter name="cInvoiceId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="updateInOutPrintInfo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE m_inout SET isprinted='Y', dateprinted=NOW() WHERE m_inout_id = ?
+    ]]></Sql>
+    <Parameter name="minoutId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="updatePickingListPrintInfo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE OBWPL_pickinglist SET em_spl_isprinted='Y', dateprinted=NOW() WHERE OBWPL_pickinglist_id = ?
+    ]]></Sql>
+    <Parameter name="OBWPLpickinglistId"/>
+   </SqlMethod>
+       
+   <SqlMethod name="updateOrderImportPrintInfo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE sim_orderimport SET dateprinted=NOW() WHERE sim_orderimport_id = ?
+    ]]></Sql>
+    <Parameter name="simorderimportId"/>
+   </SqlMethod>      
+   
+   <SqlMethod name="updateTransferInOutPrintInfo" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE SCO_Transferinout SET isprinted='Y', dateprinted=NOW() WHERE SCO_Transferinout_id = ?
+    ]]></Sql>
+    <Parameter name="SCOTransferinoutId"/>
+   </SqlMethod> 
+       
+</SqlClass>

@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYDET_UPDATESPDOC_TRG">
+    <trigger name="SCO_PAYDET_UPDATESPDOC_TRG" table="FIN_PAYMENT_DETAIL" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialdoctypep VARCHAR(60);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    SELECT em_sco_specialdoctype , em_sco_specialdoctypeplus
+      INTO v_specialdoctype, v_specialdoctypep
+      FROM FIN_Payment 
+    WHERE FIN_Payment_ID = :NEW.fin_payment_id;
+
+    :NEW.em_sco_specialdoctype := v_specialdoctype;
+    :NEW.em_sco_specialdoctypeplus := v_specialdoctypep;
+
+    END SCO_PAYDET_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

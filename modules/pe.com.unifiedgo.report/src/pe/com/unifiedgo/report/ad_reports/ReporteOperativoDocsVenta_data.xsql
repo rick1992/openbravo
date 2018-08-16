@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2017 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteOperativoDocsVentaData" package="pe.com.unifiedgo.report.ad_reports">
+    <SqlClassComment></SqlClassComment>
+    
+    <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select '' as rownum, '' as c_invoice_id, '' as numfactura, '' as c_costcenter_id, 
+                '' as costcenter, '' as importe, '' as tercero, '' as terceroid, '' as moneda, '' as feccontable, 
+                '' as fecfacturacion, '' as proyecto, '' as tipopoid, '' as tipopo, '' as saldoactual, 
+                
+                '' as ssa_project_property_id , '' as projectname, '' as projectstatus, '' as type, 
+                '' as propertyname, '' as number, '' as cursymbol, '' as price, '' as totalarea, '' as roofedtarea, 
+                '' as notbuiltarea, '' as status, '' as orgname, '' as socialname, '' as orgruc, '' as headerprojectname, 
+                '' as headerprojectlocation, '' as headerprojectstatus from dual
+            ]]>
+        </Sql>
+    </SqlMethod>
+    
+    <SqlMethod name="selectData" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select inv.c_invoice_id, 
+				inv.em_scr_physical_documentno as numfactura, 
+				coalesce(c2.c_costcenter_id, c1.c_costcenter_id, '') as c_costcenter_id, 
+				coalesce(c2.name, c1.name, '') as costcenter, 
+				sum(lin.linenetamt + coalesce((select l.taxamt from c_invoicelinetax l 
+					where l.c_invoiceline_id = lin.c_invoiceline_id and l.c_tax_id = 'B07308F5E28C4D9CB2CB906375CE8C3E'), 0.0)) as importe, 
+				coalesce(bp.taxid, '') || ' - ' || coalesce(bp.name, '') as tercero, 
+				cur.iso_code as moneda, 
+				inv.dateacct as feccontable,
+				inv.EM_Sco_Newdateinvoiced as fecfacturacion, 
+				coalesce(prj.name, '') as proyecto, 
+				coalesce(ite.scr_combo_item_id, '') as tipopoid, 
+				coalesce(ite.name, '') as tipopo, 
+				inv.c_bpartner_id as terceroid, 
+				coalesce(inv.totalpaid, 0.0) as saldoactual 
+				
+				from c_invoice inv 
+				join c_bpartner bp on inv.c_bpartner_id = bp.c_bpartner_id 
+				join c_currency cur on inv.c_currency_id = cur.c_currency_id
+				
+				left join c_project prj on inv.c_project_id = prj.c_project_id 
+				left join c_costcenter c1 on prj.em_spr_costcenter_id = c1.c_costcenter_id
+				
+				join c_invoiceline lin on inv.c_invoice_id = lin.c_invoice_id 
+				left join c_costcenter c2 on lin.c_costcenter_id = c2.c_costcenter_id
+				
+				left join scr_combo_item ite on inv.em_sco_podoctype_comboitem_id = ite.scr_combo_item_id
+				
+				where ad_isorgincluded(inv.ad_org_id, ?, inv.ad_client_id)<>-1 
+				and inv.issotrx = 'Y' 
+				and trunc(inv.created) between trunc(to_date(?)) and trunc(to_date(?)) 
+				and inv.posted not in ('sco_M') 
+				and 1=1 
+				and 2=2 and 3=3 
+				group by 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14 
+				order by 8, 2, 4 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+        <Parameter name="datefrom" />        
+        <Parameter name="dateto" />
+        <Parameter name="doctype" optional="true" after="1=1"><![CDATA[and ite.scr_combo_item_id = ?]]></Parameter>
+    	<Parameter name="costcenterid" optional="true" after="1=1"><![CDATA[ and coalesce(c2.c_costcenter_id, c1.c_costcenter_id) = ?]]></Parameter>
+    	<Parameter name="bpartnerid" optional="true" after="1=1"><![CDATA[ and inv.c_bpartner_id = ?]]></Parameter>
+    	
+    	<Parameter name="docsfilter" type="replace" optional="true" after=" 2=2 and " text="3=3" />
+    	
+    </SqlMethod>
+    
+    <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select name as orgname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select social_name as socialname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectRuc" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select taxid as orgruc from ad_orginfo where ad_org_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectProjectName" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select name as headerprojectname from c_project where c_project_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="cProjectId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectProjectLocation" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select address1 as headerprojectlocation from c_project p 
+                left join c_location l on p.c_location_id = l.c_location_id 
+				where p.c_project_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="cProjectId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectProjectStatus" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            	select (select coalesce(t.name, l.name) from ad_ref_list l
+            	left join ad_ref_list_trl t on l.ad_ref_list_id = t.ad_ref_list_id and t.ad_language = 'es_PE'
+            	where l.ad_reference_id = '800002' and l.value = p.Projectstatus limit 1) as headerprojectstatus from c_project p 
+            	where p.c_project_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="cProjectId" />
+    </SqlMethod>
+    
+    <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+    
+</SqlClass>

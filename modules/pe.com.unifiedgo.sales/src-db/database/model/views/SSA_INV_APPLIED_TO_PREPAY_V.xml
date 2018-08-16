@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SSA_INV_APPLIED_TO_PREPAY_V">
+    <view name="SSA_INV_APPLIED_TO_PREPAY_V"><![CDATA[SELECT il.c_invoiceline_id AS ssa_inv_applied_to_prepay_v_id, inv.ad_client_id, inv.ad_org_id, inv.isactive, inv.created, inv.createdby, inv.updated, inv.updatedby, inv.c_invoice_id, inv.em_scr_physical_documentno, inv.documentno, inv.grandtotal, abs(il.linenetamt) AS inv_amt_applied, abs(il.em_ssa_prepayment_amt_applied) AS prepay_amt_applied, il.em_sco_invoiceline_prepay_id, inv.c_currency_id, inv.c_doctypetarget_id, (SELECT c_invoiceline.c_invoice_id FROM c_invoiceline WHERE c_invoiceline.c_invoiceline_id = il.em_sco_invoiceline_prepay_id) AS prepayment_id FROM c_invoiceline il, c_invoice inv WHERE il.c_invoice_id = inv.c_invoice_id AND inv.em_ssa_useprepaymentinline = 'Y' AND il.em_ssa_isprepayment_inline = 'Y' AND il.em_sco_invoiceline_prepay_id IS NOT NULL AND il.isactive = 'Y']]></view>
+  </database>

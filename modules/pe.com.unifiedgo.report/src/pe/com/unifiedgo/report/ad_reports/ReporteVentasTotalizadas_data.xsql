@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteVentasTotalizadasData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_cotizaciones_sinpedidos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+		select 
+		
+		co.ad_org_id as orgid 
+		,'' as orgidpadre
+		,au.ad_user_id as vendedor_id
+		,au.name as vendedor_nombre
+		,co.c_order_id as orden_id
+		,co.documentno as num_documento
+		,co.c_bpartner_id as tercero_id
+		,cbp.taxid || ' - '|| cbp.name as tercero
+		,cc.cursymbol as moneda
+		,co.dateacct as fecha_presupuesto
+		,co.validuntil as fecha_validez
+		,mwh.value|| ' - '|| mwh.name  as almacen
+		,fpm.name as metodo_pago
+		,cpt.name as condicion_pago
+		,co.grandtotal as monto
+		,co.description as descripcion
+		
+		FROM c_order co
+		left join c_bpartner cbp on co.c_bpartner_id=cbp.c_bpartner_id
+		left join m_warehouse mwh on co.m_warehouse_id=mwh.m_warehouse_id
+		left JOIN c_currency cc on co.c_currency_id=cc.c_currency_id
+		left join fin_paymentmethod fpm on co.fin_paymentmethod_id=fpm.fin_paymentmethod_id
+		left join c_paymentterm cpt on co.c_paymentterm_id=cpt.c_paymentterm_id
+		left join ad_user au on co.salesrep_id=au.ad_user_id
+				
+		where co.docstatus='UE' and 
+
+		co.ad_client_id IN ('1') 
+		and co.ad_org_id in ('1') 
+		AND 1=1
+		AND 2=2
+		ORDER BY co.dateacct  
+       
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="co.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and co.ad_org_id in (" text="'1'"/>      
+        <Parameter name="bpartnerid" optional="true" after="AND 1=1"> AND co.c_bpartner_id = ? </Parameter>
+        <Parameter name="vendorid" optional="true" after="AND 1=1"> AND co.salesrep_id = ? </Parameter>
+    <Parameter name="parDateFrom" optional="true" after="2=2"><![CDATA[ AND co.dateacct >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="2=2"><![CDATA[ AND co.dateacct < TO_DATE(?)]]></Parameter>
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="select_vendedores" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    		    		select (SELECT ao2.ad_org_id FROM ad_org ao2 where ao2.social_name=ao.social_name and ao2.ad_orgtype_id='1') as orgidpadre,
+		
+		 cbp.ad_org_id as orgid,au.ad_user_id as vendedor_id,au.name  as vendedor_nombre from c_bpartner cbp
+		
+				inner join ad_user au on cbp.c_bpartner_id=au.c_bpartner_id
+				LEFT  join ad_org ao on cbp.ad_org_id=ao.ad_org_id
+				
+				where cbp.issalesrep='Y' and cbp.isemployee='Y'
+		
+		 and cbp.ad_client_id IN ('1') 
+				
+				order by 1,2,4
+    
+ 
+
+       
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="cbp.ad_client_id IN (" text="'1'"/>
+
+  </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="selectCBpartner" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        		SELECT c_bpartner.NAME as tercero
+				FROM c_bpartner
+				  WHERE c_bpartner.c_bpartner_id = ?
+      ]]></Sql>
+    <Parameter name="cbPartnerId"/>
+  </SqlMethod>   
+  
+
+  
+  
+    <SqlMethod name="selectPrdcProductgroup" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        
+            SELECT PRDC_PRODUCTGROUP.VALUE || ' - ' || PRDC_PRODUCTGROUP.DESCRIPTION AS NAME 
+                 FROM PRDC_PRODUCTGROUP
+            
+                WHERE PRDC_PRODUCTGROUP.PRDC_PRODUCTGROUP_ID = ?
+      ]]></Sql>
+    <Parameter name="idlineaproducto"/>
+  </SqlMethod>   
+  
+  
+  
+  
+    
+    <SqlMethod name="selectMproduct" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        
+           SELECT M_PRODUCT.VALUE || ' - ' || M_PRODUCT.NAME AS NAME
+      FROM M_PRODUCT
+     WHERE M_PRODUCT.M_PRODUCT_ID = ?
+     
+      ]]></Sql>
+    <Parameter name="idproducto"/>
+  </SqlMethod>   
+  
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

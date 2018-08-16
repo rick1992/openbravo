@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="LDMPickingList_ugo" pageWidth="595" pageHeight="842" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SUBREP_LDMPickingList_lines_ugo" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["http://localhost/openbravo"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[select coalesce(mp.name,'') as "NOMBRE",
+mp.documentno as "NUMERO",
+coalesce(', '||case trim(mp.description) when '' then null else mp.description end,'') as "DES",
+(select value from scr_combo_item where scr_combo_item_id = mp.em_swa_combo_item_id) as "TIPO",
+coalesce((select name from m_warehouse mw where mw.m_warehouse_id=mp.em_swa_m_warehouse_id),'') as "ALMACEN",
+
+mp.movementdate fecha_movimiento,
+org.ad_org_id as "ORG_ID",
+coalesce(org.name,'') as "ORG",
+coalesce(inf.taxid,'') as "RUC"
+
+FROM m_production mp,
+ad_org org join ad_orgtype typ using (ad_orgtype_id)
+left join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+where AD_ISORGINCLUDED(mp.ad_org_id, org.ad_org_id, mp.ad_client_id)<>-1
+and(typ.IsLegalEntity='Y' or typ.IsAcctLegalEntity='Y')
+and mp.isactive = 'Y'
+and m_production_id = $P{DOCUMENT_ID}]]>
+	</queryString>
+	<field name="NOMBRE" class="java.lang.String"/>
+	<field name="NUMERO" class="java.lang.String"/>
+	<field name="DES" class="java.lang.String"/>
+	<field name="TIPO" class="java.lang.String"/>
+	<field name="ALMACEN" class="java.lang.String"/>
+	<field name="fecha_movimiento" class="java.sql.Timestamp"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<title>
+		<band height="153" splitType="Stretch">
+			<textField>
+				<reportElement x="30" y="20" width="296" height="20"/>
+				<textElement verticalAlignment="Middle">
+					<font size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ORG}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="465" y="20" width="33" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha:]]></text>
+			</staticText>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="498" y="20" width="67" height="15">
+					<printWhenExpression><![CDATA[$F{fecha_movimiento}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{fecha_movimiento}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="30" y="39" width="156" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["RUC: "+$F{RUC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="7" y="59" width="580" height="40"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="18" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["PICKING LIST PARA "+$F{TIPO}.toUpperCase()+" NRO: "+$F{NUMERO}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="18" y="116" width="70" height="15"/>
+				<textElement>
+					<font fontName="SansSerif"/>
+				</textElement>
+				<text><![CDATA[Descripción:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="85" y="116" width="450" height="15"/>
+				<textElement/>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NOMBRE}+$F{DES}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<detail>
+		<band height="17" splitType="Stretch">
+			<subreport isUsingCache="true">
+				<reportElement x="0" y="3" width="595" height="14"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LANGUAGE">
+					<subreportParameterExpression><![CDATA[$P{LANGUAGE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PRODUCTION_ID">
+					<subreportParameterExpression><![CDATA[$P{DOCUMENT_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_LDMPickingList_lines_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="7" splitType="Stretch"/>
+	</pageFooter>
+</jasperReport>

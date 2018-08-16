@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="ReportLibroInventariosYBalance31Data" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+   <SqlMethod name="select_cabecera" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+   
+		
+		select ple.sco_ple31_val_id as cuo, COALESCE(ple.c_bpartner_id,'') as c_bpartner_id, COALESCE(ple.denominacion,'') as denominacion,
+		COALESCE(ple.valornomunit , 0) as valornomunit, COALESCE(cantidad,0) as cantidad, COALESCE(ple.costototal,0) as costototal,
+		COALESCE(ple.provisiontotal,0) as provisiontotal, COALESCE(ple.totalneto,0) as totalneto, cbi.code as codigotitulo
+		 
+		,'' as idanio
+		,'' as idorganizacion
+		,'' as anio
+		,'' as codigo_documento,'' as tercero, '' as ruc
+		 
+		 from sco_ple31_val ple 
+		inner join scr_combo_item cbi on ple.titletype_comboitem_id = cbi.scr_combo_item_id
+		inner join c_period cp on ple.c_period_id=cp.c_period_id
+		inner join c_year cy on cp.c_year_id=cy.c_year_id
+		where 
+		ple.ad_org_id in ('1') 
+		 and ple.ad_client_id in ('1')
+		 and cy.year = ?
+
+
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="ple.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient" type="replace" optional="true" after="ple.ad_client_id in (" text="'1'"/>
+    <Parameter name="anio" />
+    
+  </SqlMethod>
+  
+
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT b.taxid ruc 
+        FROM ad_org a 
+        LEFT JOIN c_bpartner b ON a.em_swa_c_bpartner_id=b.c_bpartner_id
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod> 
+  
+     <SqlMethod name="selectRUC" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TAXID
+        FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+
+  
+  
+        <SqlMethod name="select_anios" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cy.c_year_id as idanio,
+	cy.year as anio
+	   
+	FROM c_year cy
+	INNER   join ad_org ao on cy.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where cy.isactive='Y'
+	ORDER BY 1,cy.year  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+        <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+   </SqlMethod>    
+</SqlClass>

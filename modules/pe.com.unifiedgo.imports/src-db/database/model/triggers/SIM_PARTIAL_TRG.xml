@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_PARTIAL_TRG">
+    <trigger name="SIM_PARTIAL_TRG" table="C_ORDER" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+    
+    TYPE RECORD IS REF CURSOR;
+    Cur_Discounts RECORD;
+    CUR_partial_in_folio RECORD;
+    V_RequiresDescription CHAR(1);
+    v_folio_id VARCHAR2(32);
+    v_peso NUMBER;
+    v_volumen NUMBER;
+    v_num_bultos NUMBER;
+    v_peso_tmp NUMBER;
+    v_volumen_tmp NUMBER;
+    v_num_cajas_tmp NUMBER;
+    
+        
+BEGIN
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+    
+IF(UPDATING) THEN
+
+
+	IF(:OLD.em_sim_is_in_folio='N' AND :NEW.em_sim_is_in_folio='Y')THEN 
+	   v_folio_id:= :NEW.em_sim_folioimport_id;
+	ELSIF(:OLD.em_sim_is_in_folio='Y' AND :NEW.em_sim_is_in_folio='N')THEN
+	   v_folio_id:= :OLD.em_sim_folioimport_id;
+	ELSIF(:OLD.em_sim_is_in_folio='Y' AND :NEW.em_sim_is_in_folio='Y')THEN
+	   v_folio_id:= :OLD.em_sim_folioimport_id;
+	END IF;
+
+
+
+     IF(v_folio_id IS NOT NULL)THEN
+
+
+        --Se debe Actualizar las cantidades(Peso Volumen Bultos) en el Folio Cuando
+        --1. Se inserta un Parcial a un Folio por primera vez, esto ocurre cuando OLD.em_sim_is_in_folio='N' AND NEW.em_sim_is_in_folio='Y'
+
+        IF(:OLD.em_sim_is_in_folio='N' AND :NEW.em_sim_is_in_folio='Y')THEN
+
+          SELECT COALESCE(sum(em_sim_peso_parcial),0),COALESCE(sum(em_sim_volumen_parcial),0),COALESCE(sum(em_sim_num_bultos_parcial),0)
+	    INTO v_peso_tmp, v_volumen_tmp,v_num_cajas_tmp 
+	    FROM C_ORDER 
+	   WHERE em_sim_is_in_folio='Y'
+	     AND em_sim_is_import='Y'
+	     AND em_sim_folioimport_id = v_folio_id;
+
+
+   BEGIN
+            UPDATE sim_folioimport 
+	       SET total_peso = v_peso_tmp,
+		   total_cubicaje = v_volumen_tmp,
+	   	   total_num_cajas = v_num_cajas_tmp
+	     WHERE sim_folioimport_id = v_folio_id; 
+	     
+  EXCEPTION
+   WHEN OTHERS THEN
+    RAISE;
+   END ;
+   
+
+        ELSIF(:OLD.em_sim_is_in_folio='Y' AND :NEW.em_sim_is_in_folio='Y') THEN
+       --2. Se actualiza las cantidades (Peso Volumne Bultos) en el parcial ya teniendo asignado un Folio
+
+            SELECT COALESCE(sum(em_sim_peso_parcial),0),COALESCE(sum(em_sim_volumen_parcial),0),COALESCE(sum(em_sim_num_bultos_parcial),0)
+	      INTO v_peso_tmp, v_volumen_tmp,v_num_cajas_tmp 
+	      FROM C_ORDER 
+	     WHERE em_sim_is_in_folio='Y'
+	       AND em_sim_is_import='Y'
+	       AND em_sim_folioimport_id = v_folio_id;
+
+	       IF(:OLD.em_sim_peso_parcial <> :NEW.em_sim_peso_parcial OR
+	          :OLD.em_sim_volumen_parcial <> :NEW.em_sim_volumen_parcial OR
+	          :OLD.em_sim_num_bultos_parcial <> :NEW.em_sim_num_bultos_parcial)THEN
+
+
+
+		    UPDATE sim_folioimport 
+		       SET total_peso = v_peso_tmp,
+			   total_cubicaje = v_volumen_tmp,
+			   total_num_cajas = v_num_cajas_tmp
+		     WHERE sim_folioimport_id = v_folio_id;
+	      END IF;
+       
+        END IF;
+     END IF;  --END FOLIO IS NOT NULL  
+END IF;
+
+  
+END SIM_PARTIAL_TRG
+]]></body>
+    </trigger>
+  </database>

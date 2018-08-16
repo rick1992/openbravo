@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2013 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="TrackingNationalPurchaseInfoData" package="pe.com.unifiedgo.warehouse.ad_reports">
+  <SqlClassComment>Class TrackingNationalPurchaseInfoData</SqlClassComment>
+  <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS ORDERID, '' AS CLIENTID, '' AS ORGID, '' AS ORGNAME, 
+           '' AS DATEORDERED,'' AS PARTNERID, '' AS PARTNERNAME, '' AS CURSYMBOL,
+           '' AS DOCUMENTNO, '' AS QTYORDERED, '' AS QTYRECEIVED, '' AS QTYDIFFERENCE,
+           '' AS ORDERLINEID, '' AS PRODUCTID, '' AS PRODUCTCODE ,'' AS PRODUCTNAME, '' AS UOMNAME,
+           '' AS PRICEACTUAL, '' AS ORDERREFERENCE, '' AS TOTALAMOUNT, '' AS QTYCLOSE,
+           '' AS RECEIPTDOCNO, '' AS MOVEMENTNAME, '' AS MOVEMENTDATE, '' AS PHYSICALINVDOCNO,
+           '' AS DATEINVOICED, '' AS ISPAID, '' AS INVOICEDATEDUE, '' AS ISSERVICEORDER , '' AS PRODUCTIONDOCNO
+           ,'' AS QTYORDERED2, '' AS QTYRECEIVED2, '' AS QTYDIFFERENCE2,'' AS QTYORDERED3
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  <SqlMethod name="selectDataLevel1OnlyPending" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		
+		SELECT o.c_order_id as ORDERID,
+		       o.ad_client_id as CLIENTID,
+		       o.ad_org_id as ORGID,
+		       org.name as ORGNAME, 
+		       o.dateordered as DATEORDERED, 
+		       o.c_bpartner_id AS PARTNERID, 
+		       cbp.name as PARTNERNAME, 
+		       cur.cursymbol AS CURSYMBOL,
+		       o.documentno AS DOCUMENTNO,
+		       CASE WHEN o.em_ssa_isserviceorder = 'Y' THEN 'SI' ELSE 'NO' END AS ISSERVICEORDER,
+		       ROUND(COALESCE(sum(ol.qtyordered),0),2) AS QTYORDERED, 
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN
+		                 ROUND(0,2) 
+		            ELSE ROUND(COALESCE(sum(ol.qtyreserved),0)*-1,2) END AS QTYRECEIVED, 
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN
+		                 ROUND(COALESCE(sum(ol.qtyordered),0),2) 
+		            ELSE ROUND(COALESCE(sum(ol.qtyordered),0) + COALESCE(sum(ol.qtyreserved),0),2) END AS QTYDIFFERENCE,
+		       ROUND(COALESCE(o.grandtotal,0),2) AS TOTALAMOUNT,
+		       CASE WHEN o.docstatus='CL' THEN  COALESCE(sum(ol.qtyreserved),0)*-1 ELSE 0 END AS QTYCLOSE
+  		FROM C_ORDER o
+		  INNER JOIN AD_ORG org ON o.ad_org_id = org.ad_org_id
+		  INNER JOIN C_BPARTNER cbp ON o.c_bpartner_id = cbp.c_bpartner_id
+		  INNER JOIN C_ORDERLINE ol ON o.c_order_id=ol.c_order_id
+		  INNER JOIN C_CURRENCY cur ON o.c_currency_id = cur.c_currency_id
+		  INNER JOIN C_DOCTYPE dt ON o.c_doctype_id = dt.c_doctype_id
+		 WHERE o.docstatus IN ('CO','CL') 
+		  AND o.ISSOTRX='N'
+		  AND dt.em_sco_specialdoctype = 'SREPURCHASEORDER'
+		  AND o.ad_client_id = ? 
+	      AND AD_ISORGINCLUDED(o.ad_org_id, ?, ?) > -1 
+	      AND o.dateordered between ? AND ?
+		  AND 1=1
+		  GROUP BY o.c_order_id, o.ad_client_id, o.ad_org_id, org.name, o.dateordered, 
+		           o.c_bpartner_id, cbp.name, cur.cursymbol, o.documentno, o.docstatus,
+		           o.grandtotal, o.em_ssa_isserviceorder
+		  
+		  HAVING 
+               ( COALESCE(sum(ol.qtyordered),0) - (COALESCE(0,0) + COALESCE(0,0)) + COALESCE(sum(ol.qtyreserved),0)
+               ) > 0
+		  
+		  ORDER BY o.documentno desc
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strProductId" optional="true" after="AND 1=1"><![CDATA[ AND ol.m_product_id = ?]]></Parameter>
+    <Parameter name="strBPartnerId" optional="true" after="AND 1=1"><![CDATA[ AND o.c_bpartner_id = ?]]></Parameter>
+    <Parameter name="strDocumentNo" optional="true" after="AND 1=1"><![CDATA[ AND lower(o.documentno) = ?]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectDataLevel1" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		
+		SELECT o.c_order_id as ORDERID,
+		       o.ad_client_id as CLIENTID,
+		       o.ad_org_id as ORGID,
+		       org.name as ORGNAME, 
+		       o.dateordered as DATEORDERED, 
+		       o.c_bpartner_id AS PARTNERID, 
+		       cbp.name as PARTNERNAME, 
+		       cur.cursymbol AS CURSYMBOL,
+		       o.documentno AS DOCUMENTNO,
+		       CASE WHEN o.em_ssa_isserviceorder = 'Y' THEN 'SI' ELSE 'NO' END AS ISSERVICEORDER,
+		       ROUND(COALESCE(sum(ol.qtyordered),0),2) AS QTYORDERED, 
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN
+		                 ROUND(0,2) 
+		            ELSE ROUND(COALESCE(sum(ol.qtyreserved),0)*-1,2) END AS QTYRECEIVED, 
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN
+		                 ROUND(COALESCE(sum(ol.qtyordered),0),2) 
+		            ELSE ROUND(COALESCE(sum(ol.qtyordered),0) + COALESCE(sum(ol.qtyreserved),0),2) END AS QTYDIFFERENCE,
+		       ROUND(COALESCE(o.grandtotal,0),2) AS TOTALAMOUNT,
+		       CASE WHEN o.docstatus='CL' THEN  COALESCE(sum(ol.qtyreserved),0)*-1 ELSE 0 END AS QTYCLOSE
+  		FROM C_ORDER o
+		  INNER JOIN AD_ORG org ON o.ad_org_id = org.ad_org_id
+		  INNER JOIN C_BPARTNER cbp ON o.c_bpartner_id = cbp.c_bpartner_id
+		  INNER JOIN C_ORDERLINE ol ON o.c_order_id=ol.c_order_id
+		  INNER JOIN C_CURRENCY cur ON o.c_currency_id = cur.c_currency_id
+		  INNER JOIN C_DOCTYPE dt ON o.c_doctype_id = dt.c_doctype_id
+		 WHERE o.docstatus IN ('CO','CL') 
+		  AND o.ISSOTRX='N'
+		  AND dt.em_sco_specialdoctype = 'SREPURCHASEORDER'
+		  AND o.ad_client_id = ? 
+	      AND AD_ISORGINCLUDED(o.ad_org_id, ?, ?) > -1 
+	      AND o.dateordered between ? AND ?
+		  AND 1=1
+		  GROUP BY o.c_order_id, o.ad_client_id, o.ad_org_id, org.name, o.dateordered, 
+		           o.c_bpartner_id, cbp.name, cur.cursymbol, o.documentno, o.docstatus,
+		           o.grandtotal, o.em_ssa_isserviceorder
+		  ORDER BY o.documentno desc
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strProductId" optional="true" after="AND 1=1"><![CDATA[ AND ol.m_product_id = ?]]></Parameter>
+    <Parameter name="strBPartnerId" optional="true" after="AND 1=1"><![CDATA[ AND o.c_bpartner_id = ?]]></Parameter>
+    <Parameter name="strDocumentNo" optional="true" after="AND 1=1"><![CDATA[ AND lower(o.documentno) = ?]]></Parameter>
+  </SqlMethod>
+  
+  <SqlMethod name="selectDataLevel2" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		
+	    SELECT col.c_orderline_id as ORDERLINEID,
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN prsrv.m_product_id ELSE p.m_product_id END AS PRODUCTID,
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN prsrv.value ELSE p.value END AS PRODUCTCODE,
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN prsrv.name ELSE p.name END as PRODUCTNAME,
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN COALESCE(uomtsrv.name, uomsrv.name)  ELSE COALESCE(uomt.name, uom.name) END AS UOMNAME,
+		       COALESCE(col.qtyordered,0) AS QTYORDERED,
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN
+		                 ROUND(0,2)
+		            ELSE ROUND(COALESCE(sum(iol.movementqty),0),2) END AS QTYRECEIVED,
+		       CASE WHEN o.em_ssa_isserviceorder='Y' THEN
+		                 ROUND(COALESCE(col.qtyordered,0),2)
+		            ELSE ROUND(COALESCE(col.qtyordered,0) - COALESCE(sum(iol.movementqty),0),2) END AS QTYDIFFERENCE,
+		       col.priceactual AS PRICEACTUAL,
+		       col.em_swa_orderline_reference AS ORDERREFERENCE      
+		 FROM C_ORDERLINE col
+		 INNER JOIN C_ORDER o ON col.c_order_id = o.c_order_id
+		 INNER JOIN M_PRODUCT p ON col.m_product_id = p.m_product_id
+		 INNER JOIN C_UOM uom ON col.c_uom_id = uom.c_uom_id
+		 LEFT JOIN C_UOM_TRL uomt ON uom.c_uom_id = uomt.c_uom_id
+		 LEFT JOIN M_INOUTLINE iol ON col.c_orderline_id = iol.c_orderline_id
+		 LEFT JOIN M_INOUT i ON iol.m_inout_id = i.m_inout_id AND i.docstatus='CO' AND i.ISSOTRX='N'
+		 
+		 LEFT JOIN M_PRODUCT prsrv ON col.m_product_id = prsrv.m_product_id
+		 LEFT JOIN C_UOM uomsrv ON col.c_uom_id = uomsrv.c_uom_id
+		 LEFT JOIN C_UOM_TRL uomtsrv ON uomsrv.c_uom_id = uomtsrv.c_uom_id
+		 		 
+		 WHERE col.c_order_id = ?
+		 GROUP BY col.c_orderline_id,col.c_order_id, p.m_product_id,p.value,  p.name, uomt.name,
+		          prsrv.m_product_id, prsrv.value, prsrv.name, uomtsrv.name,uomsrv.name,
+ 		          uom.name, col.qtyordered, col.priceactual, col.em_swa_orderline_reference,
+ 		          o.em_ssa_isserviceorder
+		 
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strOrderId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectDataLevel3" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		
+		
+		SELECT i.DOCUMENTNO AS RECEIPTDOCNO,
+		       cbo.name AS MOVEMENTNAME,
+		       i.movementdate AS MOVEMENTDATE,
+		       iol.movementqty AS QTYORDERED,
+		       iv.em_scr_physical_documentno AS PHYSICALINVDOCNO,
+		       iv.dateinvoiced AS DATEINVOICED,
+		       CASE WHEN COALESCE(iv.ispaid,'N') = 'N' THEN 'NO' ELSE 'SI' END AS ISPAID,
+		       COALESCE(TO_CHAR(iv.em_sco_firstduedate),'---') AS INVOICEDATEDUE
+	  FROM M_INOUTLINE iol
+	  INNER JOIN C_ORDERLINE ol ON iol.c_orderline_id = ol.c_orderline_id
+	  INNER JOIN M_INOUT i ON iol.m_inout_id = i.m_inout_id AND i.docstatus='CO'
+	  INNER JOIN SCR_COMBO_ITEM cbo ON i.em_swa_combo_item_id = cbo.scr_combo_item_id
+	  LEFT JOIN C_INVOICELINE ivl ON iol.m_inoutline_id = ivl.m_inoutline_id
+	  LEFT JOIN C_INVOICE iv ON ivl.c_invoice_id = iv.c_invoice_id AND iv.docstatus ='CO'
+	    WHERE ol.c_orderline_id = ?
+		
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strOrderLineId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectDataLevel3Enhanced" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		
+	SELECT distinct COALESCE(i.DOCUMENTNO, '') AS RECEIPTDOCNO,
+	       '' AS PRODUCTIONDOCNO,
+	       COALESCE(cbo.name, '' ) AS MOVEMENTNAME,
+	       COALESCE(i.movementdate, now()) AS MOVEMENTDATE,
+	       COALESCE(iol.movementqty, 0 ) AS QTYORDERED,
+	       COALESCE(iv.em_scr_physical_documentno, '') AS PHYSICALINVDOCNO,
+	       COALESCE(iv.dateinvoiced,now()) AS DATEINVOICED,
+	       CASE WHEN COALESCE(iv.ispaid,'N') = 'N' THEN 'NO' ELSE 'SI' END AS ISPAID,
+	       COALESCE(TO_CHAR(iv.em_sco_firstduedate) ,'---') AS INVOICEDATEDUE 
+	  FROM C_ORDERLINE col
+		    LEFT JOIN M_INOUTLINE iol ON col.c_orderline_id = iol.c_orderline_id
+		    LEFT JOIN M_INOUT i ON iol.m_inout_id = i.m_inout_id AND i.docstatus='CO'
+		    LEFT JOIN SCR_COMBO_ITEM cbo ON i.em_swa_combo_item_id = cbo.scr_combo_item_id
+		    LEFT JOIN C_INVOICELINE ivl ON iol.m_inoutline_id = ivl.m_inoutline_id
+		    LEFT JOIN C_INVOICE iv ON ivl.c_invoice_id = iv.c_invoice_id AND iv.docstatus ='CO'
+	  WHERE col.c_orderline_id = ?
+	  GROUP BY col.c_orderline_id, i.DOCUMENTNO,  cbo.name, i.movementdate,
+            iol.movementqty, iv.em_scr_physical_documentno,
+            iv.dateinvoiced,iv.ispaid,
+            iv.em_sco_firstduedate 
+		
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strOrderLineId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  
+</SqlClass>

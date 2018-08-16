@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_LOAN_DOC_CHK_REST_TRG">
+    <trigger name="SCO_LOAN_DOC_CHK_REST_TRG" table="SCO_LOAN_DOC" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+v_currency_ID VARCHAR(32);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF(:OLD.Processed='Y' AND :OLD.Docaction <> 'CL'
+          AND(
+               (COALESCE(:OLD.DOCUMENTNO, '.') <> COALESCE(:NEW.DOCUMENTNO, '.'))
+               OR(COALESCE(:OLD.C_DOCTYPE_ID, '0') <> COALESCE(:NEW.C_DOCTYPE_ID, '0'))
+               OR(COALESCE(:OLD.C_DOCTYPETARGET_ID, '0') <> COALESCE(:NEW.C_DOCTYPETARGET_ID, '0'))
+               OR(COALESCE(:OLD.DATEGEN, v_DateNull) <> COALESCE(:NEW.DATEGEN, v_DateNull))
+               OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+               OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	       OR(COALESCE(:old.FIN_Financial_Account_ID, '0') <> COALESCE(:new.FIN_Financial_Account_ID, '0'))
+	       OR(COALESCE(:old.C_BPartner_ID, '0') <> COALESCE(:new.C_BPartner_ID, '0'))
+	       OR(COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:new.C_Currency_ID, '0'))
+	       OR(COALESCE(:old.totalamount, '0') <> COALESCE(:new.totalamount, '0'))
+	       OR(COALESCE(:old.c_bpartner_location_id, '0') <> COALESCE(:new.c_bpartner_location_id, '0'))
+	       OR(COALESCE(:old.m_pricelist_id, '0') <> COALESCE(:new.m_pricelist_id, '0'))
+	       OR(COALESCE(:old.fin_paymentmethod_id, '0') <> COALESCE(:new.fin_paymentmethod_id, '0'))
+
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF(DELETING) THEN
+    IF :OLD.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF :NEW.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  --Verify FinancialAccount - M_Pricelist - Currency Congruency
+  IF(INSERTING) THEN
+    SELECT C_Currency_ID
+      INTO v_currency_ID
+      FROM FIN_Financial_Account
+    WHERE FIN_Financial_Account_ID = :NEW.FIN_Financial_Account_ID;
+
+    IF(v_currency_ID <> :NEW.C_Currency_ID) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_FinancialAccCurrMismatch@') ;
+    END IF;
+
+    SELECT C_Currency_ID
+      INTO v_currency_ID
+      FROM M_Pricelist
+    WHERE M_Pricelist_ID = :NEW.M_Pricelist_ID;
+
+    IF(v_currency_ID <> :NEW.C_Currency_ID) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_PricelistCurrMismatch@') ;
+    END IF;
+
+  ELSIF(UPDATING) THEN
+    IF(:OLD.C_Currency_ID <> :NEW.C_Currency_ID OR :OLD.FIN_Financial_Account_ID <> :NEW.FIN_Financial_Account_ID) THEN
+      SELECT C_Currency_ID
+        INTO v_currency_ID
+        FROM FIN_Financial_Account
+      WHERE FIN_Financial_Account_ID = :NEW.FIN_Financial_Account_ID;
+
+      IF(v_currency_ID <> :NEW.C_Currency_ID) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_FinancialAccCurrMismatch@') ;
+      END IF;
+    END IF;
+
+    IF(:OLD.C_Currency_ID <> :NEW.C_Currency_ID OR :OLD.M_Pricelist_ID <> :NEW.M_Pricelist_ID) THEN
+      SELECT C_Currency_ID
+        INTO v_currency_ID
+        FROM M_Pricelist
+      WHERE M_Pricelist_ID = :NEW.M_Pricelist_ID;
+
+      IF(v_currency_ID <> :NEW.C_Currency_ID) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_PricelistCurrMismatch@') ;
+      END IF;
+    END IF;
+  END IF;
+
+END SCO_LOAN_DOC_CHK_REST_TRG
+]]></body>
+    </trigger>
+  </database>

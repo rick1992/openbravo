@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE FIN_PAYMENT_SCHEDULEDETAIL">
+    <table name="FIN_PAYMENT_SCHEDULEDETAIL" primaryKey="FIN_PAYMENT_SCHEDULEDETAIL_KEY">
+      <column name="EM_SCO_ISRENDCUENTAPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_EXTERNALPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISWITHHOLDINGPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISBOEPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISCOMPENSATIONPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_MATCHEDPMT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DESCRIPTION" primaryKey="false" required="false" type="VARCHAR" size="255" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DETRETAMT" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PREPAYMENT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_EXTERNALPAYDATE" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RENDCUENTAS_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_INTERNAL_DOC_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_INVOICE_GLREF_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PAYOUTPREPAYMENT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PAYOUTRENDCUENTAS_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_EEFF_CASHFLOW_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_EEFF_CASHFLOW" name="EM_SCO_PSCHEDD_EEFFCASHFL_FK">
+        <reference local="EM_SCO_EEFF_CASHFLOW_ID" foreign="SCO_EEFF_CASHFLOW_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_INTERNAL_DOC" name="EM_SCO_PSCHEDD_INTDOC_FK">
+        <reference local="EM_SCO_INTERNAL_DOC_ID" foreign="SCO_INTERNAL_DOC_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_INVOICE" name="EM_SCO_PSCHEDD_INVGLREF_FK">
+        <reference local="EM_SCO_INVOICE_GLREF_ID" foreign="C_INVOICE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_PREPAYMENT" name="EM_SCO_PSCHEDD_POPREPAY_FK">
+        <reference local="EM_SCO_PAYOUTPREPAYMENT_ID" foreign="SCO_PREPAYMENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_RENDICIONCUENTAS" name="EM_SCO_PSCHEDD_PORENDC_FK">
+        <reference local="EM_SCO_PAYOUTRENDCUENTAS_ID" foreign="SCO_RENDICIONCUENTAS_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_PREPAYMENT" name="EM_SCO_PSCHEDD_PREPAY_FK">
+        <reference local="EM_SCO_PREPAYMENT_ID" foreign="SCO_PREPAYMENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_RENDICIONCUENTAS" name="EM_SCO_PSCHEDD_REND_FK">
+        <reference local="EM_SCO_RENDCUENTAS_ID" foreign="SCO_RENDICIONCUENTAS_ID"/>
+      </foreign-key>
+      <index name="EM_SCO_FPSD_DET_GLIVREF" unique="false">
+        <index-column name="EM_SCO_INVOICE_GLREF_ID"/>
+      </index>
+      <check name="EM_SCO_PSCHEDD_BOEP_CHECK"><![CDATA[EM_SCO_ISBOEPAYMENT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PSCHEDD_COMP_CHECK"><![CDATA[EM_SCO_ISCOMPENSATIONPAYMENT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PSCHEDD_EXTP_CHECK"><![CDATA[EM_SCO_EXTERNALPAYMENT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PSCHEDD_MATPMT_CHK"><![CDATA[EM_SCO_MATCHEDPMT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PSCHEDD_REDCUP_CHECK"><![CDATA[EM_SCO_ISRENDCUENTAPAYMENT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PSCHEDD_WIHOP_CHECK"><![CDATA[EM_SCO_ISWITHHOLDINGPAYMENT IN ('Y', 'N')]]></check>
+    </table>
+  </database>

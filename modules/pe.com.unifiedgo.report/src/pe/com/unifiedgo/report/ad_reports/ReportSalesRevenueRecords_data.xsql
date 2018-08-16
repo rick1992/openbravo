@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportSalesRevenueRecordsData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+
+	<SqlMethod name="selectInvoiceSummary" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select coalesce((select cl.city from ad_orginfo aoi 
+				inner join c_location cl on aoi.c_location_id=cl.c_location_id 
+				where aoi.ad_org_id=i.ad_org_id),'') as region, 
+				'' as idorganizacion, 
+				'' as idperiodo, 
+				'' as periodo, 
+				'' as fechainicial, 
+				'' as fechafinal, 
+				'' as estadoop, 
+				'' as newmonth, 
+				'' as fromple8, 
+				0.0 as basemonedaorigen, 
+				0.0 as igvmonedaorigen, 
+				0.0 as baseimponibletccompra, 
+				org.name org,
+				
+				split_part(org.name, '-', 2) as orgzona, 
+				
+				case when i.em_sco_correlnum=0 or i.em_sco_correlnum=null then '--' else to_char(i.em_sco_correlnum) end as nreg, i.dateacct, i.c_invoice_id,i.dateinvoiced fec_emi, coalesce(coalesce(i.em_sco_firstduedate, (select max(duedate) from fin_payment_schedule where c_invoice_id=i.c_invoice_id)),i.dateacct) fec_venc,
+        (CASE  dt.name WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '' end) as tdcomp,
+        i.em_scr_physical_documentno serie, bp.taxid bpdocid,bp.name bpname,    
+        (CASE i.em_sco_isforfree 
+            WHEN 'Y' THEN coalesce(igv.taxbaseamt,0)+coalesce(igv.taxamt,0)
+            ELSE i.grandtotal-COALESCE(perc1.amt,0)-COALESCE(perc2.amt,0)
+         END      
+        )
+        imptotal,
+        (case em_sco_ismanualref when 'N' then rf.dateacct else i.em_sco_manualinvoicerefdate end)refdate,
+        (case em_sco_ismanualref when 'N' then rf.tipodoc else '01' end ) reftdcomp,
+        (case em_sco_ismanualref when 'N' then rf.nroserie else em_sco_manualinvoiceref end ) refseriep,  
+              
+                coalesce(igv.taxamt,0.0) as t_igv,
+                coalesce ((CASE i.em_sco_isforfree
+                WHEN 'Y' THEN igv.taxbaseamt
+                ELSE igv.taxbaseamt END),0.0) as base,
+                
+        i.docstatus,ci.code bptd,'' exon,'' inaf, '' atrib, '' currate, '' taxtotal , '' taxvalue, i.c_currency_id,split_part(i.em_scr_physical_documentno, '-', 1) seriecita
+        
+         ,i.em_sco_invoiceref_id  as idreferencia, i.em_sco_ismanualref as esreferenciamanual,
+
+         (CASE
+      	WHEN i.C_CURRENCY_ID='100' THEN 2
+      	WHEN i.C_CURRENCY_ID='308' THEN 1
+      	ELSE 9
+      	END) AS CURRENCYCODE
+      	
+      	      	,case when i.em_bill_isebill ='N' or  i.em_bill_ebilling_status = 'AT' then '**' 
+      	    when i.em_bill_ebilling_status = 'AR' then '*'
+      		else '' end as estado_factura_electronica,
+      		
+      		split_part(i.em_scr_physical_documentno, '-', 1) as serienumber,
+			split_part(em_scr_physical_documentno, '-', 2) as docnumber, 
+			
+			(case em_sco_ismanualref when 'N' then split_part(rf.nroserie, '-', 1) else split_part(em_sco_manualinvoiceref, '-', 1) 
+			end) as refserienumber, 
+			
+			(case em_sco_ismanualref when 'N' then split_part(rf.nroserie, '-', 2) else split_part(em_sco_manualinvoiceref, '-', 2) 
+			end) as refdocnumber,
+			
+			i.em_sco_regnumber as invoiceregnumber, 
+			'M'|| case when coalesce(i.em_sco_seqno, 0) > 99999 then to_char(i.em_sco_seqno) else coalesce(lpad(to_char(i.em_sco_seqno), 5, '0'), '00000') end
+			as invoiceseqno,
+            COALESCE((select sum(cit.taxamt) from c_invoicetax cit 
+              left join c_tax ct on cit.c_tax_id=ct.c_tax_id
+               where  ct.em_sco_specialtax='SCOIGV' AND ct.isactive='Y' 
+            and i.c_invoice_id=cit.c_invoice_id),0.0) as montoigv 
+            
+                        ,coalesce((select value || ' - ' || name from c_project where c_project_id = i.c_project_id),'') as proyecto
+            ,coalesce(i.description,'') as descripcion_documento
+        FROM c_invoice i 
+       
+        JOIN c_doctype dt on i.c_doctypetarget_id=dt.c_doctype_id 
+        JOIN c_bpartner bp on i.c_bpartner_id=bp.c_bpartner_id        
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt,it.taxbaseamt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE em_sco_specialtax='SCOIGV')  igv on igv.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt amt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE  em_sco_specialtax='SCOSCREDITPERCEPTION') perc1 on perc1.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt amt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE  em_sco_specialtax='SCOSINMEDIATEPERCEPTION') perc2 on perc2.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT i2.c_invoice_id,i2.dateacct,(CASE  dt.name WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '' end) as tipodoc, 
+                    i2.em_scr_physical_documentno nroserie
+                    FROM c_invoice i2 
+                    JOIN c_doctype dt on i2.c_doctype_id=dt.c_doctype_id ) rf on rf.c_invoice_id=i.em_sco_invoiceref_id
+        LEFT JOIN scr_combo_item ci on ci.scr_combo_item_id=bp.em_scr_combo_item_id
+        
+        LEFT JOIN ad_org org ON org.ad_org_id=i.ad_org_id
+        WHERE 
+        i.docstatus IN ('CO' ,'VO')
+        AND dt.name IN ( 'AR Invoice','AR Ticket','AR Credit Memo','AR Debit Memo','Return Material Sales Invoice' )
+        AND i.issotrx='Y'        
+        AND i.AD_CLIENT_ID IN ('1')
+        AND i.AD_ORG_ID IN('1')
+        AND 1=1        
+        ORDER BY org.name,tdcomp,seriecita,fec_emi,i.created
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND i.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND i.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND i.dateacct >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND i.dateacct < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="orgFamily" type="replace" optional="true" after="AND f.AD_ORG_ID IN(" text="'2'"/-->
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+
+
+
+
+
+
+	<SqlMethod name="selectInvoice" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select coalesce((select cl.city from ad_orginfo aoi 
+									inner join c_location cl on aoi.c_location_id=cl.c_location_id 
+									where aoi.ad_org_id=i.ad_org_id),'') as region, 
+				
+				case when i.em_sco_correlnum=0 or i.em_sco_correlnum=null then '--' else to_char(i.em_sco_correlnum) end as nreg, 
+				i.dateacct, i.c_invoice_id, i.dateinvoiced fec_emi, 
+				coalesce(coalesce(i.em_sco_firstduedate, (select max(duedate) from fin_payment_schedule where c_invoice_id=i.c_invoice_id)),i.dateacct) fec_venc, 
+				
+				(case dt.name 
+					when 'AR Invoice' then '01' 
+					when 'AR Ticket' then '03' 
+					when 'AR Credit Memo' then '07' 
+					when 'Return Material Sales Invoice' then '07' 
+					when 'AR Debit Memo' then '08' else '' end) as tdcomp, 
+				
+				i.em_scr_physical_documentno serie, bp.taxid bpdocid,bp.name bpname, 
+				
+				(case i.em_sco_isforfree 
+					WHEN 'Y' THEN coalesce(igv.taxbaseamt,0)+coalesce(igv.taxamt,0) 
+					ELSE i.grandtotal-COALESCE(perc1.amt,0)-COALESCE(perc2.amt,0) END) imptotal, 
+					
+				(case em_sco_ismanualref when 'N' then rf.dateacct else i.em_sco_manualinvoicerefdate end) refdate,
+        (case em_sco_ismanualref when 'N' then rf.tipodoc else '01' end ) reftdcomp,
+        (case em_sco_ismanualref when 'N' then rf.nroserie else em_sco_manualinvoiceref end ) refseriep,
+        
+                coalesce(igv.taxamt,0) as t_igv,
+               coalesce( (CASE i.em_sco_isforfree
+                WHEN 'Y' THEN igv.taxbaseamt
+                ELSE igv.taxbaseamt END),0.0) as base,
+        i.docstatus,ci.code bptd,'' exon,'' inaf, '' atrib, '' currate, '' taxtotal , '' taxvalue, i.c_currency_id,split_part(i.em_scr_physical_documentno, '-', 1) seriecita
+        
+         ,i.em_sco_invoiceref_id  as idreferencia, i.em_sco_ismanualref as esreferenciamanual,   
+
+         (CASE
+      	WHEN i.C_CURRENCY_ID='100' THEN 2
+      	WHEN i.C_CURRENCY_ID='308' THEN 1
+      	ELSE 9
+      	END) AS CURRENCYCODE
+      	
+      	,case when i.em_bill_isebill ='N' or  i.em_bill_ebilling_status = 'AT' then '**' 
+      	    when i.em_bill_ebilling_status = 'AR' then '*'
+      		else '' end as estado_factura_electronica,
+			
+			split_part(i.em_scr_physical_documentno, '-', 1) as serienumber,
+			split_part(em_scr_physical_documentno, '-', 2) as docnumber, 
+			
+			(case em_sco_ismanualref when 'N' then split_part(rf.nroserie, '-', 1) else split_part(em_sco_manualinvoiceref, '-', 1) 
+			end) as refserienumber, 
+			
+			(case em_sco_ismanualref when 'N' then split_part(rf.nroserie, '-', 2) else split_part(em_sco_manualinvoiceref, '-', 2) 
+			end) as refdocnumber,
+			
+			i.em_sco_regnumber as invoiceregnumber, 
+			'M'|| case when coalesce(i.em_sco_seqno, 0) > 99999 then to_char(i.em_sco_seqno) else coalesce(lpad(to_char(i.em_sco_seqno), 5, '0'), '00000') end
+			as invoiceseqno,
+            COALESCE((select sum(cit.taxamt) from c_invoicetax cit 
+              left join c_tax ct on cit.c_tax_id=ct.c_tax_id
+               where  ct.em_sco_specialtax='SCOIGV' AND ct.isactive='Y' 
+            and i.c_invoice_id=cit.c_invoice_id),0.0) as montoigv 
+            ,coalesce((select value || ' - ' || name from c_project where c_project_id = i.c_project_id),'') as proyecto
+            ,coalesce(i.description,'') as descripcion_documento, '' as estadoop, '' as newmonth, '' as fromple8 
+           
+        FROM c_invoice i 
+        JOIN c_doctype dt on i.c_doctypetarget_id=dt.c_doctype_id 
+        JOIN c_bpartner bp on i.c_bpartner_id=bp.c_bpartner_id        
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt,it.taxbaseamt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE em_sco_specialtax='SCOIGV')  igv on igv.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt amt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE  em_sco_specialtax='SCOSCREDITPERCEPTION') perc1 on perc1.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt amt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE  em_sco_specialtax='SCOSINMEDIATEPERCEPTION') perc2 on perc2.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT i2.c_invoice_id,i2.dateacct,(CASE  dt.name WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '' end) as tipodoc, 
+                    i2.em_scr_physical_documentno nroserie
+                    FROM c_invoice i2 
+                    JOIN c_doctype dt on i2.c_doctype_id=dt.c_doctype_id ) rf on rf.c_invoice_id=i.em_sco_invoiceref_id
+        LEFT JOIN scr_combo_item ci on ci.scr_combo_item_id=bp.em_scr_combo_item_id        
+        WHERE 
+        i.docstatus IN ('CO' ,'VO') 
+        AND i.em_scr_physical_documentno<>'000-0000000' 
+        AND dt.name IN ( 'AR Invoice','AR Ticket','AR Credit Memo','AR Debit Memo','Return Material Sales Invoice' )
+        AND i.issotrx='Y'        
+        AND i.AD_CLIENT_ID IN ('1')
+        AND i.AD_ORG_ID IN('1')
+        AND 1=1        
+        
+        UNION
+        
+				select coalesce((select cl.city from ad_orginfo aoi 
+									inner join c_location cl on aoi.c_location_id=cl.c_location_id 
+									where aoi.ad_org_id=i.ad_org_id),'') as region, 
+				
+				case when i.em_sco_correlnum=0 or i.em_sco_correlnum=null then '--' else to_char(i.em_sco_correlnum) end as nreg, 
+				i.dateacct, i.c_invoice_id, i.dateinvoiced fec_emi, 
+				coalesce(coalesce(i.em_sco_firstduedate, (select max(duedate) from fin_payment_schedule where c_invoice_id=i.c_invoice_id)),i.dateacct) fec_venc, 
+				
+				(CASE dt.name 
+					WHEN 'AR Invoice' THEN '01' 
+					WHEN 'AR Ticket' THEN '03' 
+					WHEN 'AR Credit Memo' THEN '07' 
+					WHEN 'Return Material Sales Invoice' THEN '07' 
+					WHEN 'AR Debit Memo' THEN '08' else '' end) as tdcomp, 
+				
+				i.em_scr_physical_documentno serie, bp.taxid bpdocid,bp.name bpname, 
+				
+				(CASE i.em_sco_isforfree 
+					WHEN 'Y' THEN coalesce(igv.taxbaseamt,0)+coalesce(igv.taxamt,0) 
+					ELSE i.grandtotal-COALESCE(perc1.amt,0)-COALESCE(perc2.amt,0) END) imptotal, 
+					
+				(case em_sco_ismanualref when 'N' then rf.dateacct else i.em_sco_manualinvoicerefdate end) refdate,
+        (case em_sco_ismanualref when 'N' then rf.tipodoc else '01' end ) reftdcomp,
+        (case em_sco_ismanualref when 'N' then rf.nroserie else em_sco_manualinvoiceref end ) refseriep,
+        
+                coalesce(igv.taxamt,0) as t_igv,
+               coalesce((CASE i.em_sco_isforfree
+                WHEN 'Y' THEN igv.taxbaseamt
+                ELSE igv.taxbaseamt END),0.0) as base,
+        i.docstatus,ci.code bptd,'' exon,'' inaf, '' atrib, '' currate, '' taxtotal , '' taxvalue, i.c_currency_id, 
+        split_part(i.em_scr_physical_documentno, '-', 1) seriecita, 
+        i.em_sco_invoiceref_id  as idreferencia, i.em_sco_ismanualref as esreferenciamanual,   
+
+         (CASE
+      	WHEN i.C_CURRENCY_ID='100' THEN 2
+      	WHEN i.C_CURRENCY_ID='308' THEN 1
+      	ELSE 9
+      	END) AS CURRENCYCODE, 
+      	case when i.em_bill_isebill ='N' or  i.em_bill_ebilling_status = 'AT' then '**' 
+      	    when i.em_bill_ebilling_status = 'AR' then '*'
+      		else '' end as estado_factura_electronica,
+			
+			split_part(i.em_scr_physical_documentno, '-', 1) as serienumber,
+			split_part(em_scr_physical_documentno, '-', 2) as docnumber, 
+			
+			(case em_sco_ismanualref when 'N' then split_part(rf.nroserie, '-', 1) else split_part(em_sco_manualinvoiceref, '-', 1) 
+			end) as refserienumber, 
+			
+			(case em_sco_ismanualref when 'N' then split_part(rf.nroserie, '-', 2) else split_part(em_sco_manualinvoiceref, '-', 2) 
+			end) as refdocnumber,
+			
+			coalesce(ple8.sco_regnumber, i.em_sco_regnumber) as invoiceregnumber, 
+			'M'|| case when coalesce(ple8.sco_seqno, i.em_sco_seqno, 0) > 99999 then to_char(coalesce(ple8.sco_seqno, i.em_sco_seqno)) 
+				else coalesce(lpad(to_char(coalesce(ple8.sco_seqno, i.em_sco_seqno)), 5, '0'), '00000') end as invoiceseqno,
+            COALESCE((select sum(cit.taxamt) from c_invoicetax cit 
+              left join c_tax ct on cit.c_tax_id=ct.c_tax_id
+               where  ct.em_sco_specialtax='SCOIGV' AND ct.isactive='Y' 
+            and i.c_invoice_id=cit.c_invoice_id),0.0) as montoigv, 
+            coalesce((select value || ' - ' || name from c_project where c_project_id = i.c_project_id),'') as proyecto, 
+            coalesce(i.description,'') as descripcion_documento,
+            
+            ite.code as estadoop, 
+                   to_char(i.dateacct, 'MM') as newmonth, 
+                   to_char('Y') as fromple8 
+           
+        FROM c_invoice i 
+        JOIN c_doctype dt on i.c_doctypetarget_id=dt.c_doctype_id 
+        JOIN c_bpartner bp on i.c_bpartner_id=bp.c_bpartner_id        
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt,it.taxbaseamt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE em_sco_specialtax='SCOIGV')  igv on igv.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt amt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE  em_sco_specialtax='SCOSCREDITPERCEPTION') perc1 on perc1.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT  it.c_invoice_id,it.taxamt amt FROM c_invoicetax it  JOIN c_tax t on it.c_tax_id=t.c_tax_id WHERE  em_sco_specialtax='SCOSINMEDIATEPERCEPTION') perc2 on perc2.c_invoice_id=i.c_invoice_id
+        LEFT JOIN (SELECT i2.c_invoice_id,i2.dateacct,(CASE  dt.name WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '' end) as tipodoc, 
+                    i2.em_scr_physical_documentno nroserie
+                    FROM c_invoice i2 
+                    JOIN c_doctype dt on i2.c_doctype_id=dt.c_doctype_id ) rf on rf.c_invoice_id=i.em_sco_invoiceref_id
+        LEFT JOIN scr_combo_item ci on ci.scr_combo_item_id=bp.em_scr_combo_item_id 
+        
+        left join sco_ple8_14_reg ple8 on i.c_invoice_id = ple8.c_invoice_id and to_char(?) = ple8.c_period_id 
+		left join scr_combo_item ite on ple8.sunatopstatus_cmb_item_id = ite.scr_combo_item_id
+        
+        WHERE i.docstatus IN ('CO' ,'VO') 
+        AND i.em_scr_physical_documentno<>'000-0000000' 
+        AND dt.name IN ('AR Invoice', 'AR Ticket', 'AR Credit Memo', 'AR Debit Memo', 'Return Material Sales Invoice')
+        AND i.issotrx='Y' 
+        AND ple8.docstatus in ('CO')
+        AND ple8.c_period_id = ? 
+        AND to_char('Y') = to_char(?) 
+        AND i.AD_CLIENT_ID in ('2')
+        AND i.AD_ORG_ID in('2')
+        AND 2=2 
+        
+        ORDER BY 1,tdcomp,seriecita,fec_emi,serie 
+      ]]>
+      </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND i.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND i.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND trunc(i.dateacct) >= trunc(TO_DATE(?))]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND trunc(i.dateacct) <= trunc(TO_DATE(?))]]></Parameter>
+    
+    <Parameter name="cPeriodId"/>
+    <Parameter name="cPeriodId"/>
+    <Parameter name="showRecord"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND i.AD_CLIENT_ID in (" text="'2'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND i.AD_ORG_ID in(" text="'2'"/>
+    
+    
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectSpecialTax" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+    	SELECT
+    	 ( case when f.em_sco_specialglitem IN ('SCOFREEIGV') THEN 0.00 ELSE f.taxtotal END),
+    	 f.taxvalue
+    	 from 
+       ( SELECT  SUM(il.linenetamt) taxtotal, item.value  taxvalue ,cg.em_sco_specialglitem 
+        FROM c_invoiceline il  
+        LEFT  JOIN scr_combo_item item on il.em_scr_combo_item_id=item.scr_combo_item_id
+        left join c_glitem cg on il.account_id=cg.c_glitem_id
+        WHERE em_scr_specialtax in ('SCOEXEMPT') 
+        AND il.c_invoice_id=? 
+        GROUP BY item.value,cg.em_sco_specialglitem ) as f
+      ]]></Sql>
+    <Parameter name="invoice_id"/>
+  </SqlMethod>
+  
+  
+  
+    <SqlMethod name="selectSpecialTaxAll" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+    	SELECT
+    	 f.c_invoice_id,( case when f.em_sco_specialglitem IN ('SCOFREEIGV') THEN 0.00 ELSE f.taxtotal END),
+    	 f.taxvalue
+    	 from 
+       ( SELECT   il.c_invoice_id,coalesce(SUM(il.linenetamt),0) taxtotal, item.value  taxvalue ,cg.em_sco_specialglitem 
+        FROM c_invoiceline il  
+				inner join c_invoice i on il.c_invoice_id=i.c_invoice_id
+        JOIN c_doctype dt on i.c_doctypetarget_id=dt.c_doctype_id 
+        LEFT  JOIN scr_combo_item item on il.em_scr_combo_item_id=item.scr_combo_item_id
+        left join c_glitem cg on il.account_id=cg.c_glitem_id
+        WHERE 
+
+				i.docstatus IN ('CO' ,'VO')
+        AND dt.name IN ( 'AR Invoice','AR Ticket','AR Credit Memo','AR Debit Memo','Return Material Sales Invoice' )
+        AND i.issotrx='Y'        
+        AND i.AD_CLIENT_ID IN ('1')
+        AND i.AD_ORG_ID IN('1')
+        AND 1=1        
+
+        GROUP BY il.c_invoice_id,item.value,cg.em_sco_specialglitem 
+
+		) as f
+      ]]></Sql>
+ 	<Parameter name="adUserClient" type="replace" optional="true" after="AND i.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND i.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND i.dateacct >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND i.dateacct < TO_DATE(?)]]></Parameter>
+    
+    </SqlMethod>
+  
+  
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+  
+</SqlClass>

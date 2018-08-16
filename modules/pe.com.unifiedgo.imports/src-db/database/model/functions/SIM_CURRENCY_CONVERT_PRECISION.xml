@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_CURRENCY_CONVERT_PRECISION">
+    <function name="SIM_CURRENCY_CONVERT_PRECISION" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curfrom_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curto_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ratetype" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_precisiontype" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010 Openbravo SLU
+ * All Rights Reserved.
+************************************************************************/
+  v_Rate NUMBER;
+  v_total NUMBER;
+BEGIN
+  -- Return Amount
+  IF(p_Amount=0 OR p_CurFrom_ID=p_CurTo_ID) THEN
+    RETURN p_Amount;
+  END IF;
+  -- Return NULL
+  IF(p_Amount IS NULL OR p_CurFrom_ID IS NULL OR p_CurTo_ID IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  -- Get Rate
+  --ANTES
+  --solo para importacion vamos a Intercambiar el tipo de Cambio From por el To para sacar el tipo de cambio de Venta
+  --v_Rate:=C_Currency_Rate(p_CurTo_ID,p_CurFrom_ID, p_ConvDate, p_RateType, p_Client_ID, p_Org_ID) ;
+  --AHORA
+  --Antes se el tipo de cambio estaba como lo comentado anteriormente, donde se buscaba al revez, ahora coam lo pidio normal
+  
+  IF(p_CurFrom_ID = '308' OR p_CurTo_ID='308')THEN
+     v_Rate:=C_Currency_Rate(p_CurTo_ID, p_CurFrom_ID,p_ConvDate, p_RateType, p_Client_ID, p_Org_ID) ;
+     v_total :=ROUND(p_Amount / v_Rate, C_GET_CURRENCY_PRECISION(p_CurTo_ID, p_precisiontype)) ;
+   ELSE
+     v_Rate:=C_Currency_Rate(p_CurFrom_ID,p_CurTo_ID, p_ConvDate, p_RateType, p_Client_ID, p_Org_ID) ;
+     v_total:=ROUND(p_Amount * v_Rate, C_GET_CURRENCY_PRECISION(p_CurTo_ID, p_precisiontype)) ;
+  END IF;
+  
+  IF(v_Rate IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  -- Standard Precision
+  --RETURN ROUND(p_Amount * v_Rate, C_GET_CURRENCY_PRECISION(p_CurTo_ID, p_precisiontype)) ;
+  RETURN v_total;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SIM_CURRENCY_CONVERT_PRECISION
+]]></body>
+    </function>
+  </database>

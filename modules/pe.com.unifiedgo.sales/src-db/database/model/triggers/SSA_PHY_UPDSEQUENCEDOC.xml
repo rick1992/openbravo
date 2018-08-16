@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PHY_UPDSEQUENCEDOC">
+    <trigger name="SSA_PHY_UPDSEQUENCEDOC" table="BILL_PHYDOC_SEQUENCE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  LENGTH_PHYDOCSERIE NUMBER:=4;
+  
+  LENGTH_ePHYDOCSERIE NUMBER:=5;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      --Serie for physical document numbers
+      IF (:NEW.isebill='Y') THEN 
+          --electronic serie format
+          IF(length(:NEW.prefix) != LENGTH_ePHYDOCSERIE OR :NEW.prefix !~* '^[A-Za-z0-9]{4}-') THEN
+	       RAISE_APPLICATION_ERROR(-20000, '@SSA_ePhyDocSerie_IncorrectFmt@') ;
+	  END IF; 
+      ELSE      
+          --conventional serie format
+          IF(length(:NEW.prefix) != LENGTH_PHYDOCSERIE OR :NEW.prefix !~* '^[0-9]{3}-') THEN
+	       RAISE_APPLICATION_ERROR(-20000, '@SSA_PhyDocSerie_IncorrectFmt@') ;
+	  END IF; 
+      END IF;	     
+
+    ELSE
+      IF(COALESCE(:OLD.isebill,'')<>COALESCE(:NEW.isebill,'') OR COALESCE(:OLD.prefix,'')<>COALESCE(:NEW.prefix,'')) THEN
+        --Serie for physical document numbers
+        IF (:NEW.isebill='Y') THEN 
+            --electronic serie format
+            IF(length(:NEW.prefix) != LENGTH_ePHYDOCSERIE OR :NEW.prefix !~* '^[A-Za-z0-9]{4}-') THEN
+	         RAISE_APPLICATION_ERROR(-20000, '@SSA_ePhyDocSerie_IncorrectFmt@') ;
+	    END IF; 
+        ELSE      
+            --conventional serie format
+            IF(length(:NEW.prefix) != LENGTH_PHYDOCSERIE OR :NEW.prefix !~* '^[0-9]{3}-') THEN
+	         RAISE_APPLICATION_ERROR(-20000, '@SSA_PhyDocSerie_IncorrectFmt@') ;
+	    END IF; 
+        END IF;	    
+      END IF;
+
+    END IF;
+
+    END SSA_PHY_UPDSEQUENCEDOC
+]]></body>
+    </trigger>
+  </database>

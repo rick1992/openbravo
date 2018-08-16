@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE M_INOUTLINE">
+    <table name="M_INOUTLINE" primaryKey="M_INOUTLINE_KEY">
+      <column name="EM_SRE_SERVICEORDERLINE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SRE_SERVICEINORDERLINE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="C_ORDERLINE" name="EM_SRE_INOUTLINE_SINORDLI_FK">
+        <reference local="EM_SRE_SERVICEINORDERLINE_ID" foreign="C_ORDERLINE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SRE_SERVICEORDERLINE" name="EM_SRE_INOUTLINE_SORDERLI_FK">
+        <reference local="EM_SRE_SERVICEORDERLINE_ID" foreign="SRE_SERVICEORDERLINE_ID"/>
+      </foreign-key>
+      <unique name="EM_SRE_SERVINPROD_UNIQ">
+        <unique-column name="AD_CLIENT_ID"/>
+        <unique-column name="M_INOUT_ID"/>
+        <unique-column name="EM_SRE_SERVICEINORDERLINE_ID"/>
+      </unique>
+    </table>
+  </database>

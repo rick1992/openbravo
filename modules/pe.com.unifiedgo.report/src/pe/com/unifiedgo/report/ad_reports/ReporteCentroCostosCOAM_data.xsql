@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteCentroCostosCOAMData" package="pe.com.unifiedgo.report.ad_reports">
+	<SqlClassComment></SqlClassComment>
+	
+	<SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select '' as rownum, '' as patron, '' as cuenta, '' as nombre, '' as periodo, '' as gasto, '' as grupopos, '' as tipogrupo, 
+				'' as nameorg, '' as ruc, '' as mes from dual 
+			]]>
+		</Sql>
+	</SqlMethod>
+    
+	<SqlMethod name="selectData" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select substring(cos.value from 0 for 3) as patron, 
+				cos.value as cuenta, 
+				cos.name as nombre, 
+				coalesce(to_char(fa.dateacct, 'MM')) as mes, 
+				coalesce(to_char(fa.dateacct, 'MM-YYYY'), 'NN') as periodo, 
+				sum(coalesce(fa.amtacctdr, 0.0) - coalesce(fa.amtacctcr, 0.0)) as gasto 
+				
+				from c_costcenter cos 
+				left join fact_acct fa on cos.c_costcenter_id = fa.c_costcenter_id 
+					and trunc(fa.dateacct) between trunc(to_date(?)) and trunc(to_date(?)) 
+				
+				
+				where ad_isorgincluded(cos.ad_org_id, ?, cos.ad_client_id)<>-1 
+				
+				and 1=1 
+				
+				group by patron, cuenta, nombre, periodo, mes 
+				order by patron, cuenta, periodo, mes 
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strStartDate" />
+		<Parameter name="strEndDate" />
+		<Parameter name="strAdOrgId" />
+		<Parameter name="strCostCenterId" optional="true" after="1=1"><![CDATA[ and cos.c_costcenter_id = ? ]]></Parameter>
+	</SqlMethod>
+	
+	
+	
+	<SqlMethod name="selectDataFull" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				(
+				/* Gastos */
+				select substring(cos.value from 0 for 3) as patron, 
+				cos.value as cuenta, 
+				cos.name as nombre, 
+				coalesce(to_char(fa.dateacct, 'MM')) as mes, 
+				coalesce(to_char(fa.dateacct, 'MM-YYYY'), 'NN') as periodo, 
+				sum(coalesce(fa.amtacctdr, 0.0)) as gasto, 
+				to_char('1') as grupopos, 
+				to_char('GASTOS') as tipogrupo 
+				
+				from c_costcenter cos 
+				left join fact_acct fa on cos.c_costcenter_id = fa.c_costcenter_id 
+					and trunc(fa.dateacct) between trunc(to_date(?)) and trunc(to_date(?)) 
+					and acctvalue like '9%' 
+				
+				where ad_isorgincluded(cos.ad_org_id, ?, cos.ad_client_id)<>-1 
+				and 1=1 
+				
+				group by patron, cuenta, nombre, periodo, mes 
+				order by patron, cuenta, periodo, mes 
+				)
+				
+				union
+				
+				(
+				/* Ingresos */
+					(
+					select substring(cos.value from 0 for 3) as patron, 
+					cos.value as cuenta, 
+					cos.name as nombre, 
+					coalesce(to_char(fa.dateacct, 'MM')) as mes, 
+					coalesce(to_char(fa.dateacct, 'MM-YYYY'), 'NN') as periodo, 
+					sum(coalesce(fa.amtacctcr, 0.0)) as gasto, 
+					to_char('2') as grupopos, 
+					to_char('INGRESOS') as tipogrupo
+					
+					from c_costcenter cos 
+					left join fact_acct fa on cos.c_costcenter_id = fa.c_costcenter_id 
+						and trunc(fa.dateacct) between trunc(to_date(?)) and trunc(to_date(?)) 
+						and fa.acctvalue = '70%' 
+						
+					left join c_project pro on fa.c_project_id = pro.c_project_id 
+					left join c_invoice inv on pro.c_project_id = inv.c_project_id 
+						and inv.issotrx = 'Y' and inv.em_sco_ismigrated = 'Y' 
+					
+					where ad_isorgincluded(cos.ad_org_id, ?, cos.ad_client_id)<>-1 
+					
+					and 2=2 
+					
+					group by patron, cuenta, nombre, periodo, mes 
+					/*order by patron, cuenta, periodo, mes */ 
+					)
+					
+					union 
+					
+					(
+					select substring(cos.value from 0 for 3) as patron, 
+					cos.value as cuenta, 
+					cos.name as nombre, 
+					coalesce(to_char(fa.dateacct, 'MM')) as mes, 
+					coalesce(to_char(fa.dateacct, 'MM-YYYY'), 'NN') as periodo, 
+					sum(coalesce(fa.amtacctdr, 0.0)) as gasto, 
+					to_char('2') as grupopos, 
+					to_char('INGRESOS') as tipogrupo
+					
+					from c_costcenter cos 
+					left join fact_acct fa on cos.c_costcenter_id = fa.c_costcenter_id 
+						and trunc(fa.dateacct) between trunc(to_date(?)) and trunc(to_date(?)) 
+						and fa.acctvalue = '70%' 
+					
+					left join c_project pro on fa.c_project_id = pro.c_project_id
+					left join c_invoice inv on pro.c_project_id = inv.c_project_id 
+						and inv.issotrx = 'Y' and inv.em_sco_ismigrated = 'N' 
+					
+					where ad_isorgincluded(cos.ad_org_id, ?, cos.ad_client_id)<>-1 
+					
+					and 3=3 
+					
+					group by patron, cuenta, nombre, periodo, mes 
+					/*order by patron, cuenta, periodo, mes*/ 
+					)
+					order by patron, cuenta, periodo, mes 
+				) 
+				
+				order by grupopos, patron, cuenta, periodo, mes 
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strStartDate" />
+		<Parameter name="strEndDate" />
+		<Parameter name="strAdOrgId" />
+		<Parameter name="strCostCenterId" optional="true" after="1=1"><![CDATA[ and cos.c_costcenter_id = ? ]]></Parameter>
+		
+		<Parameter name="strStartDate" />
+		<Parameter name="strEndDate" />
+		<Parameter name="strAdOrgId" />
+		<Parameter name="strCostCenterId" optional="true" after="2=2"><![CDATA[ and pro.em_spr_costcenter_id = ? ]]></Parameter>
+		
+		<Parameter name="strStartDate" />
+		<Parameter name="strEndDate" />
+		<Parameter name="strAdOrgId" />
+		<Parameter name="strCostCenterId" optional="true" after="3=3"><![CDATA[ and cos.c_costcenter_id = ? ]]></Parameter>
+	</SqlMethod>
+	
+	
+	
+	<SqlMethod name="selectDataIngresos" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select substring(cos.value from 0 for 3) as patron, 
+				cos.value as cuenta, 
+				cos.name as nombre, 
+				coalesce(to_char(fa.dateacct, 'MM')) as mes, 
+				coalesce(to_char(fa.dateacct, 'MM-YYYY'), 'NN') as periodo, 
+				sum(coalesce(fa.amtacctdr, 0.0)) as gasto 
+				
+				from c_costcenter cos 
+				left join fact_acct fa on cos.c_costcenter_id = fa.c_costcenter_id 
+					and trunc(fa.dateacct) between trunc(to_date(?)) and trunc(to_date(?)) 
+				
+				
+				where ad_isorgincluded(cos.ad_org_id, ?, cos.ad_client_id)<>-1 
+				
+				and 1=1 
+				
+				group by patron, cuenta, nombre, periodo, mes 
+				order by patron, cuenta, periodo, mes 
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strStartDate" />
+		<Parameter name="strEndDate" />
+		<Parameter name="strAdOrgId" />
+		<Parameter name="strCostCenterId" optional="true" after="1=1"><![CDATA[ and cos.c_costcenter_id = ? ]]></Parameter>
+	</SqlMethod>
+	
+	
+	<SqlMethod name="selectDataEgresos" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select substring(cos.value from 0 for 3) as patron, 
+				cos.value as cuenta, 
+				cos.name as nombre, 
+				coalesce(to_char(fa.dateacct, 'MM')) as mes, 
+				coalesce(to_char(fa.dateacct, 'MM-YYYY'), 'NN') as periodo, 
+				sum(coalesce(fa.amtacctcr, 0.0)) as gasto 
+				
+				from c_costcenter cos 
+				left join fact_acct fa on cos.c_costcenter_id = fa.c_costcenter_id 
+					and trunc(fa.dateacct) between trunc(to_date(?)) and trunc(to_date(?)) 
+				
+				
+				where ad_isorgincluded(cos.ad_org_id, ?, cos.ad_client_id)<>-1 
+				and 1=1 
+				
+				group by patron, cuenta, nombre, periodo, mes 
+				order by patron, cuenta, periodo, mes 
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strStartDate" />
+		<Parameter name="strEndDate" />
+		<Parameter name="strAdOrgId" />
+		<Parameter name="strCostCenterId" optional="true" after="1=1"><![CDATA[ and cos.c_costcenter_id = ? ]]></Parameter>
+	</SqlMethod>
+	
+	
+	<SqlMethod name="set" type="constant" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql></Sql>
+	</SqlMethod>
+	
+	<SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select social_name as nameorg 
+				from ad_org 
+				where ad_org_id = ? 
+			]]>
+		</Sql>
+		<Parameter name="adOrgId"/>
+	</SqlMethod>
+	
+	<SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select a.taxid ruc 
+				from ad_orginfo a 
+				where a.ad_org_id = ? 
+			]]>
+		</Sql>
+		<Parameter name="adOrgId"/>
+	</SqlMethod>
+     
+</SqlClass>

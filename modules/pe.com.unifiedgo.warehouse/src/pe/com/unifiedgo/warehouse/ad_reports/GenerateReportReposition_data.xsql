@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2013 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="GenerateReportRepositionData" package="pe.com.unifiedgo.warehouse.ad_reports">
+  <SqlClassComment>Class GenerateReportRepositionData</SqlClassComment>
+  <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS ADCLIENTID, '' AS ADORGID,'' AS PRODUCTVALUE ,'' AS PRODUCTNAME, '' AS QTYSHIPMENT, 
+          '' AS QTYRECEIPT, '' AS QTYRECEIPTAFTER, '' AS QTYDIF, '' AS PRODUCTID, '' AS idorganizacion, '' AS idperiodo, '' AS periodo,
+          '' AS fechainicial, '' AS fechafinal
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+      
+			SELECT M_PRODUCT.ad_client_id as ADCLIENTID,
+		       b.m_product_id as PRODUCTID, 
+		       M_PRODUCT.value as PRODUCTVALUE,
+		       M_PRODUCT.name as PRODUCTNAME, 
+		       COALESCE(sum(b.qtyshipment),0) as QTYSHIPMENT, 
+		       COALESCE(sum(b.qtyreceipt),0) as QTYRECEIPT,
+		       COALESCE(sum(b.qtyreceiptafter),0) as QTYRECEIPTAFTER,
+		       COALESCE(sum(b.qtyshipment),0) - COALESCE(sum(b.qtyreceipt),0) - COALESCE(sum(b.qtyreceiptafter),0) as QTYDIF
+		  FROM (
+
+                SELECT a.AD_CLIENT_ID,
+		               a.swa_requerimientoreposicion_id,
+		               a.movementdate,
+		               a.documentno, 
+		               a.m_product_id, 
+		               a.QTYSHIPMENT, 
+		               COALESCE(sum(riol.movementqty),0) as QTYRECEIPT,
+		               COALESCE(sum(ariol.movementqty),0) as QTYRECEIPTAFTER,
+		               a.QTYSHIPMENT - COALESCE(sum(riol.movementqty),0) as QTYDIF
+                         FROM (
+								SELECT str.AD_CLIENT_ID,
+								       str.swa_requerimientoreposicion_id,
+								       io.movementdate,
+								       str.documentno, 
+								       iol.m_product_id, 
+								       COALESCE(sum(iol.movementqty),0) AS QTYSHIPMENT 
+								  FROM swa_requerimientoreposicion str
+								INNER JOIN m_inout io ON str.swa_requerimientoreposicion_id = io.em_swa_requireposicion_id and io.issotrx='Y'  and io.docstatus='CO'
+								INNER JOIN m_inoutline iol ON io.m_inout_id = iol.m_inout_id
+								WHERE str.specialdoctype = 'SWAREPOSITION'
+								  AND 1=1
+								  AND str.ad_client_id = ?
+									      AND AD_ISORGINCLUDED(str.ad_org_id, ?, ?) > -1
+									      AND trunc(io.movementdate) between ? AND ?
+								GROUP BY str.AD_CLIENT_ID, iol.m_product_id , str.documentno ,io.movementdate, str.swa_requerimientoreposicion_id
+						) a		        
+			   LEFT JOIN swa_requerimientoreposicion rtr ON a.swa_requerimientoreposicion_id = rtr.swa_fromrequerimiento_id
+				   LEFT JOIN m_inout rio   ON rtr.swa_requerimientoreposicion_id = rio.em_swa_requireposicion_id and rio.issotrx='N' and rio.docstatus='CO' and trunc(rio.movementdate) between ? AND ?
+				   LEFT JOIN m_inoutline riol ON rio.m_inout_id = riol.m_inout_id AND riol.m_product_id = a.m_product_id
+				   
+				   LEFT JOIN m_inout ario   ON rtr.swa_requerimientoreposicion_id = ario.em_swa_requireposicion_id and ario.issotrx='N' and ario.docstatus='CO' and trunc(ario.movementdate) > TO_DATE(?)				   
+                   LEFT JOIN m_inoutline ariol ON ario.m_inout_id = ariol.m_inout_id AND ariol.m_product_id = a.m_product_id				  
+                  
+				  GROUP BY a.AD_CLIENT_ID, a.movementdate , a.m_product_id, a.swa_requerimientoreposicion_id,a.documentno, a.QTYSHIPMENT
+
+			 ) b
+			INNER JOIN M_PRODUCT ON M_PRODUCT.M_PRODUCT_ID = b.M_PRODUCT_ID			
+			group by M_PRODUCT.ad_client_id, M_PRODUCT.value,M_PRODUCT.name, b.m_product_id
+			order by M_PRODUCT.value
+		
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strcboValueMina" optional="true" after="AND 1=1"><![CDATA[ AND io.em_ssa_cmbitem_value = ?]]></Parameter>
+    <Parameter name="strClientId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="strClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strDateTo"/>
+  </SqlMethod>
+  <SqlMethod name="selectOnlyDif" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+      
+			SELECT M_PRODUCT.ad_client_id as ADCLIENTID,
+		       b.m_product_id as PRODUCTID, 
+		       M_PRODUCT.value as PRODUCTVALUE,
+		       M_PRODUCT.name as PRODUCTNAME, 
+		       COALESCE(sum(b.qtyshipment),0) as QTYSHIPMENT, 
+		       COALESCE(sum(b.qtyreceipt),0) as QTYRECEIPT,
+		       COALESCE(sum(b.qtyreceiptafter),0) as QTYRECEIPTAFTER,
+		       COALESCE(sum(b.qtyshipment),0) - COALESCE(sum(b.qtyreceipt),0) - COALESCE(sum(b.qtyreceiptafter),0) as QTYDIF
+		  FROM (
+
+                SELECT a.AD_CLIENT_ID,
+		               a.swa_requerimientoreposicion_id,
+		               a.movementdate,
+		               a.documentno, 
+		               a.m_product_id, 
+		               a.QTYSHIPMENT, 
+		               COALESCE(sum(riol.movementqty),0) as QTYRECEIPT,
+		               COALESCE(sum(ariol.movementqty),0) as QTYRECEIPTAFTER,
+		               a.QTYSHIPMENT - COALESCE(sum(riol.movementqty),0) as QTYDIF
+                         FROM (
+								SELECT str.AD_CLIENT_ID,
+								       str.swa_requerimientoreposicion_id,
+								       io.movementdate,
+								       str.documentno, 
+								       iol.m_product_id, 
+								       COALESCE(sum(iol.movementqty),0) AS QTYSHIPMENT 
+								  FROM swa_requerimientoreposicion str
+								INNER JOIN m_inout io ON str.swa_requerimientoreposicion_id = io.em_swa_requireposicion_id and io.issotrx='Y'  and io.docstatus='CO'
+								INNER JOIN m_inoutline iol ON io.m_inout_id = iol.m_inout_id
+								WHERE str.specialdoctype = 'SWAREPOSITION'
+								  AND 1=1
+								  AND str.ad_client_id = ?
+									      AND AD_ISORGINCLUDED(str.ad_org_id, ?, ?) > -1
+									      AND trunc(io.movementdate) between ? AND ?
+								GROUP BY str.AD_CLIENT_ID, iol.m_product_id , str.documentno ,io.movementdate, str.swa_requerimientoreposicion_id
+						) a		        
+			   LEFT JOIN swa_requerimientoreposicion rtr ON a.swa_requerimientoreposicion_id = rtr.swa_fromrequerimiento_id
+				   LEFT JOIN m_inout rio   ON rtr.swa_requerimientoreposicion_id = rio.em_swa_requireposicion_id and rio.issotrx='N' and rio.docstatus='CO' and trunc(rio.movementdate) between ? AND ?
+				   LEFT JOIN m_inoutline riol ON rio.m_inout_id = riol.m_inout_id AND riol.m_product_id = a.m_product_id
+				   
+				   LEFT JOIN m_inout ario   ON rtr.swa_requerimientoreposicion_id = ario.em_swa_requireposicion_id and ario.issotrx='N' and ario.docstatus='CO' and trunc(ario.movementdate) > TO_DATE(?)				   
+                   LEFT JOIN m_inoutline ariol ON ario.m_inout_id = ariol.m_inout_id AND ariol.m_product_id = a.m_product_id				  
+                 
+				  GROUP BY a.AD_CLIENT_ID, a.movementdate , a.m_product_id, a.swa_requerimientoreposicion_id,a.documentno, a.QTYSHIPMENT
+
+			 ) b
+			INNER JOIN M_PRODUCT ON M_PRODUCT.M_PRODUCT_ID = b.M_PRODUCT_ID			
+			group by M_PRODUCT.ad_client_id, M_PRODUCT.value,M_PRODUCT.name, b.m_product_id
+			HAVING (COALESCE(sum(b.qtyshipment),0) - COALESCE(sum(b.qtyreceipt),0) - COALESCE(sum(b.qtyreceiptafter),0)) >0
+			order by M_PRODUCT.value
+		
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strcboValueMina" optional="true" after="AND 1=1"><![CDATA[ AND io.em_ssa_cmbitem_value = ?]]></Parameter>
+    <Parameter name="strClientId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="strClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strDateTo"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+     
+	 SELECT ao3.ad_org_id as idorganizacion,
+	        cp.c_period_id as idperiodo,
+	        cp.name as periodo,
+	        to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	        to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   FROM c_period cp
+	  INNER JOIN ad_org ao on cp.ad_org_id=ao.ad_org_id
+	  LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	          on ao.social_name=ao3.social_name
+ 	  WHERE periodtype!='A'
+	 ORDER BY 1,cp.startdate desc
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+</SqlClass>

@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_WAREHOUSE_PERMISSION_TRG">
+    <trigger name="SWA_WAREHOUSE_PERMISSION_TRG" table="M_WAREHOUSE" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  v_ad_org_id VARCHAR(32);
+  v_swa_permissions_ware_id VARCHAR(32);
+  v_AD_Org_Warehouse_id VARCHAR(32);
+  v_String VARCHAR(2000);
+  v_line NUMBER;
+  v_count_warehouses NUMBER;
+  CUR_PARAMETER RECORD;
+  v_ad_user_id VARCHAR(32);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+   v_ad_user_id:= :NEW.createdby;
+   SELECT COUNT(swa_permissions_warehouse_id) 
+     INTO v_count_warehouses
+     FROM swa_permissions_warehouse
+    WHERE AD_USER_ID = v_ad_user_id;
+   
+   SELECT ad_org_id INTO v_ad_org_id FROM AD_USER where ad_user_id = :NEW.createdby;
+   v_swa_permissions_ware_id:= get_uuid();
+   v_line:=10;
+
+   v_count_warehouses:= COALESCE(v_count_warehouses,0);
+  
+   IF(v_count_warehouses<>0)THEN
+      --Insertando los Permisos en el Usuario
+      INSERT INTO swa_permissions_warehouse (
+      swa_permissions_warehouse_id,ad_client_id,ad_org_id,line,createdby,updatedby,
+      ad_user_id,m_warehouse_id,permit,orgwarehouse_id
+      )
+      VALUES (
+      v_swa_permissions_ware_id, :NEW.ad_client_id,v_ad_org_id,v_line,:NEW.createdby,:NEW.createdby,
+      :NEW.createdby,:NEW.m_warehouse_id,'Y',v_ad_org_id
+      );
+   END IF;
+   
+
+    --Insertando el Almacén en las organizaciones Hijas
+    v_String:='';
+    FOR CUR_PARAMETER IN (
+     SELECT AD_ORG_ID
+       FROM AD_ORG 
+      WHERE AD_ISORGINCLUDED(AD_ORG_ID, :NEW.AD_ORG_ID, :NEW.ad_client_id) <> -1
+        AND AD_ORG_ID <> :NEW.AD_ORG_ID
+    )
+    LOOP
+       v_AD_Org_Warehouse_id:= get_uuid();
+       INSERT INTO  AD_Org_Warehouse (
+	 AD_Org_Warehouse_id, ad_client_id, ad_org_id, createdby,updatedby,
+	 m_warehouse_id
+       )
+       VALUES (
+	 v_AD_Org_Warehouse_id,:NEW.ad_client_id,CUR_PARAMETER.AD_ORG_ID, :NEW.createdby,:NEW.createdby,
+	 :NEW.m_warehouse_id
+       );
+    END LOOP;
+
+
+END SWA_WAREHOUSE_PERMISSION_TRG
+]]></body>
+    </trigger>
+  </database>

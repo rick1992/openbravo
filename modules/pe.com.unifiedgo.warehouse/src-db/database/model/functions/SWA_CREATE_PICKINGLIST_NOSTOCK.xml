@@ -1,0 +1,386 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_CREATE_PICKINGLIST_NOSTOCK">
+    <function name="SWA_CREATE_PICKINGLIST_NOSTOCK" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_totalqty_valid NUMBER:=0;
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32):='0';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+  Cur_Product RECORD;
+  Cur_Bom_Search_Line RECORD;
+  -- 
+  v_count NUMBER(10):=0;
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocStatus VARCHAR2(60);
+  v_Aux NUMBER;
+  v_Included VARCHAR(1);
+  v_Line NUMBER;
+  v_count_reservation NUMBER;
+  value_locator VARCHAR2(40);
+  
+
+ 
+
+  v_calculatingLocator CHAR;
+  v_exist_doc_pl VARCHAR(30);
+  v_DocType_ID VARCHAR(32); 
+  v_m_warehouse_id VARCHAR(32);
+  v_qty_tmp NUMBER:=0;
+  v_qty_tmp_insert NUMBER:=0;
+  v_DocumentNo VARCHAR(30);
+  v_combo_item_id VARCHAR(32);
+  v_obwpl_pickinglist VARCHAR(32);
+  v_ad_pinstance_ID VARCHAR(32);
+  v_errormsg VARCHAR(2000);
+  v_m_reservation_id VARCHAR(32);
+  v_new_inoutline_id VARCHAR(32);
+  v_TEMPORAL_PICKAR_SIN_VALIDAR_STOCK CHAR:='N'; --VAFASTER TEMPORAL
+  v_m_locator_tmp VARCHAR(32);
+  CUR_INOUTLINE RECORD;
+  CUR_PRODUCTBYANAQUEL RECORD;
+
+
+
+  BEGIN
+  
+  --VAFASTER TEMPORAL- TOTAL LO QUE DICE VAFASTER TEMPORAL DEBE VOLVERSE  A SU ESTADO NORMAL (PICKAR DONDE SI HAY UBICACIONES)
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+         FROM AD_PInstance i
+           LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+         WHERE i.AD_PInstance_ID=p_PInstance_ID
+         ORDER BY p.SeqNo) 
+      LOOP
+	  v_Record_ID:=Cur_Parameter.Record_ID;
+          v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+
+          --RAISE Cur_Parameter.ParameterName;
+              
+	  IF (Cur_Parameter.ParameterName = 'em_swa_updatelocator') THEN
+             v_calculatingLocator:=Cur_Parameter.p_string;
+          END IF;
+      END LOOP; -- Get Parameter
+    ELSE
+      RAISE NO_DATA_FOUND;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+  BEGIN --BODY 
+   
+      SELECT AD_Client_ID, AD_Org_ID, DOCSTATUS, m_warehouse_id, EM_Swa_Combo_Item_ID
+        INTO v_Client_ID, v_Org_ID, v_DocStatus, v_m_warehouse_id,v_combo_item_id
+        FROM M_INOUT
+       WHERE M_INOUT_ID = v_Record_ID;
+
+
+      --Validando el estado del documento de salida
+      IF(v_DocStatus <> 'DR') THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_document_isnotdraft@');
+      END IF;
+      ----------------------
+      
+      --- Validar si existe Picking Asociada a esta guia/Documento
+      SELECT documentno 
+        INTO v_exist_doc_pl 
+        FROM obwpl_pickinglist ob
+         INNER JOIN m_inoutline io on ob.obwpl_pickinglist_id = io.em_obwpl_pickinglist_id
+        WHERE io.m_inout_id = v_Record_ID
+       LIMIT 1;
+
+       IF(v_exist_doc_pl IS NOT NULL)THEN
+        RAISE_APPLICATION_ERROR(-20000,'@swa_document_has_pl@' || ' ' ||v_exist_doc_pl);
+       END IF;
+      -----------------------
+
+    --Validadando que Cad linea no tenga cantidades Negativas
+      FOR CUR_INOUTLINE IN (SELECT m_product_id, movementqty as movementqty FROM M_INOUTLINE WHERE M_INOUT_ID = v_Record_ID)
+	LOOP
+	   IF(CUR_INOUTLINE.movementqty<0)THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@swa_cannotMoveNegativeOrders@' || ' - ' ||CUR_INOUTLINE.m_product_id || ' - ' || CUR_INOUTLINE.movementqty);
+	   END IF;
+     END LOOP;
+    --
+    
+
+     ------Validando si Hay stock suficiente para crear Lista de Picking
+      FOR CUR_INOUTLINE IN (SELECT m_product_id, sum(movementqty) as movementqty FROM M_INOUTLINE WHERE M_INOUT_ID = v_Record_ID GROUP BY M_PRODUCT_ID)
+	LOOP
+           SELECT totalqty 
+             INTO v_totalqty_valid
+            FROM swa_product_warehouse_v 
+            WHERE M_PRODUCT_ID = CUR_INOUTLINE.M_PRODUCT_ID
+             AND M_WAREHOUSE_ID = v_m_warehouse_id;
+	   IF(COALESCE(v_totalqty_valid,0)<CUR_INOUTLINE.movementqty)THEN
+	    --VAFASTER TEMPORAL- el raise se comenta para que deje Pickar si no hay Stock
+	    --RAISE_APPLICATION_ERROR(-20000, '@NotEnoughAvailableStock@' || ' - ' ||CUR_INOUTLINE.m_product_id || ' - ' || CUR_INOUTLINE.movementqty);
+	   END IF;
+     END LOOP;
+     --------------
+
+     --Validando si  Hay  Stock Suficiente en la Ubicación.
+     --Esto solo se hace cuando se indica que haga el picking de la misma ubicación que ponemos
+     --en las lineas
+     IF(v_calculatingLocator IS NULL OR v_calculatingLocator='N')THEN
+        FOR CUR_INOUTLINE IN (SELECT m_product_id, sum(movementqty) as movementqty, m_locator_id  FROM M_INOUTLINE WHERE M_INOUT_ID = v_Record_ID GROUP BY M_PRODUCT_ID, M_LOCATOR_ID)
+	LOOP
+           SELECT qtyonhand 
+             INTO v_totalqty_valid
+            FROM swa_product_by_anaquel_v 
+            WHERE M_PRODUCT_ID = CUR_INOUTLINE.M_PRODUCT_ID
+             AND M_WAREHOUSE_ID = v_m_warehouse_id
+             AND M_LOCATOR_ID = CUR_INOUTLINE.m_locator_id
+             LIMIT 1;
+	   IF(COALESCE(v_totalqty_valid,0)<CUR_INOUTLINE.movementqty)THEN
+            SELECT value into value_locator FROM M_LOCATOR WHERE M_LOCATOR_ID = CUR_INOUTLINE.m_locator_id LIMIT 1;
+            --VAFASTER TEMPORAL- el raise se comenta para que deje Pickar si no hay Stock
+	    --RAISE_APPLICATION_ERROR(-20000, '@NotEnoughAvailableStock@' || ' - ' ||CUR_INOUTLINE.m_product_id || ' - ' || CUR_INOUTLINE.movementqty || ' - ' || value_locator);
+	   END IF;
+        END LOOP;
+     END IF;
+
+      ---Creando PL
+      --Verificando DocType para PickingList
+          SELECT c_doctype_id INTO v_DocType_ID
+            FROM C_DOCTYPE
+           WHERE EM_Sco_Specialdoctype='SWAPICKINGLIST'
+             AND AD_client_id=v_Client_ID
+             AND AD_ISORGINCLUDED(v_Org_ID,C_DOCTYPE.ad_org_id, v_Client_ID)<>-1 
+           LIMIT 1;
+
+          AD_Sequence_DocType(v_DocType_ID, v_Client_ID, 'Y', v_DocumentNo) ;
+          v_obwpl_pickinglist:=get_uuid();
+	  INSERT INTO obwpl_pickinglist(
+	   obwpl_pickinglist_id, ad_client_id, ad_org_id, isactive,
+	   created, createdby, updated, updatedby, 
+	   documentno, pickliststatus, c_doctype_id, em_swa_m_warehouse_id ,em_swa_combo_item_id,
+	   documentdate
+	  )
+	  VALUES (
+	   v_obwpl_pickinglist, v_Client_ID, v_Org_ID, 'Y',
+	   now(), v_AD_User_ID ,now(),v_AD_User_ID ,
+	   v_DocumentNo, 'DR', v_DocType_ID, v_m_warehouse_id,v_combo_item_id,
+	   now()	   
+	  );
+     -------------------------
+
+      
+   
+  -- Recalcular las ubicaciones para eso agrupamos los productos y sus cantidades
+  v_TEMPORAL_PICKAR_SIN_VALIDAR_STOCK:='Y'; --VAFASTER TEMPORAL
+ IF (v_TEMPORAL_PICKAR_SIN_VALIDAR_STOCK = 'N')THEN--VAFASTER TEMPORAL
+  IF(v_calculatingLocator='Y')THEN --BEGIN A
+        v_Line:=10; --Para cada linea a insertar
+        FOR CUR_INOUTLINE IN (SELECT *  FROM M_INOUTLINE WHERE M_INOUT_ID = v_Record_ID)
+	  LOOP
+
+	    --Verificando si esta Linea està asociada a un pedido con reserva
+	    swa_search_reservation_ioline(CUR_INOUTLINE.M_INOUTLINE_ID, v_count_reservation);
+	    --
+
+            v_qty_tmp_insert:=CUR_INOUTLINE.movementqty;
+            v_qty_tmp:=CUR_INOUTLINE.movementqty;
+
+	    FOR CUR_PRODUCTBYANAQUEL IN (
+                                     SELECT *
+	                               FROM swa_product_by_anaquel_v 
+	                              WHERE M_PRODUCT_ID = CUR_INOUTLINE.m_product_id 
+	                                AND M_WAREHOUSE_ID = v_m_warehouse_id
+	                                AND qtyonhand > 0 
+	                             ORDER BY priorityno ASC
+	   )LOOP
+	       IF( v_qty_tmp <= CUR_PRODUCTBYANAQUEL.qtyonhand)THEN
+                 v_qty_tmp_insert:= v_qty_tmp;	
+	       ELSE
+	         v_qty_tmp_insert:=CUR_PRODUCTBYANAQUEL.qtyonhand;
+	       END IF;
+	         v_qty_tmp:= v_qty_tmp - v_qty_tmp_insert;
+	     
+
+	       --INSERTAR LAS LINEAS CORRESPONDIENTE DESPUÈS DEL RECALCULO de UBICACIONES.
+	        v_new_inoutline_id:=get_uuid();
+	        INSERT INTO M_INOUTLINE(
+		M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+                AD_Client_ID, AD_Org_ID, IsActive, Created,
+                CreatedBy, Updated, UpdatedBy, M_Product_ID,
+                M_AttributeSetInstance_ID, C_UOM_ID, M_Locator_ID, MovementQty,
+                Description, IsInvoiced,  --MODIFIED BY F.IRIAZABAL
+                QuantityOrder, M_Product_UOM_ID, IsDescription,
+                canceled_inoutline_id, A_Asset_ID, C_Project_ID, C_BPartner_ID,
+                User1_ID, User2_ID, C_CostCenter_ID, 
+                explode, em_sco_voidorderline_id
+	        )
+	        VALUES (
+		v_new_inoutline_id, v_Line, v_Record_ID, CUR_INOUTLINE.C_ORDERLINE_ID,
+		CUR_INOUTLINE.AD_CLIENT_ID, CUR_INOUTLINE.AD_ORG_ID, 'Y', now(),
+		v_AD_User_ID, now(), v_AD_User_ID, CUR_INOUTLINE.m_product_id,
+		CUR_INOUTLINE.M_AttributeSetInstance_ID, CUR_INOUTLINE.C_UOM_ID,CUR_PRODUCTBYANAQUEL.M_LOCATOR_ID, v_qty_tmp_insert,
+		CUR_INOUTLINE.Description, CUR_INOUTLINE.IsInvoiced,
+		CUR_INOUTLINE.QuantityOrder,CUR_INOUTLINE.M_Product_UOM_ID, CUR_INOUTLINE.IsDescription,
+		CUR_INOUTLINE.canceled_inoutline_id, CUR_INOUTLINE.A_Asset_ID, CUR_INOUTLINE.C_Project_ID, CUR_INOUTLINE.C_BPartner_ID,
+		CUR_INOUTLINE.User1_ID, CUR_INOUTLINE.User2_ID, CUR_INOUTLINE.C_CostCenter_ID,
+		CUR_INOUTLINE.explode, CUR_INOUTLINE.em_sco_voidorderline_id 
+	        );
+	     
+	        v_Line = v_Line + 10;
+	        -------------
+		
+
+		IF(v_count_reservation=0)THEN
+		    ----INMEDIATAMENTE SE PROCEDE CON LA RESERVA
+		  v_m_reservation_id:=get_uuid();
+	          INSERT INTO M_RESERVATION(
+		  m_reservation_id, ad_client_id,ad_org_id,isactive,
+		  created,createdby,updated,updatedby,
+		  m_product_id,quantity,c_uom_id,em_swa_m_inoutline_id,
+		  res_status,res_process,m_warehouse_id,em_obwpl_generatedbypicking
+		  )
+	          VALUES ( v_m_reservation_id,v_Client_ID, v_Org_ID,'Y',
+		  now(),v_AD_User_ID, now(), v_AD_User_ID,
+		  CUR_INOUTLINE.m_product_id, v_qty_tmp_insert, CUR_INOUTLINE.c_uom_id, v_new_inoutline_id,
+		  'DR','PR',v_m_warehouse_id,'Y'
+		  );
+		
+	          --Reservando la cantidad de cada linea
+	          INSERT INTO M_RESERVATION_STOCK(
+	          M_RESERVATION_STOCK_ID, AD_CLIENT_ID,AD_ORG_ID,ISACTIVE,
+	          created,createdby,updated,updatedby,
+	          m_reservation_id, c_orderline_id, quantity,M_LOCATOR_ID
+	          )
+	          VALUES(
+	          get_uuid(), v_Client_ID, v_Org_ID, 'Y',
+	          now(),v_AD_User_ID, now(), v_AD_User_ID,
+	          v_m_reservation_id, CUR_INOUTLINE.C_ORDERLINE_ID, v_qty_tmp_insert,CUR_PRODUCTBYANAQUEL.M_LOCATOR_ID
+	          );	
+	          --Con este PERFORM se procesa la reserva para que quede separada.  
+                  M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',v_AD_User_ID ) ;
+	          ---
+		END IF;
+		
+	     EXIT WHEN v_qty_tmp=0;
+	  END LOOP;
+  	  --BORRAR LA LINEA DESPUES DE HABER REINSERTADO Y RECALCULADO
+	  DELETE FROM M_INOUTLINE WHERE M_INOUTLINE_ID =CUR_INOUTLINE.M_INOUTLINE_ID  AND M_INOUT_ID =v_Record_ID ; 
+	  ----------------------------
+       END LOOP;
+
+  ELSE --No se hace recalculo solo la guia pasa de frente a una lista de picking
+	   --Reservar las lineas tal como están v_calculatingLocator='N'
+	     FOR CUR_INOUTLINE IN (SELECT *  FROM M_INOUTLINE WHERE M_INOUT_ID = v_Record_ID)
+		LOOP
+	           
+		 --Verificando si esta Linea està asociada a un pedido con reserva
+	         swa_search_reservation_ioline(CUR_INOUTLINE.M_INOUTLINE_ID, v_count_reservation);
+	         --
+	         IF(v_count_reservation=0)THEN
+		   --Creando reserva
+		   v_m_reservation_id:=get_uuid();
+		   INSERT INTO M_RESERVATION(
+		   m_reservation_id, ad_client_id,ad_org_id,isactive,
+		   created,createdby,updated,updatedby,
+		   m_product_id,quantity,c_uom_id,em_swa_m_inoutline_id,
+		   res_status,res_process,m_warehouse_id
+		   )
+		  VALUES (
+		  v_m_reservation_id,v_Client_ID, v_Org_ID,'Y',
+		  now(),v_AD_User_ID, now(), v_AD_User_ID,
+		  CUR_INOUTLINE.m_product_id, CUR_INOUTLINE.movementqty, CUR_INOUTLINE.c_uom_id, CUR_INOUTLINE.M_INOUTLINE_ID,
+		  'DR','PR',v_m_warehouse_id
+		  );
+			 
+		  --Reservando la cantidad de cada linea
+		  INSERT INTO M_RESERVATION_STOCK(
+		  M_RESERVATION_STOCK_ID, AD_CLIENT_ID,AD_ORG_ID,ISACTIVE,
+		  created,createdby,updated,updatedby,
+		  m_reservation_id, c_orderline_id, quantity,M_LOCATOR_ID
+		  )
+		  VALUES(
+		  get_uuid(), v_Client_ID, v_Org_ID, 'Y',
+		  now(),v_AD_User_ID, now(), v_AD_User_ID,
+		  v_m_reservation_id, CUR_INOUTLINE.C_ORDERLINE_ID, CUR_INOUTLINE.movementqty,CUR_INOUTLINE.m_locator_id 
+		  );
+		 --Con este PERFORM se procesa la reserva para que quede separada.  
+		 M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',v_AD_User_ID );
+		 END IF;	
+	     END LOOP;
+	     --------------
+ 
+ END IF; --END BEGIN A
+
+ELSE--TMP
+   --BEGIN NO SIRVE
+   SELECT M_LOCATOR_ID INTO v_m_locator_tmp FROM M_LOCATOR WHERE M_WAREHOUSE_ID = v_m_warehouse_id AND VALUE = '*00';
+   IF (v_m_locator_tmp IS NULL)THEN
+     RAISE_APPLICATION_ERROR(-20000,'no hay ubicacion *00');
+   END IF;
+   UPDATE m_inoutline
+      set m_locator_id = v_m_locator_tmp
+     WHERE m_inout_id= v_Record_ID;
+END IF;--END VAFASTER TEMPORAL
+
+--ACTUALIZAR TODAS LAS LINEAS (M_INOUTLINE) CON LA NUVA LISTA DE PICKING
+  UPDATE M_INOUTLINE 
+     SET em_obwpl_pickinglist_id = v_obwpl_pickinglist
+   WHERE M_INOUT_ID= v_Record_ID;
+-------------
+
+
+
+         v_ad_pinstance_ID:=get_uuid();
+	INSERT INTO Ad_PINSTANCE (
+	 ad_pinstance_id, ad_process_id, record_id,
+         AD_Client_ID, AD_Org_ID, IsActive, Created,
+	 CreatedBy, Updated, UpdatedBy,
+	 ad_user_id         
+	)
+	VALUES (
+	v_ad_pinstance_ID, 109, v_Record_ID,
+	v_Client_ID, v_Org_ID  , 'Y', now(),
+	v_AD_User_ID,now(),v_AD_User_ID,v_AD_User_ID
+	);
+
+       --Se completa la Guìa para que pueda ser impresa	
+       M_INOUT_POST(v_ad_pinstance_ID, null);
+
+       SELECT result, errormsg INTO v_Result, v_errormsg FROM AD_PINSTANCE WHERE AD_PINSTANCE_ID = v_ad_pinstance_ID;
+       v_Message:=v_errormsg;
+
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Finished ' || v_Message) ;
+    END IF;
+    RETURN;
+    
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  END IF;
+--  RETURN;
+END SWA_CREATE_PICKINGLIST_NOSTOCK
+]]></body>
+    </function>
+  </database>

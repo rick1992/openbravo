@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_LOCATOR_NEGSTOCKVAL_TRG">
+    <trigger name="SCO_LOCATOR_NEGSTOCKVAL_TRG" table="M_LOCATOR" fires="before" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_ExistsNegativeStock NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF; 
+
+    IF(COALESCE(:OLD.em_sco_allownegativestock,'.')<>COALESCE(:NEW.em_sco_allownegativestock,'.')) THEN
+      IF(:NEW.em_sco_allownegativestock='N') THEN
+        SELECT COUNT(*)
+          INTO v_ExistsNegativeStock
+          FROM
+            ( SELECT ROUND(COALESCE(QTYONHAND, 0), 2) AS QTY,
+                     ROUND(COALESCE(QTYORDERONHAND, 0), 2) AS QTYORDER
+              FROM M_STORAGE_DETAIL
+              WHERE AD_CLIENT_ID=:NEW.AD_Client_ID AND
+		    M_LOCATOR_ID = :NEW.M_LOCATOR_ID
+            )
+            A
+        WHERE QTY<0 OR QTYORDER<0;      
+
+        IF v_ExistsNegativeStock<>0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_LocatorNegativeStockCheck@');
+        END IF;
+      END IF;
+    END IF;
+
+  
+END SCO_LOCATOR_NEGSTOCKVAL_TRG
+]]></body>
+    </trigger>
+  </database>

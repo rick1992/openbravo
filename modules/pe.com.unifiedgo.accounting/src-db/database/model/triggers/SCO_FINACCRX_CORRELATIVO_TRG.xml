@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_FINACCRX_CORRELATIVO_TRG">
+    <trigger name="SCO_FINACCRX_CORRELATIVO_TRG" table="FIN_FINACC_TRANSACTION" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[  v_Correlativo NUMBER;
+  v_AD_LE_Org_ID VARCHAR(32);
+  v_Aux NUMBER;
+  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+    
+    IF(:NEW.em_sco_correlativo IS NULL OR :NEW.em_sco_correlativo='') THEN
+
+      SELECT * INTO v_AD_LE_Org_ID from ad_get_org_le_bu(:NEW.AD_Org_ID,'LE');
+      DROP TABLE IF EXISTS  relatedchildorgs;
+      CREATE TEMPORARY TABLE relatedchildorgs( ad_org_id character varying(32) NOT NULL ) on commit drop;
+      INSERT INTO relatedchildorgs (
+        SELECT AD_Org_ID 
+          FROM AD_Org
+        WHERE AD_Client_ID = :NEW.AD_Client_ID AND
+              AD_ISORGINCLUDED(AD_Org_ID,v_AD_LE_Org_ID,:NEW.AD_Client_ID)<>-1
+      );
+
+      SELECT COALESCE(MAX(TO_NUMBER(COALESCE(em_sco_correlativo,'FM000000'),'000000')),0)
+        INTO v_Correlativo
+        FROM FIN_Finacc_Transaction
+      WHERE AD_Client_ID = :NEW.AD_Client_ID AND
+	    EXTRACT(YEAR FROM COALESCE(dateacct,v_DateNull)) = EXTRACT(YEAR FROM COALESCE(:NEW.dateacct,v_DateNull)) AND
+	    FIN_Finacc_Transaction_ID <> :NEW.FIN_Finacc_Transaction_ID AND
+	    AD_Org_ID IN (SELECT AD_Org_ID FROM relatedchildorgs);
+
+
+      v_Correlativo := v_Correlativo + 1;
+      :NEW.em_sco_correlativo = to_char(v_Correlativo, 'FM000000');
+      DROP TABLE IF EXISTS  relatedchildorgs;
+
+    END IF;
+
+    END SCO_FINACCRX_CORRELATIVO_TRG
+]]></body>
+    </trigger>
+  </database>

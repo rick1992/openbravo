@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_TRANSINOUTLI_CHK_RES_TRG">
+    <trigger name="SCO_TRANSINOUTLI_CHK_RES_TRG" table="SCO_TRANSFERINOUTLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+  v_Processed VARCHAR(60) ;
+  v_SCO_TRANSFERINOUT_ID VARCHAR2(32) ;
+  v_Docaction VARCHAR(60) ;
+  v_Docstatus VARCHAR(60);
+  v_DocumentNo SCO_TRANSFERINOUT.DocumentNO%TYPE;
+  v_IsSOTrx CHAR(1);
+  v_Message VARCHAR2(2000):='';
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_SCO_TRANSFERINOUT_ID:=:NEW.SCO_TRANSFERINOUT_ID;
+  ELSE
+    v_SCO_TRANSFERINOUT_ID:=:OLD.SCO_TRANSFERINOUT_ID;
+  END IF;
+
+SELECT PROCESSED, DOCACTION,DOCSTATUS, DocumentNo, ISSOTRX
+      INTO v_Processed,v_Docaction,v_DocStatus, v_DocumentNo, v_IsSOTrx
+      FROM SCO_TRANSFERINOUT
+      WHERE SCO_TRANSFERINOUT_ID=v_SCO_TRANSFERINOUT_ID;
+
+  IF UPDATING THEN
+    IF(v_Processed='Y' AND v_Docaction <> 'CL'
+          AND(
+               (COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+          OR(COALESCE(:OLD.M_PRODUCT_ID, '0') <> COALESCE(:NEW.M_PRODUCT_ID, '0'))
+          OR(COALESCE(:OLD.c_uom_id, '0') <> COALESCE(:NEW.c_uom_id, '0'))
+          OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+          OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+          OR(COALESCE(:old.manualproduct, '0') <> COALESCE(:new.manualproduct, '0'))
+          OR(COALESCE(:old.sco_transferinout_id, '0') <> COALESCE(:new.sco_transferinout_id, '0'))
+          OR(COALESCE(:old.ismanual, '0') <> COALESCE(:new.ismanual, '0'))
+          OR(COALESCE(:old.movementqty, '0') <> COALESCE(:new.movementqty, '0'))
+        
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF(DELETING) THEN
+    IF v_Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF v_Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.ismanual = 'Y' AND :NEW.a_asset_id IS NULL) THEN
+      IF(:NEW.manualproduct IS NULL OR :NEW.manualproduct='') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_TransferinoutManualNull@') ;
+      END IF;
+      :NEW.m_product_id = NULL;
+    ELSE
+      IF((:NEW.m_product_id IS NULL OR :NEW.m_product_id='') AND :NEW.a_asset_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_TransferinoutProductNull@') ;
+      END IF;
+      :NEW.manualproduct = NULL;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.ismanual,'0')<>COALESCE(:NEW.ismanual,'0')) THEN
+      IF(:NEW.ismanual = 'Y') THEN
+        IF(:NEW.manualproduct IS NULL OR :NEW.manualproduct='') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_TransferinoutManualNull@') ;
+        END IF;
+        :NEW.m_product_id = NULL;
+      ELSE
+        IF(:NEW.m_product_id IS NULL OR :NEW.m_product_id='') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_TransferinoutProductNull@') ;
+        END IF;
+        :NEW.manualproduct = NULL;
+      END IF;
+    END IF;
+  END IF;
+END SCO_TRANSINOUTLI_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

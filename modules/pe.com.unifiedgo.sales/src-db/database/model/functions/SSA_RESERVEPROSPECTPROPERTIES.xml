@@ -1,0 +1,137 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_RESERVEPROSPECTPROPERTIES">
+    <function name="SSA_RESERVEPROSPECTPROPERTIES" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+  Cur_Parameter RECORD;
+  Cur_Line RECORD;
+
+  v_Prospect_ID VARCHAR(32);
+  v_Org_ID VARCHAR2(32);
+  v_Client_ID VARCHAR2(32);
+  v_specialdoctype VARCHAR(120);
+  v_docstatus VARCHAR(60);
+  v_reservationdate DATE;
+  v_reserveaction VARCHAR(60);
+  v_reservationuser VARCHAR(32);
+  
+BEGIN    
+   
+    -- Get Parameters
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User_ID:=Cur_Parameter.AD_User_ID;              
+      END LOOP; -- Get Parameter
+    ELSE
+      RAISE NO_DATA_FOUND ;
+    END IF;       
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+    v_Prospect_ID := v_Record_ID;
+    -- Reading Prospect
+    SELECT AD_Org_ID, AD_Client_ID, specialdoctype, docstatus, reservationdate, reservationuser, COALESCE(reservelines,'RESERVE') 
+      INTO v_Org_ID, v_Client_ID, v_specialdoctype, v_docstatus, v_reservationdate, v_reservationuser, v_reserveaction
+      FROM ssa_projprop_contract
+     WHERE ssa_projprop_contract_id = v_Prospect_ID;
+
+    
+    IF(v_specialdoctype <> 'SSAARPROSPECT') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_NotProspectDocument@');
+    END IF;
+
+    IF(v_docstatus <> 'CO') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SSA_documentNotCompleted@');
+    END IF;
+
+    -- Validaciones de Reserva
+    IF (v_reserveaction='RESERVE') THEN
+       FOR Cur_Line IN
+        (SELECT * FROM SSA_ProjProp_Contract_Line WHERE SSA_ProjProp_Contract_ID=v_Prospect_ID  ORDER BY line)
+       LOOP
+	    IF((SELECT docstatus FROM ssa_project_property WHERE ssa_project_property_id=Cur_Line.ssa_project_property_id) IN ('SOLD','RESERVED')) THEN
+	      RAISE EXCEPTION '%', '@SSA_PropertyIsNotFree@' || ' Inmueble ' ||ad_column_identifier('ssa_project_property', Cur_Line.ssa_project_property_id, 'es_PE')
+	                           || ', @line@' || ' ' || Cur_Line.line; --OBTG:-20000--
+	    END IF;
+       END LOOP; 
+
+	-- Validaciones de desreserva
+    ELSIF (v_reserveaction='UNDO_RESERVE') THEN
+       IF (v_reservationdate IS NOT NULL AND v_reservationuser<>v_User_ID) THEN   
+          RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotUndoReservationOfOtherUser@');    
+       END IF;
+
+       FOR Cur_Line IN
+        (SELECT * FROM SSA_ProjProp_Contract_Line WHERE SSA_ProjProp_Contract_ID=v_Prospect_ID  ORDER BY line)
+       LOOP
+	    IF((SELECT docstatus FROM ssa_project_property WHERE ssa_project_property_id=Cur_Line.ssa_project_property_id) IN ('SOLD')) THEN
+	      RAISE EXCEPTION '%', '@SSA_PropertyIsSold@' || ' Inmueble ' ||ad_column_identifier('ssa_project_property', Cur_Line.ssa_project_property_id, 'es_PE')
+	                           || ', @line@' || ' ' || Cur_Line.line ; --OBTG:-20000--
+	    END IF;
+       END LOOP; 
+    END IF;
+
+    --
+    -- Logica Reserva/Desreserva
+    --
+    --Reserving properties in prospect
+    IF (v_reserveaction='RESERVE') THEN
+           UPDATE ssa_project_property 
+              SET docstatus='RESERVED', reservationdate=NOW(), reservationuser=v_User_ID
+            WHERE ssa_project_property_id IN (SELECT ssa_project_property_id FROM ssa_projprop_contract_line WHERE ssa_projprop_contract_id = v_Prospect_ID);
+          
+           UPDATE ssa_projprop_contract
+              SET reservationdate=NOW(), reservationuser=v_User_ID, reservelines='UNDO_RESERVE'
+            WHERE ssa_projprop_contract_id = v_Prospect_ID;
+            
+
+    --Undo reservation properties in prospect
+    ELSIF (v_reserveaction='UNDO_RESERVE') THEN
+           UPDATE ssa_project_property 
+              SET docstatus='FREE', reservationdate=NULL, reservationuser=NULL 
+            WHERE ssa_project_property_id IN (SELECT ssa_project_property_id FROM ssa_projprop_contract_line WHERE ssa_projprop_contract_id = v_Prospect_ID);
+
+           UPDATE ssa_projprop_contract
+              SET reservationdate=NULL, reservationuser=NULL, reservelines='RESERVE'
+            WHERE ssa_projprop_contract_id = v_Prospect_ID;
+    END IF;  
+        
+    v_Message:='@Success@';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSA_RESERVEPROSPECTPROPERTIES
+]]></body>
+    </function>
+  </database>

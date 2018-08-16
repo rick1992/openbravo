@@ -1,0 +1,1110 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Creador de Cliente</title>
+
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"/>
+
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  var defaultLang = "en_US";
+</script>
+<script language="JavaScript" type="text/javascript" id="paramAlertMsg">ALERT_MSG = "Are you sure?";</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/dojoConfig.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/dojo/dojo.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/genericTree.js" type="text/javascript"></script>
+<script language="JavaScript" src="../web/js/appStatus.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources" type="text/javascript"></script>
+<script type="text/javascript"> 
+      //all dojo.require above this line
+      dojo.hostenv.writeIncludes(); //makes debugging in Venkman possible
+</script> 
+<script language="JavaScript" type="text/javascript">
+//redefine closeSearch 
+function closeSearch(action, strKey, strText, parameters, wait) {
+      if (wait!=false) {
+        setTimeout(function() {closeSearch(action, strKey, strText, parameters, false);},100);
+        return;
+      } else {
+        if (winSelector==null) return true;
+        if (gForm!=null && gFieldKey!=null && gFieldText!=null) {
+          var key = getField(gFieldKey);
+          if (key!=null) {
+            if (action=="SAVE") {
+              if (strKey==null || strKey=="") {
+                showJSMessage(31);
+                winSelector.focus();
+                return false;
+              }
+              key.value = strKey;
+              var text = getField(gFieldText);
+              //if (text!=null) text.value = ReplaceText(strText, "\"", "\\\"");
+              if (text!=null) text.value = strText;
+              if (parameters!=null && parameters.length>0) {
+                var total = parameters.length;
+                for (var i=0;i<total;i++) {
+                  //var obj = eval("document." + gForm + "." + ((parameters[i].esRef)?gFieldKey:"") + parameters[i].campo);
+                  var obj = getField(((parameters[i].esRef)?gFieldKey:"") + parameters[i].campo);
+                  if (obj!=null && obj.type) obj.value=parameters[i].valor;
+                }
+              }
+              if (key.onchange) {
+                  key.onchange();
+              }
+              try { changeToEditingMode('force'); } catch (e) {}
+            } else if (action=="CLEAR") {
+              strKey="";
+              strText="";
+              key.value= "";
+              var text = getField(gFieldText);
+              text.value="";
+              if (parameters!=null && parameters.length>0) {
+                var total = parameters.length;
+                for (var i=0;i<total;i++) {
+                  var obj = getField(((parameters[i].esRef)?gFieldKey:"") + parameters[i].campo);
+                  if (obj!=null && obj.type) obj.value="";
+                }
+              }
+              if (key.onchange) { 
+                  key.onchange(); 
+              }
+              try { changeToEditingMode('force'); } catch (e) {}
+            } else if (action=="SAVE_IMAGE") {
+              if (strKey==null || strKey=="") {
+                showJSMessage(31);
+                winSelector.focus();
+                return false;
+              }
+              
+              key.value=strKey;
+              if (typeof baseDirectory != "unknown") {
+                eval("document.images['" + gFieldText + "'].src=\"" + baseDirectory + "images/" + strText + "\"");
+              } else {
+                // Deprecated in 2.50, the following code is only for compatibility
+                eval("document.images['" + gFieldText + "'].src=\"" + baseDirection + "images/" + strText + "\"");
+              }
+              if (parameters!=null && parameters.length>0) {
+                var total = parameters.length;
+                for (var i=0;i<total;i++) {
+                  var obj = getField(((parameters[i].esRef)?gFieldKey:"") + parameters[i].campo);
+                  if (obj!=null && obj.type) obj.value=parameters[i].valor;
+                }
+              }
+              if (key.onchange) key.onchange();
+              try { changeToEditingMode('force'); } catch (e) {}
+            } else if (action=="CLEAR_IMAGE") {
+              strKey="";
+              strText="";
+              key.value="";
+              var text = getField(gFieldText);
+              if (typeof baseDirectory != "unknown") {
+                text.src= baseDirectory + "images/" + baseImage ;
+              } else {
+                // Deprecated in 2.50, the following code is only for compatibility
+                text.src= baseDirection + "images/" + baseImage ;
+              }
+              if (parameters!=null && parameters.length>0) {
+                var total = parameters.length;
+                for (var i=0;i<total;i++) {
+                  var obj = getField(((parameters[i].esRef)?gFieldKey:"") + parameters[i].campo);
+                  if (obj!=null && obj.type) obj.value="";
+                }
+              }
+              if (key.onchange) key.onchange();
+              try { changeToEditingMode('force'); } catch (e) {}
+            }
+          }
+        }
+        closeWindowSearch();
+        if (gValidate) {
+          if (!debugSearch(strKey, strText, gFieldKey, parameters)) {
+            return false;
+          }
+        }
+        window.focus();
+        return true;
+      }
+    }
+
+
+function getbpinfo() {
+	initialize_MessageBox('messageBoxID');
+	
+	var LayoutMDI = getFrame('LayoutMDI'); 
+    var frm = document.frmMain;         
+    var actionURL = LayoutMDI.OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_actionbutton/CreateNewCustomer.html',
+        callback, reqObj, request;
+    
+    var taxid = frm.inpTaxID.value;
+    var isnotcompany= (frmMain.inpIsNotCompany.checked ? "Y" : "N");  
+
+    if(taxid.length != 11 && taxid.length != 8) {
+    	showJSMessage("SCR_DocumentType_maxlength");
+    	return false;
+    }
+    
+    // define the callback function which shows the result to the user
+    callback = function (rpcResponse, data, rpcRequest) {
+    	if (data.message) { // error
+    		console.log("Error getting bpinfo:"+data.message.text);
+    		showJSMessage(data.message.text);
+    		
+        } else { // success
+          // setting result
+          frm.inpNames.value = data.inpemScoFirstname;
+          frm.inpFirstLastname.value = data.inpemScoLastname;
+          frm.inpSecondLastname.value = data.inpemScoLastname2;
+          frm.inpComercialName.value = data.inpname;
+          frm.inpDescription.value = data.inpdescription;
+        }
+        
+        // hinding processing popup
+        LayoutMDI.isc.clearPrompt();
+    };
+    
+    // showing processing popup
+    LayoutMDI.isc.showPrompt(LayoutMDI.OB.I18N.getLabel('OBUIAPP_PROCESSING') + isc.Canvas.imgHTML({
+        src: LayoutMDI.OB.Styles.LoadingPrompt.loadingImage.src
+    }));
+    
+    // and call the server
+    reqObj = {
+            params: {
+            	Command: 'GETBPINFO',
+            	taxid: taxid,
+                isnotcompany: isnotcompany
+            },
+            callback: callback,
+            evalResult: true,
+            httpMethod: 'GET',
+            useSimpleHttp: true,
+            actionURL: actionURL
+          };
+    request = LayoutMDI.isc.RPCManager.sendRequest(reqObj);
+}    
+
+function getbpconyugeinfo() {
+    initialize_MessageBox('messageBoxID');
+    
+    var LayoutMDI = getFrame('LayoutMDI'); 
+    var frm = document.frmMain;         
+    var actionURL = LayoutMDI.OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_actionbutton/CreateNewCustomer.html',
+        callback1, reqObj1, request1;
+    
+    var taxconyugeid = frm.inpTaxConyugeID.value;
+    var isnotcompany= (frmMain.inpIsNotCompany.checked ? "Y" : "N");  
+
+    if(taxconyugeid.length != 11 && taxconyugeid.length != 8) {
+        showJSMessage("SCR_DocumentType_maxlength_Conyuge");
+        return false;
+    }
+    
+    // define the callback function which shows the result to the user
+    callback1 = function (rpcResponse, data, rpcRequest) {
+        if (data.message) { // error
+            console.log("Error getting bpconyugeinfo:"+data.message.text);
+            showJSMessage(data.message.text);
+            
+        } else { // success
+          // setting result
+          frm.inpNamesConyuge.value = data.inpemScoFirstname;
+          frm.inpFirstLastnameConyuge.value = data.inpemScoLastname;
+          frm.inpSecondLastnameConyuge.value = data.inpemScoLastname2;
+          frm.inpComercialNameConyuge.value = data.inpname;
+          frm.inpDescription.value = data.inpdescription;
+        }
+        
+        // hinding processing popup
+        LayoutMDI.isc.clearPrompt();
+    };
+    
+    // showing processing popup
+    LayoutMDI.isc.showPrompt(LayoutMDI.OB.I18N.getLabel('OBUIAPP_PROCESSING') + isc.Canvas.imgHTML({
+        src: LayoutMDI.OB.Styles.LoadingPrompt.loadingImage.src
+    }));
+    
+    // and call the server
+    reqObj1 = {
+            params: {
+                Command: 'GETBPCONYUGEINFO',
+                taxconyugeid: taxconyugeid,
+                isnotcompany: isnotcompany
+            },
+            callback: callback1,
+            evalResult: true,
+            httpMethod: 'GET',
+            useSimpleHttp: true,
+            actionURL: actionURL
+          };
+    request1 = LayoutMDI.isc.RPCManager.sendRequest(reqObj1);
+}   
+    
+function clearOrgDependVars() {
+	clearSalesRep();    
+}
+
+function clearSalesRep(){
+    var frmMain = document.frmMain;
+    frmMain.paramSalesRepId.value = "";
+    frmMain.paramSalesRepDescription.value = "";
+    sc_paramSalesRepId.selectorField.setValue("");    
+}
+
+function enableLocalShortcuts() {
+}
+
+function validate() {
+    var frmMain = document.frmMain;
+    if (frmMain.inpOrgId.value == null || frmMain.inpOrgId.value == "") {
+        setWindowElementFocus(frmMain.inpOrgId);
+        frmMain.inpOrgId.select();
+        showJSMessage(7);
+        return false;
+    }         
+    
+    if (frmMain.inpBPDocTypeId.value == null || frmMain.inpBPDocTypeId.value == "") {
+        setWindowElementFocus(frmMain.inpBPDocTypeId);
+        frmMain.inpBPDocTypeId.select();
+        showJSMessage(7);
+        return false;
+    }       
+    if (frmMain.inpTaxID.value == null || frmMain.inpTaxID.value == "") {
+        setWindowElementFocus(frmMain.inpTaxID);
+        frmMain.inpTaxID.select();
+        showJSMessage(7);
+        return false;
+    }           
+    //Empresa
+    if (frmMain.inpIsNotCompany == null || frmMain.inpIsNotCompany.checked==false){
+        if (frmMain.inpComercialName.value == null || frmMain.inpComercialName.value == "") {
+            setWindowElementFocus(frmMain.inpComercialName);
+            frmMain.inpComercialName.select();
+            showJSMessage(7);
+            return false;
+        }         
+    //Personal Natural  
+    } else {
+        if (frmMain.inpNames.value == null || frmMain.inpNames.value == "") {
+            setWindowElementFocus(frmMain.inpNames);
+            frmMain.inpNames.select();
+            showJSMessage(7);
+            return false;
+        }       
+        if (frmMain.inpFirstLastname.value == null || frmMain.inpFirstLastname.value == "") {
+            setWindowElementFocus(frmMain.inpFirstLastname);
+            frmMain.inpFirstLastname.select();
+            showJSMessage(7);
+            return false;
+        }       
+        if (frmMain.inpSecondLastname.value == null || frmMain.inpSecondLastname.value == "") {
+            setWindowElementFocus(frmMain.inpSecondLastname);
+            frmMain.inpSecondLastname.select();
+            showJSMessage(7);
+            return false;
+        }     	
+    }                   
+    if (frmMain.paramCorreo.value != null && frmMain.paramCorreo.value != "") {
+        var correo_fmt = new RegExp("^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,3}$", "i"); //email format
+        if(!frmMain.paramCorreo.value.match(correo_fmt)) {
+            setWindowElementFocus(frmMain.paramCorreo);
+            showJSMessage("SSA_InvalidEmail");
+            return false;
+        }
+    }
+    
+    if (frmMain.inpSalesRepId.value == null || frmMain.inpSalesRepId.value == "") {
+        setWindowElementFocus(frmMain.inpSalesRepId);
+        frmMain.inpSalesRepId.select();
+        showJSMessage(7);
+        return false;
+    }  
+    
+    //CONYUGE VALIDATION
+    if (frmMain.inpCivilState.value == "MARRIED") {
+        if (frmMain.inpBPDocTypeConyugeId.value == null || frmMain.inpBPDocTypeConyugeId.value == "") {
+            setWindowElementFocus(frmMain.inpBPDocTypeConyugeId);
+            frmMain.inpBPDocTypeConyugeId.select();
+            showJSMessage(7);
+            return false;
+        }       
+        if (frmMain.inpTaxConyugeID.value == null || frmMain.inpTaxConyugeID.value == "") {
+            setWindowElementFocus(frmMain.inpTaxConyugeID);
+            frmMain.inpTaxConyugeID.select();
+            showJSMessage(7);
+            return false;
+        }           
+        //Empresa
+        if (frmMain.inpIsNotCompanyConyuge == null || frmMain.inpIsNotCompanyConyuge.checked==false){
+            if (frmMain.inpComercialNameConyuge.value == null || frmMain.inpComercialNameConyuge.value == "") {
+                setWindowElementFocus(frmMain.inpComercialNameConyuge);
+                frmMain.inpComercialNameConyuge.select();
+                showJSMessage(7);
+                return false;
+            }         
+        //Personal Natural  
+        } else {
+            if (frmMain.inpNamesConyuge.value == null || frmMain.inpNamesConyuge.value == "") {
+                setWindowElementFocus(frmMain.inpNamesConyuge);
+                frmMain.inpNamesConyuge.select();
+                showJSMessage(7);
+                return false;
+            }       
+            if (frmMain.inpFirstLastnameConyuge.value == null || frmMain.inpFirstLastnameConyuge.value == "") {
+                setWindowElementFocus(frmMain.inpFirstLastnameConyuge);
+                frmMain.inpFirstLastnameConyuge.select();
+                showJSMessage(7);
+                return false;
+            }       
+            if (frmMain.inpSecondLastnameConyuge.value == null || frmMain.inpSecondLastnameConyuge.value == "") {
+                setWindowElementFocus(frmMain.inpSecondLastnameConyuge);
+                frmMain.inpSecondLastnameConyuge.select();
+                showJSMessage(7);
+                return false;
+            }       
+        }                   
+        if (frmMain.paramCorreoConyuge.value != null && frmMain.paramCorreoConyuge.value != "") {
+            var correo_fmt = new RegExp("^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,3}$", "i"); //email format
+            if(!frmMain.paramCorreoConyuge.value.match(correo_fmt)) {
+                setWindowElementFocus(frmMain.paramCorreoConyuge);
+                showJSMessage("SSA_InvalidEmail");
+                return false;
+            }
+        }    	
+    }
+    
+    return true;
+}
+
+function updateReadOnlyLogic() {	
+    var frmMain = document.frmMain;
+    //Empresa
+    if (frmMain.inpIsNotCompany == null || frmMain.inpIsNotCompany.checked==false){   	
+        readOnlyLogicElement('paramComercialName', false);        
+        readOnlyLogicElement('paramNames', true);        
+        readOnlyLogicElement('paramFirstLastname', true);        
+        readOnlyLogicElement('paramSecondLastname', true);
+        
+        displayLogicElement('paramComercialName', true);
+        displayLogicElement('paramNames', false);
+        displayLogicElement('paramFirstLastname', false);
+        displayLogicElement('paramSecondLastname', false);        
+        
+        displayLogicElement('lblComercialName', true);
+        displayLogicElement('lblNames', false);
+        displayLogicElement('lblFirstLastname', false);
+        displayLogicElement('lblSecondLastname', false);
+      
+    //Personal Natural  
+    } else {        
+      readOnlyLogicElement('paramComercialName', true);      
+      readOnlyLogicElement('paramNames', false);      
+      readOnlyLogicElement('paramFirstLastname', false);      
+      readOnlyLogicElement('paramSecondLastname', false);      
+      
+      displayLogicElement('paramComercialName', false);
+      displayLogicElement('paramNames', true);
+      displayLogicElement('paramFirstLastname', true);
+      displayLogicElement('paramSecondLastname', true);
+      
+      displayLogicElement('lblComercialName', false);
+      displayLogicElement('lblNames', true);
+      displayLogicElement('lblFirstLastname', true);
+      displayLogicElement('lblSecondLastname', true);
+    }
+}    
+
+function updateConyugeReadOnlyLogic() {    
+    var frmMain = document.frmMain;
+    //Empresa
+    if (frmMain.inpIsNotCompanyConyuge == null || frmMain.inpIsNotCompanyConyuge.checked==false){     
+        readOnlyLogicElement('paramComercialNameConyuge', false);        
+        readOnlyLogicElement('paramNamesConyuge', true);        
+        readOnlyLogicElement('paramFirstLastnameConyuge', true);        
+        readOnlyLogicElement('paramSecondLastnameConyuge', true);
+        
+        displayLogicElement('paramComercialNameConyuge', true);
+        displayLogicElement('paramNamesConyuge', false);
+        displayLogicElement('paramFirstLastnameConyuge', false);
+        displayLogicElement('paramSecondLastnameConyuge', false);        
+        
+        displayLogicElement('lblComercialNameConyuge', true);
+        displayLogicElement('lblNamesConyuge', false);
+        displayLogicElement('lblFirstLastnameConyuge', false);
+        displayLogicElement('lblSecondLastnameConyuge', false);
+      
+    //Personal Natural  
+    } else {        
+      readOnlyLogicElement('paramComercialNameConyuge', true);      
+      readOnlyLogicElement('paramNamesConyuge', false);      
+      readOnlyLogicElement('paramFirstLastnameConyuge', false);      
+      readOnlyLogicElement('paramSecondLastnameConyuge', false);      
+      
+      displayLogicElement('paramComercialNameConyuge', false);
+      displayLogicElement('paramNamesConyuge', true);
+      displayLogicElement('paramFirstLastnameConyuge', true);
+      displayLogicElement('paramSecondLastnameConyuge', true);
+      
+      displayLogicElement('lblComercialNameConyuge', false);
+      displayLogicElement('lblNamesConyuge', true);
+      displayLogicElement('lblFirstLastnameConyuge', true);
+      displayLogicElement('lblSecondLastnameConyuge', true);
+    }
+} 
+
+function showConyugeFieldsLogic() {
+	var frmMain = document.frmMain;
+	var civilState = frmMain.inpCivilState.value;
+	
+	if ("MARRIED" == civilState) {
+		displayLogicElement('tdBPDocTypeConyuge', true);
+        displayLogicElement('paramTaxConyugeID', true);
+        displayLogicElement('tdNotCompanyConyuge', true)
+        displayLogicElement('paramComercialNameConyuge', true);
+        displayLogicElement('paramNamesConyuge', true);
+        displayLogicElement('paramFirstLastnameConyuge', true);
+        displayLogicElement('paramSecondLastnameConyuge', true);
+        displayLogicElement('tdLocationConyuge', true);
+        displayLogicElement('paramTelfConyuge', true);
+        displayLogicElement('paramCelConyuge', true);
+        displayLogicElement('paramCorreoConyuge', true);
+
+        displayLogicElement('lblBPDocTypeConyuge', true);
+        displayLogicElement('lblTaxConyuge', true);
+        displayLogicElement('lblNotCompanyConyuge', true);
+        displayLogicElement('lblComercialNameConyuge', true);
+        displayLogicElement('lblNamesConyuge', true);
+        displayLogicElement('lblFirstLastnameConyuge', true);
+        displayLogicElement('lblSecondLastnameConyuge', true);
+        displayLogicElement('lblLocationConyuge', true);
+        displayLogicElement('lblTelfConyuge', true);
+        displayLogicElement('lblCelConyuge', true);
+        displayLogicElement('lblCorreoConyuge', true);    
+        
+        displayLogicElement('ToolbarBtnRUCConyuge', true);        
+        
+        updateConyugeReadOnlyLogic();
+        
+	} else {
+        displayLogicElement('tdBPDocTypeConyuge', false);
+        displayLogicElement('paramTaxConyugeID', false);
+        displayLogicElement('tdNotCompanyConyuge', false)
+        displayLogicElement('paramComercialNameConyuge', false);
+        displayLogicElement('paramNamesConyuge', false);
+        displayLogicElement('paramFirstLastnameConyuge', false);
+        displayLogicElement('paramSecondLastnameConyuge', false);
+        displayLogicElement('tdLocationConyuge', false);
+        displayLogicElement('paramTelfConyuge', false);
+        displayLogicElement('paramCelConyuge', false);
+        displayLogicElement('paramCorreoConyuge', false);
+        
+        displayLogicElement('lblBPDocTypeConyuge', false);
+        displayLogicElement('lblTaxConyuge', false);
+        displayLogicElement('lblNotCompanyConyuge', false);
+        displayLogicElement('lblComercialNameConyuge', false);
+        displayLogicElement('lblNamesConyuge', false);
+        displayLogicElement('lblFirstLastnameConyuge', false);
+        displayLogicElement('lblSecondLastnameConyuge', false);
+        displayLogicElement('lblLocationConyuge', false);
+        displayLogicElement('lblTelfConyuge', false);
+        displayLogicElement('lblCelConyuge', false);
+        displayLogicElement('lblCorreoConyuge', false);    
+        
+        displayLogicElement('ToolbarBtnRUCConyuge', false);
+	}      
+	return true;
+}
+
+</script>
+    <script language="JavaScript" type="text/javascript">
+    function onLoadDo(){
+        this.windowTables = new Array(
+          new windowTableId('client', 'buttonProcess')
+        );
+        setWindowTableParentElement();
+        this.tabsTables = new Array(
+          new tabTableId('tdtopTabs')
+        );
+        setTabTableParentElement();
+        enableShortcuts('edition');
+        setBrowserAutoComplete(false);
+        
+        enableLocalShortcuts();
+        resizeArea();
+
+        setWindowElementFocus('firstElement');
+        
+        updateReadOnlyLogic();
+        
+        showConyugeFieldsLogic();
+        
+        sc_paramOrgId.selectorField.setValue(document.getElementById("paramOrgDescription").value);
+        sc_paramBPDocTypeId.selectorField.setValue(document.getElementById("paramBPDocTypeDescription").value);                
+        sc_paramSalesRepId.selectorField.setValue(document.getElementById("paramSalesRepDescription").value);
+        
+        sc_paramBPDocTypeConyugeId.selectorField.setValue(document.getElementById("paramBPDocTypeConyugeDescription").value);  
+    }
+
+    function onResizeDo(){
+        resizeArea();
+    }
+    </script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();" id="body">
+<form id="form" method="post" action="CreateNewCustomer.html" name="frmMain">
+<input type="hidden" name="Command">
+<input type="hidden" name="IsPopUpCall" value="1"></input>
+
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+  <tr>
+    <td valign="top" id="tdleftTabs"></td>
+    <td valign="top">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+      <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+      <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+      <tr><td class="Main_Client_bg_left"></td></tr>
+      <tr><td class="Main_Bottom_bg_left"></td></tr>
+      </table>
+    </td>
+    <td valign="top">
+      <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+      <!-- <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div> -->
+      <!-- Inicio - Toolbar manual -->
+      <table class="Main_ContentPane_ToolBar Main_ToolBar_bg" id="tdToolBar">
+      <tr>
+        <td class="Main_ToolBar_Separator_cell" ><img src="../web/images/blank.gif" class="Main_ToolBar_Separator"></td>
+        <td width="2%" ><a href="#" onClick="submitCommandForm('DEFAULT', false, null, 'CreateNewCustomer.html', '_self', null, false);return false;" class="Main_ToolBar_Button" onMouseOver="window.status='Refrescar';return true;" onMouseOut="window.status='';return true;" onclick="this.hideFocus=true" onblur="this.hideFocus=false" id="buttonRefresh"><img class="Main_ToolBar_Button_Icon Main_ToolBar_Button_Icon_Refresh" src="../web/images/blank.gif" title="Refrescar" border="0" id="linkButtonRefresh"></a></td>
+        <td width="2%" ><a href="#" onClick="getbpinfo(); return false;" class="Main_ToolBar_Button" onMouseOver="window.status='Obtener datos de tercero';return true;" onMouseOut="window.status='';return true;" onclick="this.hideFocus=true" onblur="this.hideFocus=false" id="linkButtonBPData"><img class="Main_ToolBar_Button_Icon" style="background-repeat: no-repeat; background-position: center center; background-image: url(../../../../../web/images/toolbarButton-BPinfo.png);" src="../web/images/blank.gif" title="Obtener datos de tercero" border="0" id="buttonExcelBPData"></a></td>
+        <td class="Main_ToolBar_Separator_cell" ><img src="../web/images/blank.gif" class="Main_ToolBar_Separator"></td>
+        <td width="2%" id="ToolbarBtnRUCConyuge"><a href="#" onClick="getbpconyugeinfo(); return false;" class="Main_ToolBar_Button" onMouseOver="window.status='Obtener datos de conyuge';return true;" onMouseOut="window.status='';return true;" onclick="this.hideFocus=true" onblur="this.hideFocus=false" id="linkButtonBPData"><img class="Main_ToolBar_Button_Icon" style="background-repeat: no-repeat; background-position: center center; background-image: url(../../../../../web/images/toolbarButton-BPinfo2.png);" src="../web/images/blank.gif" title="Obtener datos de conyuge" border="0" id="buttonExcelBPConyugeData"></a></td>
+        <td class="Main_ToolBar_Space"></td>
+      </tr>
+      </table>
+      <!-- Fin - Toolbar manual -->
+      
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+      <tr id="paramParentTabContainer"></tr>
+      <tr id="paramMainTabContainer"></tr>
+      <tr id="paramChildTabContainer"></tr>
+      </table>
+      <div class="Main_ContentPane_Client" style="overflow: auto;" id="client">
+      <table class="dojoTabContainer" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+      <tr>
+        <td>
+          <table class="dojoTabPaneWrapper" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+        <tr>
+        <td>
+          <!-- MessageBox -->
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+          <tbody>
+<!--           <tr class="MessageBox_TopMargin">
+            <td class="MessageBox_LeftMargin"></td>
+            <td></td>
+            <td class="MessageBox_RightMargin"></td>
+          </tr> -->
+          <tr>
+            <td class="MessageBox_LeftMargin"></td>
+            <td>
+              <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+              <tbody>
+              <tr>
+                <td class="MessageBox_LeftTrans">
+                  <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_TopLeft"></td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Left"></td>
+                  </tr>
+                  </tbody>
+                  </table>
+                </td>
+                <td class="MessageBox_bg">
+                  <table class="MessageBox_Top">
+                  <tbody>
+                  <tr>
+                    <td>
+                      <span>
+                      <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                      <tbody>
+                      <tr>
+                        <td class="MessageBox_Icon_ContentCell">
+                          <div class="MessageBox_Icon"></div>
+                        </td>
+                        <td style="vertical-align: top;" id="messageBoxIDContent">
+                          <span>
+                          <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                            xxInfo: AccessTableWithNoView
+                          </div>
+                          <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                            xxThe current information is empty.
+                          </div>
+                          <div class="MessageBox_TextSeparator"></div>
+                          </span>
+                        </td>
+                      </tr>
+                      </tbody>
+                      </table>
+                      </span>
+                    </td>
+                  </tr>
+                  </tbody>
+                  </table>
+                </td>
+                <td class="MessageBox_RightTrans">
+                  <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_TopRight"></td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Right"></td>
+                  </tr>
+                  </tbody>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td rowspan="2" class="MessageBox_BottomLeft">
+                </td>
+                <td class="MessageBox_BottomTrans MessageBox_bg">
+                </td>
+                <td rowspan="2" class="MessageBox_BottomRight">
+                </td>
+              </tr>
+              <tr>
+                <td class="MessageBox_Bottom">
+                </td>
+              </tr>
+              </tbody>
+              </table>
+            </td>
+            <td class="MessageBox_RightMargin"></td>
+          </tr>
+          <tr class="MessageBox_BottomMargin">
+            <td class="MessageBox_LeftMargin"></td>
+            <td></td>
+            <td class="MessageBox_RightMargin"></td>
+          </tr>
+          </tbody>
+          </table>
+          <!-- End MessageBox -->
+                           
+                            
+        <!-- USER CONTROLS -->
+            <div style="overflow: auto">
+              <table class="Main_Client_TableEdition">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+                
+<!--                 <tr>
+                  <td colspan="6">
+                    <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_InfoBar">
+                      <tr>
+                        <td class="Popup_InfoBar_Icon_cell"><img src="../../../../../web/images/blank.gif" border="0" class="Popup_InfoBar_Icon_info" /></td>
+                        <td class="Popup_InfoBar_text_table">
+                          <table>
+                            <tr>
+                             <td class="Popup_InfoBar_text" id="helpDiscard">
+                                 <span id="processHelp">&nbsp;</span>
+                             </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6" height="15px"></td>
+                </tr>      -->          
+                
+                <tr>
+                  <td class="TitleCell"> <span class="LabelText">Organización</span></td>
+                  <td class="Combo_ContentCell"  colspan="2"> 
+                    <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                    <tr>
+                      <td>
+                        <script>
+                          var sc_paramOrgId = null;   
+                        </script>
+                        <input type="hidden" name="inpOrgId" id="paramOrgId" value="" onreset="sc_paramOrgId.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramOrgId.selectorField);"></input>
+                        <input type="hidden" id="paramOrgDescription" type="text"  name="inpOrgId_D" maxlength="20" value="" ></input> 
+                        <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/B00C076ACDE74479B9244AAE15C9FC1F?columnName=paramOrgId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&nozeroorg=yes&orgtype=parentonly&required=true&callOut=clearOrgDependVars&WithTabFoix=yes"></script>
+                      </td>
+                    </tr>
+                    </table>
+                  </td>                       
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText">Estado Civil</span></td>
+                  <td class="Combo_ContentCell" colspan="2">
+                    <select  name="inpCivilState" id="inpCivilState" class="ComboKey Combo_TwoCells_width" onchange="showConyugeFieldsLogic(); return true;" required="true">
+                      <div id="reportCivilState"></div>
+                    </select>                    
+                  </td>                                     
+                  <td class="Combo_ContentCell"></td>
+                </tr>
+                                
+                <tr>
+                  <td class="TitleCell"> <span class="LabelText">Tipo Documento</span></td>
+                  <td class="Combo_ContentCell"  colspan="2"> 
+                    <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                    <tr>
+                      <td>
+                        <script>
+                          var sc_paramBPDocTypeId = null;   
+                        </script>
+                        <input type="hidden" name="inpBPDocTypeId" id="paramBPDocTypeId" value="" onreset="sc_paramBPDocTypeId.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramBPDocTypeId.selectorField);"></input>
+                        <input type="hidden" id="paramBPDocTypeDescription" type="text"  name="inpBPDocTypeId_D" maxlength="20" value="" ></input> 
+                        <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/A90B49C4A6E64916BBDBA0755BDBD93C?columnName=paramBPDocTypeId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=true&WithTabFix=yes"></script>
+                      </td>
+                    </tr>
+                    </table>
+                  </td>     
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"> <span class="LabelText" id="lblBPDocTypeConyuge">Tipo Documento Cónyuge</span></td>
+                  <td class="Combo_ContentCell"  colspan="2" id="tdBPDocTypeConyuge"> 
+                    <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                    <tr>
+                      <td>
+                        <script>
+                          var sc_paramBPDocTypeConyugeId = null;   
+                        </script>
+                        <input type="hidden" name="inpBPDocTypeConyugeId" id="paramBPDocTypeConyugeId" value="" onreset="sc_paramBPDocTypeConyugeId.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramBPDocTypeConyugeId.selectorField);"></input>
+                        <input type="hidden" id="paramBPDocTypeConyugeDescription" type="text"  name="inpBPDocTypeConyugeId_D" maxlength="20" value="" ></input> 
+                        <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/A90B49C4A6E64916BBDBA0755BDBD93C?columnName=paramBPDocTypeConyugeId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=true&WithTabFix=yes"></script>
+                      </td>
+                    </tr>
+                    </table>
+                  </td> 
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>
+                                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Nº Documento</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width required" type="text" name="inpTaxID" id="paramTaxID" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramTaxID");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblTaxConyuge">Nº Documento Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width required" type="text" name="inpTaxConyugeID" id="paramTaxConyugeID" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramTaxConyugeID");</script>
+                  </td>     
+                  <td class="Combo_ContentCell"></td>                                 
+                </tr>                  
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Persona Natural</span></td>
+                  <td class="Radio_Check_ContentCell" colspan="2">
+                    <span class="Checkbox_container_NOT_Focused"> 
+                      <input type="checkbox" name="inpIsNotCompany" id="fieldIsNotCompany" value="Y" onclick="updateReadOnlyLogic();return true;"></input>
+                    </span>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblNotCompanyConyuge">Persona Natural Cónyuge</span></td>
+                  <td class="Radio_Check_ContentCell" colspan="2" id="tdNotCompanyConyuge">
+                    <span class="Checkbox_container_NOT_Focused"> 
+                      <input type="checkbox" name="inpIsNotCompanyConyuge" id="fieldIsNotCompanyConyuge" value="Y" onclick="updateConyugeReadOnlyLogic();return true;"></input>
+                    </span>
+                  </td>      
+                  <td class="Combo_ContentCell"></td>
+                </tr>
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" id="lblComercialName">Nombre Comercial</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpComercialName" id="paramComercialName" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramComercialName");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblComercialNameConyuge">Nombre Comercial del Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpComercialNameConyuge" id="paramComercialNameConyuge" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramComercialNameConyuge");</script>
+                  </td> 
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>      
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" id="lblNames">Nombres</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpNames" id="paramNames" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramNames");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblNamesConyuge">Nombres Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpNamesConyuge" id="paramNamesConyuge" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramNamesConyuge");</script>
+                  </td> 
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>   
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" id="lblFirstLastname">Apellido Paterno</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpFirstLastname" id="paramFirstLastname" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramFirstLastname");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblFirstLastnameConyuge">Apellido Paterno Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpFirstLastnameConyuge" id="paramFirstLastnameConyuge" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramFirstLastnameConyuge");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>   
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" id="lblSecondLastname">Apellido Materno</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpSecondLastname" id="paramSecondLastname" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramSecondLastname");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblSecondLastnameConyuge">Apellido Materno Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpSecondLastnameConyuge" id="paramSecondLastnameConyuge" size="40" maxlenght="100" value="" required="true"></input>
+                     <script>djConfig.searchIds.push("paramSecondLastnameConyuge");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>                                                      
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Info</span></td>
+                  <td class="TextBox_ContentCell" colspan="6"> 
+                     <input class="dojoValidateValid TextBox_SixCells_width readonly" type="text" name="inpDescription" size="40" maxlenght="300" value="" readonly></input>
+                  </td>                                       
+                </tr>                
+                
+                <tr>                                  
+                  <td class="TitleCell"><span class="LabelText">Dirección</span></td>
+                  <td class="TextBox_btn_ContentCell" colspan="2">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <!-- input type="hidden" name="inpcLocationId" id="C_Location_ID" value="" onchange="logChanges(this);return true;"></input-->
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input type="hidden" name="inpcLocationId" id="C_Location_ID" value="" onchange="logChanges(this);return true;"></input>
+                          <input class="dojoValidateValid TextBox_btn_TwoCells_width" type="text"  name="inpcLocationId_R" maxlength="20" value=""></input>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Business Partner'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="openSearch(null, null, '../info/Location_FS.html', 'SELECTOR_LOCATION', false, 'frmMain', 'inpcLocationId', 'inpcLocationId_R', document.frmMain.inpcLocationId_R, 'inpIDValue', inputValue(document.frmMain.inpcLocationId), 'WindowID', inputValue(document.frmMain.inpwindowId));return false;">
+                          <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Search';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img id="buttonLocation" alt="Location" class="FieldButton_Icon FieldButton_Icon_Location" title="Location" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblLocationConyuge">Dirección Cónyuge</span></td>
+                  <td class="TextBox_btn_ContentCell" colspan="2" id="tdLocationConyuge">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input type="hidden" name="inpcLocationConyugeId" id="C_Location_Conyuge_ID" value="" onchange="logChanges(this);return true;"></input>
+                          <input class="dojoValidateValid TextBox_btn_TwoCells_width" type="text"  name="inpcLocationConyugeId_R" maxlength="20" value=""></input>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Business Partner'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="openSearch(null, null, '../info/Location_FS.html', 'SELECTOR_LOCATION', false, 'frmMain', 'inpcLocationConyugeId', 'inpcLocationConyugeId_R', document.frmMain.inpcLocationConyugeId_R, 'inpIDValue', inputValue(document.frmMain.inpcLocationConyugeId), 'WindowID', inputValue(document.frmMain.inpwindowId));return false;">
+                          <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Search';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img id="buttonLocation" alt="Location" class="FieldButton_Icon FieldButton_Icon_Location" title="Location" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>  
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Teléfono</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpTelf" id="paramTelf" size="40" maxlenght="100" value=""></input>
+                     <script>djConfig.searchIds.push("paramTelf");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblTelfConyuge">Teléfono Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpTelfConyuge" id="paramTelfConyuge" size="40" maxlenght="100" value=""></input>
+                     <script>djConfig.searchIds.push("paramTelfConyuge");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>   
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Celular</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpCel" id="paramCel" size="40" maxlenght="100" value=""></input>
+                     <script>djConfig.searchIds.push("paramCel");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblCelConyuge">Celular Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpCelConyuge" id="paramCelConyuge" size="40" maxlenght="100" value=""></input>
+                     <script>djConfig.searchIds.push("paramCelConyuge");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>                                                                  
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Correo</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpCorreo" id="paramCorreo" size="40" maxlenght="100" value=""></input>
+                     <script>djConfig.searchIds.push("paramCorreo");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText" id="lblCorreoConyuge">Correo Cónyuge</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_TwoCells_width" type="text" name="inpCorreoConyuge" id="paramCorreoConyuge" size="40" maxlenght="100" value=""></input>
+                     <script>djConfig.searchIds.push("paramCorreoConyuge");</script>
+                  </td>  
+                  <td class="Combo_ContentCell"></td>                  
+                </tr>                                                 
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Agente Comercial</span></td>
+                  <td class="TextBox_ContentCell" colspan="2">
+                    <table style="border:0px;border-collapse:collapse;">
+                      <tr>
+                        <td style="padding-top: 0px;">
+                          <script>
+                            var sc_paramSalesRepId = null;   
+                          </script>
+                          <input type="hidden" name="inpSalesRepId" id="paramSalesRepId" value="" onreset="sc_paramSalesRepId.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramSalesRepId.selectorField);"></input>                      
+                          <input type="hidden" id="paramSalesRepDescription" type="text"  name="inpSalesRepId_DES" maxlength="20" value=""></input>
+                          <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/3749CE9962524DA7A559C279DC65D6C6?columnName=paramSalesRepId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&restrictadorgid=inpOrgId&required=true&WithTabFix=yes"></script>
+                      </td>
+                      </tr>
+                    </table>
+                  </td> 
+                  <td class="Combo_ContentCell" colspan="5"></td>
+                </tr>          
+   
+          
+          <tr>
+            <td colspan="6" height="5px"></td>
+          </tr>
+          
+          <tr>
+            <td class="TitleCell"></td>
+            <td class="Button_LeftAlign_ContentCell">
+              <div>
+                <button type="button" 
+                  id="buttonProcess" 
+                  class="ButtonLink" 
+                  onclick="submitCommandForm('SAVE', true);return false;" 
+                  onfocus="buttonEvent('onfocus', this); window.status='Process'; return true;" 
+                  onblur="buttonEvent('onblur', this);" 
+                  onkeyup="buttonEvent('onkeyup', this);" 
+                  onkeydown="buttonEvent('onkeydown', this);" 
+                  onkeypress="buttonEvent('onkeypress', this);" 
+                  onmouseup="buttonEvent('onmouseup', this);" 
+                  onmousedown="buttonEvent('onmousedown', this);" 
+                  onmouseover="buttonEvent('onmouseover', this); window.status='Process'; return true;" 
+                  onmouseout="buttonEvent('onmouseout', this);">
+                  <table class="Button">
+                    <tr>
+                      <td class="Button_left"><img class="Button_Icon Button_Icon_process" alt="Process" title="Process" src="../../../../../web/images/blank.gif" border="0" /></td>
+                      <td class="Button_text Button_width">Registrar</td>
+                      <td class="Button_right"></td>
+                    </tr>
+                  </table>
+                </button>
+              </div>
+            </td>
+            <td class="ContentCell"></td>
+            <td class="ContentCell"></td>
+            <td class="ContentCell"></td>
+            <td class="ContentCell"></td>
+          </tr>
+          
+          <tr>
+            <td colspan="6" height="15px"></td>
+          </tr> 
+                          
+              </table>
+              </div>
+                      <!--End USER CONTROLS -->
+                      
+                 </td>
+              </tr>
+              </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+        
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+  
+  
+  
+  
+</form>
+</body>
+</html>

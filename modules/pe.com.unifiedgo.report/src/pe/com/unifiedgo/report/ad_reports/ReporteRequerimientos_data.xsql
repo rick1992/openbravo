@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteRequerimientosData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+  
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS NAME,'' AS TAXID  ,'' AS CLIENTID, '' AS ORGID, '' AS RECORDID, 
+          '' AS TABLEID, '' AS PRODUCTID, '' AS WAREHOUSEID, 
+          '' AS COMBOITEMID, '' AS PARTNERNAME
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrganization" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="selectRucOrganization" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[           
+           SELECT ad_orginfo.taxid 
+             FROM ad_org
+             JOIN ad_orginfo on ad_org.ad_org_id = ad_orginfo.ad_org_id
+            WHERE ad_org.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>    
+  
+  <SqlMethod name="selectBPartner" type="preparedStatement" return="String" default="">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+     </Sql>
+     <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectRucBPartner" type="preparedStatement" return="String" default="">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       SELECT taxid FROM c_bpartner WHERE c_bpartner_id = ?
+     </Sql>
+     <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectProjectName" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+         SELECT C_Project.name AS NAME
+           FROM C_Project WHERE C_Project.C_Project_ID = ?
+        ]]></Sql>
+    <Parameter name="strProjectId"/>
+  </SqlMethod> 
+  
+    
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+   
+</SqlClass>

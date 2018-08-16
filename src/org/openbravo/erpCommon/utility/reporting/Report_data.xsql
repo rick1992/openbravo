@@ -1,0 +1,1041 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    *************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html 
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License. 
+    * The Original Code is Openbravo ERP. 
+    * The Initial Developer of the Original Code is Openbravo SLU 
+    * All portions are Copyright (C) 2001-2013 Openbravo SLU 
+    * All Rights Reserved. 
+    * Contributor(s):  ______________________________________.
+    ************************************************************************
+-->
+
+<SqlClass name="ReportData" package="org.openbravo.erpCommon.utility.reporting">
+    <SqlClassComment></SqlClassComment>
+
+    <!-- 
+        This definition exists only to define all the fields used in all the queries.
+        This is needed because all the variables in the generated class are based upon
+        all the fields in the first query of the xsql.
+    -->
+    <SqlMethod name="dummy" type="preparedStatement"
+        return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                '' as ad_Org_Id,
+                '' as document_id,
+                '' as docstatus,
+                '' as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as bpartner_language,
+                '' as isSalesOrderTransaction,
+                '' as docdate,
+                '' as minduedate,
+                '' as maxduedate,
+                '' as docdesc,
+                '' as contact_name,
+                '' as specialdoctype,
+                '' as isprinted,
+                '' as userpickeroid,
+                '' as param,
+                                '' as param2,
+                                '' as isebill
+            from
+                c_order
+            where
+                1=1 
+            ]]>
+        </Sql>
+        <Parameter name="cOrderId" optional="false" type="argument"
+            after="1=1">
+            <![CDATA[ and c_order.c_order_id in ]]>
+        </Parameter>
+
+    </SqlMethod>
+
+    <SqlMethod name="getOrderInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                c_order.ad_org_id,
+                c_order.c_order_id as document_id,
+                c_order.issotrx as isSalesOrderTransaction,
+                c_order.docstatus,
+                c_order.c_doctypetarget_id as docTypeTargetId,
+                c_order.documentno as ourreference,
+                c_order.poreference as cusreference,
+                salesrep.name as salnam,
+                c_order.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                c_bpartner.ad_language as bpartner_language,
+                c_order.dateordered as docdate,
+                (select min(fin_payment_schedule.duedate)
+                 from fin_payment_schedule
+                 where c_order.c_order_id = fin_payment_schedule.c_order_id
+                 and fin_payment_schedule.outstandingamt > 0 
+                ) as minduedate,
+                (select max(fin_payment_schedule.duedate)
+                 from fin_payment_schedule
+                 where c_order.c_order_id = fin_payment_schedule.c_order_id
+                 and fin_payment_schedule.outstandingamt > 0 
+                ) as maxduedate,
+                c_order.description as docdesc,
+                customercontact.name as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                c_order left join c_doctype on c_order.c_doctypetarget_id = c_doctype.c_doctype_id
+                left join c_bpartner on c_order.c_bpartner_id = c_bpartner.c_bpartner_id
+                left join ad_user salesrep on c_order.salesrep_id = salesrep.ad_user_id
+                left join ad_user customercontact on c_order.ad_user_id = customercontact.ad_user_id
+            where
+                c_order.c_order_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="cOrderId" />
+        
+    </SqlMethod>
+    
+    
+    <SqlMethod name="getInvoiceInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                c_invoice.ad_org_id,
+                c_invoice.c_invoice_id as document_id,
+                c_invoice.docstatus,
+                c_invoice.c_doctypetarget_id as docTypeTargetId,
+                c_invoice.documentno as ourreference,
+                c_invoice.poreference as cusreference,
+                salesrep.name as salnam,
+                c_invoice.c_bpartner_id as bpartner_id,
+                c_invoice.issotrx as isSalesOrderTransaction,
+                c_bpartner.name as bpartner_name,
+                c_bpartner.ad_language as bpartner_language,
+                c_invoice.dateinvoiced as docdate,
+                (select min(fin_payment_schedule.duedate)
+                 from fin_payment_schedule
+                 where c_invoice.c_invoice_id = fin_payment_schedule.c_invoice_id
+                 and fin_payment_schedule.outstandingamt > 0 
+                ) as minduedate,
+                (select max(fin_payment_schedule.duedate)
+                 from fin_payment_schedule
+                 where c_invoice.c_invoice_id = fin_payment_schedule.c_invoice_id
+                 and fin_payment_schedule.outstandingamt > 0 
+                ) as maxduedate,
+                c_invoice.description as docdesc,
+                customercontact.name as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                COALESCE(em_bill_isebill,'N') as isebill
+            from
+                c_invoice left join c_doctype on c_invoice.c_doctypetarget_id = c_doctype.c_doctype_id
+                left join c_bpartner on c_invoice.c_bpartner_id = c_bpartner.c_bpartner_id
+                left join ad_user salesrep on c_invoice.salesrep_id = salesrep.ad_user_id
+                left join ad_user customercontact on c_invoice.ad_user_id = customercontact.ad_user_id
+            where
+                c_invoice.c_invoice_id = ?
+            ]]>
+        </Sql>
+        <Parameter name="cInvoiceId" />
+
+    </SqlMethod>
+    
+    <SqlMethod name="getShipmentInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                m_inout.ad_org_id,
+                m_inout.m_inout_id as document_id,
+                m_inout.docstatus,
+                m_inout.c_doctype_id as docTypeTargetId,
+                m_inout.documentno as ourreference,
+                m_inout.poreference as cusreference,
+                salesrep.name as salnam,
+                m_inout.c_bpartner_id as bpartner_id,
+                m_inout.issotrx as isSalesOrderTransaction,
+                c_bpartner.name as bpartner_name,
+                c_bpartner.ad_language as bpartner_language,
+                m_inout.movementdate as docdate,
+                null as minduedate,
+                null as maxduedate,
+                m_inout.description as docdesc,
+                customercontact.name as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                'N' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                m_inout left join c_doctype on m_inout.c_doctype_id = c_doctype.c_doctype_id
+                left join c_bpartner on m_inout.c_bpartner_id = c_bpartner.c_bpartner_id
+                left join ad_user salesrep on m_inout.salesrep_id = salesrep.ad_user_id
+                left join ad_user customercontact on m_inout.ad_user_id = customercontact.ad_user_id
+            where
+                m_inout.m_inout_id = ?
+            ]]>
+        </Sql>
+        <Parameter name="mInoutId" />
+
+    </SqlMethod>
+  
+    <SqlMethod name="getPaymentInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                fin_payment.ad_org_id,
+                fin_payment.fin_payment_id as document_id,
+                fin_payment.status as docstatus,
+                fin_payment.c_doctype_id as docTypeTargetId,
+                fin_payment.documentno as ourreference,
+                fin_payment.referenceno as cusreference,
+                fin_payment.c_bpartner_id as bpartner_id,
+                fin_payment.isreceipt as isSalesOrderTransaction,
+                c_bpartner.name as bpartner_name,
+                c_bpartner.ad_language as bpartner_language,
+                fin_payment.paymentdate as docdate,
+                (select min(fin_payment_detail_v.duedate)
+                 from fin_payment_detail_v
+                 where fin_payment.fin_payment_id = fin_payment_detail_v.fin_payment_id
+                ) as minduedate,
+                (select max(fin_payment_detail_v.duedate)
+                 from fin_payment_detail_v
+                 where fin_payment.fin_payment_id = fin_payment_detail_v.fin_payment_id
+                ) as maxduedate,
+                fin_payment.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                fin_payment left join c_doctype on fin_payment.c_doctype_id = c_doctype.c_doctype_id
+                left join c_bpartner on fin_payment.c_bpartner_id = c_bpartner.c_bpartner_id
+            where
+                fin_payment.fin_payment_id = ?
+            ]]>
+        </Sql>
+        <Parameter name="FinPaymentId" />
+    </SqlMethod>
+    
+    <SqlMethod name="getPickingListInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                obwpl_pickinglist.ad_org_id,
+                obwpl_pickinglist.obwpl_pickinglist_id as document_id,
+                obwpl_pickinglist.pickliststatus as docstatus,
+                obwpl_pickinglist.c_doctype_id as docTypeTargetId,
+                obwpl_pickinglist.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as isSalesOrderTransaction,
+                obwpl_pickinglist.documentdate as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                obwpl_pickinglist.description as docdesc,
+                usercontact.name as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                em_spl_isprinted as isprinted,
+                obwpl_pickinglist.em_swa_user_pickero as userpickeroid,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                obwpl_pickinglist left join c_doctype on obwpl_pickinglist.c_doctype_id = c_doctype.c_doctype_id
+                left join ad_user usercontact on obwpl_pickinglist.ad_user_id = usercontact.ad_user_id
+            where
+                obwpl_pickinglist.obwpl_pickinglist_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="pickingListId" />     
+    </SqlMethod>
+    <SqlMethod name="getPreliquidationInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sim_imp_settlement.ad_org_id,
+                sim_imp_settlement.sim_imp_settlement_id as document_id,
+                sim_imp_settlement.docstatus as docstatus,
+                sim_imp_settlement.c_doctype_id as docTypeTargetId,
+                sim_imp_settlement.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sim_imp_settlement.dateordered as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                sim_imp_settlement.observation as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sim_imp_settlement left join c_doctype on sim_imp_settlement.c_doctype_id = c_doctype.c_doctype_id
+            where
+                sim_imp_settlement.sim_imp_settlement_id = ?   
+            ]]>
+        </Sql>
+        <Parameter name="simImpSettlementId" />      
+    </SqlMethod>
+    
+    <SqlMethod name="getCostingImportInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sim_imp_costing.ad_org_id,
+                sim_imp_costing.sim_imp_costing_id as document_id,
+                sim_imp_costing.docstatus as docstatus,
+                sim_imp_costing.c_doctype_id as docTypeTargetId,
+                sim_imp_costing.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sim_imp_costing.dateordered as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                '' as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sim_imp_costing left join c_doctype on sim_imp_costing.c_doctype_id = c_doctype.c_doctype_id
+            where
+                sim_imp_costing.sim_imp_costing_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="simImpCostingId" />     
+    </SqlMethod>
+
+    <SqlMethod name="getPWithholdingReceiptInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sco_pwithholding_receipt.ad_org_id,
+                sco_pwithholding_receipt.sco_pwithholding_receipt_id as document_id,
+                sco_pwithholding_receipt.docstatus as docstatus,
+                sco_pwithholding_receipt.c_doctypetarget_id as docTypeTargetId,
+                sco_pwithholding_receipt.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                sco_pwithholding_receipt.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sco_pwithholding_receipt.dateacct as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                '' as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                COALESCE(em_bill_isebill,'N') as isebill
+            from
+                sco_pwithholding_receipt left join c_doctype on sco_pwithholding_receipt.c_doctype_id = c_doctype.c_doctype_id
+                left join c_bpartner on sco_pwithholding_receipt.c_bpartner_id = c_bpartner.c_bpartner_id
+            where
+                sco_pwithholding_receipt.sco_pwithholding_receipt_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="scoPWithholdingReceiptId" />      
+    </SqlMethod>
+    
+    <SqlMethod name="getSWithholdingReceiptInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sco_swithholding_receipt.ad_org_id,
+                sco_swithholding_receipt.sco_swithholding_receipt_id as document_id,
+                sco_swithholding_receipt.docstatus as docstatus,
+                sco_swithholding_receipt.c_doctypetarget_id as docTypeTargetId,
+                sco_swithholding_receipt.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                sco_swithholding_receipt.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sco_swithholding_receipt.dateacct as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                '' as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sco_swithholding_receipt left join c_doctype on sco_swithholding_receipt.c_doctype_id = c_doctype.c_doctype_id
+                left join c_bpartner on sco_swithholding_receipt.c_bpartner_id = c_bpartner.c_bpartner_id
+            where
+                sco_swithholding_receipt.sco_swithholding_receipt_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="scoSWithholdingReceiptId" />        
+    </SqlMethod>
+    
+    <SqlMethod name="getFinancialAccountInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                fin_financial_account.ad_org_id,
+                fin_financial_account.fin_financial_account_id as document_id,
+                '' as docstatus,
+                COALESCE(c_doctype.c_doctype_id,'') as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                fin_financial_account.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                fin_financial_account.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                '' as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                fin_financial_account, c_bpartner, c_doctype 
+            where
+                  fin_financial_account.c_bpartner_id = c_bpartner.c_bpartner_id
+              and fin_financial_account.ad_client_id = c_doctype.ad_client_id  
+              and c_doctype.em_sco_specialdoctype = 'SCOFINANCIALACCOUNT'
+              and AD_ISORGINCLUDED(fin_financial_account.ad_org_id, c_doctype.ad_org_id, fin_financial_account.ad_client_id) > -1                           
+              and fin_financial_account.fin_financial_account_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="finFinancialAccountId" />       
+    </SqlMethod>
+    
+    <SqlMethod name="getPurchaseOrderImportInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sim_orderimport.ad_org_id,
+                sim_orderimport.sim_orderimport_id as document_id,
+                sim_orderimport.docstatus as docstatus,
+                sim_orderimport.c_doctype_id as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                sim_orderimport.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sim_orderimport.dateordered as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                sim_orderimport.observation as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sim_orderimport, c_bpartner, c_doctype               
+            where
+                  sim_orderimport.c_bpartner_id = c_bpartner.c_bpartner_id
+              and sim_orderimport.c_doctype_id = c_doctype.c_doctype_id
+              and sim_orderimport.sim_orderimport_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="simOrderImportId" />     
+    </SqlMethod>    
+    
+    <SqlMethod name="getPaymentOutCheckInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                fin_payment.ad_org_id,
+                fin_payment.fin_payment_id as document_id,
+                '' as docstatus,
+                COALESCE(c_doctype.c_doctype_id,'') as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                fin_payment.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                fin_payment.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                fin_payment.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                fin_payment, c_bpartner, c_doctype
+            where
+                  fin_payment.c_bpartner_id = c_bpartner.c_bpartner_id
+              and fin_payment.ad_client_id = c_doctype.ad_client_id  
+              and c_doctype.em_sco_specialdoctype = 'SCOFINPAYMENTOUTCHECK'
+              and AD_ISORGINCLUDED(fin_payment.ad_org_id, c_doctype.ad_org_id, fin_payment.ad_client_id) > -1                           
+              and fin_payment.fin_payment_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="finPaymentId" />        
+    </SqlMethod>
+    
+    <SqlMethod name="getSalesPerceptionReceiptInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sco_percep_sales.ad_org_id,
+                sco_percep_sales.sco_percep_sales_id as document_id,
+                sco_percep_sales.docstatus as docstatus,
+                sco_percep_sales.c_doctypetarget_id as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                sco_percep_sales.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sco_percep_sales.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                sco_percep_sales.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sco_percep_sales, c_bpartner, c_doctype              
+            where
+                  sco_percep_sales.c_bpartner_id = c_bpartner.c_bpartner_id
+              and sco_percep_sales.c_doctype_id = c_doctype.c_doctype_id
+              and sco_percep_sales.sco_percep_sales_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="scoPercepSalesId" />
+    </SqlMethod>
+    
+    <SqlMethod name="getRequisitionInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                m_requisition.ad_org_id,
+                m_requisition.m_requisition_id as document_id,
+                m_requisition.docstatus as docstatus,
+                COALESCE(c_doctype.c_doctype_id,'') as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                m_requisition.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                m_requisition.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                m_requisition.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                m_requisition, c_bpartner, c_doctype 
+            where
+                  m_requisition.c_bpartner_id = c_bpartner.c_bpartner_id
+              and m_requisition.ad_client_id = c_doctype.ad_client_id  
+              and c_doctype.em_sco_specialdoctype = 'SCOREQUISITION'
+              and AD_ISORGINCLUDED(m_requisition.ad_org_id, c_doctype.ad_org_id, m_requisition.ad_client_id) > -1                           
+              and m_requisition.m_requisition_id = ?                    
+            ]]>
+        </Sql>
+        <Parameter name="mRequisitionId" />        
+    </SqlMethod>
+                
+    <SqlMethod name="getAccountabilityInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sco_rendicioncuentas.ad_org_id,
+                sco_rendicioncuentas.sco_rendicioncuentas_id as document_id,
+                sco_rendicioncuentas.docstatus as docstatus,
+                sco_rendicioncuentas.c_doctypetarget_id as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                sco_rendicioncuentas.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sco_rendicioncuentas.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                sco_rendicioncuentas.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sco_rendicioncuentas, c_bpartner, c_doctype
+            where
+                  sco_rendicioncuentas.c_bpartner_id = c_bpartner.c_bpartner_id
+              and sco_rendicioncuentas.c_doctypetarget_id = c_doctype.c_doctype_id  
+              and sco_rendicioncuentas.sco_rendicioncuentas_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="scoRendicionCuentasId" />     
+    </SqlMethod>  
+    
+    <SqlMethod name="getBillOfExchangeToCollectionDocument" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                SCO_Boe_To_Discount.ad_org_id,
+                SCO_Boe_To_Discount.SCO_Boe_To_Discount_id as document_id,
+                SCO_Boe_To_Discount.docstatus as docstatus,
+                SCO_Boe_To_Discount.c_doctypetarget_id as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                SCO_Boe_To_Discount.issotrx as isSalesOrderTransaction,
+                SCO_Boe_To_Discount.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                SCO_Boe_To_Discount.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                SCO_Boe_To_Discount, c_doctype
+            where
+                  SCO_Boe_To_Discount.c_doctypetarget_id = c_doctype.c_doctype_id  
+              and SCO_Boe_To_Discount.SCO_Boe_To_Discount_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="SCOBoeToDiscountId" />     
+    </SqlMethod>      
+    
+    <SqlMethod name="getFolioImportInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sim_folioimport.ad_org_id,
+                sim_folioimport.sim_folioimport_id as document_id,
+                sim_folioimport.docstatus as docstatus,
+                sim_folioimport.c_doctype_id as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                sim_folioimport.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sim_folioimport.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                sim_folioimport.observation as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sim_folioimport, c_bpartner, c_doctype
+            where
+                  sim_folioimport.c_bpartner_id = c_bpartner.c_bpartner_id
+              and sim_folioimport.c_doctype_id = c_doctype.c_doctype_id  
+              and sim_folioimport.sim_folioimport_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="simFolioImportId" />     
+    </SqlMethod>    
+       
+    <SqlMethod name="getGoodsTransferInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sco_transferinout.ad_org_id,
+                sco_transferinout.sco_transferinout_id as document_id,
+                sco_transferinout.docstatus as docstatus,
+                sco_transferinout.c_doctypetarget_id as docTypeTargetId,
+                '' as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                sco_transferinout.c_bpartner_id as bpartner_id,
+                c_bpartner.name as bpartner_name,
+                sco_transferinout.issotrx as isSalesOrderTransaction,
+                sco_transferinout.created as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                sco_transferinout.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                sco_transferinout, c_bpartner, c_doctype
+            where
+                  sco_transferinout.c_bpartner_id = c_bpartner.c_bpartner_id
+              and sco_transferinout.c_doctypetarget_id = c_doctype.c_doctype_id  
+              and sco_transferinout.sco_transferinout_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="scoTransferinoutId" />     
+    </SqlMethod>  
+
+       
+    
+    <SqlMethod name="getGoodsMovementInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                m_movement.ad_org_id,
+                m_movement.m_movement_id as document_id,
+                '' as docstatus,
+                COALESCE(c_doctype.c_doctype_id,'') as docTypeTargetId,
+                m_movement.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as isSalesOrderTransaction,
+                m_movement.movementdate as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                m_movement.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                m_movement, c_doctype 
+            where              
+                 m_movement.ad_client_id = c_doctype.ad_client_id
+             and c_doctype.em_sco_specialdoctype = 'SCOGOODSMOVEMENT'
+             and AD_ISORGINCLUDED(m_movement.ad_org_id, c_doctype.ad_org_id, m_movement.ad_client_id) > -1                           
+             and m_movement.m_movement_id = ?          
+            ]]>
+        </Sql>
+        <Parameter name="mMovementId" />       
+    </SqlMethod>                  
+    
+    <SqlMethod name="getBOMProductionInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                m_production.ad_org_id,
+                m_production.m_production_id as document_id,
+                '' as docstatus,
+                COALESCE(c_doctype.c_doctype_id,'') as docTypeTargetId,
+                m_production.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                m_production.issotrx as isSalesOrderTransaction,
+                m_production.movementdate as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                m_production.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                m_production, c_doctype 
+            where              
+                 m_production.ad_client_id = c_doctype.ad_client_id
+             and c_doctype.em_sco_specialdoctype = 'SCOBOMPRODUCTION'
+             and AD_ISORGINCLUDED(m_production.ad_org_id, c_doctype.ad_org_id, m_production.ad_client_id) > -1                           
+             and m_production.m_production_id = ?          
+            ]]>
+        </Sql>
+        <Parameter name="mProductionId" />       
+    </SqlMethod>        
+    
+    <SqlMethod name="getPurchaseInvoiceInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                c_invoice.ad_org_id,
+                c_invoice.c_invoice_id as document_id,
+                c_invoice.docstatus,
+                c_invoice.c_doctypetarget_id as docTypeTargetId,
+                c_invoice.documentno as ourreference,
+                c_invoice.poreference as cusreference,
+                salesrep.name as salnam,
+                c_invoice.c_bpartner_id as bpartner_id,
+                c_invoice.issotrx as isSalesOrderTransaction,
+                c_bpartner.name as bpartner_name,
+                c_bpartner.ad_language as bpartner_language,
+                c_invoice.dateinvoiced as docdate,
+                (select min(fin_payment_schedule.duedate)
+                 from fin_payment_schedule
+                 where c_invoice.c_invoice_id = fin_payment_schedule.c_invoice_id
+                 and fin_payment_schedule.outstandingamt > 0 
+                ) as minduedate,
+                (select max(fin_payment_schedule.duedate)
+                 from fin_payment_schedule
+                 where c_invoice.c_invoice_id = fin_payment_schedule.c_invoice_id
+                 and fin_payment_schedule.outstandingamt > 0 
+                ) as maxduedate,
+                c_invoice.description as docdesc,
+                customercontact.name as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                'N' as isebill
+            from
+                c_invoice left join c_doctype on c_invoice.c_doctypetarget_id = c_doctype.c_doctype_id
+                left join c_bpartner on c_invoice.c_bpartner_id = c_bpartner.c_bpartner_id
+                left join ad_user salesrep on c_invoice.salesrep_id = salesrep.ad_user_id
+                left join ad_user customercontact on c_invoice.ad_user_id = customercontact.ad_user_id
+            where
+                c_invoice.c_invoice_id = ?
+            ]]>
+        </Sql>
+        <Parameter name="cInvoiceId" />
+
+    </SqlMethod>
+    
+    <SqlMethod name="getPurchasePrepaymentInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sco_prepayment.ad_org_id,
+                sco_prepayment.sco_prepayment_id as document_id,
+                sco_prepayment.docstatus as docstatus,
+                sco_prepayment.c_doctypetarget_id as docTypeTargetId,
+                sco_prepayment.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as isSalesOrderTransaction,
+                sco_prepayment.dategen as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                sco_prepayment.description as docdesc,
+                '' as contact_name,
+                'N' as isebill
+            from
+                sco_prepayment left join c_doctype on sco_prepayment.c_doctypetarget_id = c_doctype.c_doctype_id
+            where
+                sco_prepayment.sco_prepayment_id = ?      
+            ]]>
+        </Sql>
+        <Parameter name="scoPrepaymentId" />
+        
+    </SqlMethod>
+     <SqlMethod name="getMovementCodeInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+         
+         select
+                swa_movementcode.ad_org_id,
+                swa_movementcode.swa_movementcode_id as document_id,
+                swa_movementcode.docstatus as docstatus,
+                swa_movementcode.c_doctype_id as docTypeTargetId,
+                swa_movementcode.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as isSalesOrderTransaction,
+                swa_movementcode.dateordered as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                swa_movementcode.description as docdesc,
+                '' as contact_name,
+                'N' as isebill
+            from
+                swa_movementcode left join c_doctype on swa_movementcode.c_doctype_id = c_doctype.c_doctype_id
+            where
+                swa_movementcode.swa_movementcode_id = ?    
+         
+         
+            ]]>
+        </Sql>
+        <Parameter name="scoMovementCodeId" />
+        
+    </SqlMethod>
+    
+    <SqlMethod name="getRequerimientoReposicionInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+         
+         select
+                swa_requerimientoreposicion.ad_org_id,
+                swa_requerimientoreposicion.swa_requerimientoreposicion_id as document_id,
+                swa_requerimientoreposicion.status as docstatus,
+                swa_requerimientoreposicion.c_doctype_id as docTypeTargetId,
+                swa_requerimientoreposicion.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                '' as bpartner_name,
+                '' as isSalesOrderTransaction,
+                swa_requerimientoreposicion.dateordered as docdate,  
+                '' as minduedate,
+                '' as maxduedate,       
+                swa_requerimientoreposicion.requer_name as docdesc,
+                '' as contact_name,
+                'N' as isebill
+            from
+                swa_requerimientoreposicion left join c_doctype on swa_requerimientoreposicion.c_doctype_id = c_doctype.c_doctype_id
+            where
+                swa_requerimientoreposicion.swa_requerimientoreposicion_id = ?   
+         
+         
+            ]]>
+        </Sql>
+        <Parameter name="swaRequerimientoReposicionId" />        
+    </SqlMethod>
+    
+    <SqlMethod name="getSalesProspectInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                ssa_projprop_contract.ad_org_id,
+                ssa_projprop_contract.ssa_projprop_contract_id as document_id,
+                ssa_projprop_contract.docstatus,
+                ssa_projprop_contract.c_doctypetarget_id as docTypeTargetId,
+                ssa_projprop_contract.documentno as ourreference,
+                '' as cusreference,
+                salesrep.name as salnam,
+                ssa_projprop_contract.c_bpartner_id as bpartner_id,
+                'Y' as isSalesOrderTransaction,
+                c_bpartner.name as bpartner_name,
+                c_bpartner.ad_language as bpartner_language,
+                ssa_projprop_contract.datedoc as docdate,
+                '' as minduedate,
+                '' as maxduedate,
+                ssa_projprop_contract.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                '' as isebill
+            from
+                ssa_projprop_contract left join c_doctype on ssa_projprop_contract.c_doctypetarget_id = c_doctype.c_doctype_id
+                left join c_bpartner on ssa_projprop_contract.c_bpartner_id = c_bpartner.c_bpartner_id
+                left join ad_user salesrep on ssa_projprop_contract.salesrep_id = salesrep.ad_user_id
+            where
+                ssa_projprop_contract.ssa_projprop_contract_id = ?
+            ]]>
+        </Sql>
+        <Parameter name="ssaProjPropContractId" />
+
+    </SqlMethod>     
+    
+    <SqlMethod name="getSreContractPayScheduleInfo" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            select
+                sre_contract_payschedule.ad_org_id,
+                sre_contract_payschedule.sre_contract_payschedule_id as document_id,
+                sre_contract_payschedule.docstatus,
+                sre_contract_payschedule.c_doctypetarget_id as docTypeTargetId,
+                sre_contract_payschedule.documentno as ourreference,
+                '' as cusreference,
+                '' as salnam,
+                '' as bpartner_id,
+                'N' as isSalesOrderTransaction,
+                '' as bpartner_name,
+                '' as bpartner_language,
+                sre_contract_payschedule.paymentdate as docdate,
+                '' as minduedate,
+                '' as maxduedate,
+                sre_contract_payschedule.description as docdesc,
+                '' as contact_name,
+                c_doctype.em_sco_specialdoctype as specialdoctype,
+                '' as isprinted,
+                '' as param,
+                '' as param2,
+                '' as isebill
+            from
+                sre_contract_payschedule left join c_doctype on sre_contract_payschedule.c_doctypetarget_id = c_doctype.c_doctype_id
+            where
+                sre_contract_payschedule.sre_contract_payschedule_id = ?
+            ]]>
+        </Sql>
+        <Parameter name="sreContractPayScheduleId" />
+
+    </SqlMethod>         
+    
+</SqlClass>

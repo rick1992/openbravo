@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_ENDPCONV_RATE_TRG">
+    <trigger name="SCO_ENDPCONV_RATE_TRG" table="SCO_ENDPERIODCONV_RATE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_Count NUMBER;
+      
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  IF(:new.ValidTo IS NULL) THEN
+      :new.ValidTo:=TO_DATE('31-12-9999', 'DD-MM-YYYY') ;
+  END IF;
+
+  IF :new.ValidTo < :new.ValidFrom THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20505@');
+  END IF;
+
+  IF :NEW.c_currency_id = :NEW.c_currency_id_to then
+     RAISE_APPLICATION_ERROR(-20000, '@SameCurrency@');
+   end if;
+
+END SCO_ENDPCONV_RATE_TRG
+]]></body>
+    </trigger>
+  </database>

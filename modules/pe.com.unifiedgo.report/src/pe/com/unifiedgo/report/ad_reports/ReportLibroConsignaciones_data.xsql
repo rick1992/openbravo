@@ -1,0 +1,672 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="ReportLibroConsignacionesData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+  
+
+  
+    <SqlMethod name="selectConsignadorMejorado3" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+	  SELECT
+	*, '' AS serie_guia,
+	'' AS numero_guia,
+	'' AS serie_factura,
+	'' AS numero_factura,
+	'' AS idorganizacion,
+	'' AS idperiodo,
+	'' AS periodo,
+	'' AS fechainicial,
+	'' AS fechafinal,
+	'' AS n_guia_consignador,
+	CASE
+		WHEN t1.tipo_transaccion = 'ingreso' THEN
+			ABS (t1.cantidad_movida)
+		ELSE
+			0.0
+		END AS qty_ingreso,
+		 CASE
+		WHEN t1.tipo_transaccion = 'venta' THEN
+			ABS (t1.cantidad_movida)
+		ELSE
+			0.0
+		END AS qty_venta,
+		 CASE
+		WHEN t1.tipo_transaccion = 'devolucion' THEN
+			ABS (t1.cantidad_movida)
+		ELSE
+			0.0
+		END AS qty_devolucion
+		
+		,CASE WHEN t1.tipo_transaccion='venta'
+				THEN (SELECT guia.m_inout_id FROM c_invoiceline cil  
+		inner join m_inoutline miol on cil.m_inoutline_id=miol.m_inoutline_id  
+		left join m_inoutline miol2 on miol.em_scr_consig_ref_ioline_id=miol2.m_inoutline_id
+		left join m_inout guia on miol2.m_inout_id=guia.m_inout_id
+		where cil.c_invoice_id=t1.id_factura_consignador limit 1)
+		
+		when t1.tipo_transaccion='devolucion' THEN
+		(  SELECT guia.m_inout_id from m_inoutline miol 
+		inner join m_inoutline miol2 on miol.em_scr_consig_ref_ioline_id  = miol2.m_inoutline_id
+		left join m_inout guia on miol2.m_inout_id=guia.m_inout_id
+		 WHERE miol.m_inout_id=t1.id_guia_consignador LIMIT 1)
+		ELSE t1.id_guia_consignador
+		 END AS guia_ref_id
+		
+		
+		FROM
+			(
+		SELECT
+			COALESCE (cbp.c_bpartner_id, '-') AS idtercero,
+			COALESCE (cbp. NAME, 'Sin Tercero') AS tercero,
+			COALESCE (cbp.taxid, '--') AS ruc_tercero,
+			mp.m_product_id AS idproducto,
+			mp.
+		VALUE
+			AS codigo_producto,
+			mp.description AS producto,
+			COALESCE (cip.em_ssa_code, '') AS unidad_producto,
+			0.0 AS saldo_producto,
+			mt.movementdate AS fecha,
+			(
+				CASE
+						WHEN ci IS NOT NULL AND ci.issotrx='Y' THEN
+						    (CASE  (select dti.name FROM c_doctype dti WHERE ci.c_doctypetarget_id=dti.c_doctype_id  ) WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '00' end)
+						WHEN ci IS NOT NULL AND ci.issotrx='N' THEN
+							(select cii.code FROM scr_combo_item cii WHERE cii.scr_combo_item_id = ci.em_sco_podoctype_comboitem_id LIMIT 1)
+						ELSE
+							'09'
+						END
+						
+			) AS tipo_doc_t10,
+			COALESCE (
+				mio.em_scr_physical_documentno,
+				''
+			) AS n_guia_consignador_pre,
+			COALESCE (
+				ci.em_scr_physical_documentno,
+				''
+			) AS n_factura_consignador,
+			COALESCE (
+				ci.c_invoice_id,
+				''
+			) AS id_factura_consignador,
+			COALESCE (
+				mio.m_inout_id,
+				''
+			) AS id_guia_consignador,
+			mt.movementdate AS fecha_devolucion,
+			COALESCE (ci3.code, '') AS tipo_tercero_t02,
+			mt.movementqty cantidad_movida,
+			(
+				CASE
+				WHEN mt.movementqty > 0 THEN
+					'ingreso'
+				WHEN (mt.movementqty < 0) THEN
+					(	CASE
+					WHEN sc. VALUE IN ('DevolucionPorMuestra','DevolucionProveedor','SalidaProductosTransito',
+								'SalidaDevolucionConsignacion','DevolucionCliente','ReposicionEntreAlmacenesOut',
+								'SalidaProductosTransito','ReposicionPorMinaOut','SalidaDevolucionVentaComprador'
+								) THEN
+						'devolucion'
+					ELSE
+						'venta'
+					END)
+				END
+			) AS tipo_transaccion,
+			arlt.
+		name
+			AS tipo_movimiento,
+			sc.
+		VALUE
+			AS tipo_pedido,
+			arl.
+		VALUE,
+		mt.m_transaction_id 
+
+		FROM
+			 m_transaction mt 
+		inner join m_locator ml on mt.m_locator_id=ml.m_locator_id
+		INNER JOIN m_warehouse mw ON ml.m_warehouse_id = mw.m_warehouse_id
+		INNER JOIN m_product mp ON mt.m_product_id = mp.m_product_id
+		LEFT JOIN ad_ref_list arl ON mt.movementtype = arl.
+		VALUE
+
+		LEFT JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+		LEFT JOIN scr_combo_item sc ON mt.em_ssa_combo_item_id = sc.scr_combo_item_id
+		LEFT JOIN m_inoutline miol on mt.m_inoutline_id = miol.m_inoutline_id
+		left join m_inout mio on miol.m_inout_id=mio.m_inout_id
+		LEFT JOIN c_invoice ci ON mio.c_order_id = ci.c_order_id
+		LEFT JOIN c_bpartner cbp ON mw.em_swa_c_bpartner_id = cbp.c_bpartner_id
+		LEFT JOIN c_uom cip ON mp.c_uom_id = cip.c_uom_id
+		LEFT JOIN scr_combo_item ci3 ON ci3.scr_combo_item_id = cbp.em_scr_combo_item_id
+
+		WHERE
+			mw.em_swa_warehousetype IN ('CO', 'MI')
+		AND sc.
+		VALUE
+			NOT IN ('MovimientoInterno')
+		and mio.docstatus='CO'
+
+		AND mt.AD_CLIENT_ID IN ('1')
+        AND mt.AD_ORG_ID IN ('1')
+        AND miol.m_product_id LIKE '%'||COALESCE(?,'')||'%' 
+        AND  COALESCE(mw.em_swa_c_bpartner_id,'-') =  ?
+		and 2=2
+		order by cbp.name, mp.description,mt.movementdate,mt.created
+		
+		) as t1
+    
+     
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND mt.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mt.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="productoID"/>
+    <Parameter name="terceroID"/>
+     <Parameter name="parDateFrom" optional="true" after="2=2"><![CDATA[ AND mt.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="2=2"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+   
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+   <SqlMethod name="selectSaldoAnteriorConsignador" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        
+	SELECT
+	COALESCE (
+		SUM (
+			COALESCE (mt.movementqty, 0.0)
+		),
+		0
+	) AS saldo_producto
+	FROM
+	m_transaction mt 
+	inner join m_locator ml on mt.m_locator_id=ml.m_locator_id
+	INNER JOIN m_warehouse mw ON ml.m_warehouse_id = mw.m_warehouse_id
+	
+	where 
+	mw.em_swa_warehousetype  IN ('CO','MI') and 
+	mt.AD_CLIENT_ID IN ('1')
+    AND mt.AD_ORG_ID IN ('1')
+	AND mt.m_product_id= ? 
+	and COALESCE(mw.em_swa_c_bpartner_id,'-') = ? 
+	AND 2=2
+	
+     
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="mt.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mt.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="productoID"/>
+    <Parameter name="terceroID"/>
+    <Parameter name="parDateTo" optional="true" after="2=2"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+   
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+   
+   <SqlMethod name="selectLineasCabeceraConsignador" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+		 select DISTINCT 
+		coalesce(cbp.c_bpartner_id,'-') as idtercero,
+		
+		COALESCE(cbp.name ,'Sin Tercero') as tercero,
+		COALESCE(cbp.taxid, '--' ) as ruc_tercero,
+		mp.m_product_id as idproducto,
+		COALESCE(mp.value, 'no product') as codigo_producto,
+		COALESCE(mp.description, 'sin producto')as producto,
+		coalesce (cip.em_ssa_code, '' ) as unidad_producto,
+		
+		0.0  as saldo_producto
+		
+		from swa_product_warehouse_v spw
+		INNER JOIN m_warehouse mw on spw.m_warehouse_id=mw.m_warehouse_id
+		left JOIN m_product mp on spw.m_product_id=mp.m_product_id
+		left JOIN  c_uom cip on mp.c_uom_id=cip.c_uom_id
+		left JOIN c_bpartner cbp on mw.em_swa_c_bpartner_id=cbp.c_bpartner_id
+		
+		where 
+		
+		mw.em_swa_warehousetype  IN ('CO','MI')
+		 
+		AND mw.AD_CLIENT_ID IN ('1')
+        AND mw.AD_ORG_ID IN ('1')
+		and spw.m_product_id like '%'||COALESCE(?,'')||'%'
+		and COALESCE(mw.em_swa_c_bpartner_id,'') like '%'||COALESCE(?,'')||'%'
+		ORDER BY 1,4
+
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND mw.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mw.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="productoID"/>
+    <Parameter name="terceroID"/>
+
+   
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+    
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="selectConsignatarioMejorado2" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+		SELECT
+			*, '' AS serie_guia,
+			'' AS numero_guia,
+			'' AS serie_factura,
+			'' AS numero_factura,
+			
+			CASE
+		WHEN t1.tipo_transaccion = 'ingreso' THEN
+			ABS (t1.cantidad_movida)
+		ELSE
+			0.0
+		END AS qty_ingreso,
+		 CASE
+		WHEN t1.tipo_transaccion = 'venta' THEN
+			ABS (t1.cantidad_movida)
+		ELSE
+			0.0
+		END AS qty_venta,
+		 CASE
+		WHEN t1.tipo_transaccion = 'devolucion' THEN
+			ABS (t1.cantidad_movida)
+		ELSE
+			0.0
+		END AS qty_devolucion
+		FROM
+	(
+		SELECT
+			cbp.c_bpartner_id AS idtercero,
+			(cbp. NAME) AS tercero,
+			(cbp.taxid) AS ruc_tercero,
+			mp.m_product_id AS idproducto,
+			mp.
+		VALUE
+			AS codigo_producto,
+			mp.description AS producto,
+			COALESCE (cip.em_ssa_code, '') AS unidad_producto,
+			0.0 AS saldo_producto,
+			mt.movementdate AS fecha,
+			(	
+				CASE
+						WHEN ci IS NOT NULL AND ci.issotrx='Y' THEN
+						    (CASE  (select dti.name FROM c_doctype dti WHERE ci.c_doctypetarget_id=dti.c_doctype_id  ) WHEN 'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '00' end)
+						WHEN ci IS NOT NULL AND ci.issotrx='N' THEN
+							(select cii.code FROM scr_combo_item cii WHERE cii.scr_combo_item_id = ci.em_sco_podoctype_comboitem_id LIMIT 1)
+						WHEN mio.em_scr_physical_documentno IS NOT NULL AND dt.em_sco_specialdoctype IN ('SWARTVRECEIPT', 'SCOMMRECEIPT', 'SCOMMSHIPMENT', 'SWAINTERNALSHIPMENT') THEN
+							'09'
+						ELSE
+							'00'
+						END
+			) AS tipo_doc_t10,
+			COALESCE (
+				mio.em_scr_physical_documentno,
+				''
+			) AS n_guia_consignador,
+			COALESCE (
+				mio.m_inout_id, '' ) AS guia_ref_id,
+			COALESCE (
+				ci.em_scr_physical_documentno,
+				''
+			) AS n_factura_consignador,
+			COALESCE (
+				ci.c_invoice_id,
+				''
+			) AS id_factura_consignador,
+			mt.movementdate AS fecha_devolucion,
+			COALESCE (ci3.code, '') AS tipo_tercero_t02,
+			mt.movementqty cantidad_movida,
+
+
+
+			(
+				CASE
+				WHEN mt.movementqty > 0 THEN
+					'ingreso'
+				WHEN (mt.movementqty < 0) THEN
+					(	CASE
+					WHEN sc. VALUE IN ('DevolucionProveedor','SalidaDevolucionVentaComprador') THEN
+						'devolucion'
+					ELSE
+						'venta'
+					END)
+				END
+			) AS tipo_transaccion,
+
+			arlt. NAME AS tipo_movimiento,
+			sc. NAME AS tipo_pedido,
+			arl.
+		VALUE,
+		mt.m_transaction_id
+
+		FROM
+		m_transaction mt
+		inner join m_locator ml on mt.m_locator_id=ml.m_locator_id
+		INNER JOIN m_warehouse mw ON ml.m_warehouse_id = mw.m_warehouse_id
+		INNER JOIN m_product mp ON mt.m_product_id = mp.m_product_id
+		LEFT JOIN ad_ref_list arl ON mt.movementtype = arl.
+		VALUE
+
+		LEFT JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+		LEFT JOIN scr_combo_item sc ON mt.em_ssa_combo_item_id = sc.scr_combo_item_id
+		LEFT JOIN m_inoutline miol on mt.m_inoutline_id = miol.m_inoutline_id
+		left join m_inout mio on miol.m_inout_id=mio.m_inout_id
+		left join c_doctype dt ON mio.c_doctype_id = dt.c_doctype_id 
+		LEFT JOIN c_invoice ci ON mio.c_order_id = ci.c_order_id
+		LEFT JOIN c_bpartner cbp ON mio.c_bpartner_id = cbp.c_bpartner_id
+		LEFT JOIN c_uom cip ON mp.c_uom_id = cip.c_uom_id
+		LEFT JOIN scr_combo_item ci3 ON ci3.scr_combo_item_id = cbp.em_scr_combo_item_id
+		WHERE
+
+		 sc.value not in ('MovimientoInterno','ReposicionEntreAlmacenesOut','ReposicionEntreAlmacenes','SalidaProductosTransito'
+		,'SalidaDevolucionConsignacion','ReposicionEntreAlmacenesOut','SalidaProductosTransito','ReposicionPorMinaOut','')
+		AND mp.em_sco_isconsignment = 'Y'
+		and mio.docstatus='CO'
+		
+
+		
+		AND mt.AD_CLIENT_ID IN ('1')
+        AND mt.AD_ORG_ID IN ('1')
+		and mp.m_product_id LIKE '%'||COALESCE(?,'')||'%' 
+		and 2=2 
+
+		order by  mp.description,mt.movementdate,mt.created
+		
+		) as t1
+    
+  
+     
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND mt.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mt.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="productoID"/>
+     <Parameter name="parDateFrom" optional="true" after="2=2"><![CDATA[ AND mt.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="2=2"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+   
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+   <SqlMethod name="selectSaldoAnteriorConsignatario" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+    	select 
+	coalesce(sum(coalesce (mt.movementqty , 0.0)),0) as saldo_producto
+	from  m_transaction mt 
+	
+	where 
+
+	mt.AD_CLIENT_ID IN ('1')
+    AND mt.AD_ORG_ID IN ('1')
+	AND mt.m_product_id=? 
+	AND 2=2
+
+     
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="mt.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mt.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="productoID"/>
+    <Parameter name="parDateTo" optional="true" after="2=2"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+   
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+   
+   <SqlMethod name="selectLineasCabeceraConsignatario" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+     select 
+		DISTINCT mp.m_product_id as idproducto,
+		COALESCE(mp.value, 'no product') as codigo_producto,
+		COALESCE(mp.description, 'sin producto')as producto,
+		coalesce (cip.em_ssa_code, '' ) as unidad_producto,
+		
+		0.0  as saldo_producto
+		
+		from swa_product_warehouse_v spw
+		INNER JOIN m_warehouse mw on spw.m_warehouse_id=mw.m_warehouse_id
+		left JOIN m_product mp on spw.m_product_id=mp.m_product_id
+		left JOIN  c_uom cip on mp.c_uom_id=cip.c_uom_id
+		
+		where 
+		
+		mw.em_swa_warehousetype NOT IN ('CO','MI','TR')
+		 AND mp.em_sco_isconsignment='Y'
+		AND mw.AD_CLIENT_ID IN ('1')
+        AND mw.AD_ORG_ID IN ('1')
+		and spw.m_product_id like '%'||COALESCE(?,'')||'%'
+
+		ORDER BY 3
+    
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND mw.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND mw.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="productoID"/>
+
+   
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  <SqlMethod name="selectMproduct" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_PRODUCT.NAME
+      FROM M_PRODUCT
+      WHERE M_PRODUCT.M_PRODUCT_ID = ?
+     ]]></Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+  <SqlMethod name="selectBPartner" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>    
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+  
+</SqlClass>

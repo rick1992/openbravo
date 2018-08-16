@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PROPCNTRTLINE_SPDOC_TRG">
+    <trigger name="SSA_PROPCNTRTLINE_SPDOC_TRG" table="SSA_PROJPROP_CONTRACT_LINE" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  v_specialdoctype VARCHAR(60);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT specialdoctype
+      INTO v_specialdoctype
+      FROM ssa_projprop_contract 
+     WHERE ssa_projprop_contract_ID = :NEW.ssa_projprop_contract_id;
+     
+    :NEW.specialdoctype := v_specialdoctype;
+
+    END SSA_PROPCNTRTLINE_SPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

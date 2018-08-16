@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVLINE_FINACCT_TRG">
+    <trigger name="SCO_INVLINE_FINACCT_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_C_INVOICE_ID VARCHAR2(32) ;
+  v_Currency     VARCHAR2(32);
+  v_Issotrx     CHAR(1);
+  v_docstatus VARCHAR(60);
+  v_isstocked VARCHAR(1);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF INSERTING THEN
+      v_C_INVOICE_ID:=:NEW.C_INVOICE_ID;
+    ELSE
+      v_C_INVOICE_ID:=:OLD.C_INVOICE_ID;
+    END IF;
+    SELECT PROCESSED, POSTED,
+      C_CURRENCY_ID, Issotrx, docstatus
+    INTO v_Processed, v_Posted,
+      v_Currency, v_Issotrx, v_docstatus
+    FROM C_INVOICE
+    WHERE C_INVOICE_ID=v_C_INVOICE_ID;
+
+    IF(INSERTING) THEN
+      IF(:NEW.financial_invoice_line = 'Y') THEN
+        IF(:NEW.account_id IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@C_INVOICELINE_FINACCT_CHK@') ;
+        END IF;
+        :NEW.m_product_id := NULL;
+      ELSE
+        IF(:NEW.m_product_id IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@C_INVOICELINE_FINACCT_CHK@') ;
+        END IF;
+        :NEW.account_id := NULL;
+        --NEW.c_costcenter_id := NULL;
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.financial_invoice_line,'')<>COALESCE(:NEW.financial_invoice_line,'')
+      OR COALESCE(:OLD.m_product_id,'')<>COALESCE(:NEW.m_product_id,'')
+      OR COALESCE(:OLD.account_id,'')<>COALESCE(:NEW.account_id,'')
+        ) THEN
+        IF(:NEW.financial_invoice_line = 'Y') THEN
+          IF(:NEW.account_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@C_INVOICELINE_FINACCT_CHK@') ;
+          END IF;
+          :NEW.m_product_id := NULL;
+        ELSE
+          IF(:NEW.m_product_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@C_INVOICELINE_FINACCT_CHK@') ;
+          END IF;
+          :NEW.account_id := NULL;
+          --NEW.c_costcenter_id := NULL;
+        END IF;
+      END IF;
+    END IF;
+
+
+    IF(UPDATING) THEN
+      IF(v_Processed='Y' AND (COALESCE(:OLD.M_PRODUCT_ID, '0') <> COALESCE(:NEW.M_PRODUCT_ID, '0')))THEN
+        --Special case for purchase document allow to change from product to account if the product is not stockable
+        IF(:OLD.financial_invoice_line = 'N' AND :NEW.financial_invoice_line = 'Y' AND v_Issotrx='N') THEN
+          SELECT isstocked
+            INTO v_isstocked
+            FROM M_Product
+          WHERE M_Product_ID = :OLD.M_Product_ID;
+
+          IF(v_isstocked = 'Y') THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_COInvChAccountProductStocked@') ;
+          END IF;
+        ELSE
+          RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+        END IF;
+      END IF;
+    END IF;
+
+    END SCO_INVLINE_FINACCT_TRG
+]]></body>
+    </trigger>
+  </database>

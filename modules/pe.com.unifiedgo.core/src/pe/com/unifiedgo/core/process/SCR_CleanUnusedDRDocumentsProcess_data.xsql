@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="SCRCleanUnusedDRDocumentsProcessData" package="pe.com.unifiedgo.core.process">
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS C_INVOICE_ID, '' AS C_ORDER_ID, 
+               '' AS M_INOUT_ID, '' AS FIN_PAYMENT_ID FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+   <SqlMethod name="getUnusedDRInvoices" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT i.C_Invoice_ID
+       FROM C_Invoice i
+       WHERE i.docstatus='DR'
+       AND i.isprinted='N'
+       AND NOT EXISTS(SELECT 1 FROM C_Invoiceline il WHERE il.C_Invoice_ID = i.C_Invoice_ID)
+       AND (i.updated + interval '3' day) < NOW()
+     ]]>
+   </Sql>
+   </SqlMethod>
+   <SqlMethod name="deleteInvoice" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+     DELETE FROM C_Invoice WHERE C_Invoice_ID = ?
+     ]]>
+   </Sql>
+   <Parameter name="cInvoiceId"/>
+   </SqlMethod>
+   <SqlMethod name="deleteInvoiceTax" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+     DELETE FROM C_InvoiceTax WHERE C_Invoice_ID = ?
+     ]]>
+   </Sql>
+   <Parameter name="cInvoiceId"/>
+   </SqlMethod>
+
+   <SqlMethod name="getUnusedDROrders" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT i.C_Order_ID
+       FROM C_Order i
+       WHERE i.docstatus='DR'
+       AND i.documentno <> 'TPLCOUNTER'
+       AND NOT EXISTS(SELECT 1 FROM C_Orderline il WHERE il.C_Order_ID = i.C_Order_ID)
+       AND NOT EXISTS(SELECT 1 FROM C_Invoice ci WHERE ci.C_Order_ID = i.C_Order_ID)
+       AND (i.updated + interval '3' day) < NOW()
+     ]]>
+   </Sql>
+   </SqlMethod>
+   <SqlMethod name="deleteOrder" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+     DELETE FROM C_Order WHERE C_Order_ID = ?
+     ]]>
+   </Sql>
+   <Parameter name="cOrderId"/>
+   </SqlMethod>
+      <SqlMethod name="deleteOrderTax" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+     DELETE FROM C_OrderTax WHERE C_Order_ID = ?
+     ]]>
+   </Sql>
+   <Parameter name="cOrderId"/>
+   </SqlMethod>
+   <SqlMethod name="getUnusedDRInOuts" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT i.M_Inout_ID
+       FROM M_Inout i
+       WHERE i.docstatus='DR'
+       AND i.isprinted='N'
+       AND NOT EXISTS(SELECT 1 FROM M_Inoutline il WHERE il.M_Inout_ID = i.M_Inout_ID)
+       AND (i.updated + interval '3' day) < NOW()
+     ]]>
+   </Sql>
+   </SqlMethod>
+   <SqlMethod name="deleteInOut" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+     DELETE FROM M_Inout WHERE M_Inout_ID = ?
+     ]]>
+   </Sql>
+   <Parameter name="mInoutId"/>
+   </SqlMethod>
+   <SqlMethod name="getUnusedDRPayments" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT i.FIN_Payment_ID
+       FROM FIN_Payment i
+       WHERE i.status='RPAP'
+       AND NOT EXISTS(SELECT 1 FROM FIN_Payment_Detail il WHERE il.FIN_Payment_ID = i.FIN_Payment_ID)
+       AND (i.updated + interval '3' day) < NOW()
+     ]]>
+   </Sql>
+   </SqlMethod>
+   <SqlMethod name="deletePayment" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+     DELETE FROM FIN_Payment WHERE FIN_Payment_ID = ?
+     ]]>
+   </Sql>
+   <Parameter name="finPaymentId"/>
+   </SqlMethod>
+</SqlClass>

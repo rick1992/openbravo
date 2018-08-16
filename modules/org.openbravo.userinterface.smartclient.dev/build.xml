@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011-2014 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<project name="SmartClient" default="buildRuntime" basedir=".">
+  <description>
+    Combines all required JavaScript files in one file
+  </description>
+  <property name="isc"
+            location="web/org.openbravo.userinterface.smartclient/isomorphic" />
+  <property name="webContentOutputDir"
+            location="../../WebContent/web/org.openbravo.userinterface.smartclient/isomorphic" />
+  
+  <target name="combine" description="Concatenates all SmartClient in one file: ISC_Combined.js">
+    <concat destfile="ISC_Combined.js">
+      <fileset file="${isc}/system/modules/ISC_Core.js" />
+      <fileset file="${isc}/system/modules/ISC_Foundation.js" />
+      <fileset file="${isc}/system/modules/ISC_Containers.js" />
+      <fileset file="${isc}/system/modules/ISC_Grids.js" />
+      <fileset file="${isc}/system/modules/ISC_Forms.js" />
+      <fileset file="${isc}/system/modules/ISC_DataBinding.js" />
+      <fileset file="${isc}/system/modules/ISC_Calendar.js" />
+      <fileset file="${isc}/system/modules/ISC_PluginBridges.js" />
+      <fileset file="${isc}/system/modules/ISC_RichTextEditor.js" />
+    </concat>
+  </target>
+
+  <target name="copy">
+    <!-- First delete, otherwise sometimes the copy does not work -->
+    <delete file="../org.openbravo.userinterface.smartclient/web/org.openbravo.userinterface.smartclient/isomorphic/ISC_Combined.js"/>
+    <delete file="../org.openbravo.userinterface.smartclient/web/org.openbravo.userinterface.smartclient/isomorphic/ISC_History.js"/>
+    <delete file="../org.openbravo.userinterface.smartclient/web/org.openbravo.userinterface.smartclient/isomorphic/system/helpers/printFrame.html"/>
+
+    <copy file="ISC_Combined.js" todir="../org.openbravo.userinterface.smartclient/web/org.openbravo.userinterface.smartclient/isomorphic"/>
+    <copy file="web/org.openbravo.userinterface.smartclient/isomorphic/system/modules/ISC_History.js" todir="../org.openbravo.userinterface.smartclient/web/org.openbravo.userinterface.smartclient/isomorphic"/>
+    <copy file="web/org.openbravo.userinterface.smartclient/isomorphic/system/helpers/printFrame.html" todir="../org.openbravo.userinterface.smartclient/web/org.openbravo.userinterface.smartclient/isomorphic/system/helpers/"/>
+  </target>
+  
+  <target name="buildRuntime" depends="combine, copy"/>
+
+  <target name="copySource">
+    <!-- First delete, otherwise sometimes the copy does not work -->
+    <delete file="${webContentOutputDir}/ISC_Combined.js"/>
+    <delete file="${webContentOutputDir}/ISC_History.js"/>
+
+    <copy file="ISC_Combined.js" todir="${webContentOutputDir}"/>
+    <copy file="web/org.openbravo.userinterface.smartclient/isomorphic/client/modules/ISC_History.js" todir="${webContentOutputDir}"/>
+  </target>
+  
+  <target name="source" depends="combineSource, copySource"/>
+    
+  <target name="combineSource" description="Concatenates all SmartClient Source in one file: ISC_Combined.js">
+    <concat destfile="ISC_Combined.js">
+      <fileset file="${isc}/client/modules/ISC_Core.js" />
+      <fileset file="${isc}/client/modules/ISC_Foundation.js" />
+      <fileset file="${isc}/client/modules/ISC_Containers.js" />
+      <fileset file="${isc}/client/modules/ISC_Grids.js" />
+      <fileset file="${isc}/client/modules/ISC_Forms.js" />
+      <fileset file="${isc}/client/modules/ISC_DataBinding.js" />
+      <fileset file="${isc}/client/modules/ISC_Calendar.js" />
+      <fileset file="${isc}/client/modules/ISC_PluginBridges.js" />
+      <fileset file="${isc}/client/modules/ISC_RichTextEditor.js" />
+    </concat>
+  </target>
+</project>

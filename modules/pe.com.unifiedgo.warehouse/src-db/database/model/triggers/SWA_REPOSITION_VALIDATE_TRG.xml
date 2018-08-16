@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_REPOSITION_VALIDATE_TRG">
+    <trigger name="SWA_REPOSITION_VALIDATE_TRG" table="SWA_REQUERIMIENTOREPOSICION" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_qtyordered NUMBER:=0;
+  v_received NUMBER:=0;
+  v_countchildorg_warehouse NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  v_sco_specialdoctype VARCHAR(60);
+  CUR_repo_detail RECORD;
+
+
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.swa_requerimientoreposicion_id;
+ELSE
+  v_ID:=:NEW.swa_requerimientoreposicion_id;
+END IF;
+
+IF (INSERTING) THEN
+   
+   SELECT em_sco_specialdoctype INTO v_sco_specialdoctype FROM c_doctype WHERE c_doctype_id = :NEW.C_DOCTYPE_ID;
+   :NEW.specialdoctype:=v_sco_specialdoctype;
+   IF((:NEW.request_motive IS NULL OR TRIM(:NEW.request_motive)='') AND v_sco_specialdoctype ='SWAREQUESTREPOSITION')THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_repo_invalid_description@');
+   END IF;
+
+END IF;
+
+IF (UPDATING) THEN
+  IF(:OLD.request_motive <> :NEW.request_motive)THEN
+   SELECT em_sco_specialdoctype INTO v_sco_specialdoctype FROM c_doctype WHERE c_doctype_id = :NEW.C_DOCTYPE_ID;
+   IF((:NEW.request_motive IS NULL OR TRIM(:NEW.request_motive)='') AND v_sco_specialdoctype ='SWAREQUESTREPOSITION')THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_repo_invalid_description@');
+   END IF;
+  END IF;
+
+  IF(:NEW.Status = 'VO' AND :NEW.swa_fromrequerimiento_id IS NOT NULL)THEN
+     UPDATE swa_requerimientoreposicion
+        SET generatetrx='N'
+      WHERE swa_requerimientoreposicion_id = :NEW.swa_fromrequerimiento_id;
+      :NEW.swa_fromrequerimiento_id = NULL;--eliminamos la referencia
+  END IF;
+END IF;
+
+IF (DELETING) THEN
+ IF(:OLD.swa_fromrequerimiento_id IS NOT NULL)THEN
+  UPDATE swa_requerimientoreposicion
+     SET generatetrx='N'
+   WHERE swa_requerimientoreposicion_id = :OLD.swa_fromrequerimiento_id;
+ END IF;
+END IF;
+
+
+END SWA_REPOSITION_VALIDATE_TRG
+]]></body>
+    </trigger>
+  </database>

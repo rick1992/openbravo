@@ -1,0 +1,240 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_MOVEMENTCODE_TO_PROCESS">
+    <function name="SWA_MOVEMENTCODE_TO_PROCESS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_count NUMBER;
+  v_ad_org_id VARCHAR2(32);
+  v_client_id VARCHAR2(32);
+  v_combo_item_out_id VARCHAR2(32);
+  v_combo_item_in_id VARCHAR2(32);
+  v_p_uom_id VARCHAR2(32);
+  v_p_uom_to_id VARCHAR2(32);
+  v_MoveDate DATE;
+  v_is_included NUMBER:=0;
+  v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE; 
+  v_available_period NUMBER:=0;
+  v_qtyAvailable NUMBER:=0;
+  v_qtyPhysic NUMBER:=0;
+  v_p_name NVARCHAR2(2000);
+  v_locator_value NVARCHAR2(40);
+  v_show_invalid NVARCHAR2(200);
+-- Record Info
+  Cur_MoveLine RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+   --Validación de Lineas
+    SELECT Count(mpr.*) INTO v_count 
+      FROM swa_movementcode_product mpr
+          INNER JOIN swa_movementcode_plan mp on mp.swa_movementcode_plan_id = mpr.swa_movementcode_plan_id
+     WHERE mp.swa_movementcode_id = v_Record_ID;
+
+   -- SELECT Count(*) INTO v_count FROM swa_movementcode_product WHERE swa_movementcode_id = v_Record_ID;
+
+    IF(COALESCE(v_count,0)=0)THEN
+     RAISE_APPLICATION_ERROR(-20000,'@swa_movecode_nolines@');
+    END IF;
+
+    --Datos Generales de la Orden: Cambio de Codigo
+   SELECT ad_org_id, ad_client_id, dateordered
+     INTO v_ad_org_id,v_client_id, v_MoveDate
+     FROM swa_movementcode 
+    WHERE swa_movementcode_ID = v_Record_ID;
+
+    -- Validation Org Period Available
+      --SELECT AD_ORG_CHK_DOCUMENTS('swa_movementcode', 'swa_movementcode_product', v_Record_ID, 'swa_movementcode_id', 'swa_movementcode_id') INTO v_is_included FROM dual;
+      SELECT AD_ORG_CHK_DOCUMENTS('swa_movementcode', 'swa_movementcode_plan', v_Record_ID, 'swa_movementcode_id', 'swa_movementcode_id') INTO v_is_included FROM dual;
+
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('swa_movementcode', v_Record_ID, 'swa_movementcode_id', 'LE')
+      INTO v_org_bule_id
+      FROM DUAL;
+
+
+      SELECT AD_OrgType.IsAcctLegalEntity
+      INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+      AND AD_Org.AD_Org_ID=v_org_bule_id;
+
+
+      IF (v_isacctle='Y') THEN
+        SELECT C_CHK_OPEN_PERIOD(v_ad_org_id, v_MoveDate, 'MMM', NULL) 
+        INTO v_available_period
+        FROM DUAL;
+        
+        IF (v_available_period<>1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+        END IF;
+      END IF;
+    ------------------------------------   
+
+   --Obteniendo el combo Item para movimiento Cambio de codigo OUT
+   SELECT scr_combo_item_id
+     INTO v_combo_item_out_id
+     FROM scr_combo_item WHERE 
+    VALUE = 'SalidaCambioCodigo' 
+      AND ad_client_id = v_client_id;
+
+   IF(v_combo_item_out_id IS  NULL)THEN
+     RAISE_APPLICATION_ERROR(-20000,'@swa_no_cboitem_cambiocodigo_out@');
+   END IF;
+
+    --Obteniendo el combo Item para movimiento Cambio de codigo IN
+   SELECT scr_combo_item_id
+     INTO v_combo_item_in_id
+     FROM scr_combo_item WHERE 
+    VALUE = 'IngresoCambioCodigo' 
+      AND ad_client_id = v_client_id;
+
+   IF(v_combo_item_in_id IS NULL)THEN
+     RAISE_APPLICATION_ERROR(-20000,'@swa_no_cboitem_cambiocodigo_in@');
+   END IF;
+
+   
+   --Recorremos las Lineas de cambio de codigo para Insertarlas en el M_transaction
+   FOR Cur_MoveLine IN (
+       SELECT mpr.* 
+         FROM swa_movementcode_product mpr
+          INNER JOIN swa_movementcode_plan mp on mp.swa_movementcode_plan_id = mpr.swa_movementcode_plan_id
+        WHERE mp.swa_movementcode_id = v_Record_ID ORDER BY Line
+   ) 
+   LOOP
+
+       --No Cambio de codigo de el mismo producto
+       IF(Cur_MoveLine.m_product_id = Cur_MoveLine.m_to_product_id)THEN
+         RAISE_APPLICATION_ERROR(-20000,'@swa_movcode_sameproduct@' || ' ' || '@line@' || ' ' || Cur_MoveLine.line) ;
+       END IF;
+
+       --Stock Validation m_product_id available quantity
+       --Validando que la cantidad a mover sea igual o menor a la cantidad disponible.
+       -- considerando la reserva en ubicaciòn.
+	     SELECT COALESCE(swapba.totalqty),COALESCE(swapba.qtyonhand,0), p.value || ' '|| p.name , l.value 
+	       INTO v_qtyPhysic, v_qtyAvailable , v_p_name , v_locator_value
+	       FROM swa_product_by_anaquel_v swapba
+		INNER JOIN M_PRODUCT p ON swapba.m_product_id = p.m_product_id
+		INNER JOIN M_LOCATOR l ON swapba.m_locator_id = l.m_locator_id
+	      WHERE swapba.m_product_id = Cur_MoveLine.M_Product_ID 
+		AND swapba.m_locator_id = Cur_MoveLine.M_Locator_ID
+	      LIMIT 1;
+
+	      v_show_invalid:= COALESCE(v_p_name,'-') || ' - ' || COALESCE(v_locator_value,'-');
+
+             IF(Cur_MoveLine.qtyordered <= 0)THEN
+               RAISE_APPLICATION_ERROR(-20000,'@swa_cannotMoveNegativeOrders@' || ' - ' || v_show_invalid) ;
+             END IF;
+
+             IF(Cur_MoveLine.qtyordered > v_qtyPhysic)THEN
+               RAISE_APPLICATION_ERROR(-20000,'@NotEnoughStocked@' || ' - ' ||v_show_invalid) ;
+             END IF;
+
+             IF(Cur_MoveLine.qtyordered > v_qtyAvailable)THEN
+              RAISE_APPLICATION_ERROR(-20000,'@swa_cannotmovereservedstock@' || ' - ' || v_show_invalid) ;
+             END IF;
+        ----------------
+
+
+          SELECT m_product_uom_id INTO v_p_uom_id FROM m_product_uom WHERE m_product_id = Cur_MoveLine.m_product_id AND c_uom_id = Cur_MoveLine.c_uom_id;
+          SELECT m_product_uom_id INTO v_p_uom_to_id FROM m_product_uom WHERE m_product_id = Cur_MoveLine.m_to_product_id AND c_uom_id = Cur_MoveLine.C_TO_UOM_ID ;
+
+      -- FROM
+          INSERT
+          INTO M_Transaction
+            (
+              M_Transaction_ID, AD_Client_ID, AD_Org_ID, IsActive,
+              Created, CreatedBy, Updated, UpdatedBy,
+              MovementType, M_Locator_ID, M_Product_ID, M_AttributeSetInstance_ID,
+              MovementDate, MovementQty, em_swa_movcode_product_id, M_Product_UOM_ID,
+              QuantityOrder, C_UOM_ID,em_ssa_combo_item_id
+            )
+            VALUES
+            (
+              get_uuid(), v_client_id,v_ad_org_id, 'Y',
+              now(), v_User_ID, now(), v_User_ID,
+              'M-', Cur_MoveLine.M_Locator_ID, Cur_MoveLine.M_Product_ID, '0',
+              v_MoveDate, (Cur_MoveLine.qtyordered * -1), Cur_MoveLine.swa_movementcode_product_id, v_p_uom_id,
+              null, Cur_MoveLine.C_UOM_ID,v_combo_item_out_id
+            )
+            ;
+
+
+      -- TO
+          INSERT
+          INTO M_Transaction
+            (
+              M_Transaction_ID, AD_Client_ID, AD_Org_ID, IsActive,
+              Created, CreatedBy, Updated, UpdatedBy,
+              MovementType, M_Locator_ID, M_Product_ID, M_AttributeSetInstance_ID,
+              MovementDate, MovementQty, em_swa_movcode_product_id, M_Product_UOM_ID,
+              QuantityOrder, C_UOM_ID,em_ssa_combo_item_id
+            )
+            VALUES
+            (
+              get_uuid(), v_client_id, v_ad_org_id, 'Y',
+              now(),v_User_ID, now(), v_User_ID,
+              'M+', Cur_MoveLine.m_to_locator_id, Cur_MoveLine.m_to_product_id, '0',
+              v_MoveDate, Cur_MoveLine.qtyordered, Cur_MoveLine.swa_movementcode_product_id, v_p_uom_to_id,
+              null, Cur_MoveLine.C_TO_UOM_ID,v_combo_item_in_id
+            )
+            ;
+
+
+          M_Check_Stock(Cur_MoveLine.M_Product_ID, v_Client_ID, v_ad_org_id, v_Result, v_Message) ;
+          
+          IF (v_Result = 0) THEN
+            RAISE_APPLICATION_ERROR(-20000, v_Message||' '||'@line@'||' '||Cur_MoveLine.line) ;
+          END IF;
+          
+   END LOOP;
+
+
+   --Marcar la Orden Cambio de Código a PROCESADO
+   UPDATE swa_movementcode
+      SET processed = 'Y'
+    WHERE swa_movementcode_id = v_Record_ID;
+   
+  
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_MOVEMENTCODE_TO_PROCESS
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_UPDATESPDOC_TRG">
+    <trigger name="SCO_PAYMENT_UPDATESPDOC_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialdoctypep VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctype_id;
+      :NEW.em_sco_specialdoctype := v_specialdoctype;
+
+      --For keyword diff windows em_sco_specialdoctypeplus
+      v_specialdoctypep := v_specialdoctype;
+      IF(:NEW.EM_Ssa_Paymentin_Doctype = 'APPLICATION' OR :NEW.em_sco_isapppayment = 'Y') THEN
+        v_specialdoctypep := v_specialdoctypep || '_APP';
+      ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'DISC_STAFF_SAMPLE') THEN
+        v_specialdoctypep := v_specialdoctypep || '_DISC_STAFF_SAMPLE';	
+      ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'DISC_STAFF_DEBT') THEN
+        v_specialdoctypep := v_specialdoctypep || '_DISC_STAFF_DEBT';
+      ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'INMEDIATE_CASH') THEN
+        v_specialdoctypep := v_specialdoctypep || '_INMEDIATE_CASH';        
+      ELSIF(:NEW.em_sco_issimpleprovision = 'Y') THEN
+	v_specialdoctypep := v_specialdoctypep || '_SIM';	  
+      ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'GENERIC') THEN
+        v_specialdoctypep := v_specialdoctypep;                
+      END IF;     
+
+      :NEW.em_sco_specialdoctypeplus := v_specialdoctypep;
+
+    ELSE
+      IF(COALESCE(:OLD.c_doctype_id,'')<>COALESCE(:NEW.c_doctype_id,'') OR
+	 COALESCE(:OLD.em_sco_isapppayment,'.')<>COALESCE(:NEW.em_sco_isapppayment,'.') OR
+         COALESCE(:OLD.em_sco_issimpleprovision,'.')<>COALESCE(:NEW.em_sco_issimpleprovision,'.')) THEN
+        SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctype_id;
+        :NEW.em_sco_specialdoctype := v_specialdoctype;
+
+        --For keyword diff windows em_sco_specialdoctypeplus
+        v_specialdoctypep := v_specialdoctype;
+        IF(:NEW.EM_Ssa_Paymentin_Doctype = 'APPLICATION' OR :NEW.em_sco_isapppayment = 'Y') THEN
+          v_specialdoctypep := v_specialdoctypep || '_APP';
+        ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'DISC_STAFF_SAMPLE') THEN
+          v_specialdoctypep := v_specialdoctypep || '_DISC_STAFF_SAMPLE';	
+        ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'DISC_STAFF_DEBT') THEN
+          v_specialdoctypep := v_specialdoctypep || '_DISC_STAFF_DEBT';
+        ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'INMEDIATE_CASH') THEN
+          v_specialdoctypep := v_specialdoctypep || '_INMEDIATE_CASH';               
+        ELSIF(:NEW.em_sco_issimpleprovision = 'Y') THEN
+	  v_specialdoctypep := v_specialdoctypep || '_SIM';	  
+        ELSIF(:NEW.EM_Ssa_Paymentin_Doctype = 'GENERIC') THEN
+          v_specialdoctypep := v_specialdoctypep;                
+        END IF;           
+
+        :NEW.em_sco_specialdoctypeplus := v_specialdoctypep;
+
+        UPDATE fin_payment_detail SET em_sco_specialdoctype=v_specialdoctype, em_sco_specialdoctypeplus=v_specialdoctypep WHERE fin_payment_id = :NEW.fin_payment_id;
+      END IF;
+    END IF;
+
+    END SCO_PAYMENT_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_TRANSINOUT_CHK_RES_TRG">
+    <trigger name="SCO_TRANSINOUT_CHK_RES_TRG" table="SCO_TRANSFERINOUT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF(:OLD.Processed='Y' AND :OLD.Docaction <> 'CL'
+          AND(
+               (COALESCE(:OLD.DOCUMENTNO, '.') <> COALESCE(:NEW.DOCUMENTNO, '.'))
+               OR(COALESCE(:OLD.C_DOCTYPE_ID, '0') <> COALESCE(:NEW.C_DOCTYPE_ID, '0'))
+               OR(COALESCE(:OLD.C_DOCTYPETARGET_ID, '0') <> COALESCE(:NEW.C_DOCTYPETARGET_ID, '0'))
+               OR(COALESCE(:OLD.movementdate, v_DateNull) <> COALESCE(:NEW.movementdate, v_DateNull))
+               OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+               OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	       OR(COALESCE(:old.C_BPartner_ID, '0') <> COALESCE(:new.C_BPartner_ID, '0'))
+	       OR(COALESCE(:old.c_bpartner_location_id, '0') <> COALESCE(:new.c_bpartner_location_id, '0'))
+	       OR(COALESCE(:old.transferin, '0') <> COALESCE(:new.transferin, '0'))
+	       OR(COALESCE(:old.transferout, '0') <> COALESCE(:new.transferout, '0'))
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+  IF(DELETING) THEN
+    IF :OLD.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF :NEW.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+END SCO_TRANSINOUT_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

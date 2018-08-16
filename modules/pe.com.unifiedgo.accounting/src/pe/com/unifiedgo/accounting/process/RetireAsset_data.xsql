@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="RetireAssetData" package="pe.com.unifiedgo.accounting.process">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT PeriodType, StartDate, EndDate 
+      FROM C_Period WHERE C_Period_ID=?
+    </Sql>
+    <Parameter name="cPeriodId"/>
+  </SqlMethod>
+  <SqlMethod name="period" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT C_Period_ID 
+      FROM C_Period 
+      WHERE C_Year_ID IN 
+      (SELECT C_Year_ID FROM C_Year WHERE C_Calendar_ID =
+      (SELECT C_Calendar_ID FROM AD_ORG WHERE AD_Client_ID=? AND AD_ORG_ID=(SELECT AD_ORG_GETCALENDAROWNER(?) from dual)))
+      AND to_date(?) BETWEEN StartDate AND EndDate
+      AND PeriodType='S'
+      AND exists (select 1 from c_periodcontrol where c_periodcontrol.c_period_id = c_period.c_period_id
+      AND periodstatus = 'O')
+    </Sql>
+    <Parameter name="adCientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="DateAcct"/>
+  </SqlMethod>
+  <SqlMethod name="getCurrencyRate" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT C_CURRENCY_RATE(?, ?, TO_DATE(?, 'DD-MM-YYYY'),
+        ?, ?, ?) 
+      FROM c_acctschema 
+      WHERE c_acctschema.c_acctschema_id = ?
+    </Sql>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="acctSchemaCurrencyId"/>
+    <Parameter name="dateAcct"/>
+    <Parameter name="rateType"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="cAcctSchemaId"/>
+  </SqlMethod>
+</SqlClass>

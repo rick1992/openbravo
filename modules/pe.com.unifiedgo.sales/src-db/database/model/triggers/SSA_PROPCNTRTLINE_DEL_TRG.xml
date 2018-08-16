@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_PROPCNTRTLINE_DEL_TRG">
+    <trigger name="SSA_PROPCNTRTLINE_DEL_TRG" table="SSA_PROJPROP_CONTRACT_LINE" fires="before" insert="false" update="false" delete="true" foreach="row">
+      <body><![CDATA[
+  v_disc_eval_status VARCHAR(60);
+  v_docstatus VARCHAR(60);
+  v_prospect_id VARCHAR(32);
+  v_count NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+  IF DELETING THEN       
+     SELECT discount_eval_status, docstatus, prospect_id 
+       INTO v_disc_eval_status, v_docstatus, v_prospect_id
+       FROM ssa_projprop_contract
+      WHERE ssa_projprop_contract_id = :OLD.ssa_projprop_contract_id;      
+
+     IF(v_docstatus='DR' AND v_disc_eval_status<>'DR' AND v_prospect_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SRE_notdeleteispendingtoapproval@') ;
+     END IF;              
+
+
+     SELECT count(*)
+       INTO v_count
+       FROM ssa_contract_payment_sched
+      WHERE ssa_projprop_contract_id = :OLD.ssa_projprop_contract_id
+        AND ssa_project_property_id = :OLD.ssa_project_property_id;     
+
+     IF(v_count IS NOT NULL AND v_count > 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SSA_noDeletePropertyWithPayscheds@') ;
+     END IF;             
+      
+  END IF;
+
+
+
+  END SSA_PROPCNTRTLINE_DEL_TRG
+]]></body>
+    </trigger>
+  </database>

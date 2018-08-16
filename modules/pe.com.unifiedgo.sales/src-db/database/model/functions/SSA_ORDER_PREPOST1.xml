@@ -1,0 +1,527 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_ORDER_PREPOST1">
+    <function name="SSA_ORDER_PREPOST1" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_operation" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_Operation VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_Result NUMBER:=1; -- Success
+  v_is_included NUMBER:=0;
+  v_requisitionline_id VARCHAR2(32);
+  v_requisition_id VARCHAR2(32);
+  v_reqstatus VARCHAR2(60);
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_line RECORD;
+    Cur_Order RECORD;
+    Cur_ReactivateOrderLine RECORD;
+    CUR_Partial_lines RECORD;
+    CUR_productLines RECORD;
+    CUR_productPO RECORD;
+    CUR_toRequisition RECORD;
+    CUR_fromRequisition RECORD;
+  -- Record Info
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_Warehouse_Org VARCHAR2(32);
+  v_Org_Name VARCHAR2(60);
+  v_product_po_id VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60) ;
+  v_DocStatus VARCHAR(60) ;
+  v_InvoiceRule VARCHAR(60) ;
+  v_M_Warehouse_ID VARCHAR2(32);
+  v_DocType_ID VARCHAR2(32);
+  v_DocTypeTarget_ID VARCHAR2(32);
+  v_DocSubTypeSO VARCHAR(60) ;
+  v_DocSubTypeSOTarget VARCHAR(60) ;
+  v_DocBaseTypeTarget VARCHAR(60);
+  v_IsReturnDocType CHAR(1);
+  v_IsBinding CHAR(1):='Y';
+  v_istaxincluded CHAR(1);
+  --
+  ToDeliver NUMBER;
+  ToInvoice NUMBER;
+  --
+  InOut_ID VARCHAR2(32);
+  Invoice_ID VARCHAR2(32);
+  --Added by P.SAROBE
+  v_documentno_Settlement VARCHAR2(40);
+  v_value_cbo_item VARCHAR2(40);
+  v_dateSettlement DATE;
+  v_Cancel_Processed VARCHAR(60);
+  v_nameBankstatement VARCHAR2 (60);
+  v_dateBankstatement DATE;
+  v_nameCash VARCHAR2 (60);
+  v_dateCash DATE;
+  v_Bankstatementline_ID VARCHAR2(32);
+  --Finish added by P.Sarobe
+  v_AuxCashLine_ID VARCHAR2(32);
+  v_CashLine_ID VARCHAR2(32);
+  v_ispaid CHAR(1);
+  v_Settlement_Cancel_ID VARCHAR2(32);
+  v_Cash_ID VARCHAR2(32):=NULL;
+  v_Line NUMBER:=0;
+  v_CashBook_ID VARCHAR2(32):=NULL;
+  v_Debtpayment_ID VARCHAR2(32);
+  v_ISO_Code VARCHAR(10) ;
+  v_DocumentNo VARCHAR2(200) ;
+  v_GrandTotal NUMBER;
+  v_Multiplier NUMBER:=1;
+  v_Date DATE;
+  v_WarehouseName VARCHAR2(60) ;
+  v_CashProcessed NUMBER;
+  v_temporal NUMBER:=0;
+  v_count NUMBER;
+  v_isSoTrx CHAR(1) ;
+  v_Aux NUMBER;
+  v_c_Bpartner_ID VARCHAR2(32);
+  v_c_currency_ID VARCHAR2(32);
+  v_C_PROJECT_ID VARCHAR2(32);
+  v_PriceList_ID VARCHAR2(32);
+  FINISH_PROCESS BOOLEAN:=FALSE;
+  END_PROCESSING BOOLEAN:=FALSE;
+  v_CBPartner_ID VARCHAR2(32);
+  v_primary_partner_id VARCHAR2(32);
+  rowcount NUMBER;
+  
+  v_EM_Ssa_Combo_Item_ID  VARCHAR2(32);
+  v_CumDiscount NUMBER;
+  v_OldCumDiscount NUMBER;
+  v_OrderLineSeqNo NUMBER;
+  Cur_COrderDiscount RECORD;
+  Cur_TaxDiscount RECORD;
+  v_OrderLine VARCHAR2(32);
+  v_Discount NUMBER;
+  v_precision NUMBER;
+  Cur_OrderLine RECORD;
+  v_DiscountExist NUMBER;
+  v_gross_unit_price NUMBER;
+  v_line_gross_amount NUMBER;
+  v_acctAmount NUMBER;
+  v_reject_reason VARCHAR(32);
+  v_dummy VARCHAR2(2000);
+  v_bpartner_blocked VARCHAR2(1):='N';
+  v_orderBlocking VARCHAR2(1):='N';
+  v_bpartner_name c_bpartner.name%TYPE;
+  v_productname m_product.name%TYPE;
+
+  v_iscashvat C_Order.IsCashVat%TYPE;
+
+  v_ad_AlertRule_ID VARCHAR(32);
+  v_ad_Alert_ID VARCHAR(32);
+
+  v_specialDocType VARCHAR(60);
+
+  v_em_sre_purch_order_tmp_state VARCHAR(32);
+
+  v_qtyinvoiced NUMBER;
+
+  v_REDateOrdered DATE;
+  v_orderline_qtysum NUMBER;
+  v_Isquantityvariable CHAR(1);
+  v_DocumentNoOrder VARCHAR2(200) ;
+
+  v_Sample_InOut_ID VARCHAR2(32);
+  v_samplereturn_combo_item_id VARCHAR2(32);
+  v_muestras_documentno VARCHAR2(30);
+  v_qty_tmp NUMBER;
+  
+BEGIN
+
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;        
+        v_User:=Cur_Parameter.AD_User_ID;
+        IF (Cur_Parameter.parametername = 'operation') THEN
+            v_Operation:=Cur_Parameter.p_string;
+        END IF;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_Order_ID;      
+      SELECT CREATEDBY INTO v_User  FROM C_ORDER  WHERE C_ORDER_ID=p_Order_ID;
+      v_Operation:=p_operation;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+ 
+ v_ResultStr:='ReadingOrder';
+ 
+    SELECT Processing, Processed, DocAction, DocStatus,
+      C_DocType_ID, C_DocTypeTarget_ID, c_order.AD_Client_ID,
+      c_order.AD_Org_ID, c_order.UpdatedBy, M_Warehouse_ID, TRUNC(DateOrdered),
+      Issotrx, c_Bpartner_Id, c_order.c_currency_id, C_PROJECT_ID,
+      C_BPartner_ID, c_order.M_PriceList_ID, invoicerule, m_pricelist.istaxincluded, c_order.IsCashVat,
+      documentno, em_sre_purch_order_tmp_state, EM_Ssa_Combo_Item_ID, em_ssa_specialdoctype
+    INTO v_IsProcessing, v_IsProcessed, v_DocAction, v_DocStatus,
+      v_DocType_ID, v_DocTypeTarget_ID, v_Client_ID,
+      v_Org_ID, v_UpdatedBy, v_M_Warehouse_ID, v_Date,
+      v_isSoTrx, v_c_Bpartner_Id, v_c_currency_id, v_C_PROJECT_ID,
+      v_CBPartner_ID, v_PriceList_ID, v_invoicerule, v_istaxincluded, v_iscashvat,
+      v_DocumentNoOrder, v_em_sre_purch_order_tmp_state, v_EM_Ssa_Combo_Item_ID, v_specialDocType
+    FROM C_ORDER JOIN m_pricelist ON c_order.m_pricelist_id = m_pricelist.m_pricelist_id
+    WHERE C_Order_ID=v_Record_ID  FOR UPDATE;
+
+  IF ( v_Operation='U') THEN --SINO R de reserva
+
+	/*
+        * Undo inventory reservation
+        */
+       
+        SELECT COUNT(1) INTO v_count
+        FROM ad_preference
+        WHERE property = 'StockReservations';
+        IF(v_count > 0) THEN
+
+
+	DECLARE
+          Cur_ResLine RECORD;
+          v_QtySO NUMBER; -- Reserved
+          v_QtyOrderSO NUMBER;
+          
+        BEGIN
+          v_ResultStr:='ReserveInventory';
+          -- For all lines needing reservation
+          FOR Cur_ResLine IN
+            (SELECT l.M_Warehouse_ID, l.M_Product_ID, l.M_AttributeSetInstance_ID, l.C_OrderLine_ID,
+                 l.QtyOrdered AS Qty, l.QUANTITYORDER, l.qtyreserved, l.qtydelivered,
+                l.C_UOM_ID, l.M_PRODUCT_UOM_ID
+             FROM C_ORDERLINE l, M_PRODUCT p
+             WHERE l.C_Order_ID=v_Record_ID  -- Reserve Products (not: services, null products)
+               AND l.M_Product_ID=p.M_Product_ID
+               AND p.IsStocked='Y'
+               AND p.ProductType='I'  FOR UPDATE
+             )
+            LOOP
+            
+              v_QtySO:=-Cur_ResLine.QtyReserved;
+              IF (Cur_ResLine.QtyReserved=Cur_ResLine.Qty) THEN
+                v_QtyOrderSO := -Cur_ResLine.QuantityOrder;
+              ELSIF Cur_ResLine.M_Product_UOM_ID IS NOT NULL THEN
+                v_QtyOrderSO := -C_Uom_Convert(v_QtySO, Cur_ResLine.C_UOM_ID, Cur_ResLine.M_Product_UOM_ID, 'Y');
+              END IF;
+
+             IF(Cur_ResLine.QtyReserved > 0) THEN
+               M_UPDATE_STORAGE_PENDING(v_Client_ID, v_Org_ID, v_UpdatedBy, Cur_ResLine.M_Product_ID, Cur_ResLine.M_Warehouse_ID, Cur_ResLine.M_AttributeSetInstance_ID, 
+             Cur_ResLine.C_UOM_ID, Cur_ResLine.M_PRODUCT_UOM_ID, v_QtySO, v_QtyOrderSO, 0, NULL) ;
+              END IF;
+          END LOOP;
+          
+          -- Set reserved quantity to 0
+          UPDATE C_ORDERLINE
+          SET QtyReserved = 0,
+              Updated=now(),
+              UpdatedBy=v_User
+          WHERE c_orderline_id IN (select c_orderline_id
+                                   from c_orderline
+                                   where c_order_id = v_Record_id);
+        END;
+
+        
+		
+          --Undo stock reservation delete m_reservation and m_reservation_stock related to the c_orderlines only if there are
+          -- not pre-reserved m_reservation_stock lines:
+          DECLARE
+            CUR_Res_COrderline RECORD;
+            CUR_M_Reservation RECORD;
+            v_Aux NUMBER;
+            v_RResultStr VARCHAR(2000);
+	    v_ReservationStatus VARCHAR(60);
+	    
+          BEGIN
+            FOR CUR_Res_COrderline IN (SELECT * FROM C_Orderline WHERE C_Order_ID = v_Record_ID FOR UPDATE)
+            LOOP
+              FOR CUR_M_Reservation IN (SELECT * FROM M_Reservation WHERE C_Orderline_ID = CUR_Res_COrderline.C_Orderline_ID FOR UPDATE)
+              LOOP
+               
+	        --Reactivate the reservation if needed
+ 
+	        IF(CUR_M_Reservation.res_status IN ('CO','CL')) THEN
+	          M_RESERVATION_POST(null, CUR_M_Reservation.M_Reservation_ID, 'RE', v_User);
+	          SELECT res_status INTO v_ReservationStatus FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+	          IF(v_ReservationStatus<>'DR') THEN
+	            RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationREError@') ;
+	          END IF;
+	        ELSIF (CUR_M_Reservation.res_status IN ('HO')) THEN
+	          RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationStockinHOStatus@') ;
+	        END IF;
+
+	        --Delete M_Reservation_Stock and M_Reservation
+	        DELETE FROM M_Reservation_Stock WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+	        DELETE FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+
+              END LOOP;
+            END LOOP;
+
+          EXCEPTION
+            WHEN OTHERS THEN
+              v_RResultStr:=  SQLERRM;
+              RAISE v_RResultStr;
+          END;
+       END IF;
+		
+   --(FIXED)FIX ME: Enero poner aqui ELSE para habilitar denuevo las reservas
+   ELSE
+  
+ /**************************************************************************
+      * Stock Reservations management.
+      *************************************************************************/
+      SELECT COUNT(1) INTO v_count
+      FROM ad_preference
+      WHERE property = 'StockReservations';
+      IF (v_count > 0) THEN
+        IF (v_count > 1) THEN
+          v_dummy := AD_GET_PREFERENCE_VALUE('StockReservations', 'Y', v_client_id, v_org_id, NULL, NULL, NULL);
+        END IF;
+
+
+        
+        DECLARE
+          v_reservation_id      VARCHAR2(32);
+          v_quantity            NUMBER;
+          v_reservedqty         NUMBER;
+          v_releasedqty         NUMBER;
+          v_allocated           NUMBER;
+          v_pendingtounreserve  NUMBER;
+          v_qtyaux              NUMBER;
+          v_res_status          M_RESERVATION.RES_STATUS%TYPE;
+          v_linecount           NUMBER;
+          v_creservedcount      NUMBER;
+          v_preservedcount      NUMBER;
+
+          v_QtySO       NUMBER; -- Reserved
+          v_QtyOrderSO  NUMBER;
+          
+          
+          cur_res_stock         RECORD;
+        BEGIN 
+
+          IF (v_issotrx = 'Y') THEN
+
+          
+            FOR cur_orderline IN (
+                SELECT ol.c_orderline_id, ol.create_reservation, ol.qtyordered,
+
+                -- Target Level = 0 if DirectShip='Y' or Binding='N'
+                (CASE ol.DirectShip WHEN 'Y' THEN 0 ELSE (CASE v_IsBinding WHEN 'N' THEN 0 ELSE ol.QtyOrdered END) END)
+                 -ol.QtyReserved-ol.QtyDelivered AS Qty, ol.QUANTITYORDER,
+                ol.QtyReserved, ol.QtyDelivered, ol.DatePromised, ol.C_UOM_ID,
+                ol.M_PRODUCT_UOM_ID, ol.M_Product_ID, ol.M_AttributeSetInstance_ID, ol.m_warehouse_id
+                
+                FROM c_orderline ol
+                    JOIN m_product p ON ol.m_product_id = p.m_product_id
+                    LEFT JOIN m_reservation r ON ol.c_orderline_id = r.c_orderline_id
+                WHERE ol.c_order_id = v_record_id
+                  AND ((
+                      ol.qtyordered > 0
+                      AND p.isstocked = 'Y'
+                      AND p.producttype = 'I'
+                    ) OR (
+                      r.m_reservation_id IS NOT NULL
+                    )
+                  )
+
+                  
+		FOR UPDATE OF ol
+            ) LOOP
+              SELECT count(*), max(m_reservation_id)
+                INTO v_aux, v_reservation_id
+              FROM m_reservation
+              WHERE c_orderline_id = cur_orderline.c_orderline_id;
+              -- Initialize so_res_status
+              UPDATE c_orderline
+              SET so_res_status = 'NR'
+              WHERE c_orderline_id = cur_orderline.c_orderline_id;
+              IF (v_aux > 1) THEN
+                RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+              ELSIF (v_aux = 1) THEN
+                -- Update reservation when possible.
+                -- Read reservation.
+                SELECT r.quantity, r.reservedqty, r.releasedqty, r.res_status,
+                      COALESCE(SUM(CASE rs.isallocated WHEN 'Y' THEN rs.quantity - COALESCE(rs.releasedqty, 0) ELSE 0 END), 0)
+                  INTO v_quantity, v_reservedqty, v_releasedqty, v_res_status,
+                      v_allocated
+                FROM m_reservation r
+                    LEFT JOIN m_reservation_stock rs ON r.m_reservation_id = rs.m_reservation_id
+                WHERE r.m_reservation_id = v_reservation_id
+                GROUP BY r.quantity, r.reservedqty, r.releasedqty, r.res_status;
+                IF (v_quantity != cur_orderline.qtyordered) THEN
+                  IF (cur_orderline.qtyordered < v_allocated) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@ThereIsMoreAllocatedQtyThanOrdered@');
+                  END IF;
+                  IF (cur_orderline.qtyordered < v_releasedqty) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@CannotOrderLessThanReleasedQty@');
+                  END IF;
+                  IF (cur_orderline.qtyordered < v_reservedqty) THEN
+                    --Reservation quantity to decrease with more reserved quantity than new quantity, unreserve stock
+                    v_pendingtounreserve := v_reservedqty - cur_orderline.qtyordered;
+                    FOR cur_res_stock IN (
+                        SELECT m_reservation_stock_id, quantity - COALESCE(releasedqty, 0) AS reservedqty
+                        FROM m_reservation_stock
+                        WHERE m_reservation_id = v_reservation_id
+                        ORDER BY COALESCE(releasedqty, 0), quantity - COALESCE(releasedqty, 0)
+                    ) LOOP
+                      v_qtyaux := LEAST(v_pendingtounreserve, cur_res_stock.reservedqty);
+                      UPDATE m_reservation_stock
+                      SET quantity = quantity - v_qtyaux,
+                          updated = now(),
+                          updatedby = v_user
+                      WHERE m_reservation_stock_id = cur_res_stock.m_reservation_stock_id;
+                      v_reservedqty := v_reservedqty - v_qtyaux;
+                      v_pendingtounreserve := v_pendingtounreserve - v_qtyaux;
+                      IF (v_pendingtounreserve = 0) THEN
+                        EXIT;
+                      END IF;
+                    END LOOP;
+                    IF (v_pendingtounreserve > 0) THEN
+                      RAISE_APPLICATION_ERROR(-20000, '@CouldNotUnreserveNeededQty@');
+                    END IF;
+                    -- Delete reservation lines with quantity zero.
+                    DELETE FROM m_reservation_stock
+                    WHERE quantity = 0
+                      AND COALESCE(releasedqty, 0) = 0
+                      AND m_reservation_id = v_reservation_id;
+                  END IF;
+                  UPDATE m_reservation
+                  SET quantity = cur_orderline.qtyordered,
+                      updated = now(),
+                      updatedby = v_user
+                  WHERE m_reservation_id = v_reservation_id;
+                  IF (v_quantity < cur_orderline.qtyordered AND v_res_status = 'CO') THEN
+                    --Reservation processed with higher quantity. Try to reserve the new quantity.
+                    M_RESERVE_STOCK_AUTO(v_reservation_id, v_user, v_reservedqty);
+                  END IF;
+                END IF;
+                
+                IF (v_res_status <> 'DR') THEN
+                  -- Update so_res_status
+                  UPDATE c_orderline
+                  SET so_res_status = CASE WHEN cur_orderline.qtyordered = v_reservedqty THEN 'CR'
+                                           ELSE 'PR'
+                                      END
+                  WHERE c_orderline_id = cur_orderline.c_orderline_id;
+                END IF;
+              ELSIF (cur_orderline.create_reservation = 'CRP') THEN
+                M_CREATE_RESERVE_FROM_SOL(cur_orderline.c_orderline_id, 'Y', v_user, v_reservation_id);
+              ELSIF (cur_orderline.create_reservation = 'CR') THEN
+                M_CREATE_RESERVE_FROM_SOL(cur_orderline.c_orderline_id, 'N', v_user, v_reservation_id);
+              END IF;
+
+
+		--PENDING
+		    IF( cur_orderline.Qty <> 0) THEN
+
+			 v_QtySO   := cur_orderline.Qty;
+			 v_QtyOrderSO := NULL;
+		      IF (cur_orderline.QtyReserved = 0 AND cur_orderline.QtyDelivered = 0) THEN
+			v_QtyOrderSO := cur_orderline.QuantityOrder;
+		      ELSIF (cur_orderline.M_Product_UOM_ID IS NOT NULL) THEN
+			v_QtyOrderSO := C_Uom_Convert(v_QtySO, cur_orderline.C_UOM_ID, cur_orderline.M_Product_UOM_ID, 'Y');
+		      END IF;
+
+		      IF(cur_orderline.QtyReserved = 0) THEN	
+			      M_UPDATE_STORAGE_PENDING(v_Client_ID, v_Org_ID, v_UpdatedBy, cur_orderline.M_Product_ID, cur_orderline.M_Warehouse_ID, cur_orderline.M_AttributeSetInstance_ID,
+			      cur_orderline.C_UOM_ID, cur_orderline.M_PRODUCT_UOM_ID, v_QtySO, v_QtyOrderSO, 0, NULL);
+			    
+			    -- Update Order Line
+			      UPDATE C_ORDERLINE
+			      SET QtyReserved = QtyReserved + v_QtySO
+			      WHERE C_OrderLine_ID = cur_orderline.C_OrderLine_ID;
+
+			       rowcount:=SQL%ROWCOUNT;
+			      IF (rowcount <> 1) THEN
+				IF (p_PInstance_ID IS NOT NULL) THEN
+					ROLLBACK;
+					v_ResultStr := 'LockingOrder';
+					UPDATE C_ORDER
+					SET Processing = 'N',
+					Updated=now(),
+					UpdatedBy=v_User
+					WHERE C_Order_ID = v_Record_ID;
+					COMMIT;
+				END IF;
+				RAISE_APPLICATION_ERROR(-20000, '@20011@');
+			      END IF;
+			END IF;
+
+		    END IF;--END IF DE PENDING
+
+              
+            END LOOP;
+
+            SELECT COUNT(*), SUM(CASE ol.so_res_status WHEN 'CR' THEN 1 ELSE 0 END), SUM(CASE ol.so_res_status WHEN 'PR' THEN 1 ELSE 0 END)
+              INTO v_linecount, v_creservedcount, v_preservedcount
+            FROM c_orderline ol
+                JOIN m_product p ON ol.m_product_id = p.m_product_id
+            WHERE ol.c_order_id = v_record_id
+              AND ol.qtyordered > 0
+              AND p.isstocked = 'Y'
+              AND p.producttype = 'I';
+            UPDATE c_order
+            SET so_res_status = CASE WHEN v_linecount = v_creservedcount THEN 'CR'
+                                     WHEN v_creservedcount + v_preservedcount > 0 THEN 'PR'
+                                     ELSE 'NR'
+                                END
+            WHERE c_order_id = v_record_id;
+
+
+	    
+            
+            
+          END IF;
+        END;
+      END IF;
+
+        		
+
+   END IF;
+
+  
+   v_Message:='Terminated';
+   DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+   AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+   EXCEPTION
+   WHEN OTHERS THEN
+     v_ResultStr:= '@ERROR=' || SQLERRM;
+     IF(p_PInstance_ID IS NOT NULL) THEN
+       AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+     END IF;
+     RAISE v_ResultStr;
+
+   RETURN;
+END SSA_ORDER_PREPOST1
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE FACT_ACCT">
+    <table name="FACT_ACCT" primaryKey="FACT_ACCT_KEY">
+      <column name="EM_SCO_REGNUMBER" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISAUTO" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_TIPDOC" primaryKey="false" required="false" type="VARCHAR" size="4" autoIncrement="false">
+        <default><![CDATA[00]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RECORD3_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_FECHAVENC" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REPLACEANALYTICS_PROC" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RECORD3_TABLE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_EEFF_PATRIMCHANGE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_EEFF_CASHFLOW_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_SEQNO" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISMIGRATED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REEVAL_CURRENCY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CORRELNUM" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_AREA_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_MGR_INTERNAL_DOC_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REDIR_SOURCE_DOCUMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_AREA" name="EM_SCO_FACCT_AREA_FK">
+        <reference local="EM_SCO_AREA_ID" foreign="SCO_AREA_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_EEFF_CASHFLOW" name="EM_SCO_FACCT_EEFFCASHFL_FK">
+        <reference local="EM_SCO_EEFF_CASHFLOW_ID" foreign="SCO_EEFF_CASHFLOW_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_EEFF_PATRIMCHANGE" name="EM_SCO_FACCT_EEFFPATRCH_FK">
+        <reference local="EM_SCO_EEFF_PATRIMCHANGE_ID" foreign="SCO_EEFF_PATRIMCHANGE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_INTERNAL_DOC" name="EM_SCO_FACCT_MGR_INTDOC_FK">
+        <reference local="EM_SCO_MGR_INTERNAL_DOC_ID" foreign="SCO_INTERNAL_DOC_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_TABLE" name="EM_SCO_FACCT_R3TABLE_FK">
+        <reference local="EM_SCO_RECORD3_TABLE_ID" foreign="AD_TABLE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_CURRENCY" name="EM_SCO_FACCT_RRCURR_FK">
+        <reference local="EM_SCO_REEVAL_CURRENCY_ID" foreign="C_CURRENCY_ID"/>
+      </foreign-key>
+      <index name="EM_SCO_FACT_ACCT_RECORD3_ID" unique="false">
+        <index-column name="EM_SCO_RECORD3_ID"/>
+      </index>
+      <unique name="EM_SCO_FACT_ACCT_SCOSEQNO_UQ">
+        <unique-column name="AD_CLIENT_ID"/>
+        <unique-column name="FACT_ACCT_GROUP_ID"/>
+        <unique-column name="EM_SCO_SEQNO"/>
+      </unique>
+      <check name="EM_SCO_FACCT_ISAUTO_CHK"><![CDATA[EM_SCO_ISAUTO IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_FACCT_ISMIGR_CHK"><![CDATA[EM_SCO_ISMIGRATED IN ('Y', 'N')]]></check>
+    </table>
+  </database>

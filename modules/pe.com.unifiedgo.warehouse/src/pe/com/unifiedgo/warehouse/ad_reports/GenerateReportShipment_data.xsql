@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2013 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="GenerateReportShipmentData" package="pe.com.unifiedgo.warehouse.ad_reports">
+  <SqlClassComment>Class GenerateReportShipmentData</SqlClassComment>
+  <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS IDS, '' AS PRODUCTVALUE, '' AS PRODUCTNAME, '' AS TDELIVERED, 
+          '' AS AVERAGE, '' AS ONHAND, '' AS NAME, '' AS UNTXBOX,
+          '' AS VALUEINT, '' AS NUMBOXES, '' AS STOCKACTUAL, '' AS REQUIRED, '' AS CLIENTID,
+          '' AS WAREHOUSENAME, ''  AS WAREHOUSESOURCENAME, '' AS DAYS, '' AS AVGMONTHLYSIX,
+          '' AS AVGMONTHLYFIVE,'' AS AVGMONTHLYFOUR,'' AS AVGMONTHLYTHREE,'' AS AVGMONTHLYTWO,'' AS AVGMONTHLYONE
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		SELECT a.ad_client_id as CLIENTID,
+		       ? as WAREHOUSENAME,  
+		       ? as WAREHOUSESOURCENAME,
+		       a.m_product_id as IDS,
+		       ? as DAYS,
+               a.value as PRODUCTVALUE,
+               a.name as PRODUCTNAME,
+               a.consumo as TDELIVERED,
+               floor((a.consumo/to_number(?))*to_number(?)) as AVERAGE, 
+               CASE WHEN (((a.consumo/to_number(?))*to_number(?))-a.stockOrigen<0) THEN 0 ELSE floor((((a.consumo/to_number(?))*to_number(?))- a.stockOrigen)) END  as REQUIRED, 
+               a.stockOrigen as ONHAND,
+               '' as NAME,
+               '1' as UNTXBOX, 
+               '0' as VALUEINT,
+               '3' as NUMBOXES, 
+               a.stockDestino  as STOCKACTUAL,
+               a.monthlysix as AVGMONTHLYSIX,
+               a.monthlyfive as AVGMONTHLYFIVE,
+               a.monthlyfour as AVGMONTHLYFOUR,
+               a.monthlythree as AVGMONTHLYTHREE,
+               a.monthlytwo as AVGMONTHLYTWO,
+               a.monthlyone as AVGMONTHLYONE
+        FROM (
+              SELECT p.ad_client_id,
+                     p.m_product_id,
+                     p.value,
+	                 p.name,
+	                 
+	                 COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id
+	                                                        , date(to_char(TO_DATE(now() - interval '6 month' ),'YYYY-MM') || '-01') 
+	                                                        , date(to_char(TO_DATE(now() - interval '5 month' ),'YYYY-MM') || '-01') -1
+	                                                        ,?), 0) as monthlysix,
+	                                                        
+                     COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id
+	                                                        , date(to_char(TO_DATE(now() - interval '5 month' ),'YYYY-MM') || '-01') 
+	                                                        , date(to_char(TO_DATE(now() - interval '4 month' ),'YYYY-MM') || '-01') -1 
+	                                                        ,?), 0) as monthlyfive,
+	                 
+	                 COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id
+	                                                        , date(to_char(TO_DATE(now() - interval '4 month' ),'YYYY-MM') || '-01') 
+	                                                        , date(to_char(TO_DATE(now() - interval '3 month' ),'YYYY-MM') || '-01') -1
+	                                                        ,?), 0) as monthlyfour,	                 
+	                 
+	                 
+	                 COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id
+	                                                        , date(to_char(TO_DATE(now() - interval '3 month' ),'YYYY-MM') || '-01') 
+	                                                        , date(to_char(TO_DATE(now() - interval '2 month' ),'YYYY-MM') || '-01') -1 
+	                                                        ,?), 0) as monthlythree,
+	                 
+	                 
+	                 
+	                 COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id
+	                                                        , date(to_char(TO_DATE(now() - interval '2 month' ),'YYYY-MM') || '-01') 
+	                                                        , date(to_char(TO_DATE(now() - interval '1 month' ),'YYYY-MM') || '-01') -1 
+	                                                        ,?), 0) as monthlytwo,
+	                 
+	                 
+	                 
+	                 COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id
+	                                                        , date(to_char(TO_DATE(now() - interval '1 month' ),'YYYY-MM') || '-01') 
+	                                                        , date(to_char(TO_DATE(now() - interval '0 month' ),'YYYY-MM') || '-01') -1 
+	                                                        ,?), 0) as monthlyone,
+	                 
+	                 
+	                 COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id, date(now()) - to_number(?), date(now()) ,?), 0) as consumo,
+	                 COALESCE(swa_product_getstock(p.m_product_id,?,null,3),0) as stockOrigen,
+	                 COALESCE(swa_product_getstock(p.m_product_id,?,null,3),0) as stockDestino
+            	FROM m_product p 
+          	   WHERE p.isstocked='Y' and p.isactive ='Y' and p.ProductType = 'I'
+            	 AND p.ad_org_id = ?
+            	 GROUP BY p.ad_client_id,p.m_product_id,p.value,p.name
+            	 HAVING COALESCE(sre_product_avg_monthly_specif(?, ?,p.m_product_id, date(now()) - to_number(?), date(now()) ,?), 0) > 0
+             ) a
+           order by REQUIRED desc , a.consumo desc
+		
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strWarehouseFromName"/>
+    <Parameter name="strWarehouseToName"/>
+    <Parameter name="strNumFuture"/>
+    <Parameter name="strNumBase"/>
+    <Parameter name="strNumFuture"/>
+    <Parameter name="strNumBase"/>
+    <Parameter name="strNumFuture"/>
+    <Parameter name="strNumBase"/>
+    <Parameter name="strNumFuture"/>
+    
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strWarehouseFrom"/>
+    
+     <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strWarehouseFrom"/>
+    
+     <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strWarehouseFrom"/>
+    
+     <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strWarehouseFrom"/>
+    
+     <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strWarehouseFrom"/>
+    
+     <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strWarehouseFrom"/>
+    
+    
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strNumBase"/>
+    <Parameter name="strWarehouseFrom"/>
+    <Parameter name="strWarehouseFrom"/>
+    <Parameter name="strWarehouseTo"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strNumBase"/>
+    <Parameter name="strWarehouseFrom"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

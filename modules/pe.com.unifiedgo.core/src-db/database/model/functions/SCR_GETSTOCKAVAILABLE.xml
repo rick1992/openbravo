@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_GETSTOCKAVAILABLE">
+    <function name="SCR_GETSTOCKAVAILABLE" type="NUMERIC">
+      <parameter name="p_adclientid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_adorgid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_mwarehouseid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_mproductid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+
+  v_StockQty NUMBER:=0;
+  v_StockNoDisp NUMBER:=0;
+
+BEGIN
+
+    -- TOTAL STOCK AVAILABLE            
+    IF (p_mwarehouseid='' OR p_mwarehouseid IS NULL) THEN        
+        SELECT COALESCE(sum(loc.qtyonhand),0) INTO v_StockNoDisp FROM swa_product_by_anaquel_v loc 
+         WHERE loc.locatortype='swa_RCP' AND loc.m_product_id=p_mProductId;
+        IF(v_StockNoDisp IS NULL) THEN
+           v_StockNoDisp:=0;
+        END IF;
+        
+        SELECT SUM(wtqv.qtyonhand-wtqv.qtyreserved)
+          INTO v_StockQty
+          FROM scr_warehouse_total_qty_v wtqv, m_warehouse w
+         WHERE wtqv.m_product_id=p_mProductId
+           AND wtqv.qtyonhand-wtqv.qtyreserved-v_StockNoDisp > 0
+           AND wtqv.m_warehouse_id=w.m_warehouse_id
+           AND w.em_swa_warehousetype='NO'
+           AND wtqv.ad_client_id=p_adClientId;
+
+        v_StockQty:=coalesce(v_StockQty,0)-v_StockNoDisp;   
+                  	   
+    -- TOTAL WAREHOUSE STOCK AVAILABLE
+    ELSE
+        SELECT COALESCE(sum(loc.qtyonhand),0) INTO v_StockNoDisp FROM swa_product_by_anaquel_v loc 
+         WHERE loc.locatortype='swa_RCP' AND loc.m_product_id=p_mProductId AND loc.m_warehouse_id=p_mWarehouseId;
+        IF(v_StockNoDisp IS NULL) THEN
+           v_StockNoDisp:=0;
+        END IF;
+        
+        SELECT wtqv.qtyonhand-wtqv.qtyreserved
+          INTO v_StockQty
+          FROM scr_warehouse_total_qty_v wtqv, m_warehouse w
+         WHERE wtqv.m_product_id=p_mProductId
+           AND wtqv.qtyonhand-wtqv.qtyreserved-v_StockNoDisp > 0 
+           AND wtqv.m_warehouse_id=p_mWarehouseId
+           AND wtqv.ad_client_id=p_adClientId LIMIT 1;
+
+        v_StockQty:=coalesce(v_StockQty,0)-v_StockNoDisp;    
+
+    END IF;
+
+    RETURN v_StockQty;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      RETURN v_StockQty;
+END SCR_GETSTOCKAVAILABLE
+]]></body>
+    </function>
+  </database>

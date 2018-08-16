@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_GET_TODAY_USD_CONVRATE">
+    <function name="SSA_GET_TODAY_USD_CONVRATE" type="NUMERIC">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_ConvertedAmount NUMBER;
+BEGIN
+
+   BEGIN
+      --calcula el tipo de cambio oficial de venta dolares del dia de hoy
+      SELECT COALESCE(sim_currency_convert_table(1, (select c_currency_id from c_currency where iso_code = 'USD'), (select c_currency_id from c_currency where iso_code = 'PEN'), now()::timestamp without time zone, NULL, NULL, p_ad_client_id, p_ad_org_id),0)
+      INTO v_ConvertedAmount;
+   
+   EXCEPTION
+   WHEN OTHERS THEN
+        v_ConvertedAmount:=0;
+   END ;
+   
+   IF (v_ConvertedAmount IS NULL) THEN
+       v_ConvertedAmount:=0; 
+   END IF;
+ 
+   RETURN v_ConvertedAmount;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SSA_GET_TODAY_USD_CONVRATE
+]]></body>
+    </function>
+  </database>

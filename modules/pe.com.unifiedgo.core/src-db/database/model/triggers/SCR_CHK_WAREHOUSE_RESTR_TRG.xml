@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_CHK_WAREHOUSE_RESTR_TRG">
+    <trigger name="SCR_CHK_WAREHOUSE_RESTR_TRG" table="C_ORDER" fires="before" insert="false" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF (COALESCE(:OLD.M_Warehouse_ID, '0')!=COALESCE(:NEW.M_Warehouse_ID, '0')) THEN
+      IF(:NEW.EM_Ssa_SpecialDocType NOT IN ('SCOSALESQUOTATION','SSASAMPLEORDER','SSASTANDARDORDER','SSAPOSORDER','SSAWAREHOUSEORDER')) THEN            	 	
+         --Can not modify warehouse on purchase orders: isstrx = N
+         SELECT COUNT(*)
+           INTO v_n
+           FROM C_ORDERLINE
+          WHERE C_Order_ID = :NEW.C_Order_ID;
+
+         IF v_n>0 THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCR_CannotModifyWarehouse@') ;
+         END IF;
+      END IF;	
+    END IF;
+  END IF;
+
+END SCR_CHK_WAREHOUSE_RESTR_TRG
+]]></body>
+    </trigger>
+  </database>

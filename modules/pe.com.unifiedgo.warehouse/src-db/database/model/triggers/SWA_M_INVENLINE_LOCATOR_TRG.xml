@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_M_INVENLINE_LOCATOR_TRG">
+    <trigger name="SWA_M_INVENLINE_LOCATOR_TRG" table="M_INVENTORYLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_Count NUMBER:=0;
+  V_M_PRODUCT_ID VARCHAR(32);
+  v_em_sco_surpluslocator_id VARCHAR(32);
+  V_VALUE VARCHAR(40);
+  v_specialdoctype VARCHAR(60);
+
+  v_warehouse_id VARCHAR(32);
+  v_warehouselocator_id VARCHAR(32);
+  
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING OR UPDATING) THEN
+
+       SELECT M_WAREHOUSE_ID INTO v_warehouse_id FROM M_INVENTORY WHERE M_INVENTORY_ID = :NEW.M_INVENTORY_ID;
+       SELECT M_WAREHOUSE_ID INTO v_warehouselocator_id FROM M_LOCATOR WHERE M_LOCATOR_ID = :NEW.M_LOCATOR_ID;
+
+       IF(COALESCE(v_warehouse_id,'-') <> COALESCE(v_warehouselocator_id,'-'))THEN
+         RAISE_APPLICATION_ERROR(-20000, '@swa_inventoryline_invalidlocator@') ;
+       END IF;
+            
+    END IF;
+
+    END SWA_M_INVENLINE_LOCATOR_TRG
+]]></body>
+    </trigger>
+  </database>

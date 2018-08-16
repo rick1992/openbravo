@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SRE_REQUISITION_REACTIVATE_EVA">
+    <function name="SRE_REQUISITION_REACTIVATE_EVA" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_docstatus VARCHAR2(60);
+  v_evalstatus VARCHAR2(60);
+  v_Result NUMBER:=1; -- Success
+  Cur_Parameter RECORD;
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+   /**
+    * Approve Sales Orders
+    * Sales Order Column: c_order.em_ssa_disc_evaluation_status
+    * c_order.em_ssa_disc_evaluation_status States:
+    *   - DR: Requirement Book
+    *   - CO: Requirement Completed
+    *   - CL: Requirement Closed
+    */
+
+    SELECT docstatus, em_sre_eval_docstatus
+      INTO v_docstatus, v_evalstatus
+    FROM m_requisition
+    WHERE m_requisition_id=v_Record_ID FOR UPDATE;
+    
+    IF (v_docstatus LIKE 'DR' AND v_evalstatus LIKE 'PD') THEN
+        --v_Message := '@swa_requirement_reposition@';
+        UPDATE m_requisition
+           SET em_sre_eval_docstatus= 'DR'
+         WHERE m_requisition_id = v_Record_ID;
+       
+    ELSE
+        v_Message:= '@sre_requerimiento_invalidaction@';
+        v_Result:= 2; -- Warning
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        RETURN;
+    
+    END IF; 
+
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SRE_REQUISITION_REACTIVATE_EVA
+]]></body>
+    </function>
+  </database>

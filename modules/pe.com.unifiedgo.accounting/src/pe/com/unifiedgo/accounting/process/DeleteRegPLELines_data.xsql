@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="DeleteRegPLELinesData" package="pe.com.unifiedgo.accounting.process">
+
+	<SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select '' as rownum, '' as scople56regid 
+				from dual 
+			]]>
+		</Sql>
+	</SqlMethod>
+	
+	
+	<SqlMethod name="selectRegularizationLines" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select ple.sco_ple5_6_reg_id as scople56regid
+				from sco_ple5_6_reg ple
+				
+				where ple.sco_rel_factacct_id = ?
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strRelFactAcctId" />
+	</SqlMethod>
+	
+	<SqlMethod name="revertStatusReg814" type="preparedStatement" connection="true" return="rowCount">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				update sco_ple8_14_reg set processed='N', docstatus='DR', docaction='CO' 
+				where sco_ple8_14_reg_id=?
+			]]>
+		</Sql>
+      <Parameter name="reg814Id"/>
+    </SqlMethod>
+	
+	
+	
+</SqlClass>

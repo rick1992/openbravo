@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteDAOTData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_daot" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+	
+		select 
+		
+			'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal,
+		
+		t1.fecha::date,t1.ruc,t1.tercero,t1.numero_doc
+		
+		,t1.monto*t1.tasa_cambio  as monto
+		
+		,t1.igv*t1.tasa_cambio  as monto_igv
+		
+		,t1.totalpagar*t1.tasa_cambio  as totalpagarfalso
+		
+		,(t1.monto+t1.igv)*t1.tasa_cambio as totalpagar
+		
+		 from 
+		
+		(select 
+		
+		ci.dateinvoiced as fecha,
+		
+		cbp.taxid as ruc,
+		
+		ci.em_scr_physical_documentno as numero_doc,
+		
+		cbp.name as tercero,
+		
+		ci.c_currency_id as moneda,
+		
+		case when ci.c_currency_id!='308' then 
+		
+		 COALESCE((select cr2.multiplyrate from  c_conversion_rate cr2 
+		where CURRENT_DATE BETWEEN cr2.validfrom and cr2.validto 
+		and cr2.c_currency_id = ci.c_currency_id
+		and cr2.c_currency_id_to in ('308') 
+		ORDER BY  cr2.updated desc LIMIT 1),0.0)
+		
+		else 1.0 end as tasa_cambio,
+		
+		 ci.totallines  as monto,
+		
+		cit.taxamt as igv,
+		
+		 ci.totalpaid as totalpagar
+		
+		,cbp.c_bpartner_id as idtercero
+		
+		FROM c_invoice ci 
+		inner JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+		left join c_invoicetax cit on ci.c_invoice_id=cit.c_invoice_id 
+		left join c_tax ct on cit.c_tax_id=ct.c_tax_id
+		where ci.issotrx='Y' AND ci.isactive='Y'  AND ci.em_sco_specialdoctype='SCOARINVOICE' 
+		and ci.docstatus='CO' and ct.em_sco_specialtax='SCOIGV' AND ct.isactive='Y' 
+
+	    and  ci.ad_client_id IN ('1') 
+		and ci.ad_org_id in ('1') 
+		and 1=1 
+	
+		ORDER BY  cbp.name, ci.dateinvoiced ) as t1 
+		where 
+		( t1.idtercero in 
+		(select cbp2.c_bpartner_id
+		FROM c_invoice ci2 
+		inner JOIN c_bpartner cbp2 on ci2.c_bpartner_id=cbp2.c_bpartner_id
+		left join c_invoicetax cit2 on ci2.c_invoice_id=cit2.c_invoice_id 
+		left join c_tax ct2 on cit2.c_tax_id=ct2.c_tax_id
+		
+		where ci2.issotrx='Y' AND ci2.isactive='Y'  AND ci2.em_sco_specialdoctype='SCOARINVOICE' 
+		and ci2.docstatus='CO' 
+		and ct2.em_sco_specialtax='SCOIGV' and ct2.isactive='Y' 
+		GROUP BY cbp2.c_bpartner_id
+		having sum(cit2.taxamt+ci2.totallines)*t1.tasa_cambio >=  cast(? as DECIMAL)  
+		)
+		
+		) 
+		 
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="ci.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="ci.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ and ci.dateinvoiced >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ and ci.dateinvoiced < TO_DATE(?)]]></Parameter>
+    <Parameter name="montobase"></Parameter>
+
+  </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="select_daot2" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+			select 
+
+		t1.fecha::date,t1.ruc,t1.tercero,t1.numero_doc
+		
+		,t1.monto*t1.tasa_cambio  as monto
+		
+		,t1.igv*t1.tasa_cambio  as monto_igv
+		
+		,t1.totalpagar*t1.tasa_cambio  as totalpagarfalso
+		
+		,(t1.monto+t1.igv)*t1.tasa_cambio as totalpagar
+		
+		 from 
+		
+		(select 
+		
+		ci.dateinvoiced as fecha,
+		
+		cbp.taxid as ruc,
+		
+		ci.em_scr_physical_documentno as numero_doc,
+		
+		cbp.name as tercero,
+		
+		ci.c_currency_id as moneda,
+		
+		case when ci.c_currency_id!='308' then 
+		
+		 COALESCE((select cr2.multiplyrate from  c_conversion_rate cr2 
+		where ci.dateinvoiced BETWEEN cr2.validfrom and cr2.validto 
+		and cr2.c_currency_id = ci.c_currency_id
+		and cr2.c_currency_id_to in ('308') 
+		ORDER BY  cr2.updated desc LIMIT 1),0.0)
+		
+		else 1.0 end as tasa_cambio,
+		
+		 ci.totallines  as monto,
+		
+		cit.taxamt as igv,
+		
+		 ci.totalpaid as totalpagar
+		
+		,cbp.c_bpartner_id as idtercero
+		
+		FROM c_invoice ci 
+		inner JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+		left join c_invoicetax cit on ci.c_invoice_id=cit.c_invoice_id 
+		left join c_tax ct on cit.c_tax_id=ct.c_tax_id
+		
+		where   ci.isactive='Y' 
+		and ci.docstatus='CO' and ct.em_sco_specialtax='SCOIGV' AND ct.isactive='Y' 
+
+	    and  ci.ad_client_id IN ('1') 
+		and ci.ad_org_id in ('1') 
+		and 1=1 
+		and 2=2
+
+		ORDER BY  cbp.name, ci.dateinvoiced 
+
+	) as t1 
+
+		 
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="ci.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="ci.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ and ci.dateinvoiced >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ and ci.dateinvoiced < TO_DATE(?)]]></Parameter>
+    
+    
+        <Parameter name="terceroId" optional="true" after="2=2"><![CDATA[ and ci.c_bpartner_id = ? ]]></Parameter>
+        <Parameter name="showVentas" optional="true" after="2=2"><![CDATA[ and ci.issotrx='Y'  AND ci.em_sco_specialdoctype='SCOARINVOICE' ]]></Parameter>
+        <Parameter name="showCompras" optional="true" after="2=2"><![CDATA[ and ci.issotrx='N'  AND ci.em_sco_specialdoctype='SCOAPINVOICE' ]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+
+  
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+     
+     <SqlMethod name="selectBPartner" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		      SELECT taxid || ' - ' || NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+		    </Sql>
+		    <Parameter name="cBpartnerId"/>
+		  </SqlMethod>    
+  
+</SqlClass>

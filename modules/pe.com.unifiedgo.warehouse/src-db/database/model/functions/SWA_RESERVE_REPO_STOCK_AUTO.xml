@@ -1,0 +1,130 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_RESERVE_REPO_STOCK_AUTO">
+    <function name="SWA_RESERVE_REPO_STOCK_AUTO" type="NULL">
+      <parameter name="p_reservation_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="v_em_swa_requerepo_detail_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_reservedqty" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2012 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************
+* Function to reserve stock using the get stock function.
+**************/
+  v_product_id                  VARCHAR2(32);
+  v_uom_id                      VARCHAR2(32);
+  v_asi_id                      VARCHAR2(32);
+  v_locator_id                  VARCHAR2(32);
+  v_warehouse_id                VARCHAR2(32);
+  v_client_id                   VARCHAR2(32);
+  v_org_id                      VARCHAR2(32);
+  v_soline_id                   VARCHAR2(32);
+  v_user_id                     VARCHAR2(32);
+  v_qty                         NUMBER;
+  v_pendingtoreserveqty         NUMBER;
+  v_pendingqty                  NUMBER;
+  v_reserveqty                  NUMBER;
+  v_dummy                       VARCHAR2(2000) := '';
+  v_pinstance_id                VARCHAR2(32) := get_uuid();
+	
+--ADD BY VAFASTER
+  v_warehouse_tmp_id 			VARCHAR(32); 
+  v_reserve_stock_id  VARCHAR(32); 
+  v_vf_qty 	 NUMBER;
+  qty_available          NUMBER; --ADD BY ME
+---------------  
+
+  TYPE RECORD IS REF CURSOR;
+  cur_stock                     RECORD;
+  cur_stock_test                RECORD; -- ADD BY VAFASTER
+
+BEGIN
+  
+  
+    SELECT quantity - COALESCE(reservedqty,0),
+         m_product_id, c_uom_id, m_attributesetinstance_id, m_locator_id, m_warehouse_id,
+         ad_client_id, ad_org_id, c_orderline_id, quantity,ad_user_id
+    INTO v_pendingtoreserveqty,
+         v_product_id, v_uom_id, v_asi_id, v_locator_id, v_warehouse_id,
+         v_client_id, v_org_id, v_soline_id, v_reserveqty,v_user_id
+    FROM m_reservation
+   WHERE m_reservation_id = p_reservation_id;
+
+
+
+-- ADD BY VAFASTER
+
+
+ SELECT from_m_warehouse_id 
+   INTO v_warehouse_tmp_id 
+   FROM swa_requerimientoreposicion  repo
+ INNER JOIN swa_requerepo_detail repoline ON repo.swa_requerimientoreposicion_id = repoline.swa_requerimientoreposicion_id
+  WHERE repoline.swa_requerepo_detail_id = v_em_swa_requerepo_detail_id;
+  
+  
+  /*select mw.m_warehouse_id INTO v_warehouse_tmp_id from m_warehouse mw inner join c_order co on
+                           mw.m_warehouse_id = co.m_warehouse_id inner join c_orderline col on
+                           col.c_order_id = co.c_order_id inner join m_reservation mr on
+                           mr.c_orderline_id = col.c_orderline_id 
+  where mr.m_reservation_id  = p_reservation_id;*/
+-----------
+
+
+
+--TOTAL DE UN PRODUCTO EN UN ALMACEN
+SELECT wtqv.qtyonhand-wtqv.qtyreserved INTO qty_available 
+FROM scr_warehouse_total_qty_v wtqv, m_product p, m_warehouse w 
+WHERE p.m_product_id=wtqv.m_product_id
+AND wtqv.m_warehouse_id=v_warehouse_tmp_id
+AND p.m_product_id=v_product_id;
+
+
+  IF (v_pendingtoreserveqty >= qty_available) THEN
+    v_pendingtoreserveqty := qty_available;
+  END IF;
+
+  IF (v_pendingtoreserveqty <= 0) THEN
+    v_pendingtoreserveqty := 0;
+    RETURN;
+  END IF;
+
+  
+
+  v_reserve_stock_id:= get_uuid();
+  INSERT INTO m_reservation_stock ( 
+    m_reservation_stock_id, ad_client_id, ad_org_id , isactive,
+    created, createdby,updated,updatedby, 
+    m_reservation_id, quantity,em_swa_requerepo_detail_id
+  )
+  VALUES (
+   v_reserve_stock_id,v_client_id, v_org_id,'Y',
+   now(),p_user_id,now(),p_user_id,
+   p_reservation_id,v_pendingtoreserveqty,v_em_swa_requerepo_detail_id
+  );
+
+  RETURN;
+END SWA_RESERVE_REPO_STOCK_AUTO
+]]></body>
+    </function>
+  </database>

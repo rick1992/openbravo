@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_INOUT_SERVICEORD_CHK_TRG">
+    <trigger name="SRE_INOUT_SERVICEORD_CHK_TRG" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+  v_combo_item_old VARCHAR(40);
+  v_combo_item_new VARCHAR(40);
+  
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+     IF (INSERTING OR UPDATING) THEN 
+      IF(:NEW.em_sco_specialdoctype = 'SCOMMRECEIPT' AND :NEW.em_ssa_cmbitem_value='IngresoporServicio')THEN
+        :NEW.C_ORDER_ID = :NEW.em_ssa_serviceorder_id;
+      END IF;
+     END IF;
+
+   
+
+     IF (UPDATING) THEN 
+         IF(COALESCE(:OLD.em_ssa_serviceorder_id,'.') <> COALESCE(:NEW.em_ssa_serviceorder_id,'.') OR COALESCE(:OLD.em_ssa_cmbitem_value,'.') <> COALESCE(:NEW.em_ssa_cmbitem_value,'.')) THEN
+            IF(:OLD.em_ssa_cmbitem_value='IngresoporServicio' OR :NEW.em_ssa_cmbitem_value='IngresoporServicio')THEN
+               SELECT count(*)
+                 INTO v_Aux
+                 FROM M_InoutLine
+                WHERE M_Inout_ID = :NEW.M_Inout_ID;
+
+               IF(v_Aux<>0) THEN
+                  RAISE_APPLICATION_ERROR(-20000, '@SRE_MinoutServiceOrder20502@') ;
+               END IF;
+          END IF;
+        END IF;
+     END IF;
+
+    
+
+    END SRE_INOUT_SERVICEORD_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

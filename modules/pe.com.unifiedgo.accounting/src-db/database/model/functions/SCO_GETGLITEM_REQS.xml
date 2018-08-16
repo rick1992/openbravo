@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_GETGLITEM_REQS">
+    <function name="SCO_GETGLITEM_REQS" type="NULL">
+      <parameter name="p_c_glitem_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_requirements" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_AD_LE_Org_ID VARCHAR(32);
+  v_c_acctschema_id VARCHAR(32);
+  v_iscostcenter VARCHAR(1);
+  v_requiresanalytics VARCHAR(1);
+  p_requirements_cre VARCHAR(10);
+BEGIN
+
+  SELECT c_acctschema_id
+    INTO v_c_acctschema_id 
+    FROM c_glitem_acct
+  WHERE c_glitem_id = p_c_glitem_id LIMIT 1;
+
+  IF(v_c_acctschema_id IS NULL OR v_c_acctschema_id='') THEN
+    p_requirements := 'N';
+    RETURN;
+  END IF;
+
+  SELECT elval.em_sco_iscostcenter, elval.em_sco_requiresanalytics
+    INTO v_iscostcenter, v_requiresanalytics
+    FROM c_glitem_acct glitemacct, c_validcombination comb, c_elementvalue elval
+  WHERE glitemacct.c_acctschema_id = v_c_acctschema_id
+  AND glitemacct.c_glitem_id = p_c_glitem_id
+  AND glitemacct.glitem_debit_acct = comb.c_validcombination_id
+  AND comb.account_id = elval.c_elementvalue_id;
+
+  p_requirements := '';
+  IF(v_iscostcenter = 'Y') THEN
+    p_requirements := p_requirements || 'C';
+  END IF;
+
+  IF(v_requiresanalytics = 'Y') THEN
+    p_requirements := p_requirements || 'A';
+  END IF;
+
+  IF(p_requirements = '') THEN
+    p_requirements := 'N';
+  END IF;
+
+  SELECT elval.em_sco_iscostcenter, elval.em_sco_requiresanalytics
+    INTO v_iscostcenter, v_requiresanalytics
+    FROM c_glitem_acct glitemacct, c_validcombination comb, c_elementvalue elval
+  WHERE glitemacct.c_acctschema_id = v_c_acctschema_id
+  AND glitemacct.c_glitem_id = p_c_glitem_id
+  AND glitemacct.glitem_credit_acct = comb.c_validcombination_id
+  AND comb.account_id = elval.c_elementvalue_id;
+
+  p_requirements_cre := '';
+  IF(v_iscostcenter = 'Y') THEN
+    p_requirements_cre := p_requirements_cre || 'C';
+  END IF;
+
+  IF(v_requiresanalytics = 'Y') THEN
+    p_requirements_cre := p_requirements_cre || 'A';
+  END IF;
+
+  IF(p_requirements_cre = '') THEN
+    p_requirements_cre := 'N';
+  END IF;
+
+  p_requirements := p_requirements || '|' || p_requirements_cre;
+END SCO_GETGLITEM_REQS
+]]></body>
+    </function>
+  </database>

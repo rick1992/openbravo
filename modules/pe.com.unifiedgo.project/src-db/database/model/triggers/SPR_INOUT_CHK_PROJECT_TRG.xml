@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_INOUT_CHK_PROJECT_TRG">
+    <trigger name="SPR_INOUT_CHK_PROJECT_TRG" table="M_INOUT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+v_IsGeneralWarehouse CHAR(1);
+v_defProjectId VARCHAR(32);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+      IF (:NEW.M_Warehouse_ID IS NOT NULL) THEN        
+         SELECT C_PROJECT_ID INTO v_defProjectId FROM C_PROJECT WHERE M_WAREHOUSE_ID=:NEW.M_WAREHOUSE_ID;               
+         SELECT EM_SCR_IsGeneralWarehouse INTO v_IsGeneralWarehouse FROM M_WAREHOUSE WHERE M_WAREHOUSE_ID=:NEW.M_WAREHOUSE_ID; 
+
+         IF (v_IsGeneralWarehouse='N' AND :NEW.C_Project_ID<>v_defProjectId) THEN
+		     RAISE_APPLICATION_ERROR(-20000, '@SPR_CannotChangeProject@') ;
+         END IF;    
+
+      END IF;
+  END IF;
+
+  IF UPDATING THEN
+      IF ((COALESCE(:OLD.M_Warehouse_ID, '0')!=COALESCE(:NEW.M_Warehouse_ID, '0')) 
+       OR (COALESCE(:OLD.C_Project_ID,'0') != COALESCE(:NEW.C_Project_ID,'0'))) THEN
+         SELECT COUNT(*) INTO v_n FROM M_INOUTLINE WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
+         IF v_n>0 THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotChange@') ;
+         END IF;
+
+         SELECT C_PROJECT_ID INTO v_defProjectId FROM C_PROJECT WHERE M_WAREHOUSE_ID=:NEW.M_WAREHOUSE_ID;               
+         SELECT EM_SCR_IsGeneralWarehouse INTO v_IsGeneralWarehouse FROM M_WAREHOUSE WHERE M_WAREHOUSE_ID=:NEW.M_WAREHOUSE_ID; 
+
+         IF (v_IsGeneralWarehouse='N' AND :NEW.C_Project_ID<>v_defProjectId) THEN
+		     RAISE_APPLICATION_ERROR(-20000, '@SPR_CannotChangeProject@') ;
+         END IF;   
+           
+      END IF;
+
+  END IF;
+
+END SPR_INOUT_CHK_PROJECT_TRG
+]]></body>
+    </trigger>
+  </database>

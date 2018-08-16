@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_INV_CHK_PHYDOCNO_TRG">
+    <trigger name="SCR_INV_CHK_PHYDOCNO_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_physicalDocNo_def VARCHAR(60):='000-0000000';
+v_podoctype VARCHAR(60);
+v_MaxLengthCorrel NUMBER:=10;
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING OR UPDATING) THEN
+     select value into v_podoctype from scr_combo_item where scr_combo_item_id=:NEW.EM_Sco_Podoctype_Comboitem_ID;     
+  END IF;
+
+  IF(INSERTING) THEN 
+     IF (:NEW.em_sco_specialdoctype IN ('SCOARINVOICE','SCOARTICKET','SCOARCREDITMEMO','SCOARINVOICERETURNMAT','SCOARDEBITMEMO') OR
+         (:NEW.em_sco_specialdoctype IN ('SCOAPINVOICE','SCOAPSIMPLEPROVISIONINVOICE','SCOAPCREDITMEMO') AND COALESCE(v_podoctype,'') NOT IN('tabla10_00','tabla10_99','tabla10_13')) ) THEN
+         IF(:NEW.em_scr_physical_documentno IS NOT NULL AND :NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+            
+  	    IF(:NEW.em_scr_physical_documentno !~* '^[A-Za-z0-9]{3,4}-[A-Za-z0-9]{1,10}' OR length(split_part(:NEW.em_scr_physical_documentno, '-', 2)) > v_MaxLengthCorrel) THEN 
+  	       
+	       RAISE_APPLICATION_ERROR(-20000, '@SCR_PhyDocNo_IncorrectFormat@') ;
+	    END IF;  	
+	    
+	 END IF;
+     END IF;
+  END IF;   	
+
+  IF(UPDATING) THEN 
+     IF(COALESCE(:OLD.em_sco_specialdoctype,'.')<>COALESCE(:NEW.em_sco_specialdoctype,'.') OR
+        COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.') OR
+        COALESCE(:OLD.em_sco_podoctype_comboitem_id,'.')<>COALESCE(:NEW.em_sco_podoctype_comboitem_id,'.')) THEN
+
+	IF(:NEW.em_sco_specialdoctype IN ('SCOARINVOICE','SCOARTICKET','SCOARCREDITMEMO','SCOARINVOICERETURNMAT','SCOARDEBITMEMO') OR
+           (:NEW.em_sco_specialdoctype IN ('SCOAPINVOICE','SCOAPSIMPLEPROVISIONINVOICE','SCOAPCREDITMEMO') AND COALESCE(v_podoctype,'') NOT IN('tabla10_00','tabla10_99','tabla10_13'))) THEN
+	   IF(:NEW.em_scr_physical_documentno IS NOT NULL AND :NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+	      
+	      IF(:NEW.em_scr_physical_documentno !~* '^[A-Za-z0-9]{3,4}-[A-Za-z0-9]{1,10}' OR length(split_part(:NEW.em_scr_physical_documentno, '-', 2)) > v_MaxLengthCorrel) THEN
+	         RAISE_APPLICATION_ERROR(-20000, '@SCR_PhyDocNo_IncorrectFormat@') ;
+	      END IF;                  
+	      	
+	   END IF;  
+	END IF;	
+
+     END IF;  
+  END IF;
+ 
+
+  END SCR_INV_CHK_PHYDOCNO_TRG
+]]></body>
+    </trigger>
+  </database>

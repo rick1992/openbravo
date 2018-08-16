@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PSD_GLVAL_TRG">
+    <trigger name="SCO_PSD_GLVAL_TRG" table="FIN_PAYMENT_SCHEDULEDETAIL" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Correlativo NUMBER;
+  v_AD_LE_Org_ID VARCHAR(32);
+  v_Aux NUMBER;
+  v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+  v_c_acctschema_id VARCHAR(32);
+  v_checkgl VARCHAR(1);
+  v_iscostcenter VARCHAR(1);
+  v_requiresanalytics VARCHAR(1);
+  v_glitem_id VARCHAR(32);
+  v_payoutrendcuentas VARCHAR(32);
+  v_payoutprepayment VARCHAR(32);
+  v_discboe_id VARCHAR(32);
+  v_loandocli_inv_id VARCHAR(32);
+  v_invloandoc_id VARCHAR(32);
+  v_factoredinv_id VARCHAR(32);
+  v_amount NUMBER;
+  v_isreceipt VARCHAR(1);
+  v_isdebitacc VARCHAR(1);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+    v_checkgl := 'N';
+    IF( INSERTING) THEN
+      IF(:NEW.fin_payment_detail_id IS NOT NULL) THEN
+        SELECT pd.c_glitem_id, pd.em_sco_payoutrendcuentas, pd.em_sco_payoutprepayment, pd.em_sco_discboe_id, pd.amount, p.isreceipt, pd.em_sco_factoredinv_id, pd.em_sco_loandocli_inv_id
+          INTO v_glitem_id, v_payoutrendcuentas, v_payoutprepayment, v_discboe_id, v_amount, v_isreceipt, v_factoredinv_id, v_loandocli_inv_id
+          FROM FIN_Payment_Detail pd, FIN_Payment p
+        WHERE pd.FIN_Payment_ID = p.FIN_Payment_ID
+        AND pd.FIN_Payment_Detail_ID = :NEW.fin_payment_detail_id;
+
+        IF(v_glitem_id IS NOT NULL) THEN
+          v_checkgl := 'Y';
+        END IF;
+      END IF;
+    ELSE
+      IF((COALESCE(:OLD.fin_payment_detail_id,'')<>COALESCE(:NEW.fin_payment_detail_id,'')
+         OR COALESCE(:OLD.c_costcenter_id,'')<>COALESCE(:NEW.c_costcenter_id,'')
+         OR COALESCE(:OLD.em_sco_internal_doc_id,'')<>COALESCE(:NEW.em_sco_internal_doc_id,'')
+         OR COALESCE(:OLD.em_sco_invoice_glref_id,'')<>COALESCE(:NEW.em_sco_invoice_glref_id,'')) AND :NEW.fin_payment_detail_id IS NOT NULL) THEN
+
+          SELECT pd.c_glitem_id, pd.em_sco_payoutrendcuentas, pd.em_sco_payoutprepayment, pd.em_sco_discboe_id, pd.amount, p.isreceipt, pd.em_sco_factoredinv_id,pd.em_sco_loandocli_inv_id
+            INTO v_glitem_id, v_payoutrendcuentas, v_payoutprepayment, v_discboe_id, v_amount, v_isreceipt, v_factoredinv_id, v_loandocli_inv_id
+            FROM FIN_Payment_Detail pd, FIN_Payment p
+          WHERE pd.FIN_Payment_ID = p.FIN_Payment_ID
+          AND pd.FIN_Payment_Detail_ID = :NEW.fin_payment_detail_id;
+
+         IF(v_glitem_id IS NOT NULL) THEN
+           v_checkgl := 'Y';
+         END IF;
+
+      END IF;
+    END IF;    
+
+    IF(v_checkgl = 'Y') THEN
+
+      v_isdebitacc:='Y';
+      IF((v_amount>0 AND v_isreceipt='Y') OR (v_amount<0 AND v_isreceipt='N')) THEN
+        v_isdebitacc:='N';
+      END IF;
+
+      --check for costcenter and requiresanalytics validation
+      SELECT * INTO v_AD_LE_Org_ID from ad_get_org_le_bu(:NEW.AD_Org_ID,'LE');
+      SELECT c_acctschema_id 
+        INTO v_c_acctschema_id 
+        FROM AD_Org
+      WHERE AD_Org_ID = v_AD_LE_Org_ID;
+
+      IF(v_c_acctschema_id IS NOT NULL) THEN
+            SELECT elval.em_sco_iscostcenter, elval.em_sco_requiresanalytics
+              INTO v_iscostcenter, v_requiresanalytics
+              FROM c_glitem_acct glitemacct, c_validcombination comb, c_elementvalue elval
+            WHERE glitemacct.c_acctschema_id = v_c_acctschema_id
+              AND glitemacct.c_glitem_id = v_glitem_id
+              AND ((glitemacct.glitem_debit_acct = comb.c_validcombination_id AND v_isdebitacc='Y') OR (glitemacct.glitem_credit_acct = comb.c_validcombination_id AND v_isdebitacc<>'Y'))
+              AND comb.account_id = elval.c_elementvalue_id;
+           IF(v_iscostcenter = 'Y' AND :NEW.c_costcenter_id IS NULL) THEN
+             RAISE_APPLICATION_ERROR(-20000, '@SCO_InvLineNeedsCostCenter@') ;
+           END IF;
+           IF(v_requiresanalytics = 'Y' AND :NEW.em_sco_internal_doc_id IS NULL AND :NEW.em_sco_invoice_glref_id IS NULL AND v_payoutrendcuentas IS NULL AND v_payoutprepayment IS NULL AND v_discboe_id IS NULL AND v_factoredinv_id IS NULL AND v_loandocli_inv_id IS NULL) THEN
+             RAISE_APPLICATION_ERROR(-20000, '@SCO_InvLineNeedsInternalDoc@') ;
+           END IF;  
+      END IF;
+    END IF;
+
+    END SCO_PSD_GLVAL_TRG
+]]></body>
+    </trigger>
+  </database>

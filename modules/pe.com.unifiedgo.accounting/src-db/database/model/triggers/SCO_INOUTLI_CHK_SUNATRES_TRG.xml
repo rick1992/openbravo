@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INOUTLI_CHK_SUNATRES_TRG">
+    <trigger name="SCO_INOUTLI_CHK_SUNATRES_TRG" table="M_INOUTLINE" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_Aux NUMBER;
+v_specialdoctype VARCHAR(60);
+v_doctype_id VARCHAR(32);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  SELECT c_doctype_id
+    INTO v_doctype_id
+    FROM M_Inout
+  WHERE M_Inout_ID = :NEW.M_Inout_ID;
+
+  SELECT em_sco_specialdoctype
+    INTO v_specialdoctype
+    FROM C_Doctype
+  WHERE C_Doctype_ID = v_doctype_id;
+
+  IF(v_specialdoctype IN ('SCOMMSHIPMENT', 'SWAINTERNALSHIPMENT', 'SWAMMSHIPMENTINDIRECT')) THEN
+
+    IF(INSERTING) THEN
+
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM (
+        SELECT m_product_id FROM M_Inoutline
+          WHERE M_Inout_ID = :NEW.M_Inout_ID 
+          GROUP BY M_Product_ID ) AS A;
+
+      IF(v_Aux > 15) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_SUNATDocMax15@') ;
+      END IF;
+
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.M_Product_ID,'.')<>COALESCE(:NEW.M_Product_ID,'.')) THEN
+        SELECT Count(*) 
+          INTO v_Aux
+          FROM (
+          SELECT m_product_id FROM M_Inoutline
+            WHERE M_Inout_ID = :NEW.M_Inout_ID 
+            GROUP BY M_Product_ID ) AS A;
+
+        IF(v_Aux > 15) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_SUNATDocMax15@') ;
+        END IF;
+      END IF;
+    END IF;
+
+  END IF;
+
+  END SCO_INOUTLI_CHK_SUNATRES_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_ISUSESALESTCONLY">
+    <function name="SCO_ISUSESALESTCONLY" type="VARCHAR">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_isUseSalesTCOnly VARCHAR(1);
+BEGIN
+
+  SELECT COALESCE(em_sco_usesalestconly,'N') INTO v_isUseSalesTCOnly FROM AD_Client WHERE AD_Client_ID = p_ad_client_id;
+  IF(v_isUseSalesTCOnly IS NULL) THEN
+    v_isUseSalesTCOnly := 'N';
+  END IF;
+
+  RETURN v_isUseSalesTCOnly;
+END SCO_ISUSESALESTCONLY
+]]></body>
+    </function>
+  </database>

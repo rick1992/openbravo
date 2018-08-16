@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_ORDTAX_UPDATESPDOC_TRG">
+    <trigger name="SSA_ORDTAX_UPDATESPDOC_TRG" table="C_ORDERTAX" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    SELECT em_ssa_specialdoctype INTO v_specialdoctype FROM C_Order WHERE C_Order_ID = :NEW.c_order_id;
+    :NEW.em_ssa_specialdoctype := v_specialdoctype;
+
+    END SSA_ORDTAX_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

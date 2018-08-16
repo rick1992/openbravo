@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_CONTRACT_PAYSCHED_LI_TRG">
+    <trigger name="SRE_CONTRACT_PAYSCHED_LI_TRG" table="SRE_CONTRACT_PAYSCHED_LINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_contract_payschedule_ID  VARCHAR2(32);
+  v_PEN_CURR VARCHAR(32):='308';
+  v_USD_CURR VARCHAR(32):='100';
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_contract_payschedule_ID:=:NEW.sre_contract_payschedule_ID;
+  ELSE
+    v_contract_payschedule_ID:=:OLD.sre_contract_payschedule_ID;
+  END IF;
+
+
+  --Update Header Totalamount Values
+  IF(INSERTING) THEN
+    IF (:NEW.c_currency_id = v_PEN_CURR) THEN --total soles
+      UPDATE sre_contract_payschedule SET totalpenamount = totalpenamount + :NEW.amount
+       WHERE sre_contract_payschedule_ID = v_contract_payschedule_ID;   
+    ELSIF (:NEW.c_currency_id = v_USD_CURR) THEN --total dolares
+      UPDATE sre_contract_payschedule SET totalusdamount = totalusdamount + :NEW.amount
+       WHERE sre_contract_payschedule_ID = v_contract_payschedule_ID;
+    END IF;
+
+  ELSIF (UPDATING) THEN 
+    IF (:NEW.c_currency_id = v_PEN_CURR) THEN --total soles
+      UPDATE sre_contract_payschedule SET totalpenamount = (totalpenamount + :NEW.amount - :OLD.amount) 
+       WHERE sre_contract_payschedule_ID = v_contract_payschedule_ID;   
+    ELSIF (:NEW.c_currency_id = v_USD_CURR) THEN --total dolares
+      UPDATE sre_contract_payschedule SET totalusdamount = (totalusdamount + :NEW.amount - :OLD.amount) 
+       WHERE sre_contract_payschedule_ID = v_contract_payschedule_ID;
+    END IF;
+
+  END IF;
+
+
+  IF(DELETING) THEN
+    IF (:OLD.c_currency_id = v_PEN_CURR) THEN --total soles
+      UPDATE sre_contract_payschedule SET totalpenamount = totalpenamount - :OLD.amount
+       WHERE sre_contract_payschedule_ID = v_contract_payschedule_ID;   
+    ELSIF (:OLD.c_currency_id = v_USD_CURR) THEN --total dolares
+      UPDATE sre_contract_payschedule SET totalusdamount = totalusdamount - :OLD.amount
+       WHERE sre_contract_payschedule_ID = v_contract_payschedule_ID;
+    END IF;
+
+  END IF;
+
+
+  END SRE_CONTRACT_PAYSCHED_LI_TRG
+]]></body>
+    </trigger>
+  </database>

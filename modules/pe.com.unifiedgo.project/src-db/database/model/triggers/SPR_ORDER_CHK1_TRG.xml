@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_ORDER_CHK1_TRG">
+    <trigger name="SPR_ORDER_CHK1_TRG" table="C_ORDER" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+      IF (:NEW.M_Warehouse_ID IS NOT NULL) THEN
+         :NEW.C_PROJECT_ID := (SELECT C_PROJECT_ID FROM C_PROJECT WHERE M_WAREHOUSE_ID=:NEW.M_WAREHOUSE_ID LIMIT 1);
+      END IF;
+  END IF;
+
+  IF UPDATING THEN
+      IF ((COALESCE(:OLD.M_Warehouse_ID, '0')!=COALESCE(:NEW.M_Warehouse_ID, '0')) 
+       OR (COALESCE(:old.C_Currency_ID, '0') != COALESCE(:NEW.C_Currency_ID, '0'))
+       OR (COALESCE(:OLD.C_Project_ID,'0') != COALESCE(:NEW.C_Project_ID,'0'))) THEN
+         SELECT COUNT(*) INTO v_n FROM C_ORDERLINE WHERE C_ORDER_ID = :NEW.C_ORDER_ID;
+         IF v_n>0 THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotChange@') ;
+         END IF;
+      END IF;
+
+	  IF ((COALESCE(:OLD.M_Warehouse_ID, '0')!=COALESCE(:NEW.M_Warehouse_ID, '0'))) THEN
+         :NEW.C_PROJECT_ID := (SELECT C_PROJECT_ID FROM C_PROJECT WHERE M_WAREHOUSE_ID=:NEW.M_WAREHOUSE_ID LIMIT 1);
+      END IF;
+  END IF;
+
+END SPR_ORDER_CHK1_TRG
+]]></body>
+    </trigger>
+  </database>

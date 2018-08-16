@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_NEWINVDATE_TRG">
+    <trigger name="SCO_INVOICE_NEWINVDATE_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_Doctype_ID = :NEW.c_doctypetarget_id;
+
+    --TRUNC DATEACCT
+    IF(INSERTING) THEN
+      :NEW.dateacct := TRUNC(:NEW.dateacct);
+    ELSIF(UPDATING) THEN
+      IF(:OLD.dateacct<>:NEW.dateacct) THEN
+        :NEW.dateacct := TRUNC(:NEW.dateacct);
+      END IF;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF(v_specialdoctype NOT IN ('SCOAPCREDITMEMO','SCOAPINVOICE','SCOAPINVOICEREVERSE','SCOAPSIMPLEPROVISIONINVOICE', 'SCOAPBOEINVOICE', 'SCOAPLOANINVOICE')) THEN
+        :NEW.em_sco_newdateinvoiced = :NEW.dateacct;
+      ELSE
+        IF(:NEW.em_sco_newdateinvoiced IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_APInvoiceNewDateInvoiceNull@');
+        END IF;
+      END IF;
+
+    ELSE
+      IF(:OLD.dateacct<>:NEW.dateacct) THEN
+        IF(v_specialdoctype NOT IN ('SCOAPCREDITMEMO','SCOAPINVOICE','SCOAPINVOICEREVERSE','SCOAPSIMPLEPROVISIONINVOICE', 'SCOAPBOEINVOICE', 'SCOAPLOANINVOICE')) THEN
+          :NEW.em_sco_newdateinvoiced = :NEW.dateacct;
+        END IF;
+      END IF;
+
+
+      IF(:NEW.em_sco_newdateinvoiced IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_APInvoiceNewDateInvoiceNull@');
+      END IF;
+
+    END IF;
+
+    END SCO_INVOICE_NEWINVDATE_TRG
+]]></body>
+    </trigger>
+  </database>

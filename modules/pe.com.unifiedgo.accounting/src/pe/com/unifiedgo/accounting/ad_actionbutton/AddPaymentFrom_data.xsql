@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="AddPaymentFromData" package="pe.com.unifiedgo.accounting.ad_actionbutton">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="selectFinancialAccount" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT TO_CHAR(COALESCE(TO_CHAR(acc.Name),''))||' - '||TO_CHAR(COALESCE(TO_CHAR(curr.ISO_Code),'')) AS NAME 
+        FROM FIN_Financial_Account acc, C_Currency curr
+      WHERE acc.C_Currency_ID = curr.C_Currency_ID
+        AND acc.FIN_Financial_Account_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="finFinancialAccountId"/>
+   </SqlMethod>
+      <SqlMethod name="selectPaymentmethod" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT TO_CHAR(COALESCE(TO_CHAR(pm.Name),'')) AS NAME 
+        FROM FIN_Paymentmethod pm
+      WHERE pm.FIN_Paymentmethod_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="finPaymentmethodId"/>
+   </SqlMethod>
+   <SqlMethod name="selectCurrency" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT TO_CHAR(COALESCE(TO_CHAR(curr.iso_code),'')) AS NAME 
+        FROM C_Currency curr
+      WHERE curr.C_Currency_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="cCurrencyId"/>
+   </SqlMethod>
+</SqlClass>

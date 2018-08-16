@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_FIXEDUEDATE_TRG">
+    <trigger name="SCO_INVOICE_FIXEDUEDATE_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+  v_specialpayterm VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      SELECT COALESCE(em_sco_specialpayterm,'')
+        INTO v_specialpayterm
+        FROM C_Paymentterm
+      WHERE C_Paymentterm_ID = :NEW.C_Paymentterm_ID;
+
+      IF(v_specialpayterm = 'SCOFIXEDDUEDATE') THEN
+        IF(:NEW.em_sco_fixedduedate IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_FixedDueDateNoDueDate@');
+        END IF;
+      ELSE
+        :NEW.em_sco_fixedduedate := NULL;
+      END IF;
+
+    ELSIF (UPDATING) THEN
+      IF(COALESCE(:OLD.c_paymentterm_id, '')<>COALESCE(:NEW.c_paymentterm_id,'')
+      OR COALESCE(:OLD.em_sco_fixedduedate,TO_DATE('31-12-9999', 'DD-MM-YYYY'))<>COALESCE(:NEW.em_sco_fixedduedate,TO_DATE('31-12-9999', 'DD-MM-YYYY'))) THEN
+   
+        SELECT COALESCE(em_sco_specialpayterm,'')
+          INTO v_specialpayterm
+          FROM C_Paymentterm
+        WHERE C_Paymentterm_ID = :NEW.C_Paymentterm_ID;
+
+        IF(v_specialpayterm = 'SCOFIXEDDUEDATE') THEN
+          IF(:NEW.em_sco_fixedduedate IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_FixedDueDateNoDueDate@');
+          END IF;
+        ELSE
+          :NEW.em_sco_fixedduedate := NULL;
+        END IF;
+      END IF;
+    END IF;
+
+    END SCO_INVOICE_FIXEDUEDATE_TRG
+]]></body>
+    </trigger>
+  </database>

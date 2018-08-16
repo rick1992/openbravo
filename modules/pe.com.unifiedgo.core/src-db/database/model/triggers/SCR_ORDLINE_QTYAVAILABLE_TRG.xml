@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_ORDLINE_QTYAVAILABLE_TRG">
+    <trigger name="SCR_ORDLINE_QTYAVAILABLE_TRG" table="C_ORDERLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    v_warehouse_id VARCHAR(32);
+    v_rate NUMBER:=0;
+    v_issotrx CHAR;
+    v_unitPrice NUMBER:=0;
+    v_factor NUMBER:=0;
+   
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT m_warehouse_id, issotrx INTO v_warehouse_id, v_issotrx FROM c_order WHERE c_order_id=:NEW.c_order_id;
+
+ IF(v_issotrx = 'Y')THEN
+    IF (INSERTING) THEN
+        :NEW.em_scr_qty_available:=COALESCE(scr_getStockAvailable(:NEW.ad_client_id, :NEW.ad_org_id, NULL, :NEW.m_product_id), 0);  
+        :NEW.em_scr_qty_avail_warehouse:=COALESCE(scr_getStockAvailable(:NEW.ad_client_id, :NEW.ad_org_id, v_warehouse_id, :NEW.m_product_id), 0);  
+    END IF;
+
+    IF (UPDATING) THEN
+        IF (COALESCE(:OLD.M_Product_ID,'0') <> COALESCE(:NEW.M_Product_ID,'0')) THEN
+            :NEW.em_scr_qty_available:=COALESCE(scr_getStockAvailable(:NEW.ad_client_id, :NEW.ad_org_id, NULL, :NEW.m_product_id), 0);  
+            :NEW.em_scr_qty_avail_warehouse:=COALESCE(scr_getStockAvailable(:NEW.ad_client_id, :NEW.ad_org_id, v_warehouse_id, :NEW.m_product_id), 0);  
+        END IF;
+    END IF;
+ END IF;
+
+ IF(v_issotrx='N')THEN
+   IF (INSERTING) THEN
+        IF(COALESCE(:NEW.em_scr_pricetax,0)>0)THEN
+            SELECT rate INTO v_rate FROM c_tax WHERE c_tax_id = :NEW.C_tax_id;
+            v_rate:=COALESCE(v_rate,0);
+            v_factor:= 1 + v_rate/100;
+            IF(v_factor > 0) THEN
+             v_unitPrice:= ROUND(:NEW.em_scr_pricetax/v_factor,5);
+            END IF;
+            
+        END IF; 
+    END IF;
+
+    IF (UPDATING) THEN
+        IF (COALESCE(:OLD.em_scr_pricetax,'0') <> COALESCE(:NEW.em_scr_pricetax,'0')) THEN
+        
+            SELECT rate INTO v_rate FROM c_tax WHERE c_tax_id = :NEW.C_tax_id;
+            v_rate:=COALESCE(v_rate,0);
+            v_factor:= 1 + v_rate/100;
+            IF(v_factor > 0) THEN
+             :NEW.priceActual:= ROUND(:NEW.em_scr_pricetax/v_factor,5);
+            END IF;
+        END IF;
+    END IF;
+ END IF;
+
+    END SCR_ORDLINE_QTYAVAILABLE_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_GETBP_USEDCREDIT">
+    <function name="SSA_GETBP_USEDCREDIT" type="NULL">
+      <parameter name="p_c_bpartner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_c_currency_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_usedcredit" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[BEGIN
+
+  BEGIN 
+     SELECT COALESCE(SUM(AMT),0) INTO p_usedcredit FROM (
+     SELECT COALESCE(sum(c_currency_convert(OUTSTANDINGAMT, C_INVOICE.c_currency_id, p_c_currency_id, now(), 'S', C_INVOICE.ad_client_id)), 0) AS AMT from C_INVOICE where c_bpartner_id=p_c_bpartner_id AND DOCSTATUS='CO'
+     UNION ALL
+     SELECT COALESCE(sum(c_currency_convert(O.GRANDTOTAL, O.c_currency_id, p_c_currency_id, now(), 'S', O.ad_client_id)),0) AS AMT 
+     from C_ORDER O INNER JOIN C_DOCTYPE ON O.C_DOCTYPETARGET_ID=C_DOCTYPE.C_DOCTYPE_ID INNER JOIN C_PAYMENTTERM ON O.C_PAYMENTTERM_ID=C_PAYMENTTERM.C_PAYMENTTERM_ID
+     where O.c_bpartner_id=p_c_bpartner_id AND (DOCSTATUS='CO' OR (DOCSTATUS='CL' AND EXISTS(SELECT * FROM C_ORDERLINE OL WHERE OL.C_ORDER_ID=O.C_ORDER_ID AND QTYORDERED<>0))) 
+     AND C_DOCTYPE.EM_SCO_SPECIALDOCTYPE IN ('SSASTANDARDORDER','SSAPOSORDER','SSAWAREHOUSEORDER') 
+     AND COALESCE(C_PAYMENTTERM.EM_SCO_SPECIALPAYTERM,'--')<>'SCOINMEDIATETERM' AND (SELECT COUNT(*) FROM C_ORDERLINE OL WHERE OL.C_ORDER_ID=O.C_ORDER_ID AND QTYINVOICED<>0)=0
+     ) as A;
+  EXCEPTION
+  WHEN OTHERS THEN        
+        --yesterday conversion rate       
+	SELECT COALESCE(SUM(AMT),0) INTO p_usedcredit FROM (
+	SELECT COALESCE(sum(c_currency_convert(OUTSTANDINGAMT, C_INVOICE.c_currency_id, p_c_currency_id, TO_DATE(now()-1), 'S', C_INVOICE.ad_client_id)), 0) AS AMT from C_INVOICE where c_bpartner_id=p_c_bpartner_id AND DOCSTATUS='CO'
+	UNION ALL
+	SELECT COALESCE(sum(c_currency_convert(O.GRANDTOTAL, O.c_currency_id, p_c_currency_id, TO_DATE(now()-1), 'S', O.ad_client_id)),0) AS AMT 
+	from C_ORDER O INNER JOIN C_DOCTYPE ON O.C_DOCTYPETARGET_ID=C_DOCTYPE.C_DOCTYPE_ID  INNER JOIN C_PAYMENTTERM ON O.C_PAYMENTTERM_ID=C_PAYMENTTERM.C_PAYMENTTERM_ID 
+	where O.c_bpartner_id=p_c_bpartner_id AND (DOCSTATUS='CO' OR (DOCSTATUS='CL' AND EXISTS(SELECT * FROM C_ORDERLINE OL WHERE OL.C_ORDER_ID=O.C_ORDER_ID AND QTYORDERED<>0))) 
+	AND C_DOCTYPE.EM_SCO_SPECIALDOCTYPE IN ('SSASTANDARDORDER','SSAPOSORDER','SSAWAREHOUSEORDER') 
+	AND COALESCE(C_PAYMENTTERM.EM_SCO_SPECIALPAYTERM,'--')<>'SCOINMEDIATETERM' AND (SELECT COUNT(*) FROM C_ORDERLINE OL WHERE OL.C_ORDER_ID=O.C_ORDER_ID AND QTYINVOICED<>0 )=0
+	) as A;
+  END;
+END SSA_GETBP_USEDCREDIT
+]]></body>
+    </function>
+  </database>

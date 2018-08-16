@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="ReporteDetalleCuenta50CapitalData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+   <SqlMethod name="select_cabecera" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+   
+		
+		select 
+		coalesce(ple.capamount,0) as capital_social,
+		coalesce(ple.valornominal,0) as valor_nominal,
+		coalesce(ple.accnum_suscritas,0) as acciones_suscritas,
+		coalesce(ple.accnum_pagadas,0) as acciones_pagadas,
+		0.00 as numero_acciones,
+		ple.c_period_id
+		
+		
+		,'' AS tipo,
+		'' as ruc,
+		'' AS tercero_id,
+		'' as tercero,
+		0.00 as total_acciones,
+		0.00 as porcentaje_acciones,
+		'' as acciones,
+		'' as combo_id 
+		
+		,'' as idanio
+		,'' as idorganizacion
+		,'' as anio
+		,'' as cBpartnerId
+		,'' as sunatcode
+		
+		
+		
+		 from sco_ple50_detacc ple
+		inner join c_period cp on cp.c_period_id=ple.c_period_id
+		inner join c_year cy on cp.c_year_id=cy.c_year_id
+		where 
+		ple.ad_org_id in ('1') 
+		 and ple.ad_client_id in ('1')
+		 and cy.year = ?
+
+
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="ple.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient" type="replace" optional="true" after="ple.ad_client_id in (" text="'1'"/>
+    <Parameter name="anio" />
+    
+  </SqlMethod>
+  
+  
+
+
+ <SqlMethod name="select_detalle" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+   
+		
+		select 
+		'' AS tipo,
+		coalesce (cbp.taxid,'') as ruc,
+		coalesce (cbp.name,'') as tercero,
+		coalesce( cbp.c_bpartner_id,'') as tercero_id,
+		coalesce (ple.numacciones , 0 ) as total_acciones,
+		coalesce (ple.percacciones , 0 ) as porcentaje_acciones,
+		COALESCE (sci.name, '' ) as acciones,
+		COALESCE (sci.code, '' ) as sunatcode,
+		COALESCE (ple.acctype_comboitem_id, '' ) as combo_id ,
+		coalesce (cbp.c_bpartner_id,'') as cBpartnerId
+		
+		 from sco_ple50_structacc ple 
+		inner join c_period cp on cp.c_period_id=ple.c_period_id
+		inner join c_year cy on cp.c_year_id=cy.c_year_id
+		left join c_bpartner cbp on ple.c_bpartner_id=cbp.c_bpartner_id
+		left join scr_combo_item sci on ple.acctype_comboitem_id=sci.scr_combo_item_id
+		where 
+		ple.ad_org_id in ('1') 
+		 and ple.ad_client_id in ('1')
+		 and cy.year = ?
+
+
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="ple.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient" type="replace" optional="true" after="ple.ad_client_id in (" text="'1'"/>
+    <Parameter name="anio" />
+    
+  </SqlMethod>
+
+
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT b.taxid ruc 
+        FROM ad_org a 
+        LEFT JOIN c_bpartner b ON a.em_swa_c_bpartner_id=b.c_bpartner_id
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod> 
+  
+     <SqlMethod name="selectRUC" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TAXID
+        FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+
+  
+  
+        <SqlMethod name="select_anios" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cy.c_year_id as idanio,
+	cy.year as anio
+	   
+	FROM c_year cy
+	INNER   join ad_org ao on cy.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where cy.isactive='Y'
+	ORDER BY 1,cy.year  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+        <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+   </SqlMethod>    
+</SqlClass>

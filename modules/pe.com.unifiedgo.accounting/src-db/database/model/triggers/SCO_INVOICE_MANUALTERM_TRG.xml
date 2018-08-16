@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_MANUALTERM_TRG">
+    <trigger name="SCO_INVOICE_MANUALTERM_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+v_specialpayterm VARCHAR(60);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(UPDATING) THEN
+    IF(:OLD.c_paymentterm_id <> :NEW.c_paymentterm_id) THEN
+      SELECT em_sco_specialpayterm INTO v_specialpayterm FROM C_Paymentterm WHERE C_Paymentterm_ID = :NEW.c_paymentterm_id;
+      IF(v_specialpayterm <> 'SCOMANUALTERM') THEN
+        SELECT count(*)
+          INTO v_n
+          FROM SCO_Inv_Manualterm
+        WHERE c_invoice_ID = :NEW.c_invoice_ID LIMIT 1;
+
+        IF(v_n <> 0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvChangeManualtermHasLines@');
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  END SCO_INVOICE_MANUALTERM_TRG
+]]></body>
+    </trigger>
+  </database>

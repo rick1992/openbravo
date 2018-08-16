@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SWA_PRODUCT_WAREHOUSE_V">
+    <view name="SWA_PRODUCT_WAREHOUSE_V"><![CDATA[SELECT COALESCE(m.m_warehouse_id, '-') || vp.m_product_id AS swa_product_warehouse_v_id, m.ad_client_id, m.ad_org_id, m.isactive, m.updated, m.updatedby, m.created, m.createdby, vp.m_product_id, vp.m_warehouse_id, vp.qtyonhand, vp.qtyreserved, vp.qtyonhand - vp.qtyreserved AS totalqty FROM scr_warehouse_total_qty_v vp JOIN m_warehouse m ON vp.m_warehouse_id = m.m_warehouse_id WHERE (vp.qtyonhand - vp.qtyreserved) <> 0 OR vp.qtyonhand <> 0 OR vp.qtyreserved <> 0]]></view>
+  </database>

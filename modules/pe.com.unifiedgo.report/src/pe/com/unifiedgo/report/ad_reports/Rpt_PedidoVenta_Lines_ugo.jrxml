@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_PedidoVenta_Lines_ugo" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="842" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.752469497406962"/>
+	<property name="ireport.x" value="175"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Column_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#666666"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="C_ORDER_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="MONEDA" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[" "]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SIMBOLO" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[" "]]></defaultValueExpression>
+	</parameter>
+	<parameter name="IGV" class="java.math.BigDecimal"/>
+	<parameter name="POR_IGV" class="java.math.BigDecimal"/>
+	<parameter name="CLIENT_ID" class="java.lang.String"/>
+	<parameter name="ORG_ID" class="java.lang.String"/>
+	<parameter name="TABLE_ID" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[-- Lineas del pedido de venta
+
+select
+
+*,
+	(case when precio_lista_dolares > -1 then precio_lista_dolares else t."PRE_LISTA_DOL" end )
+ as precio_lista_usd,
+
+	case when precio_lista_soles > -1 then precio_lista_soles else t."PRE_LISTA_SOL" end
+ as precio_lista_pen
+
+from (
+select lin.c_order_id as "ORDER_ID",
+pro.value as "CODIGO",
+
+case pro.em_sco_genericwithoutcode
+when 'N' then coalesce(pro.name,'')||coalesce(' - '||
+case trim(lin.description) when '' then null else lin.description end ,'')
+when 'Y' then coalesce(case trim(lin.description) when '' then null else lin.description end,'')end
+as "DESCRIPCION",
+
+coalesce(lin.qtyordered,0.0) as "CANT",
+0.00::numeric as "CANT_BO",
+
+coalesce(sim_currency_convert_table(lin.pricelist,cur.c_currency_id,
+(select c_currency_id from c_currency where iso_code = 'PEN' limit 1),
+ord.dateordered,$P{TABLE_ID},ord.c_order_id,$P{CLIENT_ID},$P{ORG_ID}),0.0)as "PRE_LISTA_SOL",
+
+coalesce(sim_currency_convert_table(lin.pricelist,cur.c_currency_id,
+(select c_currency_id from c_currency where iso_code = 'USD' limit 1),
+ord.dateordered,$P{TABLE_ID},ord.c_order_id,$P{CLIENT_ID},$P{ORG_ID}),0.0) as "PRE_LISTA_DOL",
+
+coalesce(lin.discount,0.00) as "DSCTO",
+coalesce(lin.priceactual,0.00) as "PRE_DADO",
+coalesce(lin.linenetamt,0.00) as "SUBTOTAL",
+
+cast ( substring(coalesce(scr_getproductpricesbydate(
+    ord.ad_client_id,
+    ord.ad_org_id,
+    pro.m_product_id,
+				(SELECT M_PRICELIST.M_PRICELIST_ID
+		FROM M_PRICELIST
+		WHERE M_PRICELIST.C_CURRENCY_ID=(SELECT C_CURRENCY_ID FROM C_CURRENCY WHERE ISO_CODE='USD' LIMIT 1)
+		AND M_PRICELIST.ISSOPRICELIST='Y'
+		AND M_PRICELIST.ISACTIVE='Y'
+		AND M_PRICELIST.AD_Client_ID = ord.ad_client_id
+		AND ad_isorgincluded(ord.ad_org_id, M_PRICELIST.ad_org_id, M_PRICELIST.ad_client_id) <> -1
+		LIMIT 1),
+    ord.dateordered
+),'-1.00|') from 0 for position('|' in coalesce(scr_getproductpricesbydate(
+    ord.ad_client_id,
+    ord.ad_org_id,
+    pro.m_product_id,
+    (SELECT M_PRICELIST.M_PRICELIST_ID
+		FROM M_PRICELIST
+		WHERE M_PRICELIST.C_CURRENCY_ID=(SELECT C_CURRENCY_ID FROM C_CURRENCY WHERE ISO_CODE='USD' LIMIT 1)
+		AND M_PRICELIST.ISSOPRICELIST='Y'
+		AND M_PRICELIST.ISACTIVE='Y'
+		AND M_PRICELIST.AD_Client_ID = ord.ad_client_id
+		AND ad_isorgincluded(ord.ad_org_id, M_PRICELIST.ad_org_id, M_PRICELIST.ad_client_id) <> -1
+		LIMIT 1),
+    ord.dateordered
+),'-1.00|'))) as numeric) as precio_lista_dolares
+
+
+,cast ( substring(coalesce(scr_getproductpricesbydate(
+    ord.ad_client_id,
+    ord.ad_org_id,
+    pro.m_product_id,
+				(SELECT M_PRICELIST.M_PRICELIST_ID
+		FROM M_PRICELIST
+		WHERE M_PRICELIST.C_CURRENCY_ID=(SELECT C_CURRENCY_ID FROM C_CURRENCY WHERE ISO_CODE='PEN' LIMIT 1)
+		AND M_PRICELIST.ISSOPRICELIST='Y'
+		AND M_PRICELIST.ISACTIVE='Y'
+		AND M_PRICELIST.AD_Client_ID = ord.ad_client_id
+		AND ad_isorgincluded(ord.ad_org_id, M_PRICELIST.ad_org_id, M_PRICELIST.ad_client_id) <> -1
+		LIMIT 1),
+    ord.dateordered
+),'-1.00|') from 0 for position('|' in coalesce(scr_getproductpricesbydate(
+    ord.ad_client_id,
+    ord.ad_org_id,
+    pro.m_product_id,
+    (SELECT M_PRICELIST.M_PRICELIST_ID
+		FROM M_PRICELIST
+		WHERE M_PRICELIST.C_CURRENCY_ID=(SELECT C_CURRENCY_ID FROM C_CURRENCY WHERE ISO_CODE='PEN' LIMIT 1)
+		AND M_PRICELIST.ISSOPRICELIST='Y'
+		AND M_PRICELIST.ISACTIVE='Y'
+		AND M_PRICELIST.AD_Client_ID = ord.ad_client_id
+		AND ad_isorgincluded(ord.ad_org_id, M_PRICELIST.ad_org_id, M_PRICELIST.ad_client_id) <> -1
+		LIMIT 1),
+    ord.dateordered
+),'-1.00|'))) as numeric) as precio_lista_soles
+
+,cur.c_currency_id
+,ord.dateordered
+
+
+from c_order ord
+join c_orderline lin on ord.c_order_id = lin.c_order_id
+join c_currency cur on ord.c_currency_id = cur.c_currency_id
+left join m_product pro on lin.m_product_id = pro.m_product_id
+
+where lin.isactive = 'Y'
+and lin.c_order_id in ($P{C_ORDER_ID})
+
+order by lin.line
+) as t]]>
+	</queryString>
+	<field name="ORDER_ID" class="java.lang.String"/>
+	<field name="CODIGO" class="java.lang.String"/>
+	<field name="DESCRIPCION" class="java.lang.String"/>
+	<field name="CANT" class="java.math.BigDecimal"/>
+	<field name="CANT_BO" class="java.math.BigDecimal"/>
+	<field name="PRE_LISTA_SOL" class="java.math.BigDecimal"/>
+	<field name="PRE_LISTA_DOL" class="java.math.BigDecimal"/>
+	<field name="DSCTO" class="java.math.BigDecimal"/>
+	<field name="PRE_DADO" class="java.math.BigDecimal"/>
+	<field name="SUBTOTAL" class="java.math.BigDecimal"/>
+	<field name="precio_lista_dolares" class="java.math.BigDecimal"/>
+	<field name="precio_lista_soles" class="java.math.BigDecimal"/>
+	<field name="c_currency_id" class="java.lang.String"/>
+	<field name="dateordered" class="java.sql.Timestamp"/>
+	<field name="precio_lista_usd" class="java.math.BigDecimal"/>
+	<field name="precio_lista_pen" class="java.math.BigDecimal"/>
+	<variable name="TOTALBRUTO" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{SUBTOTAL}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<group name="ORDER_ID">
+		<groupExpression><![CDATA[$F{ORDER_ID}]]></groupExpression>
+		<groupHeader>
+			<band splitType="Stretch"/>
+		</groupHeader>
+		<groupFooter>
+			<band splitType="Stretch"/>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<textField isBlankWhenNull="true">
+				<reportElement x="18" y="0" width="60" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{CODIGO}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="81" y="0" width="222" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DESCRIPCION}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="306" y="0" width="70" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{CANT})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="598" y="0" width="70" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{DSCTO})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="671" y="0" width="70" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PRE_DADO})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="744" y="0" width="70" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{SUBTOTAL})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="379" y="0" width="70" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{CANT_BO})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="452" y="0" width="70" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{precio_lista_pen})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="525" y="0" width="70" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{precio_lista_usd})]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

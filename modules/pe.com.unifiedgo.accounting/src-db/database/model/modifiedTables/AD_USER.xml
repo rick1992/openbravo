@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE AD_USER">
+    <table name="AD_USER" primaryKey="AD_USER_KEY">
+      <column name="EM_SCO_LASTNAME2" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DNI" primaryKey="false" required="false" type="VARCHAR" size="20" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_IDDOCTYPE_CMB_ITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CONTACTTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[SCO_NOR]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ATTCONTACT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SCO_USER_IDDOCTY_CMBI_FK">
+        <reference local="EM_SCO_IDDOCTYPE_CMB_ITEM_ID" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_ATTCONT_CHECK"><![CDATA[EM_SCO_ATTCONTACT IN ('Y', 'N')]]></check>
+    </table>
+  </database>

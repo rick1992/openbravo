@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2014 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<REPORT>
+  <template file="VendorAccountsPayable.html"/>
+  <PARAMETER id="paramToolBar" name="toolbar" default=""/>
+  <PARAMETER id="fieldCalendar" name="calendar" attribute="src" replace="es" default="en"/>
+  <PARAMETER id="paramDirectory" name="directory" default=""/>
+  <PARAMETER id="paramLanguage" name="paramLanguage" default=""/>
+  <PARAMETER id="paramDateTo" name="dateTo" attribute="value"/>
+    <PARAMETER id="paramDateTo" name="dateTodisplayFormat" attribute="displayformat" replace="xx"/>
+    <PARAMETER id="paramDateTo" name="dateTosaveFormat" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramBPartnerId" name="paramBPartnerId" attribute="value"/>
+  <PARAMETER id="paramBPartnerDescription" name="paramBPartnerDescription" attribute="value"/>    
+  <PARAMETER id="paramGroupId" name="groupId" default="0"/>
+  <PARAMETER id="paramCSS" name="theme" attribute="href" replace="Default"/>
+  <PARAMETER id="tdleftTabs" name="leftTabs" default=""/>
+  <PARAMETER id="paramParentTabContainer" name="parentTabContainer" default=" "/>
+  <PARAMETER id="paramMainTabContainer" name="mainTabContainer" default=" "/>
+  <PARAMETER id="paramChildTabContainer" name="childTabContainer" default=" "/>
+  <PARAMETER id="tdtopButtons" name="navigationBar" default=""/>
+  <PARAMETER id="messageBoxID" name="messageType" attribute="class" replace="yy" default="HIDDEN"/>
+  <PARAMETER id="messageBoxIDTitle" name="messageTitle" default=""/>
+  <PARAMETER id="messageBoxIDMessage" name="messageMessage" default=""/>
+  <PARAMETER id="inpRecord" name="paramRecord" attribute="value" default=""/>
+  <PARAMETER id="inpTable" name="paramTable" attribute="value" default=""/>
+  <PARAMETER id="paramC_ACCTSCHEMA_ID" name="cAcctschemaId"/>
+  <PARAMETER id="inpParamschemas" name="cAcctschemas" attribute="value" default=""/>
+  
+  <PARAMETER id="fieldCheck" name="check" default="Y"/>
+  <PARAMETER id="fieldSoloPendientes" name="soloPendientes" boolean="checked" withId="fieldCheck"/>
+  
+ 
+  <PARAMETER id="paramDocumentRef" name="DocumentRef" replaceCharacters="html"/>  
+  
+  <PARAMETER id="paramOrgId" name="OrgId" attribute="value"/>
+  <PARAMETER id="paramOrgDescription" name="OrgDescription" attribute="value"/>    
+  
+  <SUBREPORT id="reportC_ACCTSCHEMA_ID" name="reportC_ACCTSCHEMA_ID" report="org/openbravo/erpCommon/reference/List">
+   <ARGUMENT name="parameterListSelected" withId="paramC_ACCTSCHEMA_ID"/>
+  </SUBREPORT>
+
+
+  <PARAMETER id="paramTotalCargoPEN" name="TotalCargoPEN" replaceCharacters="html"/>
+  <PARAMETER id="paramTotalAbonoPEN" name="TotalAbonoPEN" replaceCharacters="html"/>
+  <PARAMETER id="paramTotalSaldoPEN" name="TotalSaldoPEN" replaceCharacters="html"/>
+  
+  <PARAMETER id="paramTotalCargoUSD" name="TotalCargoUSD" replaceCharacters="html"/>
+  <PARAMETER id="paramTotalAbonoUSD" name="TotalAbonoUSD" replaceCharacters="html"/>
+  <PARAMETER id="paramTotalSaldoUSD" name="TotalSaldoUSD" replaceCharacters="html"/>
+  
+  <PARAMETER id="paramTotalCargoEUR" name="TotalCargoEUR" replaceCharacters="html"/>
+  <PARAMETER id="paramTotalAbonoEUR" name="TotalAbonoEUR" replaceCharacters="html"/>
+  <PARAMETER id="paramTotalSaldoEUR" name="TotalSaldoEUR" replaceCharacters="html"/>
+
+
+  <PARAMETER id="param2" name="param2" default="2"/>
+  <PARAMETER id="secTable" name="secTable" default=""/>   
+  
+  <structure name="structure1">
+    <FIELD id="fieldRownum1">rownum</FIELD>
+    <FUNCTION id="funcEvenOddRow1xx" name="MODULE" arg1="fieldRownum1" arg2="param2" format="integerEdition" attribute="class" replace="yy"/>   
+    <FIELD id="fieldFecha">Fecha</FIELD>    
+    <FIELD id="fieldFecVenc">FecVenc</FIELD>
+    <FIELD id="fieldTipoDcto">TipoDcto</FIELD>
+    <FIELD id="fieldDocumento">Documento</FIELD>
+    <FIELD id="fieldDocumentoId" attribute="onclick" replace="xx">documentId</FIELD>
+    <FIELD id="fieldDocumentoId" attribute="onclick" replace="yy">specialdoctypeplus</FIELD>
+    <FIELD id="fieldNDias">NDias</FIELD>    
+    <FIELD id="fieldMoneda">Moneda</FIELD>   
+    <FIELD id="fieldCargo">Cargo</FIELD>    
+    <FIELD id="fieldAbono">Abono</FIELD>    
+    <FIELD id="fieldSaldo">Saldo</FIELD>
+    <!-- <FIELD id="fieldPercepcion">Percepcion</FIELD>  -->  
+    <FIELD id="fieldTipoOp">tipoOp</FIELD>
+    <FIELD id="fieldDocRecepcion">docRecepcion</FIELD>
+    <FIELD id="fieldRecepcionDate">recepcionDate</FIELD>
+    <FIELD id="fieldMetPago">paymentMethod</FIELD>
+    <FIELD id="fieldProxVenc">daysTillDue</FIELD>
+    <FIELD id="fieldOrgName">orgName</FIELD>    
+    
+    <FIELD id="fieldDocumentDetail" attribute="onclick" replace="xx">documentId</FIELD>    
+    <FIELD id="fieldDocumentDetail" attribute="onclick" replace="yy">specialdoctype</FIELD> 
+    <FIELD id="fieldDocumentDetail" attribute="onclick" replace="ww">tipoOp</FIELD> 
+
+    <SECTION id="sectionGroupNumber" field="groupDocument"/> 
+    <SECTION id="sectionSelectedDetail"/>         
+  </structure>
+  <DISCARD id="discard"/>
+</REPORT>

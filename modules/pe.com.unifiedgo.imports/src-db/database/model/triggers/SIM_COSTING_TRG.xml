@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_COSTING_TRG">
+    <trigger name="SIM_COSTING_TRG" table="SIM_IMP_COSTING" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[   v_ResultStr VARCHAR2(2000):='';
+  v_ID VARCHAR2(32);
+  v_amount NUMBER:=0;
+  v_qtyordered NUMBER:=0;
+  v_qtypending NUMBER:=0;
+  v_qtyinpartial NUMBER:=0;
+  v_percentinpartial NUMBER:=0;
+  v_tipodeCambio NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  Cur_Parameter RECORD;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.sim_imp_costing_id;
+ELSE
+  v_ID:=:NEW.sim_imp_costing_id;
+END IF;
+
+
+IF (DELETING) THEN
+  SELECT docstatus INTO v_docStatus from sim_imp_costing where sim_imp_costing_id = v_ID;
+  IF (v_docStatus <> 'DR') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@sim_state_nopermit_delete@');
+  END IF;
+
+  UPDATE c_invoice
+    SET em_sim_imp_costing_id = NULL
+  WHERE em_sco_isimportation = 'Y'  AND em_sim_imp_costing_id = v_ID;
+  
+ELSIF(UPDATING) THEN
+  v_tipodeCambio:=:NEW.tipo_cambio;
+  IF(v_tipodeCambio IS NULL ) THEN
+     :NEW.tipo_cambio = 0;
+  ELSIF(v_tipodeCambio<0) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@sim_tipocambio@') ;
+  END IF;
+
+
+  FOR Cur_Parameter IN 
+  (SELECT *
+   FROM sim_imp_costinglines 
+   WHERE sim_imp_costing_id = v_ID
+  )
+  LOOP
+    UPDATE sim_imp_costinglines
+    SET advtotal_currencylocal = (Cur_Parameter.advtotal)*v_tipodeCambio,
+        cost_line_currencylocal = Cur_Parameter.Linenetamt_Currencylocal + Cur_Parameter.Advtotal_Currencylocal + Cur_Parameter.expenses_currencylocal,
+        cost_unit_currencylocal = (Cur_Parameter.Linenetamt_Currencylocal + Cur_Parameter.Advtotal_Currencylocal + Cur_Parameter.expenses_currencylocal)/Qtyinvoiced
+    WHERE sim_imp_costinglines_id= Cur_Parameter.sim_imp_costinglines_id;
+  END LOOP;
+END IF;
+
+END SIM_COSTING_TRG
+]]></body>
+    </trigger>
+  </database>

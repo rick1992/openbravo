@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE GL_JOURNAL">
+    <table name="GL_JOURNAL" primaryKey="GL_JOURNAL_KEY">
+      <column name="EM_SCO_AREA_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_FINPAYMENT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_GLJOURNALTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISCLOSINGREEVAL" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CLOSINGREEVAL_PROC" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REEVAL_FINACC_CHK" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REEVAL_PAYABLE_CHK" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REEVAL_RECEIVABLE_CHK" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CORRELNUM" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISPAYROLL" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_GENERATEPAYROLL_PROC" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_AREA" name="EM_SCO_GLJOURNAL_AREA">
+        <reference local="EM_SCO_AREA_ID" foreign="SCO_AREA_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="FIN_PAYMENT" name="EM_SCO_GLJOURNAL_PAYMENT_FK">
+        <reference local="EM_SCO_FINPAYMENT_ID" foreign="FIN_PAYMENT_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_GLJOURNAL_CLOREE_CHK"><![CDATA[EM_SCO_ISCLOSINGREEVAL IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_GLJOURNAL_PAYROLL_CHK"><![CDATA[EM_SCO_ISPAYROLL IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_GLJOURNAL_REEFA_CHK"><![CDATA[EM_SCO_REEVAL_FINACC_CHK IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_GLJOURNAL_REEPO_CHK"><![CDATA[EM_SCO_REEVAL_PAYABLE_CHK IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_GLJOURNAL_REERE_CHK"><![CDATA[EM_SCO_REEVAL_RECEIVABLE_CHK IN ('Y', 'N')]]></check>
+    </table>
+  </database>

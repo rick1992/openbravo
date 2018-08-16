@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="BILLEBillingProcessData" package="pe.com.unifiedgo.ebilling.process">
+<SqlMethod name="select" connection="true" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT '' as C_Invoice_ID, '' as type, '' as ebillingStatus, '' as SCO_Pwithholding_Receipt_ID
+         FROM DUAL
+     ]]>
+   </Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="geteInvoicesToUpdateState" connection="true" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT i.C_Invoice_ID
+         FROM C_Invoice i
+        WHERE i.docstatus<>'DR'
+          AND i.issotrx='Y'
+          AND i.em_sco_specialdoctype IN ('SCOARINVOICE','SCOARTICKET','SCOARCREDITMEMO','SCOARDEBITMEMO','SCOARINVOICERETURNMAT')
+          AND i.em_bill_isebill='Y'
+          AND i.em_bill_ebilling_status NOT IN('AT','RH','DB','AN')          
+          AND i.ad_client_id=?
+          AND AD_ISORGINCLUDED(i.ad_org_id,?,i.ad_client_id)<>-1       
+        ORDER BY i.em_scr_physical_documentno       
+     ]]>
+   </Sql>
+   <Parameter name="adClientId"/>  
+   <Parameter name="adOrgId"/>        
+   </SqlMethod>
+
+   <SqlMethod name="getePwithhoReceiptToUpdateState" connection="true" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT pwr.SCO_Pwithholding_Receipt_ID
+         FROM SCO_Pwithholding_Receipt pwr
+        WHERE pwr.docstatus<>'DR'
+          AND pwr.em_bill_isebill='Y'
+          AND pwr.em_bill_ebilling_status NOT IN('AT','RH','DB','AN')          
+          AND pwr.ad_client_id=?
+          AND AD_ISORGINCLUDED(pwr.ad_org_id,?,pwr.ad_client_id)<>-1       
+        ORDER BY pwr.withholdingnumber
+     ]]>
+   </Sql>
+   <Parameter name="adClientId"/>  
+   <Parameter name="adOrgId"/>        
+   </SqlMethod>
+
+   <SqlMethod name="geteInvoicesToSend" connection="true" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT i.C_Invoice_ID, 
+              (CASE WHEN i.docstatus='VO' THEN 'VO'
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARCREDITMEMO' THEN 'NC' 
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARINVOICERETURNMAT' THEN 'NC_DEV' 
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARDEBITMEMO' THEN 'NB' 
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARTICKET' THEN 'BV'                     
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARINVOICE_PREPAYMENT' THEN 'PR' 
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARINVOICE' AND EXISTS(select 1 from c_invoiceline il 
+                               left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id 
+                         where il.c_invoice_id=i.c_invoice_id and coalesce(gl.EM_Sco_Specialglitem,'.')='SCOPREPAYMENT') THEN 'FV_APL_PR' 
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARINVOICE' AND i.EM_Sco_Isdetraction_Affected = 'Y' THEN 'FV_DT' 
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARINVOICE' AND EXISTS(select 1 from c_invoicetax it, c_tax t 
+                         where it.c_invoice_id=i.c_invoice_id and it.c_tax_id=t.c_tax_id 
+                           and t.em_sco_specialtax 
+                               IN ('SCOSINMEDIATEPERCEPTION','SCOSINMEDIATEPERCEPTIONHALF', 'SCOPCREDITPERCEPTION','SCOSCREDITPERCEPTIONHALF')) THEN 'FV_PERC'
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARINVOICE' AND COALESCE(i.em_sco_deliveryviarule,'') IN ('SCR_P_NIC','SCR_C_NIC','SCR_VSGR_NIC') THEN 'FV_GR'
+                    WHEN i.em_ssa_specialdoctypeplus = 'SCOARINVOICE' THEN 'FV'
+              END) AS type,
+               i.em_bill_ebilling_status as ebillingStatus  
+         FROM C_Invoice i
+        WHERE i.docstatus<>'DR'
+          AND i.issotrx='Y'
+          AND i.em_sco_specialdoctype IN ('SCOARINVOICE','SCOARTICKET','SCOARCREDITMEMO','SCOARDEBITMEMO','SCOARINVOICERETURNMAT')
+          AND i.em_bill_isebill='Y'
+          AND i.em_bill_ebilling_status IN('NE','AI','ER')          
+          AND i.ad_client_id=?
+          AND AD_ISORGINCLUDED(i.ad_org_id,?,i.ad_client_id)<>-1       
+        ORDER BY i.em_scr_physical_documentno       
+     ]]>
+   </Sql>
+   <Parameter name="adClientId"/>  
+   <Parameter name="adOrgId"/>        
+   </SqlMethod>
+   
+   <SqlMethod name="getePwithhoReceiptToSend" connection="true" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT pwr.SCO_Pwithholding_Receipt_ID, 
+              (CASE WHEN pwr.docstatus='VO' THEN 'VO'
+               ELSE 'COMP_RET' 
+               END) AS type,
+               pwr.em_bill_ebilling_status as ebillingStatus  
+         FROM SCO_Pwithholding_Receipt pwr
+        WHERE pwr.docstatus IN ('CO','VO')
+          AND pwr.em_bill_isebill='Y'
+          AND pwr.em_bill_ebilling_status IN('NE','AI','ER')          
+          AND pwr.ad_client_id=?
+          AND AD_ISORGINCLUDED(pwr.ad_org_id,?,pwr.ad_client_id)<>-1       
+        ORDER BY pwr.withholdingnumber
+     ]]>
+   </Sql>
+   <Parameter name="adClientId"/>  
+   <Parameter name="adOrgId"/>        
+   </SqlMethod>
+   
+   <SqlMethod name="updateeInvoiceStatus" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+        UPDATE C_INVOICE SET em_bill_ebilling_status = ? WHERE C_Invoice_ID = ?
+     ]]>
+   </Sql>   
+   <Parameter name="eBillStatus"/>
+   <Parameter name="cInvoiceId"/>
+   </SqlMethod> 
+   
+   <SqlMethod name="updateePwithhoReceiptStatus" connection="true" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+        UPDATE SCO_PWITHHOLDING_RECEIPT SET em_bill_ebilling_status = ? WHERE SCO_Pwithholding_Receipt_ID = ?
+     ]]>
+   </Sql>   
+   <Parameter name="eBillStatus"/>
+   <Parameter name="scoPwithholdingReceiptId"/>
+   </SqlMethod>   
+   
+</SqlClass>

@@ -1,0 +1,1403 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_FolioImportacion_ugo" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="842" leftMargin="0" rightMargin="0" topMargin="14" bottomMargin="14">
+	<property name="ireport.zoom" value="1.100000000000002"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_NAME" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'INVOICE'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_FolioImportacion_Lines_ugo" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_FolioImportacion_Products_ugo" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="SUBREP_Rpt_FolioImportacion_Gastos_ugo" class="net.sf.jasperreports.engine.JasperReport"/>
+	<queryString>
+		<![CDATA[(select fol.sim_folioimport_id as "FOLIOIMPORT_ID",
+ 'N' as "FOLIOIMPORT_IDXX",
+coalesce(fol.documentno,'') as "IMPORT_NRO",
+coalesce(bp.name,'') as "FORWARED",
+coalesce(fol.agenteaduana,'') as "AG_ADUANA",
+coalesce(dua.sco_duanumber,'') as "NRO_DUA",
+fol.datedua as "FEC_DUA",
+coalesce(fol.description_importation,'') "DESCRIPCION",
+coalesce(fol.agentecarga,'') as "AG_CARGA",
+coalesce(fol.puertosalida,'') as "PUERTO",
+coalesce(fol.vapor,'') as "VAPOR",
+coalesce(cct.description,cou.description) as "PAIS",
+
+coalesce((select coalesce((select name from ad_ref_list_trl where ad_ref_list_id = l.ad_ref_list_id),l.name)
+from ad_ref_list l left join ad_reference r on l.ad_reference_id = r.ad_reference_id
+where l.value = fol.transporte and r.ad_reference_id = (select rf.ad_reference_id from ad_reference rf
+where rf.name = 'sim_listtransporte')),'') as "VIA",
+
+coalesce((select coalesce((select name from ad_ref_list_trl where ad_ref_list_id = l.ad_ref_list_id),l.name) from ad_ref_list l left join ad_reference r on l.ad_reference_id = r.ad_reference_id
+where l.value = fol.load_mode and r.ad_reference_id = (select rf.ad_reference_id from ad_reference rf
+where rf.name = 'sim_modeload')),'') as "TIPO",
+
+coalesce((select coalesce((select name from ad_ref_list_trl where ad_ref_list_id = l.ad_ref_list_id),l.name)
+from ad_ref_list l left join ad_reference r on l.ad_reference_id = r.ad_reference_id
+where l.value = fol.canal and r.ad_reference_id = (select rf.ad_reference_id from ad_reference rf
+where rf.name = 'sim_folio_canal')),'') as "CANAL",
+fol.dateshipment as "FEC_EMBARQUE",
+fol.datearrival as "FEC_LLEG_LIMA",
+fol.dateaproxwarehouse as "FEC_AP_ALMACEN",
+fol.datewarehouse as "FEC_ALMACEN",
+coalesce(fol.numeromr,'') as "NRO_MR",
+
+
+flete_f_one_x_volumen as "FLETE",
+flete_bl as "BL_FEE",
+flete_total as "TOTAL_FLETE",
+flete_percent_to_fob as "PORC_FLETE",
+
+cif_fob as "FOB",
+cif_seguro as "FLETE_CIF",
+cif_seguro as "SEGURO",
+cif_total as "TOTAL_CIF",
+
+aduana_total as "DESDUANAJE",
+agent_total as "AGENTE",
+shipping_total as "TRANSPORTE",
+total_desaduanaje as "TOTAL_DES",
+aduana_percent_to_fob as "PORC_DES",
+
+org.ad_org_id as "ORG_ID",
+org.name as "ORG",
+coalesce(inf.taxid,'') as "RUC"
+
+,sis.dateordered as "FECHA_PRELIQUIDACION"
+,TO_CHAR (sim_currency_convert_table(1,(select c_currency_id from c_currency where iso_code = 'USD'),
+(select c_currency_id from c_currency where iso_code = 'PEN'),fol.fecha_cancelacion,
+(select ad_table_id from c_doctype where c_doctype_id = fol.c_doctype_id),fol.sim_folioimport_id,
+fol.ad_client_id,fol.ad_org_id), '0D9999')  AS "TIPO_CAMBIO"
+,sis.valor_fob AS "TOTAL_FOB"
+,sis.valor_freight AS "VALOR_FLETE"
+,sis.valor_insurance AS "VALOR_SEGURO"
+,sis.valor_cif AS "VALOR CIF"
+,sis.total_adv AS "TOTAL_ADV"
+,sis.derechos_srv_despacho AS "TOTAL_SERV_DESP"
+,fol.fecha_descarga AS "FIN_DESCARGA"
+
+,fol.transporte_descripcion AS "TRANSPORTE_DESCRIPCION"
+, volante_almacen "NUEVO_ALMACEN"
+,volante_orden_agencia AS "ORDEN_AGENCIA"
+,fecha_volante_desglose AS "DESGLOSE"
+,fecha_volante_ingalmacen AS "FECHA_INGRESO_ALMACEN"
+,sis.documentno as "NRO_PRELIQUIDACION"
+
+
+from sim_folioimport fol
+left join sim_imp_settlement sis on fol.sim_folioimport_id=sis.sim_folioimport_id
+join c_bpartner bp on fol.c_bpartner_id = bp.c_bpartner_id
+left join sco_dua dua on fol.sco_dua_id = dua.sco_dua_id
+join c_country cou on fol.c_country_id = cou.c_country_id
+join c_country_trl cct on cou.c_country_id = cct.c_country_id
+left join c_currency cur on fol.c_currency_id = cur.c_currency_id
+,ad_org org join ad_orgtype typ using (ad_orgtype_id)
+join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+where AD_ISORGINCLUDED(fol.ad_org_id, org.ad_org_id, fol.ad_client_id)<>-1
+and(typ.IsLegalEntity='Y' or typ.IsAcctLegalEntity='Y')
+and fol.isactive = 'Y'
+and fol.sim_folioimport_id in ($P{DOCUMENT_ID})
+LIMIT 1
+)
+UNION
+
+(select fol.sim_folioimport_id as "FOLIOIMPORT_ID",
+ 'Y' as "FOLIOIMPORT_IDXX",
+coalesce(fol.documentno,'') as "IMPORT_NRO",
+coalesce(bp.name,'') as "FORWARED",
+coalesce(fol.agenteaduana,'') as "AG_ADUANA",
+coalesce(dua.sco_duanumber,'') as "NRO_DUA",
+fol.datedua as "FEC_DUA",
+coalesce(fol.description_importation,'') "DESCRIPCION",
+coalesce(fol.agentecarga,'') as "AG_CARGA",
+coalesce(fol.puertosalida,'') as "PUERTO",
+coalesce(fol.vapor,'') as "VAPOR",
+coalesce(cct.description,cou.description) as "PAIS",
+
+coalesce((select coalesce((select name from ad_ref_list_trl where ad_ref_list_id = l.ad_ref_list_id),l.name)
+from ad_ref_list l left join ad_reference r on l.ad_reference_id = r.ad_reference_id
+where l.value = fol.transporte and r.ad_reference_id = (select rf.ad_reference_id from ad_reference rf
+where rf.name = 'sim_listtransporte')),'') as "VIA",
+
+coalesce((select coalesce((select name from ad_ref_list_trl where ad_ref_list_id = l.ad_ref_list_id),l.name) from ad_ref_list l left join ad_reference r on l.ad_reference_id = r.ad_reference_id
+where l.value = fol.load_mode and r.ad_reference_id = (select rf.ad_reference_id from ad_reference rf
+where rf.name = 'sim_modeload')),'') as "TIPO",
+
+coalesce((select coalesce((select name from ad_ref_list_trl where ad_ref_list_id = l.ad_ref_list_id),l.name)
+from ad_ref_list l left join ad_reference r on l.ad_reference_id = r.ad_reference_id
+where l.value = fol.canal and r.ad_reference_id = (select rf.ad_reference_id from ad_reference rf
+where rf.name = 'sim_folio_canal')),'') as "CANAL",
+fol.dateshipment as "FEC_EMBARQUE",
+fol.datearrival as "FEC_LLEG_LIMA",
+fol.dateaproxwarehouse as "FEC_AP_ALMACEN",
+fol.datewarehouse as "FEC_ALMACEN",
+coalesce(fol.numeromr,'') as "NRO_MR",
+
+
+flete_f_one_x_volumen as "FLETE",
+flete_bl as "BL_FEE",
+flete_total as "TOTAL_FLETE",
+flete_percent_to_fob as "PORC_FLETE",
+
+cif_fob as "FOB",
+cif_seguro as "FLETE_CIF",
+cif_seguro as "SEGURO",
+cif_total as "TOTAL_CIF",
+
+aduana_total as "DESDUANAJE",
+agent_total as "AGENTE",
+shipping_total as "TRANSPORTE",
+total_desaduanaje as "TOTAL_DES",
+aduana_percent_to_fob as "PORC_DES",
+
+org.ad_org_id as "ORG_ID",
+org.name as "ORG",
+coalesce(inf.taxid,'') as "RUC"
+
+,sis.dateordered as "FECHA_PRELIQUIDACION"
+,TO_CHAR (sim_currency_convert_table(1,(select c_currency_id from c_currency where iso_code = 'USD'),
+(select c_currency_id from c_currency where iso_code = 'PEN'),fol.fecha_cancelacion,
+(select ad_table_id from c_doctype where c_doctype_id = fol.c_doctype_id),fol.sim_folioimport_id,
+fol.ad_client_id,fol.ad_org_id), '0D9999')  AS "TIPO_CAMBIO"
+,sis.valor_fob AS "TOTAL_FOB"
+,sis.valor_freight AS "VALOR_FLETE"
+,sis.valor_insurance AS "VALOR_SEGURO"
+,sis.valor_cif AS "VALOR CIF"
+,sis.total_adv AS "TOTAL_ADV"
+,sis.derechos_srv_despacho AS "TOTAL_SERV_DESP"
+,fol.fecha_descarga AS "FIN_DESCARGA"
+
+
+,fol.transporte_descripcion AS "TRANSPORTE_DESCRIPCION"
+, volante_almacen "NUEVO_ALMACEN"
+,volante_orden_agencia AS "ORDEN_AGENCIA"
+,fecha_volante_desglose AS "DESGLOSE"
+,fecha_volante_ingalmacen AS "FECHA_INGRESO_ALMACEN"
+,sis.documentno as "NRO_PRELIQUIDACION"
+
+
+from sim_folioimport fol
+left join sim_imp_settlement sis on fol.sim_folioimport_id=sis.sim_folioimport_id
+join c_bpartner bp on fol.c_bpartner_id = bp.c_bpartner_id
+left join sco_dua dua on fol.sco_dua_id = dua.sco_dua_id
+join c_country cou on fol.c_country_id = cou.c_country_id
+join c_country_trl cct on cou.c_country_id = cct.c_country_id
+left join c_currency cur on fol.c_currency_id = cur.c_currency_id
+,ad_org org join ad_orgtype typ using (ad_orgtype_id)
+join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+where AD_ISORGINCLUDED(fol.ad_org_id, org.ad_org_id, fol.ad_client_id)<>-1
+and(typ.IsLegalEntity='Y' or typ.IsAcctLegalEntity='Y')
+and fol.isactive = 'Y'
+and fol.sim_folioimport_id in ($P{DOCUMENT_ID})
+LIMIT 1
+)]]>
+	</queryString>
+	<field name="FOLIOIMPORT_ID" class="java.lang.String"/>
+	<field name="FOLIOIMPORT_IDXX" class="java.lang.String"/>
+	<field name="IMPORT_NRO" class="java.lang.String"/>
+	<field name="FORWARED" class="java.lang.String"/>
+	<field name="AG_ADUANA" class="java.lang.String"/>
+	<field name="NRO_DUA" class="java.lang.String"/>
+	<field name="FEC_DUA" class="java.sql.Timestamp"/>
+	<field name="DESCRIPCION" class="java.lang.String"/>
+	<field name="AG_CARGA" class="java.lang.String"/>
+	<field name="PUERTO" class="java.lang.String"/>
+	<field name="VAPOR" class="java.lang.String"/>
+	<field name="PAIS" class="java.lang.String"/>
+	<field name="VIA" class="java.lang.String"/>
+	<field name="TIPO" class="java.lang.String"/>
+	<field name="CANAL" class="java.lang.String"/>
+	<field name="FEC_EMBARQUE" class="java.sql.Timestamp"/>
+	<field name="FEC_LLEG_LIMA" class="java.sql.Timestamp"/>
+	<field name="FEC_AP_ALMACEN" class="java.sql.Timestamp"/>
+	<field name="FEC_ALMACEN" class="java.sql.Timestamp"/>
+	<field name="NRO_MR" class="java.lang.String"/>
+	<field name="FLETE" class="java.math.BigDecimal"/>
+	<field name="BL_FEE" class="java.math.BigDecimal"/>
+	<field name="TOTAL_FLETE" class="java.math.BigDecimal"/>
+	<field name="PORC_FLETE" class="java.math.BigDecimal"/>
+	<field name="FOB" class="java.math.BigDecimal"/>
+	<field name="FLETE_CIF" class="java.math.BigDecimal"/>
+	<field name="SEGURO" class="java.math.BigDecimal"/>
+	<field name="TOTAL_CIF" class="java.math.BigDecimal"/>
+	<field name="DESDUANAJE" class="java.math.BigDecimal"/>
+	<field name="AGENTE" class="java.math.BigDecimal"/>
+	<field name="TRANSPORTE" class="java.math.BigDecimal"/>
+	<field name="TOTAL_DES" class="java.math.BigDecimal"/>
+	<field name="PORC_DES" class="java.math.BigDecimal"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<field name="FECHA_PRELIQUIDACION" class="java.sql.Timestamp"/>
+	<field name="TIPO_CAMBIO" class="java.lang.String"/>
+	<field name="TOTAL_FOB" class="java.math.BigDecimal"/>
+	<field name="VALOR_FLETE" class="java.math.BigDecimal"/>
+	<field name="VALOR_SEGURO" class="java.math.BigDecimal"/>
+	<field name="VALOR CIF" class="java.math.BigDecimal"/>
+	<field name="TOTAL_ADV" class="java.math.BigDecimal"/>
+	<field name="TOTAL_SERV_DESP" class="java.math.BigDecimal"/>
+	<field name="FIN_DESCARGA" class="java.sql.Timestamp"/>
+	<field name="TRANSPORTE_DESCRIPCION" class="java.lang.String"/>
+	<field name="NUEVO_ALMACEN" class="java.lang.String"/>
+	<field name="ORDEN_AGENCIA" class="java.lang.String"/>
+	<field name="DESGLOSE" class="java.sql.Timestamp"/>
+	<field name="FECHA_INGRESO_ALMACEN" class="java.sql.Timestamp"/>
+	<field name="NRO_PRELIQUIDACION" class="java.lang.String"/>
+	<variable name="VALOR" class="java.lang.String"/>
+	<group name="FOLIO_IMPORT_ID" isReprintHeaderOnEachPage="true">
+		<groupExpression><![CDATA[$F{FOLIOIMPORT_ID}]]></groupExpression>
+		<groupHeader>
+			<band height="207">
+				<frame>
+					<reportElement x="0" y="34" width="842" height="173">
+						<printWhenExpression><![CDATA[$F{FOLIOIMPORT_IDXX}.compareToIgnoreCase("Y")==0]]></printWhenExpression>
+					</reportElement>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="705" y="54" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_EMBARQUE}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_LLEG_LIMA}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="41" y="83" width="105" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TIPO CARGA:]]></text>
+					</staticText>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="705" y="69" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_EMBARQUE}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FIN_DESCARGA}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="375" y="69" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TOTAL FOB:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="141" y="83" width="126" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="590" y="84" width="87" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[DESGLOSE:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="141" y="128" width="126" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_DUA}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="375" y="99" width="93" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TOTAL SEGURO:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="590" y="144" width="87" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[ORDEN AGENCIA:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="590" y="99" width="87" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[ING. ALMACEN:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="590" y="54" width="87" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[F. LLEGADA]]></text>
+					</staticText>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="141" y="68" width="86" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.util.Date"><![CDATA[$F{FECHA_PRELIQUIDACION}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="41" y="68" width="105" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[FEC.PRELIQUID.:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="41" y="128" width="105" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[NRO. DUA:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="41" y="53" width="105" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[PRELIQUIDACION NRO.:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="705" y="129" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{NUEVO_ALMACEN}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="455" y="99" width="92" height="15"/>
+						<textElement textAlignment="Right">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{VALOR_SEGURO}!=null?$P{NUMBERFORMAT}.format($F{VALOR_SEGURO}):"--"]]></textFieldExpression>
+					</textField>
+					<rectangle radius="0">
+						<reportElement mode="Transparent" x="357" y="47" width="206" height="118"/>
+						<graphicElement>
+							<pen lineWidth="0.5"/>
+						</graphicElement>
+					</rectangle>
+					<staticText>
+						<reportElement x="375" y="84" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TOTAL FLETE:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="221" y="2" width="400" height="30"/>
+						<textElement textAlignment="Center">
+							<font fontName="SansSerif" size="16" isBold="true"/>
+						</textElement>
+						<text><![CDATA[GASTOS DE IMPORTACIONES]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="455" y="144" width="92" height="15"/>
+						<textElement textAlignment="Right">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{TOTAL_SERV_DESP}!=null?$P{NUMBERFORMAT}.format($F{TOTAL_SERV_DESP}):"--"]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="590" y="69" width="87" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[FIN DESCARGA:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="41" y="113" width="105" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[PROCEDENCIA:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="41" y="98" width="105" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[MEDIO TRANSPORT.:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="219" y="53" width="40" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[REF:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="244" y="53" width="85" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{DESCRIPCION}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="375" y="114" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TOTAL CIF.:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="455" y="129" width="92" height="15"/>
+						<textElement textAlignment="Right">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{TOTAL_ADV}!=null?$P{NUMBERFORMAT}.format($F{TOTAL_ADV}):"--"]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="41" y="143" width="105" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[AGENTE ADUANA:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="455" y="69" width="92" height="15"/>
+						<textElement textAlignment="Right">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{TOTAL_FOB}!=null?$P{NUMBERFORMAT}.format($F{TOTAL_FOB}):"--"]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="705" y="144" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{ORDEN_AGENCIA}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="141" y="53" width="78" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_PRELIQUIDACION}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="590" y="114" width="87" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TRANSPORTE:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="455" y="114" width="92" height="15"/>
+						<textElement textAlignment="Right">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{VALOR CIF}!=null?$P{NUMBERFORMAT}.format($F{VALOR CIF}):"--"]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="455" y="54" width="92" height="15"/>
+						<textElement textAlignment="Center">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{CANAL}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="219" y="68" width="55" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[T.CAMBIO:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="455" y="84" width="92" height="15"/>
+						<textElement textAlignment="Right">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{VALOR_FLETE}!=null?$P{NUMBERFORMAT}.format($F{VALOR_FLETE}):"--"]]></textFieldExpression>
+					</textField>
+					<textField pattern="" isBlankWhenNull="true">
+						<reportElement x="141" y="113" width="126" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_DUA}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{PAIS}]]></textFieldExpression>
+					</textField>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="705" y="99" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_AP_ALMACEN}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FECHA_INGRESO_ALMACEN}]]></textFieldExpression>
+					</textField>
+					<rectangle radius="0">
+						<reportElement mode="Transparent" x="582" y="47" width="236" height="118"/>
+						<graphicElement>
+							<pen lineWidth="0.5"/>
+						</graphicElement>
+					</rectangle>
+					<textField isBlankWhenNull="true">
+						<reportElement x="705" y="114" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSPORTE_DESCRIPCION}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="375" y="144" width="93" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TOTAL SRV DESP.:]]></text>
+					</staticText>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="705" y="84" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_LLEG_LIMA}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{DESGLOSE}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="266" y="68" width="63" height="15"/>
+						<textElement textAlignment="Right">
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO_CAMBIO}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="141" y="143" width="126" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{AG_ADUANA}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="590" y="129" width="87" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[ALMACEN:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="141" y="98" width="126" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{VIA}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="375" y="129" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TOTAL ADV:]]></text>
+					</staticText>
+					<rectangle radius="0">
+						<reportElement mode="Transparent" x="25" y="47" width="314" height="118"/>
+						<graphicElement>
+							<pen lineWidth="0.5"/>
+						</graphicElement>
+					</rectangle>
+					<staticText>
+						<reportElement x="375" y="54" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[CANAL:]]></text>
+					</staticText>
+				</frame>
+				<frame>
+					<reportElement x="0" y="41" width="842" height="166">
+						<printWhenExpression><![CDATA[$F{FOLIOIMPORT_IDXX}.compareToIgnoreCase("Y")!=0]]></printWhenExpression>
+					</reportElement>
+					<staticText>
+						<reportElement x="17" y="137" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[AG. CARGA:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="324" y="92" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[PAIS:]]></text>
+					</staticText>
+					<rectangle radius="0">
+						<reportElement mode="Transparent" x="320" y="57" width="245" height="100"/>
+						<graphicElement>
+							<pen lineWidth="0.5"/>
+						</graphicElement>
+					</rectangle>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="678" y="122" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_AP_ALMACEN}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_AP_ALMACEN}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="389" y="77" width="176" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{VAPOR}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="324" y="77" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[VAPOR:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="235" y="0" width="400" height="30"/>
+						<textElement textAlignment="Center">
+							<font fontName="SansSerif" size="16" isBold="true"/>
+						</textElement>
+						<text><![CDATA[SEGUIMIENTO DE IMPORTACIONES]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="311" y="26" width="248" height="25"/>
+						<textElement textAlignment="Center">
+							<font fontName="SansSerif" size="12" isBold="true"/>
+						</textElement>
+						<text><![CDATA[HOJA DE TRABAJO]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="576" y="122" width="140" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[F. APROX. ALMACEN:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="576" y="62" width="140" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[CANAL:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="17" y="92" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[AG. ADUANA.]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="324" y="107" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[VIA:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="106" y="107" width="205" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_DUA}]]></textFieldExpression>
+					</textField>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="106" y="122" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_DUA}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_DUA}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="106" y="62" width="120" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{IMPORT_NRO}]]></textFieldExpression>
+					</textField>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="678" y="92" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_EMBARQUE}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMBARQUE}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="17" y="77" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[FORWARED:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="106" y="77" width="205" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{FORWARED}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="17" y="107" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[NRO. DUA:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="678" y="62" width="150" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{CANAL}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="389" y="62" width="176" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{PUERTO}]]></textFieldExpression>
+					</textField>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="678" y="107" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_LLEG_LIMA}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_LLEG_LIMA}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="184" y="62" width="120" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{DESCRIPCION}]]></textFieldExpression>
+					</textField>
+					<textField isBlankWhenNull="true">
+						<reportElement x="389" y="92" width="176" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{PAIS}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="576" y="107" width="140" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[F. LLEGADA LIMA.]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="17" y="62" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[IMPORTACION NRO:]]></text>
+					</staticText>
+					<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+						<reportElement x="678" y="137" width="100" height="15">
+							<printWhenExpression><![CDATA[$F{FEC_ALMACEN}!=null]]></printWhenExpression>
+						</reportElement>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_ALMACEN}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="576" y="77" width="140" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[F. DESPACHO:]]></text>
+					</staticText>
+					<rectangle radius="0">
+						<reportElement mode="Transparent" x="14" y="57" width="300" height="100"/>
+						<graphicElement>
+							<pen lineWidth="0.5"/>
+						</graphicElement>
+					</rectangle>
+					<rectangle radius="0">
+						<reportElement mode="Transparent" x="570" y="57" width="258" height="100"/>
+						<graphicElement>
+							<pen lineWidth="0.5"/>
+						</graphicElement>
+					</rectangle>
+					<staticText>
+						<reportElement x="576" y="92" width="140" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[F. EMBARQUE:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="389" y="122" width="176" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="576" y="137" width="140" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[F. ALMACEN:]]></text>
+					</staticText>
+					<staticText>
+						<reportElement x="324" y="62" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[PUERTO:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="106" y="137" width="205" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{AG_CARGA}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="324" y="122" width="80" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[TIPO:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="389" y="107" width="176" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{VIA}]]></textFieldExpression>
+					</textField>
+					<staticText>
+						<reportElement x="17" y="122" width="100" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8" isBold="true"/>
+						</textElement>
+						<text><![CDATA[FECHA DUA:]]></text>
+					</staticText>
+					<textField isBlankWhenNull="true">
+						<reportElement x="106" y="92" width="205" height="15"/>
+						<textElement>
+							<font fontName="SansSerif" size="8"/>
+						</textElement>
+						<textFieldExpression class="java.lang.String"><![CDATA[$F{AG_ADUANA}]]></textFieldExpression>
+					</textField>
+				</frame>
+				<textField>
+					<reportElement x="17" y="0" width="245" height="20"/>
+					<textElement>
+						<font fontName="SansSerif" size="12" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{ORG}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="29" y="19" width="50" height="15"/>
+					<textElement>
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<text><![CDATA[RUC:]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="60" y="19" width="150" height="15"/>
+					<textElement>
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{RUC}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="749" y="0" width="50" height="15"/>
+					<textElement>
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<text><![CDATA[Pagina:]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="778" y="0" width="40" height="15"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<textFieldExpression class="java.lang.Integer"><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<printWhenExpression><![CDATA[$F{FOLIOIMPORT_IDXX}.compareToIgnoreCase("Y")!=0]]></printWhenExpression>
+			<subreport isUsingCache="true">
+				<reportElement key="subreport-3" style="Report_Footer" mode="Transparent" x="0" y="0" width="842" height="12"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="FOLIOIMPORT_ID">
+					<subreportParameterExpression><![CDATA[$P{DOCUMENT_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_FolioImportacion_Lines_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band height="75" splitType="Prevent">
+			<printWhenExpression><![CDATA[$F{FOLIOIMPORT_IDXX}.compareToIgnoreCase("Y")!=0]]></printWhenExpression>
+			<rectangle>
+				<reportElement x="474" y="10" width="156" height="55"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<rectangle>
+				<reportElement x="279" y="10" width="140" height="55"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<rectangle>
+				<reportElement x="14" y="10" width="140" height="55"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="15" y="50" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[TOTAL]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="15" y="37" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="15" y="24" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[BL FEE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="15" y="11" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[FLETE]]></text>
+			</staticText>
+			<line>
+				<reportElement x="14" y="24" width="140" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="14" y="50" width="140" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="14" y="37" width="140" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="74" y="10" width="1" height="55"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="280" y="37" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[SEGURO]]></text>
+			</staticText>
+			<line>
+				<reportElement x="279" y="24" width="140" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="280" y="50" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[CIF]]></text>
+			</staticText>
+			<line>
+				<reportElement x="279" y="37" width="140" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="280" y="24" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[FLETE]]></text>
+			</staticText>
+			<line>
+				<reportElement x="279" y="50" width="140" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="280" y="11" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[FOB]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="475" y="37" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[TRANSPORTE]]></text>
+			</staticText>
+			<line>
+				<reportElement x="474" y="24" width="156" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="475" y="50" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[TOTAL]]></text>
+			</staticText>
+			<line>
+				<reportElement x="474" y="37" width="156" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="475" y="24" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[AGENTE]]></text>
+			</staticText>
+			<line>
+				<reportElement x="474" y="50" width="156" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="475" y="11" width="70" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[DESADUANAJE]]></text>
+			</staticText>
+			<line>
+				<reportElement x="339" y="10" width="1" height="55"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="540" y="10" width="1" height="55"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<textField>
+				<reportElement x="63" y="11" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{FLETE})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="63" y="24" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{BL_FEE})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="63" y="50" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TOTAL_FLETE})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="328" y="11" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{FOB})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="328" y="24" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{FLETE_CIF})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="328" y="37" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{SEGURO})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="328" y="50" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TOTAL_CIF})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="539" y="11" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{DESDUANAJE})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="539" y="24" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{AGENTE})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="539" y="37" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TRANSPORTE})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="539" y="50" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TOTAL_DES})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="640" y="50" width="50" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PORC_DES})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="162" y="50" width="50" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PORC_FLETE})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="123" y="24" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="123" y="50" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="388" y="11" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="123" y="11" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="388" y="50" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="388" y="24" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="599" y="50" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="388" y="37" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="599" y="11" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="214" y="50" width="30" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[%]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="599" y="24" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="599" y="37" width="30" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[USD]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="692" y="50" width="30" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[%]]></text>
+			</staticText>
+		</band>
+		<band height="12" splitType="Stretch">
+			<printWhenExpression><![CDATA[$F{FOLIOIMPORT_IDXX}.compareToIgnoreCase("Y")!=0]]></printWhenExpression>
+			<subreport isUsingCache="true">
+				<reportElement key="subreport-3" style="Report_Footer" mode="Transparent" x="0" y="0" width="842" height="12"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="FOLIOIMPORT_ID">
+					<subreportParameterExpression><![CDATA[$P{DOCUMENT_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_FolioImportacion_Products_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+		<band height="12" splitType="Stretch">
+			<printWhenExpression><![CDATA[$F{FOLIOIMPORT_IDXX}.compareToIgnoreCase("Y")==0]]></printWhenExpression>
+			<subreport isUsingCache="false">
+				<reportElement x="0" y="0" width="842" height="12"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="FOLIOIMPORT_ID">
+					<subreportParameterExpression><![CDATA[$F{FOLIOIMPORT_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="VALOR2" toVariable="VALOR"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_FolioImportacion_Gastos_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="30" splitType="Stretch"/>
+	</pageFooter>
+</jasperReport>

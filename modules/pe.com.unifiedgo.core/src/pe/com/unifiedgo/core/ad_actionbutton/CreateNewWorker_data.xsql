@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass id="class" name="CreateNewWorkerData" package="pe.com.unifiedgo.core.ad_actionbutton">
+  <SqlClassComment>Clase CreateNewWorkerData</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql><![CDATA[
+        SELECT '' as bpTemplateId, '' as bpSalesRepId, '' as orgid, '' as documentTypeId 
+          FROM DUAL;
+        ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectBPTemplateId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT c_bpartner_id as bpTemplateId 
+          FROM c_bpartner   
+         WHERE isVendor='Y'
+           AND isemployee='Y'
+           AND issalesrep='Y'
+           AND ad_client_id IN ('1')
+           AND ad_org_id IN ('1')            
+           AND VALUE like ?           
+           AND AD_ISORGINCLUDED(?, ad_org_id, ad_client_id) <> -1           
+         ORDER BY created DESC
+         LIMIT 1;          
+      ]]></Sql>
+    <Parameter name="userClient" type="replace" optional="true" after="AND ad_client_id IN (" text="'1'"/>
+    <Parameter name="userOrg" type="replace" optional="true" after="AND ad_org_id IN (" text="'1'"/>           
+    <Parameter name="tplValue"/>
+    <Parameter name="adOrgId"/>  
+  </SqlMethod>
+  
+  <SqlMethod name="selectBPSalesRepId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT u.c_bpartner_id as bpSalesRepId
+          FROM ad_user u, c_bpartner bp 
+         WHERE u.c_bpartner_id=bp.c_bpartner_id
+           AND bp.IsSalesRep='Y'
+           AND bp.ad_client_id IN ('1')
+           AND bp.ad_org_id IN ('1')      
+           AND u.ad_user_id=?           
+           AND AD_ISORGINCLUDED(?, bp.ad_org_id, bp.ad_client_id) > -1 LIMIT 1;        
+      ]]></Sql>      
+    <Parameter name="userClient" optional="true" type="replace" after="AND bp.ad_client_id IN (" text="'1'"/>
+    <Parameter name="userOrg" optional="true" type="replace" after="AND bp.ad_org_id IN (" text="'1'"/>      
+    <Parameter name="salesRepId"/>
+    <Parameter name="adOrgId"/>  
+  </SqlMethod>  
+  
+  <SqlMethod name="insertBPbasedOnTemplate" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO c_bpartner(
+               c_bpartner_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+               updated, updatedby, value, name, name2, description, issummary, 
+               c_bp_group_id, isonetime, isprospect, isvendor, iscustomer, isemployee, 
+               issalesrep, referenceno, duns, url, ad_language, taxid, istaxexempt, 
+               c_invoiceschedule_id, rating, salesvolume, numberemployees, naics, 
+               firstsale, acqusitioncost, potentiallifetimevalue, actuallifetimevalue, 
+               shareofcustomer, paymentrule, so_creditlimit, so_creditused, 
+               c_paymentterm_id, m_pricelist_id, isdiscountprinted, so_description, 
+               poreference, paymentrulepo, po_pricelist_id, po_paymentterm_id, 
+               documentcopies, c_greeting_id, invoicerule, deliveryrule, deliveryviarule, 
+               salesrep_id, bpartner_parent_id, socreditstatus, ad_forced_org_id, 
+               showpriceinorder, invoicegrouping, fixmonthday, fixmonthday2, 
+               fixmonthday3, isworker, upc, c_salary_category_id, invoice_printformat, 
+               last_days, po_bankaccount_id, po_bp_taxcategory_id, po_fixmonthday, 
+               po_fixmonthday2, po_fixmonthday3, so_bankaccount_id, so_bp_taxcategory_id, 
+               fiscalcode, isofiscalcode, po_c_incoterms_id, so_c_incoterms_id, 
+               fin_paymentmethod_id, 
+               po_paymentmethod_id, fin_financial_account_id, 
+               po_financial_account_id, customer_blocking, vendor_blocking, 
+               so_payment_blocking, po_payment_blocking, so_invoice_blocking, 
+               po_invoice_blocking, so_order_blocking, po_order_blocking, so_goods_blocking, 
+               po_goods_blocking, iscashvat, em_sco_isaval, em_sco_aval_id, 
+               em_sco_hasgoodrep, em_sco_retencionagent, em_sco_percepcionagent, em_scr_combo_item_id, 
+               em_sco_specialmethod, 
+               em_sco_iscompany, em_sco_firstname, em_sco_lastname, em_sco_lastname2)
+        SELECT ?, ?, ?, 'Y', TO_DATE(NOW()), ?, 
+               TO_DATE(NOW()), ?, '----', ?, name2, description, issummary, 
+               c_bp_group_id, isonetime, isprospect, isvendor, iscustomer, isemployee, 
+               issalesrep, referenceno, duns, url, ad_language, ?, istaxexempt, 
+               c_invoiceschedule_id, rating, salesvolume, numberemployees, naics, 
+               firstsale, acqusitioncost, potentiallifetimevalue, actuallifetimevalue, 
+               shareofcustomer, paymentrule, so_creditlimit, so_creditused, 
+               c_paymentterm_id, m_pricelist_id, isdiscountprinted, so_description, 
+               poreference, paymentrulepo, po_pricelist_id, po_paymentterm_id, 
+               documentcopies, c_greeting_id, invoicerule, deliveryrule, deliveryviarule, 
+               salesrep_id, bpartner_parent_id, socreditstatus, ad_forced_org_id, 
+               showpriceinorder, invoicegrouping, fixmonthday, fixmonthday2, 
+               fixmonthday3, isworker, upc, c_salary_category_id, invoice_printformat, 
+               last_days, po_bankaccount_id, po_bp_taxcategory_id, po_fixmonthday, 
+               po_fixmonthday2, po_fixmonthday3, so_bankaccount_id, so_bp_taxcategory_id, 
+               fiscalcode, isofiscalcode, po_c_incoterms_id, so_c_incoterms_id, 
+               (select fin_paymentmethod_id from fin_paymentmethod where em_sco_specialmethod='SCONOTDEFINED'), 
+               po_paymentmethod_id, fin_financial_account_id, 
+               po_financial_account_id, customer_blocking, vendor_blocking, 
+               so_payment_blocking, po_payment_blocking, so_invoice_blocking, 
+               po_invoice_blocking, so_order_blocking, po_order_blocking, so_goods_blocking, 
+               po_goods_blocking, iscashvat, em_sco_isaval, em_sco_aval_id, 
+               em_sco_hasgoodrep, em_sco_retencionagent, em_sco_percepcionagent, ?, 
+               'SCONOTDEFINED',
+               ?,?,?,?
+          FROM c_bpartner   
+         WHERE c_bpartner.c_bpartner_id = ?;    
+      ]]>
+    </Sql>
+    <Parameter name="bPartnerId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="comercialName"/>
+    <Parameter name="taxId"/>
+    <Parameter name="bpDocumentTypeId"/>
+    <Parameter name="isCompany"/>
+    <Parameter name="firstName"/>
+    <Parameter name="lastName"/>
+    <Parameter name="lastName2"/>    
+    <Parameter name="bpTemplateId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="insertBPLocation" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO c_bpartner_location(
+               c_bpartner_location_id, ad_client_id, ad_org_id, createdby, updatedby, 
+               name, c_bpartner_id, c_location_id)
+        VALUES ((SELECT * FROM Ad_Sequence_Next('C_BPartner_Location', ?)), ?, ?, ?, ?, 
+               '.', ?, ?);
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="bpartnerId"/>
+    <Parameter name="cLocationId"/>
+  </SqlMethod>  
+  
+  <SqlMethod name="insertContactInformation" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO ssa_contact_information(
+               ssa_contact_information_id, ad_client_id, ad_org_id, createdby, updatedby, 
+               email, phone, phone2, c_bpartner_id)
+        VALUES ((SELECT * FROM Ad_Sequence_Next('ssa_contact_information', ?)), ?, ?, ?, ?, 
+               ?, ?, ?, ?);              
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="email"/>
+    <Parameter name="phone1"/>
+    <Parameter name="phone2"/>
+    <Parameter name="bpartnerId"/>
+  </SqlMethod>  
+    
+  <SqlMethod name="insertUser" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO ad_user(
+            ad_user_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+            updated, updatedby, name, c_bpartner_id, islocked, grant_portal_access, EM_Ssa_Chk_Issalesrep,
+            username)
+        VALUES ((SELECT * FROM Ad_Sequence_Next('AD_User', ?)), ?, ?, 'Y', TO_DATE(NOW()), ?, 
+            TO_DATE(NOW()), ?, ?, ?, 'N', 'N','Y',
+            ?);
+      ]]>
+    </Sql>    
+    <Parameter name="adClientId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="name"/>
+    <Parameter name="bpartnerId"/>
+    <Parameter name="username"/>
+  </SqlMethod>    
+  
+  <SqlMethod name="selectLocationDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+         SELECT coalesce(l.address1,'') || ' - ' || coalesce(l.address2,'') || ' - ' || coalesce(l.postal,'') || ' - ' || 
+                coalesce(l.city,'') || ' - ' || coalesce(r.name,'') || ' - ' || coalesce(c.name,'')
+           FROM c_location l
+                left join c_region r on r.c_region_id=l.c_region_id
+                left join c_country_trl c on c.c_country_id=l.c_country_id
+          WHERE l.c_location_id=?;     
+      ]]>
+    </Sql>
+    <Parameter name="cLocationId"/>
+  </SqlMethod>   
+  
+  <SqlMethod name="selectLegalEntityNoZeroOrg" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+         SELECT org.ad_org_id as orgid 
+           FROM AD_Org org
+          WHERE org.isactive='Y'
+            AND org.ad_client_id IN ('1')
+            AND exists(select 1 from ad_orgtype ot where ot.ad_orgtype_id = org.ad_orgtype_id and ot.islegalEntity='Y') 
+            AND org.isready='Y'
+            AND org.ad_org_id <> '0'
+          ORDER BY org.name LIMIT 1;     
+      ]]>
+    </Sql>
+    <Parameter name="userClient" optional="true" type="replace" after="AND org.ad_client_id IN (" text="'1'"/>
+  </SqlMethod> 
+  
+  <SqlMethod name="selectDocumentType" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+         SELECT COALESCE(scr_combo_item_id,NULL) as documentTypeId
+           FROM scr_combo_item
+          WHERE value='DNI' LIMIT 1;     
+      ]]>
+    </Sql>
+  </SqlMethod>      
+     
+</SqlClass>

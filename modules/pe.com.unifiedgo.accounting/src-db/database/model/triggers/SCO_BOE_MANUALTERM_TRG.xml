@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BOE_MANUALTERM_TRG">
+    <trigger name="SCO_BOE_MANUALTERM_TRG" table="SCO_BOE_MANUALTERM" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_n NUMBER;
+  v_SCO_Billofexchange_ID  VARCHAR2(32);
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+
+  IF INSERTING THEN
+    v_SCO_Billofexchange_ID:=:NEW.SCO_Billofexchange_ID;
+  ELSE
+    v_SCO_Billofexchange_ID:=:OLD.SCO_Billofexchange_ID;
+  END IF;
+
+  IF (INSERTING) THEN
+    SELECT COALESCE(count(*),0)
+        INTO v_n
+        FROM SCO_Boe_Manualterm
+    WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID;
+
+    UPDATE SCO_Billofexchange SET numofboes = v_n WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID;
+
+  ELSIF (DELETING) THEN
+    SELECT COALESCE(count(*),0)
+        INTO v_n
+        FROM SCO_Boe_Manualterm
+    WHERE SCO_Billofexchange_ID = :OLD.SCO_Billofexchange_ID;
+
+    UPDATE SCO_Billofexchange SET numofboes = v_n WHERE SCO_Billofexchange_ID = :OLD.SCO_Billofexchange_ID;
+
+  END IF;
+
+
+  IF (INSERTING OR UPDATING) THEN
+
+
+    --Update Header manualterm_Totalamount Value
+    IF(INSERTING) THEN
+      UPDATE SCO_Billofexchange SET manualterm_totalamount = manualterm_totalamount + :NEW.amount
+    WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID;
+    ELSE 
+      UPDATE SCO_Billofexchange SET manualterm_totalamount = (manualterm_totalamount + :NEW.amount - :OLD.amount)
+    WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID;
+    END IF;
+
+
+  END IF;
+
+  IF(DELETING) THEN
+    --Update Header manualterm_Totalamount Value
+    UPDATE SCO_Billofexchange SET manualterm_totalamount = manualterm_totalamount - :OLD.amount
+    WHERE SCO_Billofexchange_ID = :OLD.SCO_Billofexchange_ID;
+  END IF;
+
+  END SCO_BOE_MANUALTERM_TRG
+]]></body>
+    </trigger>
+  </database>

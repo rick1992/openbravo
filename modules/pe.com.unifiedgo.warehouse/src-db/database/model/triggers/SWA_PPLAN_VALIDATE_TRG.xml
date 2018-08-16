@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_PPLAN_VALIDATE_TRG">
+    <trigger name="SWA_PPLAN_VALIDATE_TRG" table="M_PRODUCTIONPLAN" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[  v_n NUMBER;
+  v_AreaByUser VARCHAR(32);
+  v_em_swa_m_warehouse_id VARCHAR(32);
+  v_em_swa_state_tmp_bom VARCHAR(60);
+  v_qty_available NUMBER;
+  v_processed CHAR;
+  
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+ 
+  IF (INSERTING OR UPDATING) THEN
+    IF(:NEW.m_product_id IS NULL)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_pplan_whitoutproduct@');
+    END IF;
+ 
+  END IF; 
+
+  
+  END SWA_PPLAN_VALIDATE_TRG
+]]></body>
+    </trigger>
+  </database>

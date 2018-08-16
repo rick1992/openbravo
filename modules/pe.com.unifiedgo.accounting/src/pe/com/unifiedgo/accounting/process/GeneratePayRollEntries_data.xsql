@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="GeneratePayRollEntriesData" package="pe.com.unifiedgo.accounting.process">
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS c_bpartner_id, '' AS iscostcenter, '' AS requiresanalytics FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+  <SqlMethod name="getValidCombinationFromAccountno" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT comb.c_validcombination_id FROM
+               c_validcombination comb, c_elementvalue elval
+        WHERE comb.account_id = elval.c_elementvalue_id
+        AND comb.c_acctschema_id = ?
+        AND elval.value = ?
+      ]]>
+    </Sql>
+    <Parameter name="cAcctschemaId"/>
+    <Parameter name="accountno"/>
+  </SqlMethod>
+  <SqlMethod name="getCostCenterFromValue" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT cc.c_costcenter_id FROM
+               c_costcenter cc
+        WHERE cc.AD_Client_ID = ?
+        AND AD_ISORGINCLUDED(?,cc.AD_ORG_ID,?) <> -1
+        AND cc.value = ? LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="value"/>
+  </SqlMethod>
+  <SqlMethod name="getWorkerPartnerFromTaxId" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT bp.c_bpartner_id FROM
+               c_bpartner bp, c_bp_group bpg
+        WHERE bp.c_bp_group_id = bpg.c_bp_group_id
+        AND bp.AD_Client_ID = ?
+        AND (AD_ISORGINCLUDED(?,bp.AD_ORG_ID,?) <> -1 OR AD_ISORGINCLUDED(bp.AD_ORG_ID,?,?) <> -1)
+        AND bp.taxid = ? 
+        AND bpg.value = 'Trabajador'
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="taxid"/>
+  </SqlMethod>
+  <SqlMethod name="getWorkerVARIOSInternalDoc" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT intd.sco_internal_doc_id FROM
+               sco_internal_doc intd
+        WHERE intd.account = 'VARIOS'
+        AND intd.AD_Client_ID IN ('1')
+        AND intd.AD_Org_ID IN ('1')
+        AND intd.AD_Client_ID = ?
+        AND (AD_ISORGINCLUDED(?,intd.AD_ORG_ID,?) <> -1 OR AD_ISORGINCLUDED(intd.AD_ORG_ID,?,?) <> -1)
+        AND intd.c_bpartner_id = ? LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="intd.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="intd.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="getWorkerAnyInternalDoc" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT intd.sco_internal_doc_id FROM
+               sco_internal_doc intd
+        WHERE 1=1
+        AND intd.AD_Client_ID IN ('1')
+        AND intd.AD_Org_ID IN ('1')
+        AND intd.AD_Client_ID = ?
+        AND (AD_ISORGINCLUDED(?,intd.AD_ORG_ID,?) <> -1 OR AD_ISORGINCLUDED(intd.AD_ORG_ID,?,?) <> -1)
+        AND intd.c_bpartner_id = ? LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="intd.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="intd.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="getDefaultPayRollCostCenterFromValue" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT cc.c_costcenter_id FROM
+               c_costcenter cc
+        WHERE 1=1
+        AND cc.AD_Client_ID IN ('1')
+        AND cc.AD_Org_ID IN ('1')
+        AND cc.AD_Client_ID = ?
+        AND AD_ISORGINCLUDED(?,cc.AD_ORG_ID,?) <> -1
+        AND cc.value = ? LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="cc.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="cc.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="value"/>
+  </SqlMethod>
+  <SqlMethod name="getAccRequirementsFromValidComb" type="preparedStatement" return="multiple" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT elval.em_sco_iscostcenter AS iscostcenter, 
+               elval.em_sco_requiresanalytics AS requiresanalytics
+        FROM c_validcombination comb, c_elementvalue elval
+        WHERE comb.account_id = elval.c_elementvalue_id
+        AND comb.c_validcombination_id = ? LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="cValidcombinationId"/>
+  </SqlMethod>
+</SqlClass>

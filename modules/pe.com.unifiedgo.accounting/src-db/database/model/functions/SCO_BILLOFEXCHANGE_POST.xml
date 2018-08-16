@@ -1,0 +1,1882 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_BILLOFEXCHANGE_POST">
+    <function name="SCO_BILLOFEXCHANGE_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_Result NUMBER:=1; -- Success
+  v_is_included NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+
+  v_Total_Amt_Pen NUMBER:=0;
+  v_TotalMontoParaRet NUMBER:= 0;
+  v_MaxFacturaParaRet NUMBER:= 0;
+  
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_line RECORD;
+    Cur_refundline RECORD;
+  -- Record Info
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60) ;
+  v_DocStatus VARCHAR(60) ;
+  v_DocType_ID VARCHAR2(32);
+  v_DocTypeTarget_ID VARCHAR2(32);
+  v_DocSubTypeSO VARCHAR(60) ;
+  v_DocSubTypeSOTarget VARCHAR(60) ;
+  v_DocBaseTypeTarget VARCHAR(60);
+  v_IsReturnDocType CHAR(1);
+  v_IsBinding CHAR(1):='Y';
+  v_istaxincluded CHAR(1);
+
+  v_Line NUMBER:=0;
+  v_DocumentNo VARCHAR2(200) ;
+  v_Date DATE;
+  v_DateAcct DATE;
+  v_Aux NUMBER;
+  v_c_Bpartner_ID VARCHAR2(32);
+  v_c_Currency_ID VARCHAR2(32);
+  v_c_Other_Currency_ID VARCHAR(32);
+  FINISH_PROCESS BOOLEAN:=FALSE;
+  END_PROCESSING BOOLEAN:=FALSE;
+  rowcount NUMBER;
+  v_Posted SCO_BILLOFEXCHANGE.Posted%TYPE;
+  v_Amount NUMBER;
+  v_count NUMBER;
+
+  v_Aux3 VARCHAR(32);
+
+  v_PeriodStartDate DATE;
+  v_PeriodEndDate DATE;
+  v_DocNo_Org_ID AD_Sequence.AD_Org_ID%TYPE;
+  v_TargetDocBaseType C_DOCTYPE.DocBaseType%TYPE;
+  v_isReversal C_DOCTYPE.IsReversal%TYPE;
+  v_MultiplierARC NUMBER:=1;
+  v_available_period NUMBER:=0;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+  v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+  
+  v_totalamount NUMBER:=0;
+  v_c_Paymentterm_ID VARCHAR(32);
+  v_M_Pricelist_ID VARCHAR(32);
+  v_FIN_Paymentmethod_ID VARCHAR(32);
+  v_startingdate DATE;
+  v_numofboes NUMBER:=0;
+  v_account_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_c_Bpartner_Location_ID VARCHAR(32);
+  v_aval_id VARCHAR(32);
+  v_isboerenewal CHARACTER(1):='N';
+
+  v_BoeToDocStatus VARCHAR(60);
+  
+  v_sco_isboerenewal CHARACTER(1):='N';   
+  v_ssa_isboerefinancing CHARACTER(1):='N';
+
+  v_InvPhysicalDocNo VARCHAR(60);
+  
+  v_NewBOEPhysicalDocNo VARCHAR(60);
+  v_BOEPhyDocNoBase VARCHAR(60):=NULL;
+  v_BOEPhyDocNoSuffix NUMBER;  
+  v_BOEPhyDocNoLastSuffix NUMBER;
+
+  CUR_draftBoeTo RECORD;  
+
+  v_ismanualterm VARCHAR(1);
+  v_manualterm_totalamount NUMBER;
+  v_podoctype_cmb_item_id VARCHAR(32);
+
+  v_convert_rate NUMBER;
+  v_issotrx CHAR(1);
+  v_iswithholdingaffected CHAR(1);
+
+  CUR_Prepayment RECORD;
+  BEGIN
+
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_Order_ID;
+      SELECT CREATEDBY INTO v_User  FROM SCO_BILLOFEXCHANGE  WHERE SCO_BILLOFEXCHANGE_ID=p_Order_ID;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  BEGIN --BODY
+
+
+    /**
+    * Read Bill of Exchange
+    */
+    v_ResultStr:='ReadingBillOfExchange';
+    SELECT Processing, Processed, DocAction, DocStatus,
+      C_DocType_ID, C_DocTypeTarget_ID, SCO_BILLOFEXCHANGE.AD_Client_ID,
+      SCO_BILLOFEXCHANGE.AD_Org_ID, SCO_BILLOFEXCHANGE.UpdatedBy, TRUNC(DateGen),
+      documentno,C_Bpartner_ID, C_Currency_ID, C_Other_Currency_ID,
+      totalamount, c_paymentterm_id, m_pricelist_id, fin_paymentmethod_id, startingdate, 
+      numofboes, account_id, c_bpartner_location_id, aval_id,Posted,DateAcct, Isboerenewal, ismanualterm, manualterm_totalamount, convert_rate, 
+      issotrx, iswithholdingaffected
+    INTO v_IsProcessing, v_IsProcessed, v_DocAction, v_DocStatus,
+      v_DocType_ID, v_DocTypeTarget_ID, v_Client_ID,
+      v_Org_ID, v_UpdatedBy, v_Date,
+      v_DocumentNo, v_c_Bpartner_ID, v_c_Currency_ID, v_c_Other_Currency_ID,
+      v_totalamount, v_c_Paymentterm_ID, v_M_Pricelist_ID, v_FIN_Paymentmethod_ID, v_startingdate, 
+      v_numofboes, v_account_id, v_c_Bpartner_Location_ID, v_aval_id,v_Posted,v_DateAcct, v_isboerenewal, v_ismanualterm, v_manualterm_totalamount, v_convert_rate,
+      v_issotrx, v_iswithholdingaffected
+    FROM SCO_BILLOFEXCHANGE
+    WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID  FOR UPDATE;
+
+    -- Get current DocSubTypeSO
+    SELECT DocSubTypeSO
+      INTO v_DocSubTypeSO
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocType_ID;
+    SELECT DocSubTypeSO, isreturn, em_sco_specialdoctype
+      INTO v_DocSubTypeSOTarget, v_isreturndoctype, v_specialdoctype
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocTypetarget_ID;
+
+    IF (v_DocAction = 'CO' OR v_DocAction = 'PR') THEN
+
+     /**
+      * Check if Bill of Exchange has Lines
+      */
+      SELECT COUNT(*)
+        INTO v_Aux
+       FROM SCO_Boe_From
+       WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID;
+       IF v_Aux=0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEWithoutLines@');
+       END IF;
+
+       IF(v_isboerenewal = 'Y' AND v_Aux<>1) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOExBOENotOneLine@');
+       END IF;
+
+       IF(v_numofboes<1) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOENumNonPositive@');
+       END IF;
+
+
+      --Check manualterm vals
+      IF(v_ismanualterm = 'Y') THEN
+        IF(v_totalamount <> v_manualterm_totalamount) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEManualTermAmountsMismatch@');
+        END IF;
+      END IF;
+       
+
+       --Check for compatibility between header and line ( cbpartner and currency)
+       DECLARE
+	  CurLines RECORD;
+	  v_curline_specialdoctype VARCHAR(60);
+	  v_curline_ispaid VARCHAR(1);
+       BEGIN
+	  FOR CurLines IN
+            (SELECT * FROM SCO_Boe_From WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID  ORDER BY line)
+          LOOP
+
+	      SELECT em_sco_specialdoctype INTO v_curline_specialdoctype FROM C_Doctype WHERE C_Doctype_ID = CurLines.doctyperef_id;
+	      SELECT ispaid INTO v_curline_ispaid FROM C_Invoice WHERE C_Invoice_ID = CurLines.invoiceref_id;
+	      IF(Curlines.C_Bpartner_ID <> v_c_Bpartner_ID OR Curlines.C_Currency_ID NOT IN (v_c_Currency_ID, v_c_Other_Currency_ID) OR v_curline_ispaid='Y') THEN
+		v_Message := '@SCO_NotPossibleCompleteBOE@' || ' ' || v_DocumentNo;
+                v_Message := v_Message || ' ' || '@line@' || ' ' || CurLines.line || '. ';
+                v_Message := v_Message || '@SCO_BOEInvLine@';
+                RAISE_APPLICATION_ERROR(-20000, v_Message);
+	      END IF;
+
+	      IF(v_specialdoctype = 'SCOINVOICEXBOE' AND v_curline_specialdoctype NOT IN ('SCOARINVOICE','SCOARDEBITMEMO')) THEN
+	        v_Message := '@SCO_NotPossibleCompleteBOE@' || ' ' || v_DocumentNo;
+                v_Message := v_Message || ' ' || '@line@' || ' ' || CurLines.line || '. ';
+                v_Message := v_Message || '@SCO_BOEInvLine@';
+                RAISE_APPLICATION_ERROR(-20000, v_Message);
+	      END IF;
+
+	      IF(v_specialdoctype = 'SCOBOEXBOE' AND v_curline_specialdoctype NOT IN ('SCOARBOEINVOICE')) THEN
+	        v_Message := '@SCO_NotPossibleCompleteBOE@' || ' ' || v_DocumentNo;
+                v_Message := v_Message || ' ' || '@line@' || ' ' || CurLines.line || '. ';
+                v_Message := v_Message || '@SCO_BOEInvLine@';
+                RAISE_APPLICATION_ERROR(-20000, v_Message);
+	      END IF;
+
+	      IF(v_specialdoctype = 'SCOAPINVOICEXBOE' AND v_curline_specialdoctype NOT IN ('SCOAPINVOICE','SCOAPBOEINVOICE')) THEN
+	        v_Message := '@SCO_NotPossibleCompleteBOE@' || ' ' || v_DocumentNo;
+                v_Message := v_Message || ' ' || '@line@' || ' ' || CurLines.line || '. ';
+                v_Message := v_Message || '@SCO_BOEInvLine@';
+                RAISE_APPLICATION_ERROR(-20000, v_Message);
+	      END IF;
+
+	  END LOOP;
+       END;
+    END IF;
+
+	      
+    /**
+    * Order Closed, Voided or Reversed - No action possible
+    */
+    IF(v_DocStatus IN('CL', 'VO', 'RE')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@') ;
+    END IF;
+
+    /**
+    * Unlock
+    */
+    IF(v_DocAction='XL') THEN
+      UPDATE SCO_BILLOFEXCHANGE
+        SET Processing='N',
+        DocAction='--',
+        Updated=now(),
+        UpdatedBy=v_User
+      WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+      FINISH_PROCESS:=TRUE;
+    END IF;
+    
+    IF (NOT FINISH_PROCESS) THEN
+
+      
+      /**
+       * Everything done
+       */
+      IF (v_IsProcessed='Y' AND v_DocAction NOT IN('RC', 'RE','CL')) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@');
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsProcessing='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+      END IF;
+
+  IF (NOT FINISH_PROCESS) THEN
+    /**************************************************************************
+     * Start Processing ------------------------------------------------------
+     *************************************************************************/
+    v_ResultStr:='LockingBOE';
+    BEGIN -- FOR COMMIT
+      UPDATE SCO_BILLOFEXCHANGE
+      SET Processing='Y',
+          Updated=now(),
+          UpdatedBy=v_UpdatedBy
+      WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+      -- Now, needs to go to END_PROCESSING to unlock
+      -- This Commit must remanin due differences between PL execution in Oracle and Postgres
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        COMMIT;
+      END IF;
+      EXCEPTION WHEN OTHERS THEN RAISE NO_DATA_FOUND;
+    END;--FOR  COMMIT
+    BEGIN -- FOR COMMIT
+
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_BILLOFEXCHANGE C, SCO_Boe_From OL
+      WHERE C.SCO_BILLOFEXCHANGE_ID = OL.sco_billofexchange_id
+        AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+        AND C.SCO_BILLOFEXCHANGE_ID = v_Record_ID;
+      IF (v_Count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+      END IF;
+
+
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_BILLOFEXCHANGE C, C_DOCTYPE
+      WHERE C_DocType.DocBaseType IN ('ARI','API')
+        AND C_DocType.IsSOTrx= C.ISSOTRX
+        AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+        AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+	    AND C_DocType.em_sco_specialdoctype IN ('SCOINVOICEXBOE','SCOBOEXBOE','SCOAPINVOICEXBOE')
+        AND C.SCO_BILLOFEXCHANGE_ID = v_Record_ID;
+      IF (v_Count=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_NotCorrectOrgDoctypeBOE@') ;
+      END IF;
+
+      /**
+       * Void Correction requires complete BOE ========================
+       */
+      IF (v_DocAction='RC' AND v_DocStatus='CO') THEN
+        v_ResultStr:='ReverseCorrection';
+
+        IF (v_Posted='Y') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEDocumentPosted@');
+        END IF;
+
+        --LOOP THROUGH THE sco_boe_to AND VOID THE GENERATED BOES(THERE MUST BE IN DRAFT STATUS OTHERWISE THROW AND ERROR)
+        DECLARE
+          CUR_BoeTo RECORD;
+          v_invoice_docstatus VARCHAR(60);
+          v_invoiced_processed VARCHAR(1);
+        BEGIN
+	  FOR CUR_BoeTo IN
+            (SELECT * 
+               FROM SCO_Boe_To
+               WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID)
+          LOOP
+            SELECT docstatus,processed
+              INTO v_invoice_docstatus, v_invoiced_processed
+              FROM C_Invoice
+            WHERE C_Invoice_ID = CUR_BoeTo.c_invoice_id FOR UPDATE;
+
+            IF(v_invoice_docstatus NOT IN ('DR') OR v_invoiced_processed NOT IN ('N')) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SCO_VoidBOEGeneratedNotInDR@') ;
+            END IF;
+
+            UPDATE C_Invoice
+              SET DocAction = 'VO'
+            WHERE C_Invoice_ID = CUR_BoeTo.c_invoice_id;
+
+            C_INVOICE_POST(NULL, CUR_BoeTo.c_invoice_id);
+
+            SELECT docstatus
+              INTO v_invoice_docstatus
+              FROM C_Invoice
+            WHERE C_Invoice_ID = CUR_BoeTo.c_invoice_id;
+
+            IF(v_invoice_docstatus NOT IN ('VO')) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SCO_VoidBOEAfterStatusNotVO@') ;
+            END IF;
+
+	  END LOOP;
+
+	END;
+
+	----INVOICE LINE PROCESS: revert payment of Amount to the invoices
+        DECLARE
+          CUR_BoeFrom RECORD;
+	  CUR_BoeFromPayschedetail RECORD;
+          v_paySchedDetail_amount NUMBER;
+	  v_paySched_order_ID VARCHAR(32);
+	  v_paySched_invoice_ID VARCHAR(32);
+	  v_invoiceCbpartner_ID VARCHAR(32);
+
+        BEGIN
+          FOR CUR_BoeFrom IN
+            (SELECT * 
+               FROM SCO_Boe_From
+               WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND invoiceref_id IS NOT NULL)
+          LOOP
+	    
+	    SELECT c_bpartner_id
+	      INTO v_invoiceCbpartner_ID
+	    FROM C_Invoice WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id FOR UPDATE;
+	    
+            FOR CUR_BoeFromPayschedetail IN
+              (SELECT * 
+                 FROM SCO_Boefrom_Payschedetail
+                 WHERE SCO_Boe_From_ID = CUR_BoeFrom.SCO_Boe_From_ID)
+            LOOP
+
+	      DELETE FROM SCO_Boefrom_Payschedetail WHERE SCO_Boefrom_Payschedetail_ID = CUR_BoeFromPayschedetail.SCO_Boefrom_Payschedetail_ID;
+
+	      SELECT amount, fin_payment_schedule_order, fin_payment_schedule_invoice
+	        INTO v_paySchedDetail_amount, v_paySched_order_ID, v_paySched_invoice_ID
+                FROM FIN_Payment_ScheduleDetail 
+              WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID FOR UPDATE;
+
+	      SCO_UPDATE_CUSTOMERCREDIT(v_invoiceCbpartner_ID, v_paySchedDetail_amount , 'N');
+
+	      IF(v_paySched_invoice_ID IS NOT NULL) THEN
+                SCO_UPDATE_PS_AMOUNTS(v_paySched_invoice_ID, -1*v_paySchedDetail_amount);
+	      END IF;
+
+	      IF(v_paySched_order_ID IS NOT NULL) THEN
+	        SCO_UPDATE_PS_AMOUNTS(v_paySched_order_ID, -1*v_paySchedDetail_amount);
+	      END IF;
+
+	      SCO_MERGE_PSD(CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID);
+
+	      SELECT amount
+	        INTO v_paySchedDetail_amount
+		FROM FIN_Payment_ScheduleDetail 
+	      WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID;
+
+	      IF(v_paySchedDetail_amount = 0) THEN
+	        DELETE FROM FIN_Payment_ScheduleDetail WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID;
+	      ELSE
+	        UPDATE FIN_Payment_ScheduleDetail
+		  SET isinvoicepaid = 'N',
+	              em_sco_externalpayment = 'N',
+		      em_sco_isboepayment = 'N',
+                      em_sco_externalpaydate = NULL
+                WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID;
+	      END IF;
+
+	    END LOOP;
+
+            --Updating Original Document to indicate not exchange / not renovation / not refinanciation
+            IF(v_specialdoctype IN ('SCOINVOICEXBOE','SCOAPINVOICEXBOE')) THEN
+               --FV's
+               UPDATE C_Invoice SET EM_Scr_Isinboemanagement='N' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;       
+	    ELSIF(v_specialdoctype = 'SCOBOEXBOE') THEN
+	       IF(v_isboerenewal = 'Y') THEN
+	          --Original BOE
+	          UPDATE C_Invoice SET EM_Sco_Isinboerenewalmngmt='N' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;	       
+               ELSE 
+	          --Original BOE
+	          UPDATE C_Invoice SET em_ssa_isinboerefinancmngmt='N' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;
+               END IF;
+            END IF;            
+
+          END LOOP;
+
+
+          FOR CUR_BoeFrom IN
+          (SELECT * 
+                 FROM SCO_Boe_From
+                 WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND sco_prepayment_id IS NOT NULL)
+          LOOP
+            SELECT * INTO CUR_Prepayment FROM SCO_Prepayment WHERE SCO_Prepayment_ID = CUR_BoeFrom.sco_prepayment_id FOR UPDATE;
+            UPDATE SCO_Prepayment SET totalpaid = CUR_Prepayment.totalpaid - CUR_BoeFrom.amount, sco_billofexchange_id = NULL WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+            IF(CUR_Prepayment.amount > 0) THEN
+              IF(CUR_Prepayment.totalpaid - CUR_BoeFrom.amount >= CUR_Prepayment.amount) THEN
+                        UPDATE SCO_Prepayment SET ispaid='Y' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              ELSE
+                        UPDATE SCO_Prepayment SET ispaid='N' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+            END IF;
+            ELSE
+              IF(CUR_Prepayment.totalpaid - CUR_BoeFrom.amount <= CUR_Prepayment.amount) THEN
+                          UPDATE SCO_Prepayment SET ispaid='Y' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              ELSE
+                          UPDATE SCO_Prepayment SET ispaid='N' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              END IF;
+            END IF;
+
+          END LOOP;
+        END;
+
+        UPDATE SCO_BILLOFEXCHANGE
+        SET DocStatus='VO',
+            DocAction='--',
+            Processed='Y',
+            Updated=now()
+        WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+
+        END_PROCESSING:=TRUE;
+      END IF;
+    END; -- FOR COMMIT
+  END IF;--FINISH_PROCESS
+
+
+      /**
+      * Re-activate
+      */
+      
+      IF (v_DocAction='RE') THEN
+       
+
+        DBMS_OUTPUT.PUT_LINE('Re-Activating ' || v_DocSubTypeSO || ': ' || v_Record_ID) ;
+        
+        -- Update Order
+        v_ResultStr:='ReActivate';
+
+        IF (v_Posted='Y') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEDocumentPosted@');
+        END IF;
+
+	--Change the docstatus to DR so we can delete Boe_Tos
+	UPDATE SCO_BILLOFEXCHANGE
+        SET DocStatus='DR', -- Draft
+            DocAction='CO',
+            Processing='N',
+	    Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+
+
+
+	----INVOICE LINE PROCESS: revert payment of Amount to the invoices
+        DECLARE
+          CUR_BoeFrom RECORD;
+	  CUR_BoeFromPayschedetail RECORD;
+          v_paySchedDetail_amount NUMBER;
+	  v_paySched_order_ID VARCHAR(32);
+	  v_paySched_invoice_ID VARCHAR(32);
+	  v_invoiceCbpartner_ID VARCHAR(32);
+
+        BEGIN
+          FOR CUR_BoeFrom IN
+            (SELECT * 
+               FROM SCO_Boe_From
+               WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND invoiceref_id IS NOT NULL)
+          LOOP
+	    
+	    SELECT c_bpartner_id
+	      INTO v_invoiceCbpartner_ID
+	    FROM C_Invoice WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id FOR UPDATE;
+	    
+            FOR CUR_BoeFromPayschedetail IN
+              (SELECT * 
+                 FROM SCO_Boefrom_Payschedetail
+                 WHERE SCO_Boe_From_ID = CUR_BoeFrom.SCO_Boe_From_ID)
+            LOOP
+
+	      DELETE FROM SCO_Boefrom_Payschedetail WHERE SCO_Boefrom_Payschedetail_ID = CUR_BoeFromPayschedetail.SCO_Boefrom_Payschedetail_ID;
+
+	      SELECT amount, fin_payment_schedule_order, fin_payment_schedule_invoice
+	        INTO v_paySchedDetail_amount, v_paySched_order_ID, v_paySched_invoice_ID
+                FROM FIN_Payment_ScheduleDetail 
+              WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID FOR UPDATE;
+
+	      SCO_UPDATE_CUSTOMERCREDIT(v_invoiceCbpartner_ID, v_paySchedDetail_amount , 'N');
+
+	      IF(v_paySched_invoice_ID IS NOT NULL) THEN
+                SCO_UPDATE_PS_AMOUNTS(v_paySched_invoice_ID, -1*v_paySchedDetail_amount);
+	      END IF;
+
+	      IF(v_paySched_order_ID IS NOT NULL) THEN
+	        SCO_UPDATE_PS_AMOUNTS(v_paySched_order_ID, -1*v_paySchedDetail_amount);
+	      END IF;
+
+	      SCO_MERGE_PSD(CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID);
+
+	      SELECT amount
+	        INTO v_paySchedDetail_amount
+		FROM FIN_Payment_ScheduleDetail 
+	      WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID;
+
+	      IF(v_paySchedDetail_amount = 0) THEN
+	        DELETE FROM FIN_Payment_ScheduleDetail WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID;
+	      ELSE
+	        UPDATE FIN_Payment_ScheduleDetail
+		  SET isinvoicepaid = 'N',
+	              em_sco_externalpayment = 'N',
+		      em_sco_isboepayment = 'N',
+                      em_sco_externalpaydate = NULL
+                WHERE FIN_Payment_ScheduleDetail_ID = CUR_BoeFromPayschedetail.FIN_Payment_ScheduleDetail_ID;
+	      END IF;
+
+	    END LOOP;
+
+            --Updating Original Document to indicate not exchange / not renovation / not refinanciation
+            IF(v_specialdoctype IN ('SCOINVOICEXBOE','SCOAPINVOICEXBOE')) THEN
+               --FV's
+               UPDATE C_Invoice SET EM_Scr_Isinboemanagement='N' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;       
+	    ELSIF(v_specialdoctype = 'SCOBOEXBOE') THEN
+	       IF(v_isboerenewal = 'Y') THEN
+	          --Original BOE
+	          UPDATE C_Invoice SET EM_Sco_Isinboerenewalmngmt='N' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;	       
+               ELSE 
+	          --Original BOE
+	          UPDATE C_Invoice SET em_ssa_isinboerefinancmngmt='N' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;
+               END IF;
+            END IF;            
+
+          END LOOP;
+
+          FOR CUR_BoeFrom IN
+          (SELECT * 
+                 FROM SCO_Boe_From
+                 WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND sco_prepayment_id IS NOT NULL)
+          LOOP
+            SELECT * INTO CUR_Prepayment FROM SCO_Prepayment WHERE SCO_Prepayment_ID = CUR_BoeFrom.sco_prepayment_id FOR UPDATE;
+            UPDATE SCO_Prepayment SET totalpaid = CUR_Prepayment.totalpaid - CUR_BoeFrom.amount, sco_billofexchange_id = NULL WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+            IF(CUR_Prepayment.amount > 0) THEN
+              IF(CUR_Prepayment.totalpaid - CUR_BoeFrom.amount >= CUR_Prepayment.amount) THEN
+                        UPDATE SCO_Prepayment SET ispaid='Y' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              ELSE
+                        UPDATE SCO_Prepayment SET ispaid='N' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+            END IF;
+            ELSE
+              IF(CUR_Prepayment.totalpaid - CUR_BoeFrom.amount <= CUR_Prepayment.amount) THEN
+                          UPDATE SCO_Prepayment SET ispaid='Y' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              ELSE
+                          UPDATE SCO_Prepayment SET ispaid='N' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              END IF;
+            END IF;
+
+          END LOOP;
+        END;
+	
+			
+	--Try to delete the sco_boe_to(the boes)
+	DECLARE
+	  CUR_BoeTo RECORD;
+	BEGIN
+	  FOR CUR_BoeTo IN
+            (SELECT * 
+               FROM SCO_Boe_To
+               WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID)
+          LOOP
+
+	    SELECT docstatus INTO v_BoeToDocStatus FROM C_Invoice WHERE C_Invoice_ID=CUR_BoeTo.C_Invoice_ID;
+
+            --Try to reactivate the invoice, if it isnt in draft
+            IF(v_BoeToDocStatus<>'DR') THEN
+              C_INVOICE_POST(NULL,CUR_BoeTo.C_Invoice_ID);
+            END IF;
+            
+	    --Delete the boeto to ulink the invoice
+	    DELETE FROM SCO_Boe_To WHERE SCO_Boe_To_ID = CUR_BoeTo.SCO_Boe_To_ID;
+	   
+	    --Try to delete the invoice, if it isnt in draft the exception will catch it
+	    DELETE FROM C_InvoiceTax WHERE C_Invoice_ID = CUR_BoeTo.C_Invoice_ID;
+	    DELETE FROM C_InvoiceLinetax WHERE C_Invoice_ID = CUR_BoeTo.C_Invoice_ID;
+	    DELETE FROM C_InvoiceLine WHERE C_Invoice_ID = CUR_BoeTo.C_Invoice_ID;
+        DELETE FROM C_Conversion_Rate_Document WHERE C_Invoice_ID = CUR_BoeTo.C_Invoice_ID;
+	    DELETE FROM C_Invoice WHERE C_Invoice_ID = CUR_BoeTo.C_Invoice_ID;
+	  END LOOP;
+
+	EXCEPTION
+    	  WHEN OTHERS THEN
+    	  --'@SCO_BOERECantDeleteBoeInvoices@'
+      	  RAISE_APPLICATION_ERROR(-20000, SQLERRM) ;
+	END;
+       
+        FINISH_PROCESS:=TRUE;
+      END IF;     
+
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_BILLOFEXCHANGE C, C_DOCTYPE
+      WHERE C_DocType.DocBaseType IN ('ARI','API')
+        AND C_DocType.IsSOTrx= C.ISSOTRX
+        AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+        AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+	    AND C_DocType.em_sco_specialdoctype IN ('SCOINVOICEXBOE','SCOBOEXBOE','SCOAPINVOICEXBOE')
+        AND C.SCO_BILLOFEXCHANGE_ID = v_Record_ID;
+      IF (v_Count=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_NotCorrectOrgDoctypeBOE@') ;
+      END IF;
+
+
+
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_BILLOFEXCHANGE C, SCO_Boe_From OL
+      WHERE C.SCO_BILLOFEXCHANGE_ID = OL.sco_billofexchange_id
+        AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+        AND C.SCO_BILLOFEXCHANGE_ID = v_Record_ID;
+      IF (v_Count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+      END IF;
+      
+      /**
+      * Close Order - prepare
+      */
+
+     /**************************************************************************
+      * Start Processing ------------------------------------------------------
+      *************************************************************************/
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+        INTO v_is_ready, v_is_tr_allow
+      FROM SCO_RENDICIONCUENTAS, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=SCO_RENDICIONCUENTAS.AD_Org_ID
+        AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+        AND SCO_RENDICIONCUENTAS.SCO_RENDICIONCUENTAS_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+      SELECT AD_ORG_CHK_DOCUMENTS('SCO_BILLOFEXCHANGE', 'SCO_BOE_FROM', v_Record_ID, 'SCO_BILLOFEXCHANGE_ID', 'SCO_BILLOFEXCHANGE_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('SCO_BILLOFEXCHANGE', v_Record_ID, 'SCO_BILLOFEXCHANGE_ID', 'LE') INTO v_org_bule_id FROM DUAL;
+      SELECT AD_OrgType.IsAcctLegalEntity INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+        AND AD_Org.AD_Org_ID=v_org_bule_id;
+
+      IF (v_isacctle='Y') THEN
+        SELECT C_CHK_OPEN_PERIOD(v_Org_ID, v_DateAcct, NULL, v_DocTypeTarget_ID) INTO v_available_period FROM DUAL;
+        IF (v_available_period<>1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+        END IF;
+      END IF;
+
+      SELECT COUNT(*) INTO v_count
+      FROM SCO_RENDICIONCUENTAS c, C_BPARTNER bp
+      WHERE c.C_BPARTNER_ID=bp.C_BPARTNER_ID
+        AND Ad_Isorgincluded(c.AD_ORG_ID, bp.AD_ORG_ID, bp.AD_CLIENT_ID)=-1
+        AND c.SCO_RENDICIONCUENTAS_ID=v_Record_ID;
+      IF (v_count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_NotCorrectOrgBpartnerBOE@') ;
+      END IF;
+
+      WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+      LOOP
+        BEGIN
+          v_ResultStr:='UpdateDocType';
+          UPDATE SCO_BILLOFEXCHANGE
+          SET C_DocType_ID=C_DocTypeTarget_ID,
+              Updated=now(),
+              UpdatedBy=v_UpdatedBy
+          WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+          v_DocType_ID:=v_DocTypeTarget_ID;
+        EXCEPTION
+          WHEN OTHERS THEN
+            v_ResultStr:='UpdateDocumentNo';
+            UPDATE SCO_BILLOFEXCHANGE
+              SET DocumentNo=DocumentNo || '.'
+            WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+        END;
+      END LOOP;
+
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='LockingOrder';
+        UPDATE SCO_BILLOFEXCHANGE  SET Processing='Y'  WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+        COMMIT;
+        -- Now, needs to go to END_PROCESSING to unlock
+      END IF;
+
+
+      /**
+      * Allowed Actions:  COmplete, CLose, Void
+      */
+      IF (v_DocAction IN('CO', 'CL', 'PR', 'RC')) THEN
+        NULL;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@') ;
+      END IF;
+
+
+      /**
+      * Convert to Target DocType
+      */
+      DECLARE
+        v_DocSubTypeSO_Target VARCHAR(60) ;
+      BEGIN
+        v_ResultStr:='ConvertingDocType';
+        IF (v_DocType_ID <> v_DocTypeTarget_ID) THEN
+          -- New
+          IF (v_DocStatus='DR' OR v_DocType_ID='0') THEN
+            -- Update to Target Document Type
+            WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+            LOOP
+              BEGIN
+                v_ResultStr:='UpdateDocType';
+                UPDATE SCO_BILLOFEXCHANGE
+                SET C_DocType_ID=v_DocTypeTarget_ID,
+                    Updated=now(),
+                    UpdatedBy=v_User
+                WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+                v_DocType_ID:=v_DocTypeTarget_ID;
+              EXCEPTION
+              WHEN OTHERS THEN
+                v_ResultStr:='UpdateDocumentNo';
+                UPDATE SCO_BILLOFEXCHANGE  SET DocumentNo=DocumentNo || '.'  WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+              END;
+            END LOOP;
+          ELSE
+            v_ResultStr:='GetTargetDocType';
+            SELECT DocSubTypeSO
+              INTO v_DocSubTypeSO_Target
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=v_DocTypeTarget_ID;
+            DBMS_OUTPUT.PUT_LINE('Changing DocType from ' || v_DocSubTypeSO || ' to ' || v_DocSubTypeSO_Target) ;
+            -- Change Offer to anything, Change InProcess to anything
+            IF (v_DocSubTypeSO IN('ON', 'OB') OR v_DocStatus='IP') THEN
+              -- Update to Target Document Type
+              WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+              LOOP
+                BEGIN
+                  v_ResultStr:='UpdateDocType';
+                  UPDATE SCO_BILLOFEXCHANGE
+                  SET C_DocType_ID=v_DocTypeTarget_ID,
+                      Updated=now(),
+                      UpdatedBy=v_User
+                  WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+                  v_DocType_ID:=v_DocTypeTarget_ID;
+                EXCEPTION
+                WHEN OTHERS THEN
+                  v_ResultStr:='UpdateDocumentNo';
+                  UPDATE SCO_BILLOFEXCHANGE  SET DocumentNo=DocumentNo || '.'  WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+                END;
+              END LOOP;
+            ELSE
+              -- Change Back
+              UPDATE SCO_BILLOFEXCHANGE
+                SET C_DocTypeTarget_ID=v_DocType_ID
+              WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+              RAISE_APPLICATION_ERROR(-20000, '@CannotChangeDocType@') ;
+            END IF;
+          END IF;
+        END IF; -- C_DocType_ID <> C_DocTypeTarget_ID
+      END; -- Conversion
+
+
+
+    /**
+      * Get DocSubTypeSO + Is it Binding :1:2
+      */
+      v_ResultStr:='TestBinding DocType_ID=' || v_DocType_ID;
+      SELECT CASE DocSubTypeSO WHEN 'ON' THEN 'N' ELSE 'Y' END, DocSubTypeSO
+        INTO v_IsBinding, v_DocSubTypeSO
+      FROM C_DOCTYPE
+      WHERE C_DocType_ID=v_DocType_ID;
+      DBMS_OUTPUT.PUT_LINE('DocSubTypeSO=' || v_DocSubTypeSO || ' IsBinding=' || v_IsBinding) ;
+
+      -- Synchronize Client/Org Ownership
+      UPDATE SCO_BILLOFEXCHANGE
+      SET AD_Client_ID=v_Client_ID
+      WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID
+        AND (AD_Client_ID<>v_Client_ID) ;
+
+
+
+      IF(v_DocAction = 'CO') THEN
+
+
+        ----CREATE BILL OF EXCHANGE
+         DECLARE
+	  CUR_BoeFrom RECORD;
+	  CUR_InvoiceTax RECORD;
+	  CUR_GrandInvoice RECORD;
+	  v_perc NUMBER:= 1;
+	  v_invoiceTotalPaid NUMBER;
+	  v_invoiceTotalLines NUMBER;
+	  v_invoiceGrandTotal NUMBER;
+	  v_invoiceAmountAcum NUMBER;
+	  v_invoiceOutstandingamt NUMBER;
+          v_ispaid VARCHAR(1);
+          v_isinboemanagement VARCHAR(1);
+	  v_invoiceTaxAmount NUMBER;
+	  v_invoiceCurrency_ID VARCHAR(32);
+          v_invoiceSalesrep_ID VARCHAR(32);
+          v_invoiceSalesrepAux_ID VARCHAR(32);
+	  v_tax_iscashvat VARCHAR(1);
+	  v_boecount NUMBER:= 0;
+
+	  v_C_BoeDocType_ID VARCHAR(32);
+	  v_C_ExemptTax_ID VARCHAR(32);
+	  p_C_Invoice_ID VARCHAR(32);
+	  p_C_InvoiceLine_ID VARCHAR(32);
+	  p_C_InvoiceTax_ID VARCHAR(32);
+	  p_NewInvoiceDocumentNo C_INVOICE.DocumentNo%TYPE;
+	  v_grandInvoiceAmount NUMBER;
+	  p_SCO_BoeTo_ID VARCHAR(32);
+	  v_boeto_line NUMBER;
+	  v_allSCO_COL VARCHAR(1);
+	  v_boe_type VARCHAR(60);
+	  v_new_boe_type VARCHAR(60);
+          v_renewal_boe_type VARCHAR(60);
+
+	  CUR_Boetermline RECORD;
+	  arr_boepaymentterms VARCHAR(32) ARRAY;
+      arr_boemanualterms VARCHAR(32) ARRAY;
+      Cur_Boe_Manualterm RECORD;
+
+	  v_isboeterm VARCHAR(1);
+	  v_arrindex NUMBER;
+	  v_arrlength NUMBER;
+      v_firstduedate DATE;
+      v_duedate DATE;
+      v_fixedduedate_paymentterm_ID VARCHAR(32);
+
+      v_new_DateAcct DATE;
+
+      v_Tax_Last_ID VARCHAR(32);
+      v_total_grandInvoiceAmount NUMBER;
+
+      p_C_Conversion_Rate_Document_ID VARCHAR(32);
+
+	BEGIN
+	  --array that will store the amounts to be transfered to the boe, c_tax_id=0 is the grossamount and c_tax_id<>0 are the taxes that will pass to the boe
+	  CREATE TEMPORARY TABLE grandinvoice
+	  (
+	    c_tax_id character varying(32) NOT NULL DEFAULT '0',
+	    amount NUMBER NOT NULL DEFAULT 0,
+	    acumamount NUMBER NOT NULL DEFAULT 0,
+	    CONSTRAINT grandinvoice_key PRIMARY KEY (c_tax_id)
+	  ) on commit drop;
+	  CREATE RULE grandinvoice_ignore_dup AS ON INSERT TO grandinvoice 
+	    WHERE EXISTS(SELECT 1 FROM grandinvoice WHERE c_tax_id=NEW.c_tax_id) 
+	  DO INSTEAD NOTHING;
+
+      v_new_DateAcct := v_DateAcct;
+	  v_allSCO_COL:='Y';
+	  v_renewal_boe_type := NULL;
+	  v_invoiceSalesrep_ID := NULL;
+	
+	
+	  FOR CUR_BoeFrom IN
+            (SELECT * 
+               FROM SCO_Boe_From
+               WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND Invoiceref_ID IS NOT NULL)
+          LOOP
+
+	    SELECT totalpaid, totallines, grandtotal, outstandingamt, 
+                   c_currency_id, em_sco_boe_type, salesrep_id, em_sco_firstduedate, ispaid, EM_Scr_Isinboemanagement,
+                   em_scr_physical_documentno
+              INTO v_invoiceTotalPaid, v_invoiceTotalLines, v_invoiceGrandTotal, v_invoiceOutstandingamt,
+                   v_invoiceCurrency_ID , v_boe_type, v_invoiceSalesrepAux_ID, v_firstduedate, v_ispaid, v_isinboemanagement,
+                   v_InvPhysicalDocNo
+	      FROM C_Invoice 
+            WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id FOR UPDATE;
+
+
+            IF(v_specialdoctype = 'SCOINVOICEXBOE') THEN                                        
+	       IF(v_BOEPhyDocNoSuffix IS NULL OR v_BOEPhyDocNoSuffix <> 1) THEN
+	          SELECT to_number(regexp_replace(em_scr_physical_documentno, '00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-',''),'')) INTO v_BOEPhyDocNoLastSuffix                
+                    FROM c_invoice 
+                   WHERE em_sco_specialdoctype = 'SCOARBOEINVOICE' AND em_scr_physical_documentno LIKE ('00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-','')||'%')                     
+                   ORDER BY 1 DESC LIMIT 1; 
+                  IF(v_BOEPhyDocNoLastSuffix IS NULL) THEN
+                     v_BOEPhyDocNoSuffix:=1;                        
+                     v_BOEPhyDocNoBase:='00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-','');
+                  ELSIF(v_BOEPhyDocNoSuffix IS NULL AND v_BOEPhyDocNoLastSuffix IS NOT NULL) THEN
+                     v_BOEPhyDocNoSuffix:=v_BOEPhyDocNoLastSuffix + 1;                        
+                     v_BOEPhyDocNoBase:='00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-','');
+                  END IF;                   
+	       END IF;
+        ELSIF(v_specialdoctype = 'SCOAPINVOICEXBOE') THEN                                        
+	       IF(v_BOEPhyDocNoSuffix IS NULL OR v_BOEPhyDocNoSuffix <> 1) THEN
+	          SELECT to_number(regexp_replace(em_scr_physical_documentno, '00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-',''),'')) INTO v_BOEPhyDocNoLastSuffix                
+                    FROM c_invoice 
+                   WHERE em_sco_specialdoctype = 'SCOAPBOEINVOICE' AND em_scr_physical_documentno LIKE ('00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-','')||'%')                     
+                     AND to_number(regexp_replace(em_scr_physical_documentno, '00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-',''),'')) IS NOT NULL 
+                   ORDER BY 1 DESC LIMIT 1; 
+                  IF(v_BOEPhyDocNoLastSuffix IS NULL) THEN
+                     v_BOEPhyDocNoSuffix:=1;                        
+                     v_BOEPhyDocNoBase:='00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-','');
+                  ELSIF(v_BOEPhyDocNoSuffix IS NULL AND v_BOEPhyDocNoLastSuffix IS NOT NULL) THEN
+                     v_BOEPhyDocNoSuffix:=v_BOEPhyDocNoLastSuffix + 1;                        
+                     v_BOEPhyDocNoBase:='00-'||regexp_replace(v_InvPhysicalDocNo,'[0-9]*-','');
+                  END IF;                   
+	       END IF;
+	       
+	    ELSIF(v_specialdoctype = 'SCOBOEXBOE') THEN	    
+               IF(v_isboerenewal IS NOT NULL AND v_isboerenewal = 'Y') THEN
+	           IF(v_BOEPhyDocNoBase IS NULL AND NOT EXISTS(select 1 from c_invoice where em_scr_physical_documentno=(v_InvPhysicalDocNo||'A') AND em_sco_specialdoctype = 'SCOARBOEINVOICE')) then
+	              v_BOEPhyDocNoBase:=v_InvPhysicalDocNo;
+	           END IF;   
+                ELSE  
+	           IF(v_BOEPhyDocNoSuffix IS NULL OR v_BOEPhyDocNoSuffix <> 1) THEN
+	              SELECT to_number(regexp_replace(em_scr_physical_documentno, v_InvPhysicalDocNo,'')) INTO v_BOEPhyDocNoLastSuffix                
+                        FROM c_invoice 
+                       WHERE em_sco_specialdoctype = 'SCOARBOEINVOICE' AND em_scr_physical_documentno LIKE v_InvPhysicalDocNo||'%'  
+                         AND to_number(regexp_replace(em_scr_physical_documentno, v_InvPhysicalDocNo,'')) IS NOT NULL                
+                       ORDER BY 1 DESC LIMIT 1; 
+                      IF(v_BOEPhyDocNoLastSuffix IS NULL) THEN
+                         v_BOEPhyDocNoSuffix:=1;                        
+                         v_BOEPhyDocNoBase:=v_InvPhysicalDocNo;
+                      ELSIF(v_BOEPhyDocNoSuffix IS NULL AND v_BOEPhyDocNoLastSuffix IS NOT NULL) THEN
+                         v_BOEPhyDocNoSuffix:=v_BOEPhyDocNoLastSuffix + 1;                        
+                         v_BOEPhyDocNoBase:=v_InvPhysicalDocNo;
+                      END IF;   
+	           END IF;	       	                         
+                END IF;
+            END IF;	    
+
+
+	    --IF(v_invoiceTotalPaid<>0 OR v_invoiceOutstandingamt<>v_invoiceGrandTotal) THEN
+            --  RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOInvalidInvoiceRef@');
+	    --END IF;
+            IF(v_ispaid = 'Y' OR v_invoiceOutstandingamt<CUR_BoeFrom.amount) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOInvalidInvoiceRef@');
+            END IF;
+
+	    IF(v_boe_type IS NULL OR v_boe_type<>'SCO_COL') THEN
+	      v_allSCO_COL:='N';
+	    END IF;
+
+            IF(v_specialdoctype IN ('SCOINVOICEXBOE','SCOAPINVOICEXBOE')) THEN
+               v_new_DateAcct := v_startingdate;
+	    ELSIF(v_specialdoctype = 'SCOBOEXBOE') THEN	    
+               IF(v_isboerenewal = 'Y') THEN
+                  v_renewal_boe_type := v_boe_type;
+                  IF(v_firstduedate IS NOT NULL) THEN
+                     v_new_DateAcct := v_startingdate; --v_firstduedate;
+                     v_startingdate := v_firstduedate;
+                  END IF;
+                END IF;
+            END IF;
+
+            IF(v_invoiceSalesrep_ID IS NULL OR v_invoiceSalesrep_ID='') THEN
+	      v_invoiceSalesrep_ID := v_invoiceSalesrepAux_ID;
+            END IF;
+
+            v_perc := CUR_BoeFrom.amount/v_invoiceGrandTotal;
+
+	    v_invoiceAmountAcum := 0;
+	    FOR CUR_InvoiceTax IN
+	      (SELECT *
+	         FROM C_Invoicetax
+	         WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id)
+	    LOOP
+	      
+	      SELECT C_Currency_Round(CUR_InvoiceTax.taxamt*v_perc, v_invoiceCurrency_ID, NULL) INTO v_invoiceTaxAmount;
+
+          IF(v_invoiceCurrency_ID <> v_C_Currency_ID) THEN
+            v_invoiceTaxAmount := ROUND(v_invoiceTaxAmount*v_convert_rate,2);
+          END IF;
+
+	      SELECT iscashvat INTO v_tax_iscashvat FROM C_Tax WHERE C_Tax_ID = CUR_InvoiceTax.C_Tax_ID;
+	      --If iscashvat then the tax will be passed to the boes
+	      IF(v_tax_iscashvat = 'Y') THEN
+	        
+	        INSERT INTO grandinvoice(c_tax_id, amount) VALUES(CUR_InvoiceTax.c_tax_id, 0);
+	        UPDATE grandinvoice SET amount = amount + v_invoiceTaxAmount WHERE c_tax_id = CUR_InvoiceTax.c_tax_id;
+	      ELSE
+	        INSERT INTO grandinvoice(c_tax_id, amount) VALUES('0', 0);
+	        UPDATE grandinvoice SET amount = amount + v_invoiceTaxAmount WHERE c_tax_id = '0';
+	      END IF;
+
+	      v_invoiceAmountAcum := v_invoiceAmountAcum + v_invoiceTaxAmount;
+	    END LOOP;
+
+	    INSERT INTO grandinvoice(c_tax_id, amount) VALUES('0', 0);
+	    UPDATE grandinvoice SET amount = amount + (CUR_BoeFrom.convertedamount - v_invoiceAmountAcum) WHERE c_tax_id = '0';
+   
+            --Updating Original Document to indicate exchange or renovation or refinanciation
+            IF(v_specialdoctype IN ('SCOINVOICEXBOE','SCOAPINVOICEXBOE')) THEN
+               --FV's
+               UPDATE C_Invoice SET EM_Scr_Isinboemanagement='Y' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;       
+	    ELSIF(v_specialdoctype = 'SCOBOEXBOE') THEN
+	       IF(v_isboerenewal = 'Y') THEN
+	          --Original BOE
+	          UPDATE C_Invoice SET EM_Sco_Isinboerenewalmngmt='Y' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;	       
+               ELSE 
+	          --Original BOE
+	          UPDATE C_Invoice SET em_ssa_isinboerefinancmngmt='Y' WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id;
+               END IF;
+            END IF;               
+            
+	  END LOOP;
+
+	
+	
+	  --If all the invoices are SCO_COL BOES then the generated BOES will alse be SCO_COL, else the type will be SCO_POR, but if it is
+          -- renewal then the new boe type will be the same as the boe from
+          IF(v_renewal_boe_type IS NOT NULL) THEN
+            v_new_boe_type := v_renewal_boe_type;
+	  ELSIF(v_allSCO_COL='Y') THEN
+	    v_new_boe_type := 'SCO_COL';
+	  ELSE
+	    v_new_boe_type := 'SCO_POR';
+	  END IF;
+
+          -- Renovation/Refinanciation de Letras in Generated BOE
+          IF(v_specialdoctype = 'SCOBOEXBOE') THEN
+            IF(v_isboerenewal IS NOT NULL AND v_isboerenewal = 'Y') THEN            
+               v_sco_isboerenewal:='Y';  
+               v_ssa_isboerefinancing:='N';          
+            ELSE 
+               v_sco_isboerenewal:='N';
+               v_ssa_isboerefinancing:='Y';               
+            END IF;
+          END IF;	
+
+      FOR CUR_BoeFrom IN
+      (SELECT * 
+               FROM SCO_Boe_From
+               WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND SCO_Prepayment_ID IS NOT NULL)
+      LOOP
+        INSERT INTO grandinvoice(c_tax_id, amount) VALUES('0', 0);
+	    UPDATE grandinvoice SET amount = amount + CUR_BoeFrom.convertedamount WHERE c_tax_id = '0';
+   
+      END LOOP;
+
+	  --Now we have in grandinvoice the fullamount to pass to the boes, start creating the boes
+
+      IF(v_specialdoctype IN ('SCOINVOICEXBOE','SCOBOEXBOE')) THEN
+        SELECT C_Doctype_ID 
+	      INTO v_C_BoeDocType_ID
+	      FROM C_Doctype 
+	    WHERE AD_Client_ID = v_Client_ID
+        AND em_sco_specialdoctype='SCOARBOEINVOICE'
+	    AND ad_isorgincluded(v_Org_ID,C_Doctype.ad_org_id,v_Client_ID) <> -1 LIMIT 1;
+
+      ELSIF(v_specialdoctype IN ('SCOAPINVOICEXBOE')) THEN
+        SELECT C_Doctype_ID 
+	      INTO v_C_BoeDocType_ID
+	      FROM C_Doctype 
+	    WHERE AD_Client_ID = v_Client_ID
+        AND em_sco_specialdoctype='SCOAPBOEINVOICE'
+	    AND ad_isorgincluded(v_Org_ID,C_Doctype.ad_org_id,v_Client_ID) <> -1 LIMIT 1;
+
+      END IF;
+
+	  IF(v_C_BoeDocType_ID IS NULL) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOBoeDoctypeNotFound@');
+	  END IF;
+
+	  SELECT C_Tax_ID
+	    INTO v_C_ExemptTax_ID
+	    FROM C_Tax
+	  WHERE AD_Client_ID = v_Client_ID
+      AND em_sco_specialtax='SCOEXEMPT'
+	  AND isactive = 'Y'
+	  AND ad_isorgincluded(v_Org_ID,C_Tax.ad_org_id,v_Client_ID) <> -1 LIMIT 1;
+
+	  IF(v_C_ExemptTax_ID IS NULL) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOBoeExemptTaxNotFound@');
+	  END IF;
+
+      SELECT SCR_Combo_Item_ID
+        INTO v_podoctype_cmb_item_id
+        FROM SCR_Combo_Item
+      WHERE AD_Client_ID = v_Client_ID
+      AND ad_isorgincluded(v_Org_ID,ad_org_id,v_Client_ID) <> -1
+      AND value = 'tabla10_99' LIMIT 1;
+
+	  IF(v_podoctype_cmb_item_id IS NULL) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOBoeOtherPOdoctypeNotFound@');
+	  END IF;
+
+      SELECT C_Paymentterm_ID
+        INTO v_fixedduedate_paymentterm_ID
+        FROM C_Paymentterm
+      WHERE AD_Client_ID = v_Client_ID
+      AND em_sco_specialpayterm = 'SCOFIXEDDUEDATE'
+	  AND ad_isorgincluded(v_Org_ID,C_Paymentterm.ad_org_id,v_Client_ID) <> -1 LIMIT 1;
+
+	  IF(v_fixedduedate_paymentterm_ID IS NULL) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOBoeFixedDueDatePayTermNotFound@');
+	  END IF;
+      
+      --Fill the arr_boepaymentterms with the specified paymentterm, For manual boeterms fill the arr_Cur_Boe_Manualterm array
+      IF(v_ismanualterm = 'Y') THEN
+	    v_arrlength := 0;
+        v_arrindex := 1;
+        FOR Cur_Boe_Manualterm IN (SELECT * FROM SCO_Boe_Manualterm WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID ORDER BY line)
+        LOOP
+          arr_boemanualterms[v_arrindex] := Cur_Boe_Manualterm.SCO_Boe_Manualterm_ID;
+	      arr_boepaymentterms[v_arrindex] := v_fixedduedate_paymentterm_ID;
+		  v_arrindex := v_arrindex + 1;
+		  v_arrlength := v_arrlength + 1;
+        END LOOP;
+      ELSE
+	    v_arrlength := 0;
+
+	    SELECT em_sco_isboeterm
+	      INTO v_isboeterm
+	      FROM C_Paymentterm
+	    WHERE C_Paymentterm_ID = v_c_Paymentterm_ID;
+
+        IF(v_isboeterm = 'Y') THEN
+	      SELECT count(*)
+            INTO v_Aux
+	        FROM SCO_Boetermline
+	      WHERE C_Paymentterm_ID = v_c_Paymentterm_ID;
+
+	      IF(v_Aux<>0) THEN
+                v_arrindex := 1;
+	        FOR CUR_Boetermline IN
+                  (SELECT * 
+                     FROM SCO_Boetermline
+                     WHERE C_Paymentterm_ID = v_c_Paymentterm_ID ORDER BY line)
+            LOOP
+	          arr_boepaymentterms[v_arrindex] := CUR_Boetermline.c_boe_paymentterm_id;
+		      v_arrindex := v_arrindex + 1;
+		      v_arrlength := v_arrlength + 1;
+	        END LOOP;
+	      ELSE
+	        arr_boepaymentterms[1] := v_c_Paymentterm_ID;
+	        v_arrlength := 1;
+	      END IF;
+
+        ELSE
+	      arr_boepaymentterms[1] := v_c_Paymentterm_ID;
+	      v_arrlength := 1;
+        END IF;   
+      END IF;
+
+	  --Insert the boe invoices
+	  v_boecount := 0;
+	  v_boeto_line := 10;
+	  v_arrindex := 1;
+	  --RAISE NO_DATA_FOUND || v_numofboes;
+	  WHILE (v_boecount <  (v_numofboes-1))
+	  LOOP
+            Ad_Sequence_Next('C_Invoice', v_Client_ID, p_C_Invoice_ID);
+	    Ad_Sequence_Doctype(v_C_BoeDocType_ID, v_Record_ID, 'Y', p_NewInvoiceDocumentNo) ;
+            IF (p_NewInvoiceDocumentNo IS NULL) THEN
+              Ad_Sequence_Doc('DocumentNo_C_Invoice', v_Client_ID, 'Y', p_NewInvoiceDocumentNo) ;
+            END IF;
+
+	    IF (p_NewInvoiceDocumentNo IS NULL) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECODocNoNotFound@');
+            END IF;
+           
+            
+            
+	    IF(v_specialdoctype IN ('SCOINVOICEXBOE','SCOAPINVOICEXBOE')) THEN	   
+	       IF(v_issotrx='N' AND v_ismanualterm = 'Y') THEN
+	          SELECT * INTO Cur_Boe_Manualterm FROM SCO_Boe_Manualterm WHERE SCO_Boe_Manualterm_ID = arr_boemanualterms[v_arrindex];
+		  v_NewBOEPhysicalDocNo:=Cur_Boe_Manualterm.boe_physical_documentno;	                   	       
+	       ELSE
+                  v_NewBOEPhysicalDocNo:=v_BOEPhyDocNoBase||v_BOEPhyDocNoSuffix;     
+                  v_BOEPhyDocNoSuffix:=v_BOEPhyDocNoSuffix+1;      
+               END IF;    
+               
+	    ELSIF(v_specialdoctype = 'SCOBOEXBOE') THEN
+	       IF(v_isboerenewal IS NOT NULL AND v_isboerenewal = 'Y') THEN 	       
+	         IF(v_boecount=0) THEN	         
+                    v_NewBOEPhysicalDocNo:=v_BOEPhyDocNoBase||'A';        
+                 ELSE
+                    v_NewBOEPhysicalDocNo:=NULL;            
+                 END IF;
+	       ELSE
+                 v_NewBOEPhysicalDocNo:=v_BOEPhyDocNoBase||v_BOEPhyDocNoSuffix;
+                 v_BOEPhyDocNoSuffix:=v_BOEPhyDocNoSuffix+1;
+	       END IF;
+	    END IF;
+	    
+
+           IF(v_ismanualterm = 'Y') THEN    
+              SELECT * INTO Cur_Boe_Manualterm FROM SCO_Boe_Manualterm WHERE SCO_Boe_Manualterm_ID = arr_boemanualterms[v_arrindex];      
+              v_duedate := Cur_Boe_Manualterm.duedate;          
+           ELSE 
+              v_duedate := NULL;
+           END IF;
+ 
+	    --Insert the BOE Header
+	    INSERT INTO C_INVOICE
+            (
+              C_Invoice_ID, AD_Client_ID, AD_Org_ID,
+              IsActive, Created, CreatedBy, Updated,
+              UpdatedBy, IsSOTrx, DocumentNo, DocStatus,
+              DocAction, Processing, Processed, C_DocType_ID,
+              C_DocTypeTarget_ID, Description,
+              DateInvoiced, em_sco_newdateinvoiced, DatePrinted, IsPrinted, TaxDate,
+              DateAcct, C_PaymentTerm_ID, em_sco_fixedduedate, C_BPartner_ID, C_BPartner_Location_ID,
+              AD_User_ID,C_Currency_ID,M_PriceList_ID,fin_paymentmethod_id,
+	      isdiscountprinted,paymentrule,chargeamt,totallines,grandtotal,istaxincluded,isselfservice,
+	      iscashvat, em_aprm_processinvoice, em_sco_isimportation, em_sco_issimpleprovision, em_sco_isforfree,
+	      em_sco_useprepayment, em_sco_isprotested, em_sco_boe_type, em_sco_aval_id, salesrep_id, em_sco_boe_id, 
+	      em_sco_isboerenewal, em_ssa_isboerefinancing, em_scr_physical_documentno, em_sco_podoctype_comboitem_id, em_sco_purchaseinvoicetype
+            )
+	    VALUES
+	    (
+	      p_C_Invoice_ID,v_Client_ID,v_Org_ID,
+	      'Y',now(), v_UpdatedBy, now(),
+              v_UpdatedBy, v_issotrx, p_NewInvoiceDocumentNo, 'DR',
+	      'CO', 'N', 'N', '0',
+	      v_C_BoeDocType_ID, '',
+	      v_startingdate, v_startingdate, NULL, 'N', NULL,
+	      v_new_DateAcct, arr_boepaymentterms[v_arrindex], v_duedate, v_c_Bpartner_ID, v_c_Bpartner_Location_ID,
+	      v_User, v_c_Currency_ID, v_M_Pricelist_ID,v_FIN_Paymentmethod_ID,
+	      'N','P', 0, 0, 0, 'N', 'N',
+	      'N', 'CO', 'N', 'N', 'N', 
+	      'SCO_USEPREPAY', 'N', v_new_boe_type, v_aval_id, v_invoiceSalesrep_ID, v_Record_ID, 
+	       v_sco_isboerenewal, v_ssa_isboerefinancing, v_NewBOEPhysicalDocNo, v_podoctype_cmb_item_id, 'SCO_OTHER'
+	    );
+
+        IF(v_c_Currency_ID <> v_c_Other_Currency_ID) THEN
+          --Insert conversion_rate_document
+          Ad_Sequence_Next('C_Conversion_Rate_Document', v_Client_ID, p_C_Conversion_Rate_Document_ID);
+          INSERT INTO c_conversion_rate_document(
+            c_conversion_rate_document_id, ad_client_id, ad_org_id, isactive, 
+            created, createdby, updated, updatedby, c_currency_id, c_currency_id_to, 
+            c_invoice_id, rate)
+          VALUES (
+            p_C_Conversion_Rate_Document_ID, v_Client_ID,v_Org_ID, 'Y', 
+            now(), v_UpdatedBy, now(), v_UpdatedBy, v_c_Other_Currency_ID, v_c_Currency_ID, 
+            p_C_Invoice_ID, v_convert_rate);
+        END IF;
+
+
+        --Get the last tax to insert:
+        SELECT C_Tax_ID 
+          INTO v_Tax_Last_ID
+          FROM grandinvoice
+        ORDER BY c_tax_id ASC LIMIT 1;
+
+        v_total_grandInvoiceAmount := 0;
+	    --Insert the BOE Lines(invoiceline and invoicetaxes)
+	    FOR CUR_GrandInvoice IN
+            (SELECT * 
+               FROM grandinvoice WHERE C_Tax_ID <> v_Tax_Last_ID)
+            LOOP
+          IF(v_ismanualterm = 'Y') THEN
+            SELECT C_Currency_Round((Cur_Boe_Manualterm.amount/v_manualterm_totalamount)*CUR_GrandInvoice.amount, v_c_Currency_ID, NULL) INTO v_grandInvoiceAmount;
+          ELSE
+	    SELECT C_Currency_Round(CUR_GrandInvoice.amount/v_numofboes, v_c_Currency_ID, NULL) INTO v_grandInvoiceAmount;
+          END IF;
+
+	      UPDATE grandinvoice SET acumamount = acumamount + v_grandInvoiceAmount WHERE C_Tax_ID = CUR_GrandInvoice.c_tax_id;
+          v_total_grandInvoiceAmount := v_total_grandInvoiceAmount + v_grandInvoiceAmount;
+	      --Insert the invoiceline
+	      IF(CUR_GrandInvoice.c_tax_id = '0') THEN
+
+	        Ad_Sequence_Next('C_InvoiceLine', v_Client_ID, p_C_InvoiceLine_ID);
+	        INSERT INTO C_INVOICELINE
+                   (
+              	    C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                    Created, CreatedBy, Updated, UpdatedBy,
+                    C_Invoice_ID, Line,
+                    Description, financial_invoice_line, QtyInvoiced, PriceList,
+                    PriceActual, PriceLimit, LineNetAmt, ChargeAmt,
+                    C_UOM_ID, C_Tax_ID, PriceStd, 
+                    Account_ID,Taxbaseamt, gross_unit_price, line_gross_amount,isdeferred, taxamt,
+		    isdescription, excludeforwithholding, iseditlinenetamt, grosspricestd,
+	            explode,em_sco_prorrateo, em_sco_perceptiontaxed, em_sco_detractiontaxed, em_sco_isdeferredonreceipt,
+	            em_sco_creditused, em_scr_specialtax
+	           )
+               VALUES
+                  (
+	      	   p_C_InvoiceLine_ID, v_Client_ID,v_Org_ID, 'Y',
+	           now(), v_UpdatedBy, now(), v_UpdatedBy,
+		   p_C_Invoice_ID, 10,
+	           '', 'Y', 1, 0,
+		   v_grandInvoiceAmount, 0, v_grandInvoiceAmount, 0,
+		   '100', v_C_ExemptTax_ID, v_grandInvoiceAmount,
+		   v_account_id, v_grandInvoiceAmount, 0,0, 'N' ,0,
+	           'N', 'N', 'N', 0,
+	           'N', 'N', 'N', 'N', 'N',
+	            0, 'SCOEXEMPT'
+	          );
+
+
+	      --Insert the invoicetax
+	      ELSE
+	        Ad_Sequence_Next('C_InvoiceTax', v_Client_ID, p_C_InvoiceTax_ID);
+	        INSERT INTO C_INVOICETAX
+		  (
+	            c_tax_id, c_invoice_id, ad_client_id, ad_org_id, 
+	            isactive, created, createdby, updated, updatedby,
+	            taxbaseamt, taxamt, line, c_invoicetax_id, recalculate
+	          )
+          	VALUES
+	          (
+	            CUR_GrandInvoice.c_tax_id, p_C_Invoice_ID, v_Client_ID,v_Org_ID,
+	            'Y', now(), v_UpdatedBy, now(), v_UpdatedBy,
+	            0,v_grandInvoiceAmount,10,p_C_InvoiceTax_ID,'N'
+	          );
+	      END IF;
+
+	    END LOOP;
+
+        --Insert the Last BOE Line(invoiceline and invoicetaxes)
+	    FOR CUR_GrandInvoice IN
+            (SELECT * 
+               FROM grandinvoice WHERE C_Tax_ID = v_Tax_Last_ID)
+            LOOP
+              IF(v_ismanualterm = 'Y') THEN
+                 SELECT C_Currency_Round(Cur_Boe_Manualterm.amount - v_total_grandInvoiceAmount, v_c_Currency_ID, NULL) INTO v_grandInvoiceAmount;
+              ELSE
+	         SELECT C_Currency_Round(CUR_GrandInvoice.amount/v_numofboes, v_c_Currency_ID, NULL) INTO v_grandInvoiceAmount;
+              END IF;
+
+	      UPDATE grandinvoice SET acumamount = acumamount + v_grandInvoiceAmount WHERE C_Tax_ID = CUR_GrandInvoice.c_tax_id;
+              v_total_grandInvoiceAmount := v_total_grandInvoiceAmount + v_grandInvoiceAmount;
+
+	      --Insert the invoiceline
+	      IF(CUR_GrandInvoice.c_tax_id = '0') THEN
+
+	        Ad_Sequence_Next('C_InvoiceLine', v_Client_ID, p_C_InvoiceLine_ID);
+	        INSERT INTO C_INVOICELINE
+                   (
+              	    C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                    Created, CreatedBy, Updated, UpdatedBy,
+                    C_Invoice_ID, Line,
+                    Description, financial_invoice_line, QtyInvoiced, PriceList,
+                    PriceActual, PriceLimit, LineNetAmt, ChargeAmt,
+                    C_UOM_ID, C_Tax_ID, PriceStd, 
+                    Account_ID,Taxbaseamt, gross_unit_price, line_gross_amount,isdeferred, taxamt,
+		    isdescription, excludeforwithholding, iseditlinenetamt, grosspricestd,
+	            explode,em_sco_prorrateo, em_sco_perceptiontaxed, em_sco_detractiontaxed, em_sco_isdeferredonreceipt,
+	            em_sco_creditused, em_scr_specialtax
+	           )
+               VALUES
+                  (
+	      	   p_C_InvoiceLine_ID, v_Client_ID,v_Org_ID, 'Y',
+	           now(), v_UpdatedBy, now(), v_UpdatedBy,
+		   p_C_Invoice_ID, 10,
+	           '', 'Y', 1, 0,
+		   v_grandInvoiceAmount, 0, v_grandInvoiceAmount, 0,
+		   '100', v_C_ExemptTax_ID, v_grandInvoiceAmount,
+		   v_account_id, v_grandInvoiceAmount, 0,0, 'N' ,0,
+	           'N', 'N', 'N', 0,
+	           'N', 'N', 'N', 'N', 'N',
+	            0, 'SCOEXEMPT'
+	          );
+
+
+	      --Insert the invoicetax
+	      ELSE
+	        Ad_Sequence_Next('C_InvoiceTax', v_Client_ID, p_C_InvoiceTax_ID);
+	        INSERT INTO C_INVOICETAX
+		  (
+	            c_tax_id, c_invoice_id, ad_client_id, ad_org_id, 
+	            isactive, created, createdby, updated, updatedby,
+	            taxbaseamt, taxamt, line, c_invoicetax_id, recalculate
+	          )
+          	VALUES
+	          (
+	            CUR_GrandInvoice.c_tax_id, p_C_Invoice_ID, v_Client_ID,v_Org_ID,
+	            'Y', now(), v_UpdatedBy, now(), v_UpdatedBy,
+	            0,v_grandInvoiceAmount,10,p_C_InvoiceTax_ID,'N'
+	          );
+	      END IF;
+
+	    END LOOP;
+
+
+	    --Insert the SCO_Boe_To link
+	    Ad_Sequence_Next('sco_boe_to', v_Client_ID, p_SCO_BoeTo_ID) ;   
+	      INSERT INTO sco_boe_to
+	                (
+			  sco_boe_to_id, ad_client_id, ad_org_id, 
+	                  isactive, created, createdby, updated, updatedby, 
+	                  SCO_Billofexchange_id,c_invoice_id, line
+	                )
+		 VALUES (
+		          p_SCO_BoeTo_ID,v_Client_ID,v_Org_ID,
+			  'Y', now(), v_UpdatedBy, now(), v_UpdatedBy,
+			  v_Record_ID, p_C_Invoice_ID, v_boeto_line
+	                );
+
+	     v_boeto_line := v_boeto_line + 10;
+	     v_boecount := v_boecount + 1;
+
+	     v_arrindex := v_arrindex + 1;
+	     IF(v_arrindex > v_arrlength) THEN
+	       v_arrindex := v_arrlength;
+	     END IF;
+	  END LOOP;
+
+
+          --Insert the last boe invoice
+	  Ad_Sequence_Next('C_Invoice', v_Client_ID, p_C_Invoice_ID);
+	  Ad_Sequence_Doctype(v_C_BoeDocType_ID, v_Record_ID, 'Y', p_NewInvoiceDocumentNo) ;
+          IF (p_NewInvoiceDocumentNo IS NULL) THEN
+            Ad_Sequence_Doc('DocumentNo_C_Invoice', v_Client_ID, 'Y', p_NewInvoiceDocumentNo) ;
+          END IF;
+
+	  IF (p_NewInvoiceDocumentNo IS NULL) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECODocNoNotFound@');
+          END IF;
+
+
+	  IF(v_specialdoctype IN ('SCOINVOICEXBOE','SCOAPINVOICEXBOE')) THEN	
+	     IF(v_issotrx='N' AND v_ismanualterm = 'Y') THEN    
+	        SELECT * INTO Cur_Boe_Manualterm FROM SCO_Boe_Manualterm WHERE SCO_Boe_Manualterm_ID = arr_boemanualterms[v_arrindex];
+	        v_NewBOEPhysicalDocNo:=Cur_Boe_Manualterm.boe_physical_documentno;
+	     ELSE
+                v_NewBOEPhysicalDocNo:=v_BOEPhyDocNoBase||v_BOEPhyDocNoSuffix;     
+             END IF;
+	  ELSIF(v_specialdoctype = 'SCOBOEXBOE') THEN
+	     IF(v_isboerenewal IS NOT NULL AND v_isboerenewal = 'Y') THEN 
+	        IF(v_numofboes = 1) THEN
+                   v_NewBOEPhysicalDocNo:=v_BOEPhyDocNoBase||'A';  
+                ELSE 
+                   v_NewBOEPhysicalDocNo:=NULL;                  
+                END IF;
+	     ELSE
+               v_NewBOEPhysicalDocNo:=v_BOEPhyDocNoBase||v_BOEPhyDocNoSuffix;
+	     END IF;
+	  END IF;
+
+	   	    
+          IF(v_ismanualterm = 'Y') THEN
+             SELECT * INTO Cur_Boe_Manualterm FROM SCO_Boe_Manualterm WHERE SCO_Boe_Manualterm_ID = arr_boemanualterms[v_arrindex];
+             v_duedate := Cur_Boe_Manualterm.duedate;
+          ELSE
+             v_duedate := NULL;
+          END IF;
+
+	  --Insert the BOE Header
+	  INSERT INTO C_INVOICE
+          (
+            C_Invoice_ID, AD_Client_ID, AD_Org_ID,
+            IsActive, Created, CreatedBy, Updated,
+            UpdatedBy, IsSOTrx, DocumentNo, DocStatus,
+            DocAction, Processing, Processed, C_DocType_ID,
+            C_DocTypeTarget_ID, Description,
+            DateInvoiced, em_sco_newdateinvoiced, DatePrinted, IsPrinted, TaxDate,
+            DateAcct, C_PaymentTerm_ID, em_sco_fixedduedate, C_BPartner_ID, C_BPartner_Location_ID,
+            AD_User_ID,C_Currency_ID,M_PriceList_ID,fin_paymentmethod_id,
+	    isdiscountprinted,paymentrule,chargeamt,totallines,grandtotal,istaxincluded,isselfservice,
+	    iscashvat, em_aprm_processinvoice, em_sco_isimportation, em_sco_issimpleprovision, em_sco_isforfree,
+	    em_sco_useprepayment, em_sco_isprotested, em_sco_boe_type, em_sco_aval_id, salesrep_id, em_sco_boe_id, 
+	    em_sco_isboerenewal, em_ssa_isboerefinancing, em_scr_physical_documentno, em_sco_podoctype_comboitem_id, em_sco_purchaseinvoicetype
+          )
+	  VALUES
+	  (
+	    p_C_Invoice_ID,v_Client_ID,v_Org_ID,
+	    'Y',now(), v_UpdatedBy, now(),
+            v_UpdatedBy, v_issotrx, p_NewInvoiceDocumentNo, 'DR',
+	    'CO', 'N', 'N', '0',
+	    v_C_BoeDocType_ID, '',
+	    v_startingdate, v_startingdate, NULL, 'N', NULL,
+	    v_new_DateAcct, arr_boepaymentterms[v_arrindex], v_duedate, v_c_Bpartner_ID, v_c_Bpartner_Location_ID,
+	    v_User, v_c_Currency_ID, v_M_Pricelist_ID,v_FIN_Paymentmethod_ID,
+	    'N','P', 0, 0, 0, 'N', 'N',
+	    'N', 'CO', 'N', 'N', 'N', 
+	    'SCO_USEPREPAY', 'N', v_new_boe_type, v_aval_id, v_invoiceSalesrep_ID, v_Record_ID, 
+	    v_sco_isboerenewal, v_ssa_isboerefinancing, v_NewBOEPhysicalDocNo, v_podoctype_cmb_item_id, 'SCO_OTHER'
+	  );
+
+      IF(v_c_Currency_ID <> v_c_Other_Currency_ID) THEN
+        --Insert conversion_rate_document
+        Ad_Sequence_Next('C_Conversion_Rate_Document', v_Client_ID, p_C_Conversion_Rate_Document_ID);
+        INSERT INTO c_conversion_rate_document(
+          c_conversion_rate_document_id, ad_client_id, ad_org_id, isactive, 
+          created, createdby, updated, updatedby, c_currency_id, c_currency_id_to, 
+          c_invoice_id, rate)
+        VALUES (
+          p_C_Conversion_Rate_Document_ID, v_Client_ID,v_Org_ID, 'Y', 
+          now(), v_UpdatedBy, now(), v_UpdatedBy, v_c_Other_Currency_ID, v_c_Currency_ID, 
+          p_C_Invoice_ID, v_convert_rate);
+      END IF;
+
+	    
+	  --Insert the BOE Lines(invoiceline and invoicetaxes)
+	  FOR CUR_GrandInvoice IN
+          (SELECT * 
+             FROM grandinvoice)
+          LOOP
+	    SELECT C_Currency_Round(CUR_GrandInvoice.amount - CUR_GrandInvoice.acumamount, v_c_Currency_ID, NULL) INTO v_grandInvoiceAmount;
+	    UPDATE grandinvoice SET acumamount = acumamount + v_grandInvoiceAmount WHERE C_Tax_ID = CUR_GrandInvoice.c_tax_id;
+
+            --Insert the invoiceline
+	    IF(CUR_GrandInvoice.c_tax_id = '0') THEN
+	      Ad_Sequence_Next('C_InvoiceLine', v_Client_ID, p_C_InvoiceLine_ID);
+	      INSERT INTO C_INVOICELINE
+                 (
+            	  C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                  Created, CreatedBy, Updated, UpdatedBy,
+                  C_Invoice_ID, Line,
+                  Description, financial_invoice_line, QtyInvoiced, PriceList,
+                  PriceActual, PriceLimit, LineNetAmt, ChargeAmt,
+                  C_UOM_ID, C_Tax_ID, PriceStd, 
+                  Account_ID,Taxbaseamt, gross_unit_price, line_gross_amount,isdeferred, taxamt,
+		  isdescription, excludeforwithholding, iseditlinenetamt, grosspricestd,
+	          explode,em_sco_prorrateo, em_sco_perceptiontaxed, em_sco_detractiontaxed, em_sco_isdeferredonreceipt,
+	          em_sco_creditused, em_scr_specialtax
+	         )
+             VALUES
+                 ( 
+	      	 p_C_InvoiceLine_ID, v_Client_ID,v_Org_ID, 'Y',
+	         now(), v_UpdatedBy, now(), v_UpdatedBy,
+		 p_C_Invoice_ID, 10,
+	         '', 'Y', 1, 0,
+		 v_grandInvoiceAmount, 0, v_grandInvoiceAmount, 0,
+		 '100', v_C_ExemptTax_ID, v_grandInvoiceAmount,
+		 v_account_id, v_grandInvoiceAmount, 0,0, 'N' ,0,
+	         'N', 'N', 'N', 0,
+	         'N', 'N', 'N', 'N', 'N',
+	          0, 'SCOEXEMPT'
+	         );
+	    --Insert the invoicetax
+	    ELSE
+	      Ad_Sequence_Next('C_InvoiceTax', v_Client_ID, p_C_InvoiceTax_ID);
+	      INSERT INTO C_INVOICETAX
+		(
+	          c_tax_id, c_invoice_id, ad_client_id, ad_org_id, 
+	          isactive, created, createdby, updated, updatedby,
+	          taxbaseamt, taxamt, line, c_invoicetax_id, recalculate
+	        )
+              VALUES
+	        (
+	          CUR_GrandInvoice.c_tax_id, p_C_Invoice_ID, v_Client_ID,v_Org_ID,
+	          'Y', now(), v_UpdatedBy, now(), v_UpdatedBy,
+	          0,v_grandInvoiceAmount,10,p_C_InvoiceTax_ID,'N'
+	        );
+	    END IF;
+
+	  END LOOP;
+
+	  --Insert the SCO_Boe_To link
+	  Ad_Sequence_Next('sco_boe_to', v_Client_ID, p_SCO_BoeTo_ID) ;   
+	    INSERT INTO sco_boe_to
+	              (
+			sco_boe_to_id, ad_client_id, ad_org_id, 
+	                isactive, created, createdby, updated, updatedby, 
+	                SCO_Billofexchange_id,c_invoice_id, line
+	              )
+	       VALUES (
+		        p_SCO_BoeTo_ID,v_Client_ID,v_Org_ID,
+			'Y', now(), v_UpdatedBy, now(), v_UpdatedBy,
+			v_Record_ID, p_C_Invoice_ID, v_boeto_line
+	              );	  
+	END;
+
+        ----INVOICE LINE PROCESS: take Amount from the shedule detail of invoices to pay them
+        DECLARE
+          CUR_BoeFrom RECORD;
+	  CUR_PS RECORD;
+	  CUR_PSD RECORD;
+	  v_invoiceCbpartner_ID VARCHAR(32);
+          v_invoiceOutstandingAmt NUMBER;
+	  v_inv_Amt NUMBER;
+	  v_ps_Amt NUMBER;
+	  v_psd_Amt NUMBER;
+
+	  v_new_fin_payment_scheduledetail_id VARCHAR(32);
+	  p_SCO_Boefrom_Payschedetail_ID VARCHAR(32);
+	  
+          
+        BEGIN
+          FOR CUR_BoeFrom IN
+            (SELECT * 
+               FROM SCO_Boe_From
+               WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND invoiceref_id IS NOT NULL)
+          LOOP
+	    SELECT c_bpartner_id, outstandingamt
+	      INTO v_invoiceCbpartner_ID, v_invoiceOutstandingAmt
+	    FROM C_Invoice WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id FOR UPDATE;
+	    
+	    IF(v_invoiceOutstandingAmt < CUR_BoeFrom.amount) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SCO_BOECOInvalidAmountRef@');
+            END IF;
+	    v_inv_Amt := CUR_BoeFrom.amount;
+
+	    FOR CUR_PS IN
+	      (SELECT *
+		FROM FIN_Payment_Schedule
+	        WHERE C_Invoice_ID = CUR_BoeFrom.invoiceref_id ORDER BY duedate FOR UPDATE)
+	    LOOP
+
+	      IF(v_inv_Amt = 0) THEN
+	        EXIT;
+	      END IF;
+
+	      IF(v_inv_Amt > CUR_PS.outstandingamt) THEN
+	        v_ps_Amt := CUR_PS.outstandingamt;
+	      ELSE
+	        v_ps_Amt := v_inv_Amt;
+	      END IF;
+
+	      v_inv_Amt := v_inv_Amt - v_ps_Amt;
+
+	      FOR CUR_PSD IN
+	        (SELECT *
+		  FROM FIN_Payment_ScheduleDetail
+		 WHERE fin_payment_detail_id IS NULL AND
+		       (em_sco_externalpayment IS NULL OR em_sco_externalpayment='N') AND
+		       fin_payment_schedule_invoice = CUR_PS.fin_payment_schedule_id ORDER BY amount FOR UPDATE)
+	      LOOP
+	        IF(v_ps_Amt = 0) THEN
+	          EXIT;
+	        END IF;
+	
+		IF(v_ps_Amt > CUR_PSD.amount) THEN
+	          v_psd_Amt := CUR_PSD.amount;
+	        ELSE
+	          v_psd_Amt := v_ps_Amt;
+	        END IF;
+
+	        v_ps_Amt:= v_ps_Amt - v_psd_Amt;
+
+		IF(v_psd_Amt < CUR_PSD.amount) THEN
+	          SELECT * 
+		    INTO v_new_fin_payment_scheduledetail_id 
+	          FROM sco_copy_psd(CUR_PSD.fin_payment_scheduledetail_id, CUR_PSD.amount - v_psd_Amt, 0,  v_User);
+
+		  UPDATE FIN_Payment_ScheduleDetail SET amount = v_psd_Amt WHERE FIN_Payment_ScheduleDetail_ID = CUR_PSD.FIN_Payment_ScheduleDetail_ID;
+		  CUR_PSD.amount := v_psd_Amt;
+
+	        END IF;
+
+		--Create Link between payment_schedule_detail and SCO_Boe_From
+	        Ad_Sequence_Next('SCO_Boefrom_Payschedetail', CUR_BoeFrom.ad_client_id, p_SCO_Boefrom_Payschedetail_ID) ;   
+	        INSERT INTO SCO_Boefrom_Payschedetail(
+			    SCO_Boefrom_Payschedetail_id, ad_client_id, ad_org_id, created,
+		            createdby, updated, updatedby, isactive, SCO_Boe_From_id,
+		            amount, fin_payment_scheduledetail_id)
+		     VALUES (
+		            p_SCO_Boefrom_Payschedetail_ID,CUR_BoeFrom.ad_client_id, CUR_BoeFrom.ad_org_id,now(),
+			    v_User, now(), v_User, 'Y', CUR_BoeFrom.SCO_Boe_From_id,
+			    CUR_PSD.amount, CUR_PSD.FIN_Payment_ScheduleDetail_ID);
+	        UPDATE FIN_Payment_ScheduleDetail
+		  SET isinvoicepaid = 'Y',
+		      em_sco_externalpayment = 'Y',
+		      em_sco_isboepayment = 'Y',
+		      em_sco_externalpaydate = v_Date
+	        WHERE FIN_Payment_ScheduleDetail_ID = CUR_PSD.FIN_Payment_ScheduleDetail_ID;
+
+
+	 SCO_UPDATE_CUSTOMERCREDIT(v_invoiceCbpartner_ID, CUR_PSD.amount , 'Y');
+
+	        IF(CUR_PSD.fin_payment_schedule_invoice IS NOT NULL) THEN
+                  SCO_UPDATE_PS_AMOUNTS(CUR_PSD.fin_payment_schedule_invoice, CUR_PSD.amount);
+	        END IF;
+
+	        IF(CUR_PSD.fin_payment_schedule_order IS NOT NULL) THEN
+	          SCO_UPDATE_PS_AMOUNTS(CUR_PSD.fin_payment_schedule_order, CUR_PSD.amount);
+	        END IF;
+
+	      END LOOP;
+
+	      IF(v_ps_Amt <> 0) THEN
+	        RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEInternalError@');
+	      END IF;
+
+	    END LOOP;
+
+	    IF(v_inv_Amt <> 0) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEInternalError@');
+	    END IF;
+
+          END LOOP;
+
+          FOR CUR_BoeFrom IN
+          (SELECT * 
+                 FROM SCO_Boe_From
+                 WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID AND sco_prepayment_id IS NOT NULL)
+          LOOP
+            SELECT * INTO CUR_Prepayment FROM SCO_Prepayment WHERE SCO_Prepayment_ID = CUR_BoeFrom.sco_prepayment_id FOR UPDATE;
+            UPDATE SCO_Prepayment SET totalpaid = CUR_Prepayment.totalpaid + CUR_BoeFrom.amount, sco_billofexchange_id = v_Record_ID WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+            IF(CUR_Prepayment.amount > 0) THEN
+              IF(CUR_Prepayment.totalpaid + CUR_BoeFrom.amount >= CUR_Prepayment.amount) THEN
+                        UPDATE SCO_Prepayment SET ispaid='Y' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              ELSE
+                        UPDATE SCO_Prepayment SET ispaid='N' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              END IF;
+            ELSE
+              IF(CUR_Prepayment.totalpaid + CUR_BoeFrom.amount <= CUR_Prepayment.amount) THEN
+                        UPDATE SCO_Prepayment SET ispaid='Y' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              ELSE
+                        UPDATE SCO_Prepayment SET ispaid='N' WHERE SCO_Prepayment_ID = CUR_Prepayment.SCO_Prepayment_ID;
+              END IF;
+            END IF;
+
+          END LOOP;
+        END;
+
+        FOR CUR_draftBoeTo IN
+          (SELECT * 
+             FROM SCO_Boe_To
+            WHERE SCO_BILLOFEXCHANGE_ID = v_Record_ID)
+        LOOP
+          C_INVOICE_POST(NULL, CUR_draftBoeTo.C_Invoice_ID);
+        END LOOP;
+              
+      END IF;
+
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**
+      * In Progress -----------------------------------------------------------
+      */
+      UPDATE SCO_BILLOFEXCHANGE
+      SET DocStatus='IP',
+          Updated=now(),
+          UpdatedBy=v_User
+      WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        COMMIT;
+      END IF;
+
+    /**
+      * Finished with processing
+      */
+      IF (v_DocAction='PR') THEN
+        v_ResultStr:='FinishProcessing';
+        UPDATE SCO_BILLOFEXCHANGE
+        SET DocStatus='IP',
+            DocAction='CO',
+            Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+  
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+
+      IF (v_DocAction IN('CO', 'CL')) THEN
+        UPDATE SCO_BILLOFEXCHANGE
+        SET DocStatus='CO',
+            DocAction='RE',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+
+      END IF;
+
+      IF (v_DocAction NOT IN('CO')) THEN
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+
+
+      IF (v_DocAction='CL') THEN
+
+       
+        --Close de Bill of Exchange no futher actions are permited
+        UPDATE SCO_BILLOFEXCHANGE
+        SET DocStatus='CL',
+            DocAction='--',
+            Processed='Y'
+        WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='UnLockingOrder';
+        UPDATE SCO_BILLOFEXCHANGE
+        SET Processing='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+        COMMIT;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    --<<FINISH_PROCESS>>
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    --Inserted by Carlos Romero 062706
+    UPDATE SCO_BILLOFEXCHANGE  SET Processing='N'  WHERE SCO_BILLOFEXCHANGE_ID=v_Record_ID;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END SCO_BILLOFEXCHANGE_POST
+]]></body>
+    </function>
+  </database>

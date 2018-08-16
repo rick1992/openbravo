@@ -1,0 +1,461 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SRE_CONTRACTPAYSCHEDULE_POST">
+    <function name="SRE_CONTRACTPAYSCHEDULE_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_contract_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_Result NUMBER:=1; -- Success
+  v_is_included NUMBER:=0;
+   
+  Cur_Parameter RECORD;
+  CurLines RECORD;
+
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60);
+  v_DocStatus VARCHAR(60);
+  v_propDocStatus VARCHAR(60);
+  v_DocType_ID VARCHAR2(32);
+  v_DocTypeTarget_ID VARCHAR2(32);
+  v_DocSubTypeSO VARCHAR(60) ;
+  v_DocSubTypeSOTarget VARCHAR(60) ;
+  v_IsBinding CHAR(1):='Y';
+  v_Line NUMBER:=0;
+  v_DocumentNo VARCHAR2(200) ;
+  FINISH_PROCESS BOOLEAN:=FALSE;
+  END_PROCESSING BOOLEAN:=FALSE;
+  v_count NUMBER;
+  v_specialdoctype VARCHAR(60);
+
+  BEGIN
+
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_contract_id;
+      SELECT CREATEDBY INTO v_User FROM SRE_Contract_Payschedule WHERE SRE_Contract_Payschedule_ID=p_contract_id;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  BEGIN --BODY
+
+
+    /**
+    * Read Contract Payment Schedule
+    */
+    v_ResultStr:='ReadingPurchaseContract';
+    SELECT Processing, Processed, DocAction, DocStatus, C_DocType_ID, C_DocTypeTarget_ID, 
+           AD_Client_ID, AD_Org_ID, UpdatedBy, documentno 
+      INTO v_IsProcessing, v_IsProcessed, v_DocAction, v_DocStatus, v_DocType_ID, v_DocTypeTarget_ID, 
+           v_Client_ID, v_Org_ID, v_UpdatedBy, v_DocumentNo 
+      FROM SRE_Contract_Payschedule
+     WHERE SRE_Contract_Payschedule_ID=v_Record_ID FOR UPDATE;
+
+    -- Get current DocSubTypeSO
+    SELECT DocSubTypeSO, DocSubTypeSO, em_sco_specialdoctype
+      INTO v_DocSubTypeSO, v_DocSubTypeSOTarget, v_specialdoctype
+      FROM C_DOCTYPE
+     WHERE C_DocType_ID=v_DocTypetarget_ID;
+
+
+    IF (v_DocAction = 'CO') THEN
+      --Validations
+      --Check if Contract Payment Schedule has Lines      
+      SELECT COUNT(*)
+        INTO v_Count
+        FROM SRE_Contract_Paysched_Line
+       WHERE SRE_Contract_Payschedule_ID = v_Record_ID;
+      IF v_Count=0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SSA_DocumentWithoutLines@');
+      END IF;
+       
+
+   END IF;
+
+	      
+    /**
+    * Order Closed, Voided or Reversed - No action possible
+    */
+    IF(v_DocStatus IN('CL', 'VO', 'RE')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@') ;
+    END IF;
+
+    
+    IF (NOT FINISH_PROCESS) THEN     
+      /**
+       * Everything done
+       */
+      IF (v_IsProcessed='Y' AND v_DocAction NOT IN('RC', 'RE','CL')) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@');
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsProcessing='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+      END IF;
+
+      IF (NOT FINISH_PROCESS) THEN
+        /**************************************************************************
+        * Start Processing ------------------------------------------------------
+        *************************************************************************/
+        v_ResultStr:='LockingContract';
+        BEGIN -- FOR COMMIT
+          UPDATE SRE_Contract_Payschedule
+             SET Processing='Y',
+                 Updated=now(),
+                 UpdatedBy=v_UpdatedBy
+           WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+          -- Now, needs to go to END_PROCESSING to unlock
+          -- This Commit must remanin due differences between PL execution in Oracle and Postgres
+          IF (p_PInstance_ID IS NOT NULL) THEN
+            COMMIT;
+          END IF;
+          EXCEPTION WHEN OTHERS THEN RAISE NO_DATA_FOUND;
+        END;--FOR  COMMIT
+      
+        BEGIN -- FOR COMMIT
+          SELECT COUNT(*)
+            INTO v_Count
+            FROM SRE_Contract_Payschedule C, SRE_Contract_Paysched_Line OL
+           WHERE C.SRE_Contract_Payschedule_ID = OL.SRE_Contract_Payschedule_ID
+             AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+             AND C.SRE_Contract_Payschedule_ID = v_Record_ID;
+          IF (v_Count>0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+          END IF;
+
+          SELECT COUNT(*)
+            INTO v_Count
+            FROM SRE_Contract_Payschedule C, C_DOCTYPE
+           WHERE C_DocType.DocBaseType IN ('ARI','API')
+             AND C_DocType.IsSOTrx= 'N'
+             AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+             AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+	         AND C_DocType.em_sco_specialdoctype IN ('SRECONTRACTPAYSCHED')
+             AND C.SRE_Contract_Payschedule_ID = v_Record_ID;
+          IF (v_Count=0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_NotCorrectOrgDoctypeBOE@') ;
+          END IF;
+
+        END; -- FOR COMMIT
+      END IF;--FINISH_PROCESS
+
+
+      /**
+      * Re-activate
+      */
+      IF (v_DocAction='RE') THEN     
+        DBMS_OUTPUT.PUT_LINE('Re-Activating ' || v_DocSubTypeSO || ': ' || v_Record_ID) ;
+         
+        --Update Contract
+        v_ResultStr:='ReActivate';
+
+        --Validations
+
+        --Change the docstatus to DR so we can unreserve properties in contract
+	UPDATE SRE_Contract_Payschedule
+           SET DocStatus='DR', -- Draft
+               DocAction='CO',
+               Processing='N',
+	           Processed='N',
+               Updated=now(),
+               UpdatedBy=v_User
+         WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+      
+        FINISH_PROCESS:=TRUE;
+      END IF;     
+
+    END IF;--FINISH_PROCESS
+
+
+    IF (NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+        INTO v_Count
+        FROM SRE_Contract_Payschedule C, C_DOCTYPE
+       WHERE C_DocType.DocBaseType IN ('ARI','API')
+         AND C_DocType.IsSOTrx= 'N'
+         AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+         AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+	     AND C_DocType.em_sco_specialdoctype IN ('SRECONTRACTPAYSCHED')
+         AND C.SRE_Contract_Payschedule_ID = v_Record_ID;
+      IF (v_Count=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_NotCorrectOrgDoctypeBOE@') ;
+      END IF;
+
+      SELECT COUNT(*)
+        INTO v_Count
+        FROM SRE_Contract_Payschedule C, SRE_Contract_Paysched_Line OL
+       WHERE C.SRE_Contract_Payschedule_ID = OL.SRE_Contract_Payschedule_ID
+         AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+         AND C.SRE_Contract_Payschedule_ID = v_Record_ID;
+      IF (v_Count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+      END IF;
+      
+      /**
+      * Close Order - prepare
+      */
+      /**************************************************************************
+      * Start Processing ------------------------------------------------------
+      *************************************************************************/
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_ORG_CHK_DOCUMENTS('SRE_Contract_Payschedule', 'SRE_Contract_Paysched_Line', v_Record_ID, 'SRE_Contract_Payschedule_ID', 'SRE_Contract_Payschedule_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+      WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+      LOOP
+        BEGIN
+          v_ResultStr:='UpdateDocType';
+          UPDATE SRE_Contract_Payschedule
+             SET C_DocType_ID=C_DocTypeTarget_ID,
+                 Updated=now(),
+                 UpdatedBy=v_UpdatedBy
+           WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+          v_DocType_ID:=v_DocTypeTarget_ID;
+        EXCEPTION
+          WHEN OTHERS THEN
+            v_ResultStr:='UpdateDocumentNo';
+            UPDATE SRE_Contract_Payschedule
+               SET DocumentNo=DocumentNo || '.'
+             WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+        END;
+      END LOOP;
+
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='LockingOrder';
+        UPDATE SRE_Contract_Payschedule  SET Processing='Y'  WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+        COMMIT;
+        -- Now, needs to go to END_PROCESSING to unlock
+      END IF;
+
+
+      /**
+      * Allowed Actions:  COmplete, CLose, Void
+      */
+      IF (v_DocAction IN('CO')) THEN
+        NULL;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@') ;
+      END IF;
+
+
+      /**
+      * Convert to Target DocType
+      */
+      DECLARE
+        v_DocSubTypeSO_Target VARCHAR(60) ;
+      BEGIN
+        v_ResultStr:='ConvertingDocType';
+        IF (v_DocType_ID <> v_DocTypeTarget_ID) THEN
+          -- New
+          IF (v_DocStatus='DR' OR v_DocType_ID='0') THEN
+            -- Update to Target Document Type
+            WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+            LOOP
+              BEGIN
+                v_ResultStr:='UpdateDocType';
+                UPDATE SRE_Contract_Payschedule
+                   SET C_DocType_ID=v_DocTypeTarget_ID,
+                       Updated=now(),
+                       UpdatedBy=v_User
+                 WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+                       v_DocType_ID:=v_DocTypeTarget_ID;
+              EXCEPTION
+              WHEN OTHERS THEN
+                v_ResultStr:='UpdateDocumentNo';
+                UPDATE SRE_Contract_Payschedule SET DocumentNo=DocumentNo || '.'  WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+              END;
+            END LOOP;
+          ELSE
+            v_ResultStr:='GetTargetDocType';
+            SELECT DocSubTypeSO
+              INTO v_DocSubTypeSO_Target
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=v_DocTypeTarget_ID;
+            DBMS_OUTPUT.PUT_LINE('Changing DocType from ' || v_DocSubTypeSO || ' to ' || v_DocSubTypeSO_Target) ;
+            -- Change Offer to anything, Change InProcess to anything
+            IF (v_DocSubTypeSO IN('ON', 'OB') OR v_DocStatus='IP') THEN
+              -- Update to Target Document Type
+              WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+              LOOP
+                BEGIN
+                  v_ResultStr:='UpdateDocType';
+                  UPDATE SRE_Contract_Payschedule
+                     SET C_DocType_ID=v_DocTypeTarget_ID,
+                         Updated=now(),
+                         UpdatedBy=v_User
+                   WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+                         v_DocType_ID:=v_DocTypeTarget_ID;
+                EXCEPTION
+                WHEN OTHERS THEN
+                  v_ResultStr:='UpdateDocumentNo';
+                  UPDATE SRE_Contract_Payschedule SET DocumentNo=DocumentNo || '.'  WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+                END;
+              END LOOP;
+            ELSE
+              -- Change Back
+              UPDATE SRE_Contract_Payschedule
+                 SET C_DocTypeTarget_ID=v_DocType_ID
+               WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+              RAISE_APPLICATION_ERROR(-20000, '@CannotChangeDocType@') ;
+            END IF;
+          END IF;
+        END IF; -- C_DocType_ID <> C_DocTypeTarget_ID
+      END; -- Conversion
+
+
+      /**
+      * Get DocSubTypeSO + Is it Binding :1:2
+      */
+      v_ResultStr:='TestBinding DocType_ID=' || v_DocType_ID;
+      SELECT CASE DocSubTypeSO WHEN 'ON' THEN 'N' ELSE 'Y' END, DocSubTypeSO
+        INTO v_IsBinding, v_DocSubTypeSO
+        FROM C_DOCTYPE
+       WHERE C_DocType_ID=v_DocType_ID;
+      DBMS_OUTPUT.PUT_LINE('DocSubTypeSO=' || v_DocSubTypeSO || ' IsBinding=' || v_IsBinding) ;
+
+      -- Synchronize Client/Org Ownership
+      UPDATE SRE_Contract_Payschedule
+         SET AD_Client_ID=v_Client_ID
+       WHERE SRE_Contract_Payschedule_ID=v_Record_ID
+         AND (AD_Client_ID<>v_Client_ID) ;
+
+
+      /**
+      * Complete
+      */
+      IF(v_DocAction = 'CO') THEN
+	   	   	                
+      END IF;
+
+
+    END IF;--FINISH_PROCESS
+
+
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**
+      * In Progress -----------------------------------------------------------
+      */
+      UPDATE SRE_Contract_Payschedule
+         SET DocStatus='IP',
+             Updated=now(),
+             UpdatedBy=v_User
+       WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        COMMIT;
+      END IF;
+
+     /**
+      * Finished with processing
+      */
+      IF (v_DocAction='PR') THEN
+        v_ResultStr:='FinishProcessing';
+        UPDATE SRE_Contract_Payschedule
+           SET DocStatus='IP',
+               DocAction='CO',
+               Processed='N',
+               Updated=now(),
+               UpdatedBy=v_User
+         WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+         END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+  
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+      IF (v_DocAction IN('CO', 'CL')) THEN
+        UPDATE SRE_Contract_Payschedule
+           SET DocStatus='CO',
+               DocAction='RE',
+               Processed='Y',
+               Updated=now(),
+               UpdatedBy=v_User
+         WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+      END IF;
+
+      IF (v_DocAction NOT IN('CO')) THEN
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+
+      IF (v_DocAction='CL') THEN     
+        --Close de Contract Payment Schedule no futher actions are permited
+        UPDATE SRE_Contract_Payschedule
+        SET DocStatus='CL',
+            DocAction='--',
+            Processed='Y'
+        WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='UnLockingOrder';
+        UPDATE SRE_Contract_Payschedule
+        SET Processing='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+        COMMIT;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    --<<FINISH_PROCESS>>
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    --Inserted by Carlos Romero 062706
+    UPDATE SRE_Contract_Payschedule SET Processing='N'  WHERE SRE_Contract_Payschedule_ID=v_Record_ID;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END SRE_CONTRACTPAYSCHEDULE_POST
+]]></body>
+    </function>
+  </database>

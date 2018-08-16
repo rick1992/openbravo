@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSH_GET_SHIPMENT_BY_ZONE">
+    <function name="SSH_GET_SHIPMENT_BY_ZONE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+  v_ssa_zonificacion_id VARCHAR2(32);
+  v_docstatus VARCHAR2(60);
+  v_ssh_trasportistaline_id VARCHAR2(32);
+  v_ad_client_id VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+  Cur_param RECORD;
+  
+  
+
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+   SELECT ad_client_id, ad_org_id, created, ssa_zonificacion_id, docstatus
+     INTO v_ad_client_id,v_ad_org_id,v_user_id , v_ssa_zonificacion_id , v_docstatus
+     FROM ssh_transportista
+    WHERE ssh_transportista_id=v_Record_ID;
+
+      IF(v_ssa_zonificacion_id IS NULL)THEN
+         RAISE_APPLICATION_ERROR(-20000, '@ssh_waybill_without_zone@');
+      END IF;
+
+    --El botòn funciona solo en estado borrador    
+    IF(v_docstatus = 'DR')THEN
+      --Vamos a insertar en la hoja de ruta, todas las guias pendientes de entrega, 
+      --Que estèn en la zona de espacho 
+      --que tengan la zona configurada y que no estèn en otra hoja de ruta
+      FOR Cur_param IN (
+      SELECT * FROM M_INOUT 
+       WHERE ISSOTRX ='Y'
+       AND DOCSTATUS='CO'
+       AND em_swa_shipstatus='SWA_DISP' --SWA_PACK --
+       AND em_ssa_zonificacion_id = v_ssa_zonificacion_id
+       AND M_INOUT_ID NOT IN (SELECT m_inout_id 
+                                FROM ssh_trasportistaline 
+                               WHERE isrejected='N'       --Traer las guias que no estàn en otra hoja de ruta
+                                 AND CREATED > now()-180  --suficiente es solo 6 meses atràs para validar que la guia no està en otra hoja de ruta
+                             )
+      )
+      LOOP
+       v_ssh_trasportistaline_id:=get_uuid();
+       INSERT INTO ssh_trasportistaline 
+        (ssh_trasportistaline_id, ad_client_id, ad_org_id , isactive, 
+         created,createdby,updated,updatedby,
+         ssh_transportista_id,m_inout_id,c_bpartner_id,
+         docstatus,shipstatus,ssa_zonificacion_id,ar_org_ref_id,
+         peso_total, bultos_total, cubicaje_total)
+        VALUES (
+         v_ssh_trasportistaline_id,v_ad_client_id,v_ad_org_id,'Y',
+         now(),v_user_id,now(),v_user_id,
+         v_Record_ID,Cur_param.m_inout_id, Cur_param.c_bpartner_id ,
+         Cur_param.docstatus, Cur_param.em_swa_shipstatus,Cur_param.em_ssa_zonificacion_id, Cur_param.ad_org_id,
+         Cur_param.em_swa_peso_guia_total,Cur_param.em_swa_numcajas_guia_total, Cur_param.em_swa_cubicaje_guia_total
+        );
+      END LOOP;
+    END IF;
+ 
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSH_GET_SHIPMENT_BY_ZONE
+]]></body>
+    </function>
+  </database>

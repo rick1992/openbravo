@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVLINE_PRINTED_REST_TRG">
+    <trigger name="SCO_INVLINE_PRINTED_REST_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_C_INVOICE_ID VARCHAR2(32) ;
+  v_Prec NUMBER:=2;
+  v_Currency     VARCHAR2(32);
+  v_productname m_product.name%TYPE;
+  v_isgeneric   CHAR(1);
+  v_Issotrx     CHAR(1);
+  v_isstocked VARCHAR(1);
+  v_isprinted VARCHAR(1);
+  v_docstatus VARCHAR(60);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_INVOICE_ID:=:NEW.C_INVOICE_ID;
+  ELSE
+    v_C_INVOICE_ID:=:OLD.C_INVOICE_ID;
+  END IF;
+  SELECT PROCESSED, POSTED,
+    C_CURRENCY_ID, Issotrx, isprinted, docstatus
+  INTO v_Processed, v_Posted,
+    v_Currency, v_Issotrx, v_isprinted, v_docstatus
+  FROM C_INVOICE
+  WHERE C_INVOICE_ID=v_C_INVOICE_ID;
+
+  IF(v_Issotrx = 'Y') THEN
+    IF UPDATING THEN
+
+      IF(v_isprinted='Y' AND :NEW.em_sco_qtyvoidinvoiced IS NULL AND ((COALESCE(:OLD.QTYINVOICED, 0) <> COALESCE(:NEW.QTYINVOICED, 0))
+        OR(COALESCE(:OLD.PRICELIST, 0) <> COALESCE(:NEW.PRICELIST, 0))
+        OR(COALESCE(:OLD.PRICEACTUAL, 0) <> COALESCE(:NEW.PRICEACTUAL, 0))
+        OR(COALESCE(:OLD.PRICELIMIT, 0) <> COALESCE(:NEW.PRICELIMIT, 0))
+        OR(COALESCE(:OLD.LINENETAMT, 0) <> COALESCE(:NEW.LINENETAMT, 0))
+        OR(COALESCE(:OLD.C_CHARGE_ID, '0') <> COALESCE(:NEW.C_CHARGE_ID, '0'))
+        OR(COALESCE(:OLD.CHARGEAMT, 0) <> COALESCE(:NEW.CHARGEAMT, 0))
+        OR(COALESCE(:OLD.C_UOM_ID, '0') <> COALESCE(:NEW.C_UOM_ID, '0'))
+        OR(COALESCE(:OLD.C_TAX_ID, '0') <> COALESCE(:NEW.C_TAX_ID, '0'))
+        OR(COALESCE(:OLD.TAXAMT, 0) <> COALESCE(:NEW.TAXAMT, 0))
+        OR(COALESCE(:OLD.M_ATTRIBUTESETINSTANCE_ID, '0') <> COALESCE(:NEW.M_ATTRIBUTESETINSTANCE_ID, '0'))
+        OR(COALESCE(:OLD.QUANTITYORDER, 0) <> COALESCE(:NEW.QUANTITYORDER, 0))
+        OR(COALESCE(:OLD.C_ORDERLINE_ID, '0') <> COALESCE(:NEW.C_ORDERLINE_ID, '0'))
+        OR(COALESCE(:OLD.M_PRODUCT_UOM_ID, '0') <> COALESCE(:NEW.M_PRODUCT_UOM_ID, '0'))
+        OR(COALESCE(:OLD.AD_ORG_ID, '0') <> COALESCE(:NEW.AD_ORG_ID, '0'))
+        OR(COALESCE(:OLD.AD_CLIENT_ID, '0') <> COALESCE(:NEW.AD_CLIENT_ID, '0'))
+        )) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvoicePrinted20501@') ;
+      END IF;
+    END IF;
+    
+    IF(DELETING AND v_isprinted='Y') THEN
+      IF(:OLD.em_sco_invoiceline_prepay_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvoicePrinted20501@') ;
+      END IF;
+    END IF;
+
+    IF(INSERTING AND v_isprinted='Y') THEN
+      IF(:NEW.em_sco_invoiceline_prepay_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvoicePrinted20501@') ;
+      END IF;
+    END IF;
+
+  END IF;
+
+  END SCO_INVLINE_PRINTED_REST_TRG
+]]></body>
+    </trigger>
+  </database>

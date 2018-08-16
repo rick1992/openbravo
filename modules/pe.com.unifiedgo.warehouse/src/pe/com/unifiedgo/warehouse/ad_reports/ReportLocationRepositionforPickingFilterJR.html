@@ -1,0 +1,742 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2007-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Reporte de Ubicaciones</title>
+    <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+     
+    <script language="JavaScript" type="text/javascript" id="paramDirectory">
+      var baseDirectory = "../../../../../web/";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript">
+      </script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" type="text/javascript" id="paramLanguage">
+        var defaultLang = "en_US";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojoConfig.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojo/dojo.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/org.openbravo.userinterface.selector/js/classic-skin-variable.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources" type="text/javascript"></script>
+      <script type="text/javascript">
+        dojo.hostenv.writeIncludes(); //makes debugging in Venkman possible
+      </script>
+
+<script language="JavaScript" type="text/javascript">
+
+//prevent refocus after the tab containing this window
+//gets selected, this prevents change of scroll position
+//for that tab
+OB_NoRefocusAfterTabSelection = true;
+</script>
+
+
+<script language="JavaScript" type="text/javascript">
+function clearMWarehouse(){
+    var frmMain = document.frmMain;
+    frmMain.paramM_Warehouse_ID.value = "";
+    frmMain.parammWarehouseDescription.value = "";
+    sc_paramM_Warehouse_ID.selectorField.setValue("");    
+}
+
+
+function openProductReservationDetails(adOrgId, mProductId, warehouseId, height, width) {
+    var LayoutMDI = getFrame('LayoutMDI');
+    var url = LayoutMDI.OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormReservationAndStockDetailsFilterJR.html';
+    //var url = OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormReservationAndStockDetailsFilterJR.html';
+    if (height==null) height = 400;
+    if (width==null) width = 1150;
+    var parameters = new Array();
+    parameters = addArrayValue(parameters, "inpadOrgId", adOrgId, true);
+    parameters = addArrayValue(parameters, "inpmProductId", mProductId, true);
+    parameters = addArrayValue(parameters, "inpmWarehouseId", warehouseId, true);    
+    parameters = addArrayValue(parameters, "IsPopUpCall", "1", true);
+    return openPopUp(url, 'Detalle de Reservas de Producto', height, width, null, null, null, null, null, null, parameters);   
+}
+
+
+function clearMProduct(){
+    var frmMain = document.frmMain;
+    frmMain.paramProductId.value = "";
+    frmMain.paramProductDescription.value = "";
+    sc_paramProductId.selectorField.setValue("");    
+}
+
+function OpenProductTab(id) {
+    var myframe = getFrame('LayoutMDI') || top.opener;
+    if (myframe) {
+        myframe.OB.Utilities.openDirectTab('180', id); //Product
+    }
+}
+function OpenLocatorTab(id) {
+    if (id != "" || id != null) {
+        var myframe = getFrame('LayoutMDI') || top.opener;
+        if (myframe) {
+            myframe.OB.Utilities.openDirectTab('178', id); //Storage Bin
+        }
+    }
+}
+
+function OpenLocatorMoreInformation(id){
+	if(id != null || id!= ""){ 
+		var LayoutMDI = getFrame('LayoutMDI');
+	    var url = LayoutMDI.OB.Application.contextUrl + '/pe.com.unifiedgo.warehouse.ad_forms/FormLocationDetailsFilterJR.html';
+	    //var url = OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormReservationAndStockDetailsFilterJR.html';
+	    var height = 400;
+	    var width = 850;
+	    var parameters = new Array();
+	    parameters = addArrayValue(parameters, "inpadOrgId", 'ORGID', true);
+	    parameters = addArrayValue(parameters, "inpmLocatorId", id, true);
+	    parameters = addArrayValue(parameters, "inpmWarehouseId", 'WarehouseID', true);    
+	    parameters = addArrayValue(parameters, "IsPopUpCall", "1", true);
+	    return openPopUp(url, 'Detalle de Productos', height, width, null, null, null, null, null, null, parameters);   
+	}
+}
+
+function OpenLocatorMoreMovements(id){
+	if(id != null || id!= ""){ 
+		var LayoutMDI = getFrame('LayoutMDI');
+	    var url = LayoutMDI.OB.Application.contextUrl + '/pe.com.unifiedgo.warehouse.ad_forms/FormLocationMovementsFilterJR.html';
+	    //var url = OB.Application.contextUrl + '/pe.com.unifiedgo.core.ad_forms/FormReservationAndStockDetailsFilterJR.html';
+	    var height = 500;
+	    var width = 1000;
+	    var parameters = new Array();
+	    parameters = addArrayValue(parameters, "inpadOrgId", 'ORGID', true);
+	    parameters = addArrayValue(parameters, "inpmLocatorId", id, true);
+	    parameters = addArrayValue(parameters, "inpmWarehouseId", 'WarehouseID', true);    
+	    parameters = addArrayValue(parameters, "IsPopUpCall", "1", true);
+	    return openPopUp(url, 'Detalle de Productos', height, width, null, null, null, null, null, null, parameters);   
+	}
+}
+
+
+function imprimirXLS()
+{
+    var validacion = false;
+    if(validate()){
+        openPDFFiltered("ReportLocationRepositionforPickingFilterJR.html?Command=XLS","EXCEL");
+        validacion = true;
+    }
+    return validacion;
+}
+
+
+function validate() {
+    var frm = document.frmMain;
+    if (frm.inpadOrgId.value == null || frm.inpadOrgId.value == "") {
+        setWindowElementFocus(frm.inpadOrgId);
+        showJSMessage(7);
+        return false;
+    }
+    if (frm.inpmWarehouseId.value == null || frm.inpmWarehouseId.value == "") {
+        setWindowElementFocus(frm.inpmWarehouseId);
+        showJSMessage(7);
+        return false;
+    }    
+    
+    return true;
+}
+
+
+
+function onloadFunctions(){
+}
+
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramFirstLoad">
+var FirstLoad=null;
+</script>
+
+<script language="JavaScript" type="text/javascript">
+    function onLoadDo(){
+        this.windowTables = new Array(
+          new windowTableId('client', '')
+        );
+        setWindowTableParentElement();
+        this.tabsTables = new Array(
+          new tabTableId('tdtopTabs')
+        );
+        setTabTableParentElement();
+        enableShortcuts('edition');
+        setBrowserAutoComplete(false);
+        try {
+          onloadFunctions();
+        } catch (e) {}
+        resizeArea();
+        updateMenuIcon('buttonMenu');
+                
+        setWindowElementFocus('firstElement');
+        
+        if (FirstLoad == "YES") {
+        } else {
+            var selectedWarehouse = document.frmMain.inpmWarehouseId.value;                       
+            document.frmMain.inpmWarehouseId.value = selectedWarehouse;
+        } 
+        
+        sc_paramM_Warehouse_ID.selectorField.setValue(document.getElementById("parammWarehouseDescription").value);
+        sc_paramProductId.selectorField.setValue(document.getElementById("paramProductDescription").value);
+    }
+
+    function onResizeDo(){
+        resizeArea();
+    }           
+</script>
+    
+</head>
+    <body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form method="post" action="ReportLocationRepositionforPickingFilterJR.html" name="frmMain" id="form">
+  <input type="hidden" name="Command"></input>
+  <input type="hidden" name="IsPopUpCall" value="1"></input>
+  <input type="hidden" name="inpKey" value="" id="paramKey"></input>
+  <input type="hidden" name="inpwindowId" value="" id="window"></input>
+  <input type="hidden" name="inpTabId" value="" id="tab"></input>
+  
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"></tr>
+          <tr id="paramMainTabContainer"></tr>
+          <tr id="paramChildTabContainer"></tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: auto; display: none; border-bottom: 0px none;" id="client">
+                <table class="dojoTabContainer" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                  <tr>
+                    <td>
+                      <table class="dojoTabPaneWrapper" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                        <tr>
+                          <td>
+                            <!-- MessageBox -->
+
+                            <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+                              <tbody>
+                              <tr class="MessageBox_TopMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr>
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td>
+
+                                  <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                                    <tbody>
+                                    <tr>
+                                      <td class="MessageBox_LeftTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopLeft"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Left"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                      <td class="MessageBox_bg">
+
+                                        <table class="MessageBox_Top">
+                                        <tbody>
+                                          <tr>
+                                            <td>
+                                              <span>
+                                              <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                                <tbody>
+                                                <tr>
+                                                  <td class="MessageBox_Icon_ContentCell">
+                                                    <div class="MessageBox_Icon"></div>
+                                                  </td>
+                                                  <td style="vertical-align: top;" id="messageBoxIDContent">
+                                                    <span>
+                                                      <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                                        xxInfo: AccessTableWithNoView
+                                                      </div>
+                                                      <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                                        xxThe current information is empty.
+                                                      </div>
+                                                      <div class="MessageBox_TextSeparator"></div>
+                                                    </span>
+                                                  </td>
+                                                </tr>
+                                                </tbody>
+                                              </table>
+                                              </span>
+                                            </td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+
+                                      </td>
+                                      <td class="MessageBox_RightTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopRight"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Right"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td rowspan="2" class="MessageBox_BottomLeft">
+                                      </td>
+                                      <td class="MessageBox_BottomTrans MessageBox_bg">
+                                      </td>
+                                      <td rowspan="2" class="MessageBox_BottomRight">
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="MessageBox_Bottom">
+                                      </td>
+                                    </tr>
+                                    </tbody>
+                                  </table>
+
+                                </td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr class="MessageBox_BottomMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            <!-- USER CONTROLS -->
+              <table class="Main_Client_TableEdition">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+                <tr>
+                <td colspan="6">
+                  <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                  <tbody>
+                    <tr class="FieldGroup_TopMargin"/>
+                    <tr>
+                      <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                      <td class="FieldGroupTitle">Filtro</td>
+                      <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                      <td class="FieldGroupContent"/>
+                    </tr>
+                    <tr class="FieldGroup_BottomMargin"/>
+                  </tbody>
+                  </table>
+                </td>
+                </tr>
+                <tr> 
+                 <td class="TitleCell"><span class="LabelText">Organización</span></td>      
+                 <td class="Combo_ContentCell" colspan="2"> 
+                  <select name="inpadOrgId"  id="inpadOrgId" class="ComboKey Combo_TwoCells_width" onchange="clearMProduct(); clearMWarehouse(); return true; " required="true">
+                    <div id="reportAD_Org_ID"></div>
+                  </select>
+                 </td>
+                 <td class="ContentCell"></td>
+                 <td class="ContentCell"></td>
+               </tr>
+               <tr>  
+               
+               <td class="TitleCell"> <span class="LabelText">Warehouse</span></td>
+               <td class="Combo_ContentCell" colspan="2"> 
+                    <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                      <tr>
+                         <td>
+                           <script>
+                             var sc_paramM_Warehouse_ID = null;   
+                           </script>
+                           <input type="hidden" name="inpmWarehouseId" id="paramM_Warehouse_ID" value="" onreset="sc_paramM_Warehouse_ID.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramM_Warehouse_ID.selectorField);"></input>
+                           <input type="hidden" id="parammWarehouseDescription" type="text"  name="inpmWarehouseId_D" maxlength="20" value="" ></input> 
+                           <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/E0F1463AC3B84F17848BAAB0E314CEEB?columnName=paramM_Warehouse_ID&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=true&restrictadorgid=inpadOrgId&WithTabFix=yes"></script>
+                         </td>
+                       </tr>
+                     </table>
+               </td>
+               
+               
+               <td class="TitleCell"><span class="LabelText">Producto</span></td>
+                  <td class="Combo_ContentCell" colspan="2"> 
+                    <table border="0" cellspacing="0" cellpadding="0" summary="" >
+                      <tr>
+                         <td>
+                           <script>
+                             var sc_paramProductId = null;   
+                           </script>
+                           <input type="hidden" name="inpmProductId" id="paramProductId" value="" onreset="sc_paramProductId.resetSelector();" required="false" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_paramProductId.selectorField);"></input>
+                           <input type="hidden" id="paramProductDescription" type="text"  name="inpmProductId_D" maxlength="20" value="" required="false"></input> 
+                           <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/2F5B9C9D5412473CB454D5C79806F178?columnName=paramProductId&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&disabled=false&DisplayLength=45.0&required=false&restrictadorgid=inpadOrgId&WithTabFix=yes"></script>
+                         </td>
+                       </tr>
+                     </table>
+              </td>               
+                 <td class="ContentCell"></td>
+                 <td class="ContentCell"></td>
+                </tr> 
+                
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" id="lblLocatorType">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tipo de Ubicación</span></td>
+                  <td class="Combo_ContentCell" colspan="2"> 
+                    <select  name="inpLocatorType" id="inpLocatorType" class="ComboKey Combo_TwoCells_width" required="false">
+                      <option value=""></option><div id="reportLocatorType"></div>
+                    </select>
+                  </td>
+                  
+                 
+                  
+                  <td class="TitleCell"><span class="LabelText">Ubicación.</span></td>
+                  <td class="TextBox_ContentCell" colspan="2"> 
+                     <input class="dojoValidateValid TextBox_OneCell_width" type="text" name="inpSearchKey" id="paramSearchKey" size="40" maxlenght="100" value="" required="false"></input>
+                     <script>djConfig.searchIds.push("paramSearchKey");</script>
+                  </td> 
+                  <td class="TablePopup_OneCell_width"></td>
+                </tr>
+                
+             <!-- <tr>
+                    <td class="TitleCell"> <span class="LabelText">Ubicaciones Tipo Salida</span></td>
+                    <td class="Radio_Check_ContentCell"> <span class="Checkbox_container_NOT_Focused"><input type="checkbox" value="Y" checked="checked" id="paramShowNullVendor" name="inpShowNullVendor"></input></span></td>
+                  </tr>  
+             -->   
+                
+                <tr> 
+	             	<td class="TitleCell"><span class="LabelText">Ubicaciones Libres</span></td>
+	             	<td class="Radio_Check_ContentCell"><span class="Radio_container_NOT_Focused"><input type="radio" name="inprbtnSearch" value="pending" id="fieldPendingSelect"></input></span></td>
+	             	
+	             	<!--  <td class="TitleCell"><span class="LabelText">Contine Producto</span></td>
+	             	<td class="Radio_Check_ContentCell"><span class="Radio_container_NOT_Focused"><input type="radio" name="inprbtnSearch" value="created" id="fieldCreatedSelect"></input></span></td>
+	             	-->
+                	<td class="TitleCell"><span class="LabelText">Todos</span></td>
+                	<td class="Radio_Check_ContentCell"><span class="Radio_container_NOT_Focused"><input type="radio" name="inprbtnSearch" value="allbin" id="fieldAllSelect"></input></span></td>
+	            </tr>                                    
+                <tr>
+                    <td colspan="6">
+                      <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                      <tbody>
+                        <tr class="FieldGroup_TopMargin"/>
+                        <tr>
+                          <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                          <td class="FieldGroupTitle">Ver Resultados</td>
+                          <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                          <td class="FieldGroupContent"/>
+                        </tr>
+                        <tr class="FieldGroup_BottomMargin"/>
+                      </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="Button_RightAlign_ContentCell" colspan="2">
+                      <div>
+                        <button type="button" 
+                          id="buttonHTML" 
+                          class="ButtonLink" 
+                          onclick="submitCommandForm('EDIT_HTML', true, null, 'ReportLocationRepositionforPickingFilterJR.html', '_self', null, false); return false;"
+                          onfocus="buttonEvent('onfocus', this); window.status='View Results in a New Window'; return true;" 
+                          onblur="buttonEvent('onblur', this);" 
+                          onkeyup="buttonEvent('onkeyup', this);" 
+                          onkeydown="buttonEvent('onkeydown', this);" 
+                          onkeypress="buttonEvent('onkeypress', this);" 
+                          onmouseup="buttonEvent('onmouseup', this);" 
+                          onmousedown="buttonEvent('onmousedown', this);" 
+                          onmouseover="buttonEvent('onmouseover', this); window.status='View Results in a New Window'; return true;" 
+                          onmouseout="buttonEvent('onmouseout', this);">
+                          <table class="Button">
+                            <tr>
+                              <td class="Button_left"><img class="Button_Icon Button_Icon_html" alt="View Results in a New Window" title="View Results in a New Window" src="../../../../../web/images/blank.gif" border="0" /></td>
+                              <td class="Button_text">Buscar</td>
+                              <td class="Button_right"></td>
+                            </tr>
+                          </table>
+                        </button>
+                      </div>
+                    </td>
+                    <td class="ContentCell"></td>
+                    <td class="ContentCell"></td>
+                    <td class="ContentCell"></input>
+                    </td>
+                    <td class="ContentCell"></td>
+                  </tr>
+                  
+                  <tr>
+                   <!-- 1 OUTPUT -->
+                   
+                    
+			          <div id="sectionOrg_General">        
+			          <table class="Main_Client_TableEdition">
+			            <tr>
+			              <td colspan="6">
+			                <div style="height:25px;" />
+			                 
+			                <table cellspacing="0" cellpadding="1" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="selEliminar">
+			                      <div id="sectionPartner">
+			                      <tr class="Popup_Client_Selector_DataGrid_HeaderRow">
+			                        <th class="DataGrid_Header_Cell" colspan="8">Detalle de Ubicaciones</th> 
+			                        <th class="DataGrid_Header_Cell" colspan="3"><span id="paramProductValue">ProductoName</span></th>
+			                      </tr>
+			                      <tr class="Popup_Client_Selector_DataGrid_HeaderRow"> 
+			                        <th class="DataGrid_Header_Cell">Locator</th>
+			                        <th class="DataGrid_Header_Cell">X</th>
+			                        <th class="DataGrid_Header_Cell">Y</th>
+			                        <th class="DataGrid_Header_Cell">Z</th>
+			                        <th class="DataGrid_Header_Cell">Prioridad</th>
+			                        <th class="DataGrid_Header_Cell">Tipo</th>
+			                        <th class="DataGrid_Header_Cell">Último Movimiento</th>
+			                        <!--  <th class="DataGrid_Header_Cell">Estado</th>-->
+			                        <th class="DataGrid_Header_Cell">Total Productos</th>
+			                        <th class="DataGrid_Header_Cell">Cant. Física</th>
+			                        <th class="DataGrid_Header_Cell">Cant. Reservada</th>
+			                        <th class="DataGrid_Header_Cell">Cant. Disponible</th>
+			                       <!--   <th class="DataGrid_Header_Cell">Detalle de Productos</th>-->
+			                      </tr>                                           
+			                      <div id="sectionSelectedDetail_Genereal"> 
+			                        <tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow1xx">
+			                          <td width="10%" class="DataGrid_Body_Cell">
+			                            <a href="#" onclick="OpenLocatorTab('yy');" onmouseover="window.status='Locator';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldLocatorId">
+			                              <span id="fieldLocatorName">xxY</span>
+			                            </a>
+			                          </td>
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocator_X">xxY</td>
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocator_Y">xxY</td>
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocator_Z">xxY</td>
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorPriority">xxY</td>                          
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorType">xxY</td>
+			                          
+			                          
+			                          <td width="4%" class="DataGrid_Body_Cell">
+			                          <a href="#" onclick="OpenLocatorMoreMovements('yy');" onmouseover="window.status='Locator';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldLocatorId">
+			                              <span id="fieldTransactionDate">xxY</span>
+			                            </a>
+			                          </td>
+			                          
+			                          <!--<td width="4%" class="DataGrid_Body_Cell"  id="fieldTransactionDate">xx15-09-11</td>-->
+			                          
+			                          <!--  <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorEmpty">xxY</td> -->
+			                          
+			                          <!--  <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorQty">xxY</td>
+			                          -->
+			                          
+			                          <td width="4%" class="DataGrid_Body_Cell">
+			                          <a href="#" onclick="OpenLocatorMoreInformation('yy');" onmouseover="window.status='Locator';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldLocatorId">
+			                              <span id="fieldLocatorQty">xxY</span>
+			                            </a>
+			                          </td>
+			                          
+			                          
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorProductOnHand">xxY</td>
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorProductReserved">xxY</td>
+			                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorProductAvailable">xxY</td>
+			                         <!--  <td  class="DataGrid_Body_Cell"><a href="#" onclick="openProductReservationDetails(document.frmMain.inpadOrgId.value,'xx',''); return false;" onmouseover="window.status='Detalle de Reserva';return true;" onmouseout="window.status='';return true;" id="fieldLocatorDetails">
+                                          <img src="../../../../../web/images/stock_reservation.png"></a>
+                                      </td>
+                                      
+                                       -->
+			                        </tr>                        
+			                      </div>              
+			                      </div>                                            
+			                </table>
+			                            
+			             
+			              </td>
+			            </tr>            
+			          </table>                       
+			        </div>  
+			        
+			      
+			        
+			        
+			        
+                  </tr>
+                  
+                  
+                  <tr>
+                    <td colspan="6">
+                      <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                      <tbody>
+                        <tr class="FieldGroup_TopMargin"/>
+                        <tr>
+                          <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                          <td class="FieldGroupTitle">Reporte de Stock Mínimo (Ubicaciones de Salida - Picking)</td>
+                          <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                          <td class="FieldGroupContent"/>
+                        </tr>
+                        <tr class="FieldGroup_BottomMargin"/>
+                      </tbody>
+                      </table>
+                    </td>
+                  </tr>
+        </table>
+        
+        
+      <!--   
+           <div id="sectionOrg">        
+          <table class="Main_Client_TableEdition">
+            <tr>
+              <td colspan="6">
+                <div style="height:25px;" />
+                 
+                <table cellspacing="0" cellpadding="1" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="selEliminar">
+                      <div id="sectionPartner">
+                      <tr class="Popup_Client_Selector_DataGrid_HeaderRow"> 
+                        <th class="DataGrid_Header_Cell">Y</th>
+                      </tr>                                           
+                      <div id="sectionSelectedDetail"> 
+                        <tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow1xx">
+                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorY">xxY</td>
+                        </tr>                        
+                      </div>              
+                      </div>                                            
+                </table>
+             
+              
+              </td>
+            </tr>            
+          </table>                       
+        </div>      
+      -->    
+           
+   <!--1 OUTPUT -->
+      
+   <!--       
+              <div id="sectionResult">
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;">
+                    <tr class="DataGrid_Body_Row">
+                     <th width="10%" class="DataGrid_Header_Cell">Ubicación</th>
+                    </tr>
+                   
+                    <div id="sectionDetail5">
+                    <tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow5xx">   
+                          <td width="10%" class="DataGrid_Body_Cell" onmouseover="HoverCell(this);" onmouseout="unHoverCell(this);" id=""><input type="hidden" name="inpmLineNoxx" id=fieldProductid value=""/><span id="fieldLocatorName">xxLines</span></td>
+                      </tr>
+                    </div>
+                    
+                    
+                  </table>
+                  </div>
+   -->     
+        
+          <!--2 OUTPUT -->
+         
+          <div id="sectionOrg">        
+          <table class="Main_Client_TableEdition">
+            <tr>
+              <td colspan="6">
+                <div style="height:25px;" />
+                 
+                <table cellspacing="0" cellpadding="1" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="selEliminar">
+                      <div id="sectionPartner">
+                      <tr class="Popup_Client_Selector_DataGrid_HeaderRow"> 
+                        <th class="DataGrid_Header_Cell">Locator</th>
+                        <th class="DataGrid_Header_Cell">X</th>
+                        <th class="DataGrid_Header_Cell">Y</th>
+                        <th class="DataGrid_Header_Cell">Z</th>
+                        <th class="DataGrid_Header_Cell">Producto</th>
+                        <th class="DataGrid_Header_Cell">Safety Stock</th>
+                        <th class="DataGrid_Header_Cell">Qty on Hand</th>
+                        <th class="DataGrid_Header_Cell">Required Qty</th>                                                                                               
+                      </tr>                                           
+                      <div id="sectionSelectedDetail"> 
+                        <tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow1xx">
+                          <td width="10%" class="DataGrid_Body_Cell">
+                            <a href="#" onclick="OpenLocatorTab('yy');" onmouseover="window.status='Locator';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldLocatorMId">
+                              <span id="fieldLocatorValue">xxY</span>
+                            </a>
+                          </td>
+                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorX">xxY</td>
+                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorY">xxY</td>
+                          <td width="4%" class="DataGrid_Body_Cell" id="fieldLocatorZ">xxY</td>                          
+                          <td width="10%" class="DataGrid_Body_Cell">
+                            <a href="#" onclick="OpenProductTab('yy');" onmouseover="window.status='Product';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldProductId">
+                              <span id="fieldProduct">xxY</span>
+                            </a>
+                          </td>                          
+                          <td width="6%" class="DataGrid_Body_Cell" id="fieldStockMin">xxY</td>     
+                          <td width="6%" class="DataGrid_Body_Cell" id="fieldQtyOnHand">xxY</td>     
+                          <td width="6%" class="DataGrid_Body_Cell" id="fieldRequiredQty">xxY</td>     
+                        </tr>                        
+                      </div>              
+                      </div>                                            
+                </table>
+             
+              
+              </td>
+            </tr>            
+          </table>                       
+        </div>              
+   
+                                
+                        <!-- USER CONTROLS -->                                                          
+                </td>
+              </tr>                                                      
+              </table>                       
+              </td>
+            </tr>               
+          </table>  
+        </div>             
+        
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

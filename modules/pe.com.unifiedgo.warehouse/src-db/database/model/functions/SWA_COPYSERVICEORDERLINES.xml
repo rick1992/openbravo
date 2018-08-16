@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_COPYSERVICEORDERLINES">
+    <function name="SWA_COPYSERVICEORDERLINES" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32):='0';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    CUR_SInOrderLine RECORD;
+ 
+    v_NextNo VARCHAR2(32) ;
+    v_count NUMBER(10):=0;
+    v_PInstance_Log_ID VARCHAR2(32);
+    v_Client_ID VARCHAR2(32);
+    v_Aux NUMBER;
+
+    v_ssa_serviceorder_id VARCHAR(32);
+    v_receipt_locator_id VARCHAR(32);
+    v_ad_client_ID VARCHAR(32);
+    v_ad_org_ID VARCHAR(32);
+    v_c_bpartner_id VARCHAR(32);
+    v_m_warehouse_id VARCHAR(32);
+    v_line NUMBER;
+
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+         FROM AD_PInstance i
+           LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+         WHERE i.AD_PInstance_ID=p_PInstance_ID
+         ORDER BY p.SeqNo) 
+      LOOP
+	  v_Record_ID:=Cur_Parameter.Record_ID;
+          v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      RAISE NO_DATA_FOUND;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+  BEGIN --BODY 
+
+    SELECT AD_Client_ID, AD_Org_ID,  em_swa_m_warehouse_id, em_swa_serviceorder_id
+      INTO v_ad_client_ID, v_ad_org_ID, v_m_warehouse_id, v_ssa_serviceorder_id
+      FROM m_production
+    WHERE m_production_id = v_Record_ID FOR UPDATE;
+
+    IF(v_ssa_serviceorder_id IS NULL OR v_ssa_serviceorder_id='') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SRE_CopyServiceOrderLiInvalidSO@') ;
+    END IF;
+
+    SELECT em_swa_receipt_locator_id
+      INTO v_receipt_locator_id
+      FROM M_Warehouse
+    WHERE M_Warehouse_ID = v_m_warehouse_id;
+
+    
+    IF(v_receipt_locator_id IS NULL OR v_receipt_locator_id='') THEN
+      --Find the default locator
+      SELECT m_locator_id
+        INTO v_receipt_locator_id
+        FROM M_Locator
+      WHERE M_Warehouse_ID = v_m_warehouse_id AND
+            isdefault = 'Y' LIMIT 1;
+
+      IF(v_receipt_locator_id IS NULL OR v_receipt_locator_id='') THEN
+        --Find the first locator by priority
+        SELECT m_locator_id
+          INTO v_receipt_locator_id
+          FROM M_Locator
+        WHERE M_Warehouse_ID = v_m_warehouse_id ORDER BY priorityno LIMIT 1;
+      END IF;
+    END IF;
+
+    IF(v_receipt_locator_id IS NULL)THEN
+      RAISE_APPLICATION_ERROR(-20000, '@Swa_warehouseWhitoutLocator@') ;
+    END IF;
+
+    
+
+
+    --Find the next line number
+    SELECT COALESCE(MAX(Line),0)+10 
+      INTO v_line 
+      FROM M_ProductionPlan
+    WHERE M_Production_ID=v_Record_ID;
+
+    FOR CUR_SInOrderLine IN
+    (SELECT * FROM C_OrderLine WHERE C_Order_ID = v_ssa_serviceorder_id)
+    LOOP
+      SELECT count(*)
+        INTO v_Aux
+        FROM M_ProductionPlan
+      WHERE  AD_Client_ID = v_ad_client_ID AND
+	     m_production_id = v_Record_ID AND
+             em_swa_serviceorderline_id = CUR_SInOrderLine.C_Orderline_ID LIMIT 1;
+
+      IF(v_Aux<>0) THEN
+        CONTINUE;
+      END IF;
+
+      AD_Sequence_Next('M_ProductionPlan', v_ad_client_ID, v_NextNo) ;
+
+      INSERT INTO m_productionplan(
+                 m_productionplan_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+                 updated, updatedby, line, m_production_id,
+                 em_swa_serviceorderline_id, m_product_id,  productionqty,  
+                 m_locator_id)
+       VALUES (  v_NextNo, v_ad_client_id, v_ad_org_id, 'Y', now(), v_AD_User_ID, 
+                  now(), v_AD_User_ID, v_line, v_Record_ID, 
+                  CUR_SInOrderLine.C_Orderline_ID,  CUR_SInOrderLine.m_product_id,  CUR_SInOrderLine.qtyordered,
+                  v_receipt_locator_id
+              );
+     
+  
+      v_line := v_line + 10;
+    END LOOP;
+
+    v_Message:=v_Message || '@SRE_CopyServiceOrderLiSuccessful@';
+
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Finished ' || v_Message) ;
+    END IF;
+    RETURN;
+    
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  END IF;
+--  RETURN;
+END SWA_COPYSERVICEORDERLINES
+]]></body>
+    </function>
+  </database>

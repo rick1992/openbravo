@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BILLOFEX_MANUALTERM_TRG">
+    <trigger name="SCO_BILLOFEX_MANUALTERM_TRG" table="SCO_BILLOFEXCHANGE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(UPDATING) THEN
+    IF(:OLD.ismanualterm <> :NEW.ismanualterm) THEN
+      SELECT count(*)
+        INTO v_n
+        FROM SCO_Boe_Manualterm
+      WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID LIMIT 1;
+
+      IF(v_n <> 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEChangeManualtermHasLines@');
+      END IF;
+    END IF;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.ismanualterm = 'Y') THEN
+      :NEW.c_paymentterm_id = NULL;
+    ELSE
+      IF(:NEW.c_paymentterm_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEAutoPaytermNeedsPaymentTerm@');
+      END IF;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.c_paymentterm_id,'') <> COALESCE (:NEW.c_paymentterm_id,'')
+    OR :OLD.ismanualterm <> :NEW.ismanualterm) THEN
+      IF(:NEW.ismanualterm = 'Y') THEN
+        :NEW.c_paymentterm_id = NULL;
+      ELSE
+        IF(:NEW.c_paymentterm_id IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_BOEAutoPaytermNeedsPaymentTerm@');
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.ismanualterm = 'N') THEN
+      SELECT COALESCE(count(*),0)
+        INTO v_n
+        FROM sco_boetermline
+      WHERE C_Paymentterm_ID = :NEW.C_Paymentterm_ID;
+
+      :NEW.numofboes := v_n;
+    ELSE
+      SELECT COALESCE(count(*),0)
+        INTO v_n
+        FROM SCO_Boe_Manualterm
+      WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID;
+
+      :NEW.numofboes := v_n;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.c_paymentterm_id,'') <> COALESCE (:NEW.c_paymentterm_id,'')
+    OR :OLD.ismanualterm <> :NEW.ismanualterm) THEN
+      IF(:NEW.ismanualterm = 'N') THEN
+        SELECT COALESCE(count(*),0)
+          INTO v_n
+          FROM sco_boetermline
+        WHERE C_Paymentterm_ID = :NEW.C_Paymentterm_ID;
+
+        :NEW.numofboes := v_n;
+
+      ELSE
+        SELECT COALESCE(count(*),0)
+          INTO v_n
+          FROM SCO_Boe_Manualterm
+        WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID;
+
+        :NEW.numofboes := v_n;
+      END IF;
+    END IF;
+  END IF; 
+
+  
+
+  END SCO_BILLOFEX_MANUALTERM_TRG
+]]></body>
+    </trigger>
+  </database>

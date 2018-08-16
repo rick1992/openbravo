@@ -1,0 +1,235 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_PRODUCTION_PROCESS_PICKING">
+    <function name="SWA_PRODUCTION_PROCESS_PICKING" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1;
+  v_Record_ID VARCHAR2(32);
+  v_M_PriceList_Version_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Client_ID VARCHAR2(32);
+  v_Warehouse_id VARCHAR2(32);
+  v_MLocatorPrdID VARCHAR2(32);
+  v_combo_item_id VARCHAR2(32);
+  v_movement_id VARCHAR2(32);
+  v_NameFrom NVARCHAR2(60) ;
+  v_NameTo NVARCHAR2(60) ;
+  v_documentno NVARCHAR2(30) ;
+  v_pinstance_id VARCHAR2(32);
+  v_Count NUMBER:=1;
+  v_ValidFrom DATE;
+  v_Line NUMBER; 
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_pickview RECORD;
+
+  v_pinstance_result AD_PInstance.result%TYPE;
+  v_pinstance_msg AD_PInstance.errormsg%TYPE;
+
+  BEGIN
+    v_ResultStr:='Checking stock';
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+     
+   --v_Record_Id representa el obw_pickinglist_id
+   --DATOS GENERALES
+   SELECT ad_client_id, documentno, em_swa_m_warehouse_id 
+     INTO v_Client_ID, v_documentno ,v_Warehouse_id 
+     FROM obwpl_pickinglist WHERE obwpl_pickinglist_id = v_Record_ID;
+
+   --Obteniendo una Ubicación de Producción
+   SELECT M_LOCATOR_ID INTO v_MLocatorPrdID 
+     FROM M_LOCATOR 
+    WHERE ISACTIVE='Y' 
+      AND M_WAREHOUSE_ID = v_Warehouse_id 
+      AND EM_OBWHS_Type='swa_PRD' ORDER BY priorityno asc limit 1;
+
+
+
+   IF(v_MLocatorPrdID IS NULL)THEN
+     RAISE_APPLICATION_ERROR(-20000,'@swa_locator_nofoundtype_prd@');
+   END IF;
+   ----------------------------------------------------------------------
+
+   --Obteniendo el combo item para ingreso y salida por concepto de movimiento entre ubicaciones
+    SELECT scr_combo_item_id
+     INTO v_combo_item_id
+     FROM scr_combo_item WHERE 
+    VALUE = 'MovimientoInterno' 
+      AND ad_client_id = v_Client_ID
+      AND isactive='Y';
+   
+   FOR Cur_pickview IN (
+        SELECT PL.* FROM M_PRODUCTIONLINE PL
+          INNER JOIN swa_pickinglist_lines_v SP ON SP.m_productionline_id = PL.M_PRODUCTIONLINE_ID
+          INNER JOIN m_product P ON P.M_Product_ID = PL.M_Product_id
+          WHERE SP.em_swa_pickinglist_id = v_Record_ID 
+          AND  P.isstocked = 'Y' FOR UPDATE
+   )LOOP
+       
+   
+       
+        SWA_RESERVATION_REMOVE(Cur_pickview.m_productionline_id, 'PRO');
+       
+        IF(Cur_pickview.M_Locator_ID <> v_MLocatorPrdID )THEN
+         v_Line:=10;
+         v_movement_id:=get_uuid();
+         INSERT INTO m_movement (
+          m_movement_id, ad_client_id, ad_org_id, isactive,
+          Created, CreatedBy, Updated, UpdatedBy,
+          name, movementdate, processing, em_swa_m_warehouse_id, 
+          em_swa_combo_item_id
+         )
+         VALUES (
+          v_movement_id, Cur_pickview.AD_Client_ID, Cur_pickview.AD_Org_ID, 'Y',
+          now(), v_User_ID, now(), v_User_ID,
+          'Produccion - Picking: ' || COALESCE(v_documentno,'--') , now(), 'N',v_Warehouse_id, 
+          v_combo_item_id
+         );
+
+         INSERT INTO m_movementline (
+          m_movementline_id, ad_client_id, ad_org_id, isactive,
+          Created, CreatedBy, Updated, UpdatedBy,m_movement_id,
+          line, m_locator_id, m_locatorto_id, m_product_id,
+          c_uom_id, movementqty
+         )
+         VALUES (
+          get_uuid(),Cur_pickview.AD_Client_ID, Cur_pickview.AD_Org_ID, 'Y',
+          now(), v_User_ID, now(), v_User_ID, v_movement_id,
+          v_line, Cur_pickview.M_Locator_ID, v_MLocatorPrdID, Cur_pickview.M_Product_ID,
+          Cur_pickview.C_UOM_ID,  Cur_pickview.MovementQty*-1
+         );
+
+	 /*****
+	 */ --ad_process_id 122 m_movementpost
+            /*
+	   v_pinstance_id := get_uuid();
+	    INSERT INTO ad_pinstance (
+	     ad_pinstance_id, ad_process_id, record_id, isactive, 
+	     ad_user_id, ad_client_id, ad_org_id, created, createdby,
+  	     updated, updatedby
+	    ) VALUES (
+	     v_pinstance_id, '122', v_record_id, 'Y',
+	     v_User_ID, Cur_pickview.AD_Client_ID, Cur_pickview.AD_Org_ID, now(), v_User_ID,
+	     now(), v_User_ID
+	    );*/
+	   
+
+	    --PERFORM M_Movement_Post(v_pinstance_ID);
+	    M_MOVEMENT_POST0(null,v_movement_id);
+
+
+	   /* SELECT result, errormsg
+	      INTO v_pinstance_result, v_pinstance_msg
+	      FROM ad_pinstance
+	     WHERE ad_pinstance_id = v_pinstance_id;
+		    
+	     IF (v_pinstance_result = 0) THEN
+		RAISE_APPLICATION_ERROR(-20000, v_pinstance_msg);
+	     END IF;*/
+         END IF;
+       -- Movimiento de la uicación de picking hacia la Ubicacion de Producción
+       -- FROM
+         /* INSERT
+          INTO M_Transaction
+            (
+              M_Transaction_ID, AD_Client_ID, AD_Org_ID, IsActive,
+              Created, CreatedBy, Updated, UpdatedBy,
+              MovementType, M_Locator_ID, M_Product_ID, M_AttributeSetInstance_ID,
+              MovementDate, MovementQty, M_productionline_id, M_Product_UOM_ID,
+              QuantityOrder, C_UOM_ID,em_ssa_combo_item_id
+            )
+            VALUES
+            (
+              get_uuid(), Cur_pickview.AD_Client_ID, Cur_pickview.AD_Org_ID, 'Y',
+              now(), v_User_ID, now(), v_User_ID,
+              'M-', Cur_pickview.M_Locator_ID, Cur_pickview.M_Product_ID, 0,
+              now(), (Cur_pickview.MovementQty), Cur_pickview.M_productionline_id, null,
+              null, Cur_pickview.C_UOM_ID,v_combo_item_id
+            )
+            ;
+
+       -- TO
+          INSERT
+          INTO M_Transaction
+            (
+              M_Transaction_ID, AD_Client_ID, AD_Org_ID, IsActive,
+              Created, CreatedBy, Updated, UpdatedBy,
+              MovementType, M_Locator_ID, M_Product_ID, M_AttributeSetInstance_ID,
+              MovementDate, MovementQty, M_productionline_id, M_Product_UOM_ID,
+              QuantityOrder, C_UOM_ID,em_ssa_combo_item_id
+            )
+            VALUES
+            (
+              get_uuid(), Cur_pickview.AD_Client_ID, Cur_pickview.AD_Org_ID, 'Y',
+              now(),v_User_ID, now(), v_User_ID,
+              'M+', v_MLocatorPrdID,Cur_pickview.M_Product_ID, 0,
+              now(), (Cur_pickview.MovementQty*-1), Cur_pickview.M_productionline_id, null,
+              null, Cur_pickview.C_UOM_ID,v_combo_item_id
+            )
+            ; */
+
+            --Actualizar el Producionline con la nueva ubicacion
+            UPDATE M_PRODUCTIONLINE
+               SET M_LOCATOR_ID = v_MLocatorPrdID
+             WHERE M_PRODUCTIONLINE_ID = Cur_pickview.m_productionline_id;
+
+            --Luego de hacer el movimiento, se debe de Reservar en la nueva ubicacion
+            --Ya no hay mas reserva de esto
+            -- PERFORM SWA_RESERVATION_CREATE(Cur_pickview.m_productionline_id, 'PRO');
+
+           
+
+       
+   END LOOP;
+
+ 
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+
+
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END SWA_PRODUCTION_PROCESS_PICKING
+]]></body>
+    </function>
+  </database>

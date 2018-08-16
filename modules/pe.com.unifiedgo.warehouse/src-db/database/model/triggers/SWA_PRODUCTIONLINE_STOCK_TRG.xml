@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_PRODUCTIONLINE_STOCK_TRG">
+    <trigger name="SWA_PRODUCTIONLINE_STOCK_TRG" table="M_PRODUCTIONLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[  v_n NUMBER;
+  v_AreaByUser VARCHAR(32);
+  v_em_swa_m_warehouse_id VARCHAR(32);
+  v_em_swa_state_tmp_bom VARCHAR(60);
+  v_qty_available NUMBER;
+  v_processed CHAR;
+  v_swa_pickinglist_generate CHARACTER:='N';
+  
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF (INSERTING)THEN
+   :NEW.em_swa_m_locator_tmp_id:=:NEW.M_LOCATOR_ID;
+  END IF;
+
+  IF (UPDATING)THEN
+   
+   IF(:OLD.M_LOCATOR_ID <> :NEW.M_LOCATOR_ID)THEN
+   
+     SELECT em_swa_pickinglist_generate INTO v_swa_pickinglist_generate FROM M_PRODUCTION P
+       INNER JOIN M_PRODUCTIONPLAN PP ON PP.M_PRODUCTION_ID = P.M_PRODUCTION_ID
+        WHERE PP.m_productionplan_id = :NEW.M_PRODUCTIONPLAN_ID;
+      IF(v_swa_pickinglist_generate='N') THEN  
+         :NEW.em_swa_m_locator_tmp_id:=:NEW.M_LOCATOR_ID;
+     END IF;
+   END IF;
+  END IF;
+
+
+  IF (INSERTING OR UPDATING) THEN
+     
+     SELECT em_swa_m_warehouse_id 
+       INTO v_em_swa_m_warehouse_id
+       FROM M_PRODUCTION 
+            inner join m_productionplan ON M_PRODUCTION.M_PRODUCTION_ID = m_productionplan.M_PRODUCTION_ID
+      WHERE m_productionplan.m_productionplan_id=:NEW.M_productionplan_id LIMIT 1 ;
+   
+   IF (v_em_swa_m_warehouse_id IS NOT NULL) THEN
+
+      v_qty_available:=swa_product_getstock(:NEW.M_PRODUCT_ID,v_em_swa_m_warehouse_id,:NEW.M_LOCATOR_ID,6);
+      :NEW.em_swa_qty_available:=v_qty_available;
+
+   END IF;
+  END IF; 
+
+  IF (DELETING) THEN
+    SELECT p.em_swa_state_tmp_bom,   p.processed
+      INTO v_em_swa_state_tmp_bom ,v_processed
+      FROM m_production p
+        INNER JOIN m_productionplan pl on p.m_production_id = pl.m_production_id  
+     WHERE pl.m_productionplan_id = :OLD.m_productionplan_id;
+
+     IF(v_processed='Y')THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_cannotdeletebillprocessed@');
+     END IF;
+   
+  END IF;
+
+  
+  END SWA_PRODUCTIONLINE_STOCK_TRG
+]]></body>
+    </trigger>
+  </database>

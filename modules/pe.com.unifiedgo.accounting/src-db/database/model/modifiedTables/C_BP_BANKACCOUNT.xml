@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE C_BP_BANKACCOUNT">
+    <table name="C_BP_BANKACCOUNT" primaryKey="C_BP_BANKACCOUNT_KEY">
+      <column name="EM_SCO_C_CURRENCY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISDETRACTION" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_FORTELECREDIT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ACCOUNTTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[SCO_ACC]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CODEBANK" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[02]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="C_CURRENCY" name="EM_SCO_BPBANKACCT_CURR_FK">
+        <reference local="EM_SCO_C_CURRENCY_ID" foreign="C_CURRENCY_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_BPBANKACCT_DETRAC_CHK"><![CDATA[EM_SCO_ISDETRACTION IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_BPBANKACCT_FORTEL_CHK"><![CDATA[EM_SCO_FORTELECREDIT IN ('Y', 'N')]]></check>
+    </table>
+  </database>

@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_MOVEMENTCODE_UPDATECOST">
+    <function name="SWA_MOVEMENTCODE_UPDATECOST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_docaction VARCHAR2(60);
+  v_docstatus VARCHAR2(60);
+  v_Result NUMBER:=1; -- Success
+  v_fromrequerimiento_id VARCHAR2(32);
+  v_swa_requirement_request_id VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_description VARCHAR2(100);
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  Cur_movementplan RECORD;
+  v_currency_sol VARCHAR(32):='308';
+  v_cost NUMBER:=0;
+  v_tocost NUMBER:=0;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+
+
+    FOR Cur_movementplan IN (
+        SELECT * FROM SWA_MOVEMENTCODE_PLAN WHERE SWA_MOVEMENTCODE_ID = v_Record_ID
+    )
+    LOOP
+
+        SELECT COALESCE(price,0) 
+          INTO v_cost 
+          FROM M_Costing  
+         WHERE M_Product_ID = Cur_movementplan.m_product_id 
+           AND c_currency_id = v_currency_sol 
+           AND datefrom <= now() 
+           AND dateto > now() order by dateTo desc limit 1;
+
+        SELECT COALESCE(price,0) 
+          INTO v_tocost 
+          FROM M_Costing  
+         WHERE M_Product_ID = Cur_movementplan.m_to_product_id 
+           AND c_currency_id = v_currency_sol 
+           AND datefrom <= now() 
+           AND dateto > now() order by dateTo desc limit 1;
+
+      UPDATE SWA_MOVEMENTCODE_PLAN
+        SET cost = COALESCE(v_cost,0),
+           tocost = COALESCE(v_tocost,0)
+       WHERE SWA_MOVEMENTCODE_PLAN_ID  =Cur_movementplan.SWA_MOVEMENTCODE_PLAN_ID;
+
+    END LOOP;
+
+
+
+    
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_MOVEMENTCODE_UPDATECOST
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVLINE_UPDATESPDOC_TRG">
+    <trigger name="SCO_INVLINE_UPDATESPDOC_TRG" table="C_INVOICELINE" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialdoctypep VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    SELECT em_sco_specialdoctype, em_ssa_specialdoctypeplus
+      INTO v_specialdoctype, v_specialdoctypep 
+      FROM C_Invoice 
+     WHERE C_Invoice_ID = :NEW.c_invoice_id;
+     
+    :NEW.em_sco_specialdoctype := v_specialdoctype;
+    :NEW.em_ssa_specialdoctypeplus := v_specialdoctypep;
+
+    END SCO_INVLINE_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

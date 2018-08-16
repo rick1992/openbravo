@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_ORDER_TICKETINV_CHK_TRG">
+    <trigger name="SSA_ORDER_TICKETINV_CHK_TRG" table="C_ORDER" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_specialDocType VARCHAR(60);
+v_ordertype_oldvalue VARCHAR(60);
+v_ordertype_newvalue VARCHAR(60);
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF (UPDATING) THEN
+    SELECT em_sco_specialdoctype INTO v_specialDocType FROM C_Doctype WHERE C_Doctype_ID = :NEW.C_DoctypeTarget_ID;
+    IF(:NEW.IsSOTrx='Y' AND v_specialDocType IN ('SSASTANDARDORDER','SSAWAREHOUSEORDER','SSAPOSORDER')) THEN
+      IF(COALESCE(:OLD.em_ssa_combo_item_id)<>COALESCE(:NEW.em_ssa_combo_item_id )) THEN
+        SELECT value INTO v_ordertype_oldvalue FROM SCR_Combo_Item WHERE SCR_Combo_Item_ID = :OLD.em_ssa_combo_item_id;
+        SELECT value INTO v_ordertype_newvalue FROM SCR_Combo_Item WHERE SCR_Combo_Item_ID = :NEW.em_ssa_combo_item_id;
+        IF((COALESCE(v_ordertype_oldvalue,'') IN ('boletadeventa','muestraboleta') AND COALESCE(v_ordertype_newvalue,'') NOT IN ('boletadeventa','muestraboleta')) OR (COALESCE(v_ordertype_oldvalue,'') NOT IN ('boletadeventa','muestraboleta') AND COALESCE(v_ordertype_newvalue,'') IN ('boletadeventa','muestraboleta'))) THEN
+          SELECT COUNT(*)
+            INTO v_n
+            FROM C_ORDERLINE
+          WHERE C_Order_ID = :NEW.C_Order_ID;
+
+          IF v_n>0 THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesOrderTicketInvHasLines@') ;
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+END SSA_ORDER_TICKETINV_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

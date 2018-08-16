@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="DocLineCodeChangeData" package="pe.com.unifiedgo.accounting.posting">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT swa_movementcode_product.swa_movementcode_product_id, swa_movementcode_product.AD_CLIENT_ID, swa_movementcode_product.AD_ORG_ID AS AD_ORG_ID,
+          swa_movementcode_product.ISACTIVE, swa_movementcode_product.swa_movementcode_id, 
+        swa_movementcode_product.LINE, swa_movementcode_product.m_product_id, swa_movementcode_product.m_to_product_id, swa_movementcode_product.qtyordered 
+        FROM swa_movementcode_product
+        WHERE swa_movementcode_id = ?
+        ORDER BY qtyordered ASC
+     ]]>
+     </Sql>
+     <Parameter name="swa_movementcode_id"/>
+   </SqlMethod>
+  <SqlMethod name="selectTotal" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT swa_movementcode_product.swa_movementcode_product_id, swa_movementcode_product.AD_CLIENT_ID, swa_movementcode_product.AD_ORG_ID AS AD_ORG_ID,
+          swa_movementcode_product.ISACTIVE, swa_movementcode_product.swa_movementcode_id, 
+        swa_movementcode_product.LINE, swa_movementcode_product.m_product_id, swa_movementcode_product.m_to_product_id, swa_movementcode_product.qtyordered
+        FROM swa_movementcode_product
+        WHERE swa_movementcode_id = ?
+        ORDER BY qtyordered ASC
+     ]]>
+     </Sql>
+     <Parameter name="swa_movementcode_id"/>
+   </SqlMethod>
+   
+  </SqlClass>

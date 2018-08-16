@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_COPYCMBITEMS">
+    <function name="SCO_COPYCMBITEMS" type="NULL">
+      <body><![CDATA[TYPE RECORD IS REF CURSOR;
+    CUR_Combo_Item RECORD;
+    ad_client_from_id VARCHAR(32);
+    ad_client_to_id VARCHAR(32);
+
+    v_Aux NUMBER;
+
+    CUR_Combo_Category_From RECORD;
+    v_combo_category_ID VARCHAR(32);
+    v_NextNo VARCHAR(32);
+BEGIN
+
+
+  ad_client_from_id := 'EE99571F4CAE43558D83E861738CF510';
+  ad_client_to_id := 'AF645935B14444CA8AD4A94FE6B2AF68';
+
+
+  FOR CUR_Combo_Item IN
+    (SELECT * FROM SCR_Combo_Item
+     WHERE AD_Client_ID=ad_client_from_id
+           AND AD_Org_ID = '0'
+    )
+  LOOP
+
+    SELECT *
+      INTO CUR_Combo_Category_From
+      FROM SCR_Combo_Category
+    WHERE SCR_Combo_Category_ID = CUR_Combo_Item.SCR_Combo_Category_ID;
+
+    IF(CUR_Combo_Category_From.value IS NULL OR CUR_Combo_Category_From.value='') THEN
+      CONTINUE;
+    END IF;
+
+    --Get the combo category if it doesnt exists create it
+    SELECT SCR_Combo_Category_ID
+      INTO v_combo_category_ID
+      FROM SCR_Combo_Category
+    WHERE AD_Client_ID=ad_client_to_id AND
+          value = CUR_Combo_Category_From.value;
+
+    IF(v_combo_category_ID IS NULL OR v_combo_category_ID='') THEN
+      AD_Sequence_Next('SCR_Combo_Category', ad_client_to_id, v_combo_category_ID);
+      INSERT INTO scr_combo_category(
+            scr_combo_category_id, ad_client_id, ad_org_id, isactive, created, 
+            createdby, updated, updatedby, value, name, description)
+      VALUES (
+            v_combo_category_ID, ad_client_to_id, '0', 'Y', now(), 
+            '100', now(), '100', CUR_Combo_Category_From.value, CUR_Combo_Category_From.name, CUR_Combo_Category_From.description);
+
+    END IF;
+
+    SELECT Count(*)
+      INTO v_Aux
+      FROM SCR_Combo_Item
+    WHERE AD_Client_ID=ad_client_to_id AND
+          value = CUR_Combo_Item.value AND
+          scr_combo_category_id = v_combo_category_ID;
+
+    IF(v_Aux=0) THEN
+      AD_Sequence_Next('SCR_Combo_Item', ad_client_to_id, v_NextNo);
+      INSERT INTO scr_combo_item(
+            scr_combo_item_id, ad_client_id, ad_org_id, isactive, created, 
+            createdby, updated, updatedby, value, name, scr_combo_category_id, 
+            seqno, description, code, approvision)
+      VALUES (
+            v_NextNo, ad_client_to_id, '0', 'Y', now(), 
+            '100', now(), '100', CUR_Combo_Item.value, CUR_Combo_Item.name, v_combo_category_ID, 
+             CUR_Combo_Item.seqno,  CUR_Combo_Item.description,  CUR_Combo_Item.code,  CUR_Combo_Item.approvision);
+    END IF;
+          
+  END LOOP;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_COPYCMBITEMS
+]]></body>
+    </function>
+  </database>

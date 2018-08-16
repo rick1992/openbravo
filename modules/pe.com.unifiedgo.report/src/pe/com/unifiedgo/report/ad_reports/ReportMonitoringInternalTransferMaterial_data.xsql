@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportMonitoringInternalTransferMaterialData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="generalmethod" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+		select 
+		
+		to_char(mio.movementdate,'DD/MM/YYYY')  as fecha
+		
+		,mio.em_scr_physical_documentno as documento_salida
+		
+		,(select name from m_warehouse mwh where mwh.m_warehouse_id= srr.from_m_warehouse_id) as almacen_salida
+		
+		,mio.documentno as documento_salida2
+		
+		,COALESCE((select mio2.documentno from swa_requerimientoreposicion srr2 
+		inner join m_inout mio2 on srr2.swa_requerimientoreposicion_id=mio2.em_swa_requireposicion_id 
+		where srr2.swa_fromrequerimiento_id=srr.swa_requerimientoreposicion_id and mio2.docstatus='CO' and mio2.issotrx='N' ),'-') as documento_entrada
+		
+		,(select name from m_warehouse mwh where mwh.m_warehouse_id= srr.to_m_warehouse_id) as almacen_llegada
+		
+		,(select name from m_product mp where mp.m_product_id=miol.m_product_id) as producto
+		
+		,(select coalesce(cut.name,coalesce(cu.name,'')) from m_product mp 
+		inner join c_uom cu on mp.c_uom_id=cu.c_uom_id
+		right join c_uom_trl cut on cu.c_uom_id=cut.c_uom_id
+		where mp.m_product_id=miol.m_product_id and cut.ad_language='es_PE') as unidad_medida
+		
+		,coalesce(miol.movementqty,0) as cantidad_salida
+		
+		,COALESCE((select coalesce( miol2.movementqty,0) from swa_requerimientoreposicion srr2 
+		inner join m_inout mio2 on srr2.swa_requerimientoreposicion_id=mio2.em_swa_requireposicion_id 
+		inner join m_inoutline miol2 on mio2.m_inout_id=miol2.m_inout_id 
+		where srr2.swa_fromrequerimiento_id=srr.swa_requerimientoreposicion_id and mio2.issotrx='N' and mio2.docstatus='CO'
+		and miol2.m_product_id=miol.m_product_id),0) as cantidad_entrada 
+		
+		,(miol.movementqty - COALESCE((select coalesce( miol2.movementqty,0) from swa_requerimientoreposicion srr2 
+		inner join m_inout mio2 on srr2.swa_requerimientoreposicion_id=mio2.em_swa_requireposicion_id 
+		inner join m_inoutline miol2 on mio2.m_inout_id=miol2.m_inout_id 
+		where srr2.swa_fromrequerimiento_id=srr.swa_requerimientoreposicion_id and mio2.issotrx='N' and mio2.docstatus='CO' and miol2.m_product_id=miol.m_product_id),0)) as saldo 
+		
+		from m_inout  mio 
+		inner join ad_org ao on mio.ad_org_id=ao.ad_org_id
+		inner join swa_requerimientoreposicion srr on mio.em_swa_requireposicion_id=srr.swa_requerimientoreposicion_id
+		inner join m_inoutline miol on mio.m_inout_id=miol.m_inout_id
+		
+		where mio.issotrx='Y' and mio.docstatus!='VO' and mio.em_swa_asociate_inout_id!='' 
+		and ao.ad_client_id IN ('1') 
+		and ao.ad_org_id in ('1') 
+		and 1=1   
+		order by almacen_salida,fecha
+		
+		
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="and ao.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and ao.ad_org_id in (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ and mio.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ and mio.movementdate < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

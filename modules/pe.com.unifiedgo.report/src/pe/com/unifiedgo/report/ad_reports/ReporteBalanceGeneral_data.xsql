@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteBalanceGeneralData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_cro_pag_imp" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+		
+
+	
+		select  order1,categoria,order2,sub_categoria,grupo_categoria,
+		COALESCE(sum(saldo),0) as saldo_anual,
+		COALESCE(sum(saldo2),0) as saldo_mensual
+					,'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal
+	
+		
+		from (
+		SELECT 
+		sec.seqno as order1,
+		sesc.seqno as order2,
+		sec.description as categoria
+		,sesc.description as sub_categoria,
+		COALESCE((select sum( fa.amtacctdr - fa.amtacctcr ) from fact_acct fa where fa.factaccttype in ('N','A') and fa.acctvalue ilike sesa.account 
+		and cast(fa.dateacct as date ) BETWEEN to_date('01-01-2016')  and to_date('31-12-2016')),0.0) as saldo,
+		COALESCE((select sum( fa.amtacctdr -fa.amtacctcr ) from fact_acct fa where fa.factaccttype in ('N','A')  and fa.acctvalue ilike sesa.account
+		and cast(fa.dateacct as date ) BETWEEN to_date('01-07-2016') and to_date('31-07-2016')),0.0) as saldo2
+		,(select COALESCE(arlt.name , arl.name) from ad_ref_list arl 
+		inner join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+		where arl.value=sec.catgroup and arlt.ad_language='es_PE' limit 1)as grupo_categoria
+				
+		FROM sco_eeff_category sec 
+		inner join sco_eeff_subcategory sesc on sec.sco_eeff_category_id=sesc.sco_eeff_category_id
+		left join sco_eeff_subcat_accts sesa on sesc.sco_eeff_subcategory_id=sesa.sco_eeff_subcategory_id
+		
+		where 
+		sec.type='SCO_BG'  and 
+		sec.seqno in (1,2)
+		AND sec.ad_org_id='3D64A6C76D214C31B43C58B8FF84CE50' 
+				and sec.ad_client_id IN ('1') 
+		and sec.ad_org_id in ('1') 
+		
+		order by 1,2) as t1
+		GROUP BY 1,2,3,4,5
+		
+		ORDER BY 1,3
+
+		
+
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+
+     <Parameter name="adUserClient" type="replace" optional="true" after="and sec.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and sec.ad_org_id in (" text="'1'"/>        
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+</SqlClass>

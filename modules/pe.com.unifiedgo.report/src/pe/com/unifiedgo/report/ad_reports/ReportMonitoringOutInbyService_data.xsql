@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportMonitoringOutInbyServiceData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+  <SqlMethod name="selectOrders" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+            select 
+					
+					'movimiento' as tipo_linea,
+            
+            
+            ser.c_order_id as ordenservicioid,
+            ser.documentno as nroordenservicio,
+            to_char(ser.dateordered) as fechaordenservicio,
+            
+            (select name from m_product where m_product_id = lin.m_product_id) as servicio,
+            
+            proser.value as codigoproductodelservicio,
+            proser.name as productodelservicio,
+            
+            bp.c_bpartner_id as tercero_id,
+            bp.taxid||' - '||bp.name as proveedor,
+            
+            proin.value as codigoinsumo,
+            proin.name as insumo,
+            proin.m_product_id as producto_id,
+            
+            coalesce((select sum(l.movementqty) from m_inout i
+            join m_inoutline l on i.m_inout_id = l.m_inout_id
+            where l.em_sre_serviceorderline_id = sol.sre_serviceorderline_id
+            and i.issotrx = 'Y' and i.docstatus in ('CO') ),0.00) as cantidaddesalida,/* Documento De Salida */
+            
+            	COALESCE (
+				(
+					SELECT
+						SUM (l.movementqty)
+					FROM
+						m_inout i
+					JOIN m_inoutline l ON i.m_inout_id = l.m_inout_id
+					WHERE
+						(l.c_orderline_Id = lin.c_orderline_id or l.em_sre_serviceinorderline_id=lin.c_orderline_id)
+					AND i.issotrx = 'N'
+					AND i.docstatus IN ('CO')
+				),
+				0.0
+			)*pb.bomqty AS cantidadeentrada,			/* Nota De Ingreso */
+            
+            0.0 as saldo
+            
+            from c_order ser
+            join c_bpartner bp on ser.c_bpartner_id = bp.c_bpartner_id
+            
+            join c_orderline lin on ser.c_order_id = lin.c_order_id
+            
+            /* Producto relacionado con el servicio */
+            join m_product proser on lin.m_product_id = proser.m_product_id
+            
+            /* Lista de Materiales del Producto Relacionado con el Servicio */
+            join m_product_bom pb on proser.m_product_id = pb.m_product_id
+            
+            /* Insumos */
+            join m_product proin on pb.m_productbom_id = proin.m_product_id
+            
+            /* Linea de servicio relacionada con la linea de la orden y el insumo que */
+            /* necesita para generar el producto relacionado con el servicio */
+            left join sre_serviceorderline sol on lin.c_orderline_id = sol.c_orderline_id
+            and proin.m_product_id = sol.m_product_id
+            
+            where
+            			 ser.ad_client_id in ('1') 
+			 and ser.ad_org_id in ('1') and 
+             ser.em_ssa_isserviceorder = 'Y' and proin.isbom='Y'  
+            and ser.docstatus in ('CO')
+            and 1=1
+            
+            order by bp.taxid||' - '||bp.name,proin.name,ser.dateordered,ser.documentno
+            
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="adUserClient" type="replace" optional="true" after="ser.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and ser.ad_org_id in (" text="'1'"/>  
+    
+    <Parameter name="startDate" optional="true" after="1=1"><![CDATA[ and ser.dateordered >= to_date(?)]]></Parameter>
+    <Parameter name="endDate" optional="true" after="1=1"><![CDATA[ and ser.dateordered < to_date(?)]]></Parameter>
+    <Parameter name="documentNo" optional="true" after="1=1"><![CDATA[ and ser.documentno = ?]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="select_saldos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        
+					
+			SELECT 
+			a.proveedor
+			,a.cod_producto as codigoinsumo
+			,a.producto as insumo
+			,'saldo' as tipo_linea
+			
+			,sum(a.cantidad_salida- a.cantidad_ingreso) as saldo 
+			
+			from (
+			
+			SELECT
+					ser.c_bpartner_id as tercero_id,
+					cbp.taxid || ' - ' || cbp. NAME AS proveedor,
+					saline.m_product_id as producto_id,
+					mp.value as cod_producto,
+					mp.name as producto,
+					ser.documentno as nro_orden,
+					saline.movementqty as cantidad_salida,
+					0.0 as cantidad_ingreso,
+					ser.ad_client_id,
+					ser.ad_org_id,
+					ser.dateordered
+			FROM
+				c_order ser
+			join c_bpartner cbp on ser.c_bpartner_id=cbp.c_bpartner_id
+			JOIN m_inout sal on ser.c_order_id= sal.em_ssa_serviceorder_id
+			
+			join m_inoutline saline on sal.m_inout_id = saline.m_inout_id
+			inner join m_product mp on saline.m_product_id=mp.m_product_id
+			WHERE
+			
+			 sal.issotrx='Y' and 
+				ser.em_ssa_isserviceorder = 'Y'
+			AND ser.docstatus IN ('CO')
+			
+			
+			UNION all
+			
+			SELECT
+						ser.c_bpartner_id as tercero_id,
+					cbp.taxid || ' - ' || cbp. NAME AS proveedor,
+					saline.m_product_id as producto_id,
+					proin.value  as cod_producto,
+					proin.name as producto,
+					ser.documentno as nro_orden,
+					0.0 as cantidad_salida,
+					saline.movementqty*pb.bomqty as cantidad_ingreso,
+					ser.ad_client_id,
+					ser.ad_org_id,
+					ser.dateordered
+			
+			FROM
+				c_order ser
+			join c_bpartner cbp on ser.c_bpartner_id=cbp.c_bpartner_id
+			inner join c_orderline serli on ser.c_order_id=serli.c_order_id
+			join m_inoutline saline on saline.c_orderline_id = serli.c_orderline_id
+			join m_inout sal on saline.m_inout_id=sal.m_inout_id
+			JOIN m_product proser ON serli.m_product_id = proser.m_product_id /* Lista de Materiales del Producto Relacionado con el Servicio */
+			JOIN m_product_bom pb ON proser.m_product_id = pb.m_product_id /* Insumos */
+			JOIN m_product proin ON pb.m_productbom_id = proin.m_product_id
+			
+			WHERE 
+			
+			proin.isbom='Y' and 
+			
+			sal.issotrx= 'N' and 
+				ser.em_ssa_isserviceorder = 'Y'
+			AND ser.docstatus IN ('CO')
+			
+			) as a 
+
+			
+			
+			where 
+			
+			
+			 a.ad_client_id in ('1') 
+			 and a.ad_org_id in ('1')
+			 
+			AND 1=1
+			GROUP BY 1,2,3,4
+			HAVING  SUM (
+				a.cantidad_salida - a.cantidad_ingreso
+			) != 0
+			order by 1,3
+			
+
+            
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="a.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and a.ad_org_id in (" text="'1'"/>  
+    <Parameter name="endDate" optional="true" after="1=1"><![CDATA[ and a.dateordered <= to_date(?)]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+ 
+  
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BOE_TO_TRG">
+    <trigger name="SCO_BOE_TO_TRG" table="SCO_BOE_TO" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_SCO_Billofexchange_ID  VARCHAR2(32);
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_SCO_Billofexchange_ID:=:NEW.SCO_Billofexchange_ID;
+  ELSE
+    v_SCO_Billofexchange_ID:=:OLD.SCO_Billofexchange_ID;
+  END IF;
+
+  IF (INSERTING OR UPDATING) THEN
+
+    --Link the invoice with the new boe to id
+    UPDATE C_Invoice SET EM_SCO_Boe_To_ID = :NEW.sco_boe_to_id
+      WHERE C_Invoice_ID = :NEW.c_invoice_id;
+
+  END IF;
+
+  END SCO_BOE_TO_TRG
+]]></body>
+    </trigger>
+  </database>

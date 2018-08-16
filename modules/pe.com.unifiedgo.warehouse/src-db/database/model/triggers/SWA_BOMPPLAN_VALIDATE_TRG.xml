@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_BOMPPLAN_VALIDATE_TRG">
+    <trigger name="SWA_BOMPPLAN_VALIDATE_TRG" table="M_PRODUCTIONPLAN" fires="before" insert="false" update="false" delete="true" foreach="row">
+      <body><![CDATA[  v_n NUMBER;
+  v_AreaByUser VARCHAR(32);
+  v_em_swa_m_warehouse_id VARCHAR(32);
+  v_em_swa_state_tmp_bom VARCHAR(60);
+  v_qty_available NUMBER;
+  v_processed CHAR;
+  
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+ 
+  IF (DELETING) THEN
+
+      SELECT em_swa_state_tmp_bom , processed
+        INTO v_em_swa_state_tmp_bom, v_processed
+        FROM m_production 
+       WHERE m_production_id = :OLD.m_production_id;
+      
+     IF(v_processed='Y')THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_cannotdeletebillprocessed@');
+     END IF;
+
+  
+  END IF; 
+
+  
+  END SWA_BOMPPLAN_VALIDATE_TRG
+]]></body>
+    </trigger>
+  </database>

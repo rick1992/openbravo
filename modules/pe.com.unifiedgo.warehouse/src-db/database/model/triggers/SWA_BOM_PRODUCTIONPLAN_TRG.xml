@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_BOM_PRODUCTIONPLAN_TRG">
+    <trigger name="SWA_BOM_PRODUCTIONPLAN_TRG" table="M_PRODUCTIONPLAN" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_C_ORDER_ID VARCHAR2(32) ;
+  v_Currency     VARCHAR2(32);
+  v_Issotrx     CHAR(1);
+  v_isserviceorder CHAR(1);
+  v_producttype VARCHAR(60); 
+  v_uom_id VARCHAR(32);
+  v_warehouse_id VARCHAR(32);
+  v_swa_production_plan_det_id VARCHAR(32);
+  v_isbom CHAR(1);
+  CUR_ProductBom RECORD;
+  v_qtyavailable NUMBER:=0;
+  v_priceListcurrencySoles NUMBER:=0;
+  v_priceListcurrencyDollar NUMBER:=0;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF (INSERTING) THEN
+    --Insertar las lineas del BOM
+    SELECT producttype, c_uom_id,isbom
+      INTO v_producttype, v_uom_id,v_isbom
+      FROM M_Product
+     WHERE M_Product_ID = :NEW.M_PRODUCT_ID;
+
+
+    IF(v_isbom = 'Y')THEN
+
+        SELECT em_swa_m_warehouse_id INTO v_warehouse_id from m_production where m_production_id = :NEW.m_production_id;
+    
+        FOR CUR_ProductBom IN (
+         SELECT pb.m_productbom_id,pb.bomqty , mp.c_uom_id 
+           FROM M_PRODUCT_BOM pb
+          INNER JOIN m_product mp ON  pb.m_productbom_id = mp.m_product_id
+           WHERE pb.isactive='Y' AND pb.m_product_id= :NEW.M_PRODUCT_ID
+        -- SELECT m_productbom_id,bomqty FROM M_PRODUCT_BOM
+        )
+        LOOP
+
+          v_qtyavailable:=swa_product_getstock(CUR_ProductBom.m_productbom_id,v_warehouse_id,'',3);
+
+
+          SELECT COALESCE(spc.pricelist,0) 
+            INTO v_priceListcurrencyDollar
+	    FROM ssa_product_currprice_v spc  
+	    JOIN m_pricelist mpl ON spc.m_pricelist_id = mpl.m_pricelist_id
+	WHERE mpl.issopricelist = 'Y' AND mpl.c_currency_id = '100' 
+	AND spc.m_product_id = CUR_ProductBom.m_productbom_id;
+
+	SELECT COALESCE(spc.pricelist,0) 
+            INTO v_priceListcurrencySoles
+	    FROM ssa_product_currprice_v spc  
+	    JOIN m_pricelist mpl ON spc.m_pricelist_id = mpl.m_pricelist_id
+	WHERE mpl.issopricelist = 'Y' AND mpl.c_currency_id = '308' 
+	AND spc.m_product_id = CUR_ProductBom.m_productbom_id;
+
+          v_priceListcurrencySoles:= COALESCE(v_priceListcurrencySoles,0);
+          v_priceListcurrencyDollar:= COALESCE(v_priceListcurrencyDollar,0);
+
+        
+          v_swa_production_plan_det_id:=get_uuid();
+          INSERT INTO SWA_PRODUCTION_PLAN_DETAIL (
+           swa_production_plan_detail_id, ad_client_id,ad_org_id,
+           isactive,created,createdby,updated,updatedby,
+           m_productionplan_id,line,
+           m_product_id, c_uom_id,m_warehouse_id, qtyordered , qtyavailable,
+           pricelist_soles, pricelist_dollar)
+          VALUES (
+           v_swa_production_plan_det_id, :NEW.ad_client_id,:NEW.AD_ORG_id, 
+           'Y',now(), :NEW.createdby, now(),:NEW.createdby,
+           :NEW.m_productionplan_id, :NEW.Line,
+           CUR_ProductBom.m_productbom_id, CUR_ProductBom.c_uom_id,v_warehouse_id ,:NEW.productionqty*CUR_ProductBom.bomqty, v_qtyavailable,
+           v_priceListcurrencySoles,v_priceListcurrencyDollar 
+          );
+        END LOOP;
+       END IF;
+  END IF;
+
+  
+  IF (UPDATING) THEN
+    IF(COALESCE(:OLD.m_product_id, '.')<>COALESCE(:NEW.m_product_id, '.')
+       OR COALESCE(:OLD.productionqty, 0)<>COALESCE(:NEW.productionqty, 0)) THEN
+
+          SELECT producttype, c_uom_id,isbom
+            INTO v_producttype, v_uom_id,v_isbom
+            FROM M_Product
+          WHERE M_Product_ID = :NEW.M_PRODUCT_ID;
+
+         DELETE FROM SWA_PRODUCTION_PLAN_DETAIL WHERE m_productionplan_id= :NEW.m_productionplan_id;
+
+         IF(v_isbom = 'Y')THEN
+
+         SELECT em_swa_m_warehouse_id INTO v_warehouse_id from m_production where m_production_id = :NEW.m_production_id;
+
+        FOR CUR_ProductBom IN (
+         SELECT pb.m_productbom_id,pb.bomqty , mp.c_uom_id 
+           FROM M_PRODUCT_BOM pb
+          INNER JOIN m_product mp ON  pb.m_productbom_id = mp.m_product_id
+           WHERE pb.isactive='Y' AND pb.m_product_id= :NEW.M_PRODUCT_ID
+        -- SELECT m_productbom_id,bomqty FROM M_PRODUCT_BOM
+        )
+        LOOP
+          v_qtyavailable:=swa_product_getstock(CUR_ProductBom.m_productbom_id,v_warehouse_id,'',3);
+
+           SELECT COALESCE(spc.pricelist,0) 
+            INTO v_priceListcurrencyDollar
+	    FROM ssa_product_currprice_v spc  
+	    JOIN m_pricelist mpl ON spc.m_pricelist_id = mpl.m_pricelist_id
+	   WHERE mpl.issopricelist = 'Y' AND mpl.c_currency_id = '100' 
+	     AND spc.m_product_id = CUR_ProductBom.m_productbom_id;
+
+	   SELECT COALESCE(spc.pricelist,0) 
+             INTO v_priceListcurrencySoles
+	      FROM ssa_product_currprice_v spc  
+	      JOIN m_pricelist mpl ON spc.m_pricelist_id = mpl.m_pricelist_id
+	     WHERE mpl.issopricelist = 'Y' AND mpl.c_currency_id = '308' 
+	      AND spc.m_product_id = CUR_ProductBom.m_productbom_id;
+
+          v_priceListcurrencySoles:= COALESCE(v_priceListcurrencySoles,0);
+          v_priceListcurrencyDollar:= COALESCE(v_priceListcurrencyDollar,0);
+
+
+          
+          v_swa_production_plan_det_id:=get_uuid();
+          INSERT INTO SWA_PRODUCTION_PLAN_DETAIL (
+           swa_production_plan_detail_id, ad_client_id,ad_org_id,
+           isactive,created,createdby,updated,updatedby,
+           m_productionplan_id,line,
+           m_product_id, c_uom_id,m_warehouse_id ,qtyordered, qtyavailable,
+           pricelist_soles, pricelist_dollar
+           )
+          VALUES (
+           v_swa_production_plan_det_id, :NEW.ad_client_id,:NEW.AD_ORG_id, 
+           'Y',now(), :NEW.createdby, now(),:NEW.createdby,
+           :NEW.m_productionplan_id, :NEW.Line,
+           CUR_ProductBom.m_productbom_id, CUR_ProductBom.c_uom_id,v_warehouse_id, :NEW.productionqty*CUR_ProductBom.bomqty, v_qtyavailable,
+           v_priceListcurrencySoles,v_priceListcurrencyDollar
+          );
+        END LOOP;
+       END IF;
+     END IF;
+  END IF;
+
+  IF (DELETING) THEN
+    --Borrar las Lineas del BOM
+      DELETE FROM SWA_PRODUCTION_PLAN_DETAIL WHERE m_productionplan_id= :OLD.m_productionplan_id;
+  END IF;
+
+ 
+  END SWA_BOM_PRODUCTIONPLAN_TRG
+]]></body>
+    </trigger>
+  </database>

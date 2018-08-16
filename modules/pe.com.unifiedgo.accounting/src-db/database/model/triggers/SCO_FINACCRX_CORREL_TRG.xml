@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_FINACCRX_CORREL_TRG">
+    <trigger name="SCO_FINACCRX_CORREL_TRG" table="FIN_FINACC_TRANSACTION" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+    
+    IF(UPDATING) THEN
+      IF(TRUNC(:OLD.dateacct)<>TRUNC(:NEW.dateacct)
+      OR COALESCE(:OLD.em_sco_area_id,'')<>COALESCE(:NEW.em_sco_area_id,'')) THEN
+        :NEW.em_sco_correlnum := 0;
+      END IF;
+    END IF;
+
+    END SCO_FINACCRX_CORREL_TRG
+]]></body>
+    </trigger>
+  </database>

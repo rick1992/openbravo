@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_ORDERIM_CHK_RESTRI_TRG">
+    <trigger name="SIM_ORDERIM_CHK_RESTRI_TRG" table="SIM_ORDERIMPORT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_doctype_id VARCHAR2(32);
+  v_count NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  v_doctype  VARCHAR(60);
+  v_doctype_text VARCHAR(60);
+  v_pricelist_id VARCHAR(32);
+  v_currency_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.sim_orderimport_id;
+ELSE
+  v_ID:=:NEW.sim_orderimport_id;
+END IF;
+
+
+IF (UPDATING) THEN
+  SELECT count(sim_orderimport_id) INTO v_count from sim_orderimportline where sim_orderimport_id = v_ID;
+  IF (v_count <> 0) THEN  
+    IF(:OLD.C_BPartner_id <> :NEW.C_BPartner_id) OR  (:OLD.m_pricelist_id <> :NEW.m_pricelist_id) THEN
+           RAISE_APPLICATION_ERROR(-20000, '@20502@');
+    END IF;
+  END IF;
+END IF;
+--select * from sim_orderimport
+IF (UPDATING OR INSERTING) THEN
+    v_doctype_id =  :NEW.c_doctype_id;
+    v_pricelist_id = :NEW.m_pricelist_id;
+    SELECT em_sco_specialdoctype INTO v_doctype_text from c_doctype where c_doctype_id = v_doctype_id;
+    IF(v_doctype_text = 'SIMORDERIMPORT' ) THEN
+       --RAISE_APPLICATION_ERROR(-20000, '@sim_orderimport_faildoctype@');
+    ELSE 
+      RAISE_APPLICATION_ERROR(-20000, '@sim_orderimport_faildoctype@');
+    END IF;
+   --Updating Currency by PriceList
+    SELECT c_currency_id INTO v_currency_id FROM m_pricelist where m_pricelist_id=v_pricelist_id;
+     :NEW.c_currency_id = v_currency_id;
+
+    --Update Qytreceived,ordered,and difference
+    :NEW.qty_difference:= :NEW.qty_ordered - :NEW.qty_received;
+END IF;
+
+
+IF(DELETING) THEN
+    IF (:OLD.docstatus='DR' AND :OLD.estado_intermedio='TE' AND :OLD.estado_aprobacion='PD' ) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SIM_OrderNotDR@');
+    END IF;
+END IF;
+
+
+END SIM_ORDERIM_CHK_RESTRI_TRG
+]]></body>
+    </trigger>
+  </database>

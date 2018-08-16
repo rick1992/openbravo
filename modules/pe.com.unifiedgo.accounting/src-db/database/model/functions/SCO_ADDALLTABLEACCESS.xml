@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_ADDALLTABLEACCESS">
+    <function name="SCO_ADDALLTABLEACCESS" type="NULL">
+      <body><![CDATA[TYPE RECORD IS REF CURSOR;
+    CUR_ADRole RECORD;
+    CUR_ADTable RECORD;
+    v_NextNo VARCHAR(32);
+    v_Aux NUMBER;
+
+    v_AD_Client_ID VARCHAR(32);
+    v_AD_User_ID VARCHAR(32);
+BEGIN
+
+  v_AD_Client_ID := 'AF645935B14444CA8AD4A94FE6B2AF68';
+  v_AD_User_ID := '100';
+
+  FOR CUR_ADRole IN
+    (SELECT * 
+       FROM ad_role
+       WHERE ad_client_id = v_AD_Client_ID AND isactive = 'Y')
+  LOOP
+  
+    FOR CUR_ADTable IN (SELECT * 
+                           FROM AD_Table
+                           WHERE isactive='Y')
+    LOOP
+
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM AD_Table_Access
+      WHERE AD_Role_ID = CUR_ADRole.AD_Role_ID AND
+	    AD_Table_ID = CUR_ADTable.AD_Table_ID AND
+            AD_Client_ID = v_AD_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('AD_Table_Access', v_AD_Client_ID, v_NextNo);
+        INSERT INTO ad_table_access(
+                      ad_table_access_id, ad_role_id, ad_table_id, ad_client_id, ad_org_id, 
+                      isactive, created, createdby, updatedby, updated, isreadonly, 
+                      isexclude)
+              VALUES (v_NextNo, CUR_ADRole.AD_Role_ID, CUR_ADTable.AD_Table_ID, v_AD_Client_ID, '0', 
+                      'Y', now(), v_AD_User_ID, v_AD_User_ID, now(), 'N', 
+                      'N');
+      END IF;
+
+    END LOOP;
+
+  END LOOP;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_ADDALLTABLEACCESS
+]]></body>
+    </function>
+  </database>

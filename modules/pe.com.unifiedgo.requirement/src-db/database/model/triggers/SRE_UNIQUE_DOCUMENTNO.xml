@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_UNIQUE_DOCUMENTNO">
+    <trigger name="SRE_UNIQUE_DOCUMENTNO" table="C_ORDER" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+LENGTH_PHYDOCNO NUMBER:=11;
+v_physicalDocNo_def VARCHAR(60):='000-0000000';
+v_count_tmp NUMBER:=0;
+v_special VARCHAR(60);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+ IF(INSERTING)THEN
+
+  SELECT em_sco_specialdoctype INTO v_special from c_doctype where c_doctype_id = :NEW.c_doctypetarget_id;
+   IF(v_special IN ('SREPURCHASEORDER')) THEN
+    SELECT count(C_ORDER_ID)
+      INTO v_count_tmp 
+      FROM C_ORDER 
+     WHERE trim(documentno) = trim(:NEW.documentno)
+      AND em_ssa_specialdoctype='SREPURCHASEORDER'
+      AND ad_org_id = :NEW.ad_org_id
+      AND trim(documentno)<>'OC00000000';
+
+      IF(v_count_tmp > 0)THEN --Si ya Hay. OJO QUE ESTO ES UN BEFORE
+         :NEW.DOCUMENTNO := 'OC00000000';
+      END IF;
+    END IF;
+ END IF;
+
+
+
+  IF(UPDATING) THEN 
+     IF(:NEW.em_ssa_specialdoctype IN ('SREPURCHASEORDER') AND (:OLD.DOCUMENTNO <> :NEW.DOCUMENTNO)) THEN
+	SELECT count(C_ORDER_ID)
+	  INTO v_count_tmp 
+	  FROM C_ORDER 
+	 WHERE trim(documentno) = trim(:NEW.documentno)
+	    AND ad_org_id = :NEW.ad_org_id
+	   AND em_ssa_specialdoctype='SREPURCHASEORDER';
+
+      IF(v_count_tmp > 0)THEN --Si ya Hay. OJO QUE ESTO ES UN BEFORE
+          RAISE_APPLICATION_ERROR(-20000, '@sre_purchasedocumentno_exist@') ;
+      END IF;
+    END IF;
+  END IF;
+
+
+  END SRE_UNIQUE_DOCUMENTNO
+]]></body>
+    </trigger>
+  </database>

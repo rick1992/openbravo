@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_UPD_FK_INOUT_ID_TRG">
+    <trigger name="SCR_UPD_FK_INOUT_ID_TRG" table="C_INVOICELINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_count_other_inout NUMBER;
+  v_M_InOut_ID VARCHAR(32);
+  v_PhyDocNo_InOut VARCHAR(30);
+  v_PhyDocNo_Inv VARCHAR(30);
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  IF INSERTING THEN  
+    IF (COALESCE(:new.m_inoutline_id,'')<>'') THEN
+      SELECT COUNT(*) INTO v_count_other_inout
+        FROM c_invoiceline 
+       WHERE c_invoice_id=:new.c_invoice_id 
+         AND c_invoiceline_id!=:new.c_invoiceline_id
+         AND m_inoutline_id=:new.m_inoutline_id;
+      IF (v_count_other_inout = 0) THEN
+        SELECT io.m_inout_id, io.em_scr_physical_documentno INTO v_M_InOut_ID, v_PhyDocNo_InOut
+	  FROM m_inout io 
+         WHERE io.m_inout_id=(SELECT iol.m_inout_id 
+				FROM m_inoutline iol 
+			       WHERE iol.m_inoutline_id=:new.m_inoutline_id); 
+
+        SELECT inv.em_scr_physical_documentno INTO v_PhyDocNo_Inv
+	  FROM c_invoice inv 
+         WHERE inv.c_invoice_id=:new.c_invoice_id; 
+
+        UPDATE m_inout 
+           SET em_scr_c_invoice_id=:new.c_invoice_id, em_scr_new_inv_phydocno=v_PhyDocNo_Inv 
+         WHERE m_inout_id=v_M_InOut_ID AND docstatus!='VO' AND isactive='Y';  	
+	UPDATE c_invoice 
+           SET em_scr_m_inout_id=v_M_InOut_ID, em_scr_new_inout_phydocno=v_PhyDocNo_InOut 
+         WHERE c_invoice_id=:new.c_invoice_id AND docstatus!='VO' AND isactive='Y';
+      END IF; 
+    END IF; 
+
+  END IF;
+
+
+  IF UPDATING THEN
+    IF (COALESCE(:new.m_inoutline_id,'')<>COALESCE(:old.m_inoutline_id,'')) THEN	
+      IF (COALESCE(:old.m_inoutline_id,'')<>'') THEN
+        SELECT COUNT(*) INTO v_count_other_inout
+          FROM c_invoiceline 
+         WHERE c_invoice_id=:old.c_invoice_id 
+           AND c_invoiceline_id!=:old.c_invoiceline_id
+           AND m_inoutline_id=:old.m_inoutline_id;
+  	IF (v_count_other_inout = 0) THEN
+           SELECT io.m_inout_id, io.em_scr_physical_documentno INTO v_M_InOut_ID, v_PhyDocNo_InOut
+	     FROM m_inout io 
+            WHERE io.m_inout_id=(SELECT iol.m_inout_id 
+				   FROM m_inoutline iol 
+			          WHERE iol.m_inoutline_id=:old.m_inoutline_id); 
+
+           SELECT inv.em_scr_physical_documentno INTO v_PhyDocNo_Inv
+	     FROM c_invoice inv 
+            WHERE inv.c_invoice_id=:old.c_invoice_id; 
+
+           UPDATE m_inout 
+              SET em_scr_c_invoice_id=NULL, em_scr_new_inv_phydocno=NULL 
+            WHERE m_inout_id=v_M_InOut_ID AND docstatus!='VO' AND isactive='Y';  	
+  	   UPDATE c_invoice 
+              SET em_scr_m_inout_id=NULL, em_scr_new_inout_phydocno=NULL
+            WHERE c_invoice_id=:old.c_invoice_id AND docstatus!='VO' AND isactive='Y';
+        END IF; 
+      END IF; 
+
+      SELECT COUNT(*) INTO v_count_other_inout
+        FROM c_invoiceline 
+       WHERE c_invoice_id=:new.c_invoice_id 
+         AND c_invoiceline_id!=:new.c_invoiceline_id
+         AND m_inoutline_id=:new.m_inoutline_id;
+      IF (v_count_other_inout = 0) THEN
+         SELECT io.m_inout_id, io.em_scr_physical_documentno INTO v_M_InOut_ID, v_PhyDocNo_InOut
+	   FROM m_inout io 
+          WHERE io.m_inout_id=(SELECT iol.m_inout_id 
+				FROM m_inoutline iol 
+			       WHERE iol.m_inoutline_id=:new.m_inoutline_id); 
+
+         SELECT inv.em_scr_physical_documentno INTO v_PhyDocNo_Inv
+	   FROM c_invoice inv 
+          WHERE inv.c_invoice_id=:new.c_invoice_id; 
+
+         UPDATE m_inout 
+            SET em_scr_c_invoice_id=:new.c_invoice_id, em_scr_new_inv_phydocno=v_PhyDocNo_Inv 
+          WHERE m_inout_id=v_M_InOut_ID AND docstatus!='VO' AND isactive='Y';  	
+	 UPDATE c_invoice 
+            SET em_scr_m_inout_id=v_M_InOut_ID, em_scr_new_inout_phydocno=v_PhyDocNo_InOut 
+          WHERE c_invoice_id=:new.c_invoice_id AND docstatus!='VO' AND isactive='Y';
+      END IF;
+    END IF;
+
+  END IF;
+
+
+  IF DELETING THEN  
+    IF (COALESCE(:old.m_inoutline_id,'')<>'') THEN
+      SELECT COUNT(*) INTO v_count_other_inout
+        FROM c_invoiceline 
+       WHERE c_invoice_id=:old.c_invoice_id 
+         AND c_invoiceline_id!=:old.c_invoiceline_id
+         AND m_inoutline_id=:old.m_inoutline_id;
+      IF (v_count_other_inout = 0) THEN
+        SELECT io.m_inout_id, io.em_scr_physical_documentno INTO v_M_InOut_ID, v_PhyDocNo_InOut
+	  FROM m_inout io 
+         WHERE io.m_inout_id=(SELECT iol.m_inout_id 
+		                FROM m_inoutline iol 
+			       WHERE iol.m_inoutline_id=:old.m_inoutline_id);  
+
+        SELECT inv.em_scr_physical_documentno INTO v_PhyDocNo_Inv
+	  FROM c_invoice inv 
+         WHERE inv.c_invoice_id=:old.c_invoice_id; 
+
+        UPDATE m_inout 
+           SET em_scr_c_invoice_id=NULL, em_scr_new_inv_phydocno=NULL 
+         WHERE m_inout_id=v_M_InOut_ID AND docstatus!='VO' AND isactive='Y';  	
+	UPDATE c_invoice 
+           SET em_scr_m_inout_id=NULL, em_scr_new_inout_phydocno=NULL
+         WHERE c_invoice_id=:old.c_invoice_id AND docstatus!='VO' AND isactive='Y';
+      END IF; 
+    END IF; 
+
+  END IF;
+
+  END SCR_UPD_FK_INOUT_ID_TRG
+]]></body>
+    </trigger>
+  </database>

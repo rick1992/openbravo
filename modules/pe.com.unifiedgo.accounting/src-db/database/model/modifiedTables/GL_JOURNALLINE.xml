@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE GL_JOURNALLINE">
+    <table name="GL_JOURNALLINE" primaryKey="GL_JOURNALENTRY_KEY">
+      <column name="EM_SCO_C_INVOICE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_INTERNAL_DOC_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_RENDCUENTAS_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PREPAYMENT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_EEFF_PATRIMCHANGE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_EEFF_CASHFLOW_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CREATEPREP" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PREP_DOCUMENTNO" primaryKey="false" required="false" type="VARCHAR" size="30" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PREP_ISSOTRX" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PREP_DATEGEN" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PREP_DUEDATE" primaryKey="false" required="false" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REEVAL_CURRENCY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_OTHER_CURRENCY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PICKEDIT_FACCACCT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_LOCKED" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_EEFF_CASHFLOW" name="EM_SCO_JOURNALI_EEFFCASHF_FK">
+        <reference local="EM_SCO_EEFF_CASHFLOW_ID" foreign="SCO_EEFF_CASHFLOW_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_EEFF_PATRIMCHANGE" name="EM_SCO_JOURNALI_EEFFPATRC_FK">
+        <reference local="EM_SCO_EEFF_PATRIMCHANGE_ID" foreign="SCO_EEFF_PATRIMCHANGE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_INTERNAL_DOC" name="EM_SCO_JOURNALI_INTDOC_FK">
+        <reference local="EM_SCO_INTERNAL_DOC_ID" foreign="SCO_INTERNAL_DOC_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_INVOICE" name="EM_SCO_JOURNALI_INV_FK">
+        <reference local="EM_SCO_C_INVOICE_ID" foreign="C_INVOICE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_CURRENCY" name="EM_SCO_JOURNALI_OTHERCURR">
+        <reference local="EM_SCO_OTHER_CURRENCY_ID" foreign="C_CURRENCY_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_PREPAYMENT" name="EM_SCO_JOURNALI_PREPAY_FK">
+        <reference local="EM_SCO_PREPAYMENT_ID" foreign="SCO_PREPAYMENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCO_RENDICIONCUENTAS" name="EM_SCO_JOURNALI_REND_FK">
+        <reference local="EM_SCO_RENDCUENTAS_ID" foreign="SCO_RENDICIONCUENTAS_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_CURRENCY" name="EM_SCO_JOURNALI_RRCURR_FK">
+        <reference local="EM_SCO_REEVAL_CURRENCY_ID" foreign="C_CURRENCY_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_JOURNALI_CREP_CHK"><![CDATA[EM_SCO_CREATEPREP IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_JOURNALI_ISSOTRX_CHK"><![CDATA[EM_SCO_PREP_ISSOTRX IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_LOCKED_CHK"><![CDATA[EM_SCO_LOCKED IN ('Y', 'N')]]></check>
+    </table>
+  </database>

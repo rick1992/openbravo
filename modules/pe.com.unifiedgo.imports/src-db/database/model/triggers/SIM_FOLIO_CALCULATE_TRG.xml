@@ -1,0 +1,202 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_FOLIO_CALCULATE_TRG">
+    <trigger name="SIM_FOLIO_CALCULATE_TRG" table="SIM_FOLIOIMPORT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[   v_ResultStr VARCHAR2(2000):='';
+  v_ID VARCHAR2(32);
+  v_Dollar_Currency_ID VARCHAR2(32);
+  v_Soles_Currency_ID VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+   v_client_id VARCHAR2(32);
+  v_amount NUMBER:=0;
+  v_qtyordered NUMBER:=0;
+  v_qtypending NUMBER:=0;
+  v_qtyinpartial NUMBER:=0;
+  v_percentinpartial NUMBER:=0;
+  v_tipodeCambio NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  Cur_Parameter RECORD;
+  CUR_PartialFolio  RECORD;
+  Cur_invoicePartial RECORD;
+  v_total_fob NUMBER:=0;
+  v_totalinvoice_fob NUMBER:=0;
+  v_totalinvoice_aditional NUMBER:=0;
+  v_factor_invoice NUMBER:=0;
+  v_total_fob_parcial NUMBER:=0;
+  v_totalinvoice_allinvoice NUMBER:=0;
+  v_totalvolumen NUMBER:=0;
+  v_tmp_flete NUMBER:=0;
+  v_cif_total NUMBER:=0;
+  v_totalpeso NUMBER:=0;
+  v_aduana_total_dollar NUMBER:=0;
+  v_exchangeRate NUMBER:=0;
+  
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.sim_folioimport_id;
+ELSE
+  v_ID:=:NEW.sim_folioimport_id;
+END IF;
+
+
+IF(UPDATING) THEN
+  IF((:NEW.Total_Peso <> :OLD.Total_Peso) OR (:NEW.Total_Num_Cajas <> :OLD.Total_Num_Cajas) OR ( :NEW.Total_Cubicaje <> :OLD.Total_Cubicaje))THEN
+
+    
+    
+    v_Dollar_Currency_ID = '100'; -- DOLLAR USD
+    v_Soles_Currency_ID = '308'; -- NUEVO SOL  PEN
+    v_ad_org_id:= :NEW.ad_org_id;
+    v_client_id:= :NEW.ad_client_id;
+    /** BEGIN1. OBTENER FOB DE LOS PARCIALES DEL FOLIO
+    */ 
+
+    
+     FOR CUR_PartialFolio IN (
+           SELECT c_order_id, totallines, c_currency_id , dateordered
+             FROM c_order 
+            WHERE em_sim_folioimport_id = :NEW.sim_folioimport_id
+     )
+     LOOP
+       --Recorriendo las Facturas
+       v_total_fob_parcial:=0;
+       FOR Cur_invoicePartial IN (
+         SELECT distinct a.c_invoice_id, a.c_currency_id , a.em_sco_newdateinvoiced FROM
+          (  SELECT c_invoice_id, c_currency_id , em_sco_newdateinvoiced
+              FROM c_invoice
+              WHERE C_ORDER_ID = CUR_PartialFolio.C_ORDER_ID
+
+             UNION ALL
+
+              SELECT il.c_invoice_id, i.c_currency_id, i.em_sco_newdateinvoiced
+                FROM c_invoiceline il
+           INNER JOIN c_invoice i on il.c_invoice_id = i.c_invoice_id
+           INNER JOIN c_orderline ol on il.c_orderline_id = ol.c_orderline_id
+          WHERE ol.c_order_id = CUR_PartialFolio.C_ORDER_ID
+          ) a
+         ) LOOP
+
+            --Valor de Fob de una factura especìfica a una Orden
+              SELECT COALESCE(sum(il.linenetamt),0) 
+                INTO v_totalinvoice_fob 
+                FROM c_invoiceline il 
+                    INNER JOIN c_orderline ol on il.c_orderline_id = ol.c_orderline_id
+                WHERE ol.c_order_id = CUR_PartialFolio.c_order_id
+                 AND il.c_invoice_id = Cur_invoicePartial.c_invoice_id;
+
+            --Valores de la Factura adicionales (Descuento u otras lineas que no estàn asociadas a Parciales)
+                SELECT COALESCE(sum(cil.linenetamt),0) 
+                  INTO v_totalinvoice_aditional --Esto es para prorrateo
+                 FROM C_INVOICELINE CIL
+               WHERE cil.c_invoice_id= Cur_invoicePartial.c_invoice_id
+                 AND cil.c_orderline_id is null;
+
+               SELECT COALESCE(sum(cil.linenetamt),0) 
+                 INTO v_totalinvoice_allinvoice --Esto es para prorrateo
+                 FROM C_INVOICELINE CIL
+               WHERE cil.c_invoice_id= Cur_invoicePartial.c_invoice_id
+                 AND cil.c_orderline_id is not null;
+
+              v_factor_invoice:=0;
+              IF(v_totalinvoice_allinvoice > 0)THEN 
+                v_factor_invoice = v_totalinvoice_fob/v_totalinvoice_allinvoice;
+              END IF;
+               --El total de fob es lo calculado en la factura mas el prorrateo de sus adicionales
+               v_total_fob_parcial:= v_total_fob_parcial + v_totalinvoice_fob + v_factor_invoice*v_totalinvoice_aditional;
+
+               --En caso que las facturas tengan una moneda diferente a dólares
+               IF(Cur_invoicePartial.c_currency_id <> v_Dollar_Currency_ID )THEN
+                   SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(v_total_fob_parcial, Cur_invoicePartial.c_currency_id, v_Dollar_Currency_ID, TO_DATE(Cur_invoicePartial.em_sco_newdateinvoiced), NULL,v_client_id,v_ad_org_id), v_Dollar_Currency_ID, NULL)), 0)
+                     INTO v_total_fob_parcial;
+               END IF;
+         END LOOP;
+         --Fin recorriendo Factura por Parcial
+
+          --Si no hubo facturas enlazadas a los parciales o fueron de migracion, entonces se tomara como valor
+          --Fob el valor del parcial.
+
+          IF(v_total_fob_parcial = 0)THEN 
+
+
+           v_total_fob_parcial:= COALESCE(CUR_PartialFolio.totallines,0);
+           IF(CUR_PartialFolio.c_currency_id <> v_Dollar_Currency_ID )THEN
+                SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(CUR_PartialFolio.totallines, CUR_PartialFolio.c_currency_id, v_Dollar_Currency_ID, TO_DATE(CUR_PartialFolio.dateordered), NULL,v_client_id,v_ad_org_id), v_Dollar_Currency_ID, NULL)), 0)
+                 INTO v_total_fob_parcial;
+           END IF;
+           
+          END IF;
+           v_total_fob:= v_total_fob + v_total_fob_parcial;
+     END LOOP;
+   --Fin Obteniendo el Valor Fob.
+   /** END BEGIN1.
+    */ 
+ 
+
+   v_totalvolumen:= COALESCE(:NEW.Total_Cubicaje,0);
+
+   /***
+   * BEGIN 2 - Calculo del Flete
+   */
+   
+   v_tmp_flete:= v_totalvolumen*COALESCE(:NEW.flete_factor_one,0) + COALESCE(:NEW.flete_bl,0) + COALESCE(:NEW.flete_otros,0);
+   :NEW.flete_total:= v_tmp_flete;
+
+   :NEW.flete_percent_to_fob:=0;
+   IF(v_total_fob > 0)THEN
+    :NEW.flete_percent_to_fob:= COALESCE((v_tmp_flete/v_total_fob)*100,0);
+   END IF;
+  
+    
+   /***
+   * BEGIN 3 - Càlculo de CIF
+   */
+    :NEW.cif_fob:= COALESCE(v_total_fob,0);
+    :NEW.cif_flete_total:= COALESCE(v_tmp_flete,0);
+    :NEW.cif_seguro:= (COALESCE(:NEW.cif_seguro_percentfob,0)/100)*(v_total_fob + v_tmp_flete);
+    v_cif_total:= :NEW.cif_fob + :NEW.cif_flete_total + :NEW.cif_seguro;
+    :NEW.cif_total:= v_cif_total;
+
+
+   v_totalpeso:=COALESCE(:NEW.Total_Peso,0);
+    /***
+   * BEGIN 4 - Cálculo de Desaduanaje
+   */
+
+    :NEW.aduana_f_two_x_weight:=COALESCE(:NEW.aduana_factor_two,0)*v_totalpeso/1000;
+    :NEW.aduana_f_three_result:=  :NEW.aduana_f_two_x_weight + COALESCE(:NEW.aduana_factor_three,0);
+   
+    IF(COALESCE(:NEW.aduana_exchange_rate ,0 )=0)THEN
+
+        SELECT COALESCE(SUM(sco_getexchangerateusdpurch(v_client_id,v_ad_org_id, now())),0) 
+             INTO v_exchangeRate;
+
+	:NEW.aduana_exchange_rate:= v_exchangeRate;
+     
+        SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(:NEW.aduana_f_three_result, v_Soles_Currency_ID, v_Dollar_Currency_ID, now(), NULL,v_client_id,v_ad_org_id), v_Dollar_Currency_ID, NULL)), 0)
+           INTO v_aduana_total_dollar;
+
+    ELSE 
+       v_aduana_total_dollar:= :NEW.aduana_f_three_result/:NEW.aduana_exchange_rate;
+    END IF;
+
+   
+
+    :NEW.aduana_total:= v_aduana_total_dollar;
+    :NEW.agent_total:= (COALESCE(:NEW.agent_percent_cif,0)*v_cif_total)/100;
+    :NEW.total_desaduanaje:= v_aduana_total_dollar + :NEW.agent_total + COALESCE(:NEW.shipping_total,0);
+
+    :NEW.aduana_percent_to_fob:=0;
+    IF(v_cif_total > 0)THEN
+     :NEW.aduana_percent_to_fob:= COALESCE((:NEW.total_desaduanaje/v_cif_total)*100,0);
+    END IF;
+  END IF;
+END IF;
+
+END SIM_FOLIO_CALCULATE_TRG
+]]></body>
+    </trigger>
+  </database>

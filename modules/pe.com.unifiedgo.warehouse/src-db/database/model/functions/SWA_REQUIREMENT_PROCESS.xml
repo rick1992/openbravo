@@ -1,0 +1,158 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_REQUIREMENT_PROCESS">
+    <function name="SWA_REQUIREMENT_PROCESS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_LineSeqNo NUMBER:=0;
+  v_DocumentNo VARCHAR(30);
+  v_Result NUMBER:=1; -- Success
+-- Record Info
+  Cur_Parameter RECORD;
+  v_swa_requerimientoreposicion_id VARCHAR2(32);
+  v_Client_id VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+  v_createdby VARCHAR2(32);
+  v_c_bpartner_id VARCHAR2(32);
+  v_from_m_warehouse VARCHAR2(32);
+  v_to_warehouse VARCHAR2(32);
+  v_swa_requerimientoDetail_id VARCHAR2(32);
+  v_CDocTypeID varchar2(32);
+  v_name_from_warehouse VARCHAR2(60);
+  v_name_employee VARCHAR2(60);
+  v_Message_detail VARCHAR2(120);
+  v_Message_description VARCHAR2(120);
+  v_m_inout_id VARCHAR2(32);
+  v_em_swa_organization_child_id VARCHAR2(32);
+  v_documentno_inout VARCHAR2(30);
+  v_EM_Scr_Physical_Documentno VARCHAR2(30);
+  v_requer_name VARCHAR2(100);
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+  SELECT ad_client_id,ad_org_id,createdby,c_bpartner_id,from_m_warehouse_id, to_m_warehouse_id,requer_name 
+    INTO v_Client_id,v_ad_org_id,v_createdby ,v_c_bpartner_id,v_from_m_warehouse,v_to_warehouse,v_requer_name 
+    FROM swa_requerimientoreposicion 
+       WHERE swa_requerimientoreposicion_id = v_Record_ID for update;
+
+  SELECT em_swa_organization_child_id INTO v_em_swa_organization_child_id FROM m_warehouse WHERE m_warehouse_id=v_to_warehouse;
+  SELECT m_warehouse.name INTO v_name_from_warehouse FROM m_warehouse where m_warehouse_id = v_from_m_warehouse;
+  
+  SELECT c_bpartner.name INTO v_name_employee FROM  c_bpartner WHERE c_bpartner_id = v_c_bpartner_id;
+   --v_Message_detail = '@swa_fromwarehouse@' || v_name_from_warehouse;
+   v_Message_detail = v_name_from_warehouse ;
+  
+  -- GET DOCTYPE
+   SELECT C_DocType_ID INTO v_CDocTypeID
+		FROM C_DOCTYPE
+		WHERE em_sco_specialdoctype='SWAREPOSITIONIN'
+		AND ISACTIVE='Y' 
+		AND AD_Client_Id= v_Client_id
+--		AND em_sco_m_warehouse_id = v_to_warehouse
+		AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id) <> -1
+		AND COALESCE(isreturn, 'N') = 'N'
+		ORDER BY AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id),
+		IsDefault DESC,
+		C_DocType_ID;
+
+   IF (v_CDocTypeID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000,'swa_repo_receipt_doctype');
+   END IF;
+-- END DOCTYPE
+
+   --GET Guia cliente para poner en la descripción
+    SELECT m_inout_id, documentno,EM_Scr_Physical_Documentno 
+      INTO v_m_inout_id, v_documentno_inout,v_EM_Scr_Physical_Documentno 
+      FROM M_INOUT 
+     WHERE docstatus='CO' 
+       AND em_swa_isfromreposition ='Y'
+       AND em_swa_requireposicion_id =v_Record_ID  LIMIT 1;
+   
+    IF(v_m_inout_id IS NOT NULL)THEN
+     IF(v_EM_Scr_Physical_Documentno IS NULL)THEN
+      v_EM_Scr_Physical_Documentno = '-';
+     END IF;
+     v_Message_description:= ' - Desde Guía: ' || v_EM_Scr_Physical_Documentno;
+    END IF;
+    
+    v_Message_detail:=coalesce(v_Message_detail,' '::character varying)::text || v_Message_description;
+
+
+  IF(v_em_swa_organization_child_id IS NOT NULL)THEN
+     v_ad_org_id:=v_em_swa_organization_child_id;
+  END IF;
+
+  AD_Sequence_DocType(v_CDocTypeID, v_Client_id, 'Y', v_DocumentNo) ;
+   v_swa_requerimientoreposicion_id:=get_uuid();
+   INSERT INTO swa_requerimientoreposicion
+    (swa_requerimientoreposicion_id,ad_client_id,ad_org_id,isactive,created,createdby,
+     updated,updatedby,requer_name,to_m_warehouse_id,from_m_warehouse_id,status,
+     pickinglist_state,c_doctype_id,documentno,repositionTRX,swa_fromrequerimiento_id
+    )
+   VALUES 
+    (v_swa_requerimientoreposicion_id,v_Client_id,v_ad_org_id,'Y',now(),v_createdby,
+     now(),v_createdby,v_Message_detail,v_from_m_warehouse,v_to_warehouse,'DR',
+     'NG',v_CDocTypeID,v_DocumentNo,'Y',v_Record_ID
+    );
+
+
+   FOR Cur_Parameter IN 
+   (SELECT m_product_id,qtyordered
+    FROM swa_requerepo_detail where swa_requerimientoreposicion_id = v_Record_ID
+   )
+   LOOP     
+            v_LineSeqNo:= 10 + v_LineSeqNo;
+            v_swa_requerimientoDetail_id:=get_uuid();
+	    INSERT INTO swa_requerepo_detail
+	    (swa_requerepo_detail_id,ad_client_id,ad_org_id,line,isactive,created,createdby,
+	     updated,updatedby,m_product_id,qtyordered,swa_requerimientoreposicion_id,status
+	    )
+	   VALUES 
+	    (v_swa_requerimientoDetail_id,v_Client_id,v_ad_org_id,v_LineSeqNo,'Y',now(),v_createdby,
+             now(),v_createdby,Cur_Parameter.m_product_id,Cur_Parameter.qtyordered,v_swa_requerimientoreposicion_id,
+             'UP'
+	    ); 
+   END LOOP;
+   
+  --v_requer_name:= coalesce(v_requer_name,' '::character varying)::text || '  ' || 'Recepción Transferencia: ' || v_DocumentNo;
+  v_requer_name:= 'Recepción Transferencia: ' || v_DocumentNo;
+  UPDATE swa_requerimientoreposicion 
+     SET generateTRX = 'Y',
+         requer_name = v_requer_name 
+  WHERE swa_requerimientoreposicion_id = v_Record_ID;
+
+
+
+    v_Message:='@swa_created_repo_receip@' || v_DocumentNo;
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    v_Result := 1; -- Warning
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_REQUIREMENT_PROCESS
+]]></body>
+    </function>
+  </database>

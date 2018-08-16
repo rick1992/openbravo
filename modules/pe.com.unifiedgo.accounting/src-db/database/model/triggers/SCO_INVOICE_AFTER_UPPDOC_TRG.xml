@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_AFTER_UPPDOC_TRG">
+    <trigger name="SCO_INVOICE_AFTER_UPPDOC_TRG" table="C_INVOICE" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialdoctypep VARCHAR(60);
+  v_specialmethod VARCHAR(60):=NULL;  
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+          
+    IF(COALESCE(:OLD.c_doctypetarget_id,'')<>COALESCE(:NEW.c_doctypetarget_id,'')) THEN
+        UPDATE fin_payment_schedule SET em_sco_specialdoctype=:NEW.em_sco_specialdoctype WHERE c_invoice_id = :NEW.c_invoice_id;
+        UPDATE c_invoiceline SET em_sco_specialdoctype=:NEW.em_sco_specialdoctype, em_ssa_specialdoctypeplus=:NEW.em_ssa_specialdoctypeplus WHERE c_invoice_id = :NEW.c_invoice_id;
+        UPDATE c_invoicetax SET em_sco_specialdoctype=:NEW.em_sco_specialdoctype WHERE c_invoice_id = :NEW.c_invoice_id;    
+    END IF;
+
+    END SCO_INVOICE_AFTER_UPPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

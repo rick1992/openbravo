@@ -1,0 +1,1812 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteLibroMayorAnaliticoData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+  
+   
+  
+  
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT * ,
+      '' as ad_org_id,
+	  '' as ad_client_id	,
+	  '' as c_bpartner_id,
+      '' as cuenta,
+      '' as tercero,
+      '' as ap,
+      '' as numero_compro,
+      '' as fecha,
+      '' as tipo_doc,
+      '' as numero_doc,
+      '' as fecha_doc,
+      '' as fecha_vto,
+      '' as importe_dol,
+      '' as importe_eur,
+      '' as moneda,
+      '' as monedaid,
+      '' as debe,
+      '' as haber,
+      '' as saldo,
+      '' as cod_tercero,
+      '' as cod_cuenta,
+      '' as ruc,
+      '' as idlibro,
+      '' as nombrelibro,
+      '' as idorganizacion,
+      '' as n_asiento,
+      
+      
+      '' as idperiodo,'' as fechainicial, '' as fechafinal,'' as periodo,
+      
+
+      
+      
+      
+      0 as balancedr,0 as balancecr FROM (
+        SELECT *
+        FROM ( SELECT '0' AS RN1, C.* FROM (
+          SELECT VALUE, NAME, DATEACCT,
+              SUM(AMTACCTDR) AS AMTACCTDR, SUM(AMTACCTCR) AS AMTACCTCR, (SUM(AMTACCTDR)-SUM(AMTACCTCR)) AS TOTAL,
+              FACT_ACCT_GROUP_ID, ID, groupbyid, groupbyname,
+              DESCRIPTION,nreg, ISDEBIT,
+              0 AS TOTALACCTDR, 0 AS TOTALACCTCR, 0 AS TOTALACCTSUB,
+              0 AS PREVIOUSDEBIT, 0 AS PREVIOUSCREDIT, 0 AS PREVIOUSTOTAL,
+              0 AS FINALDEBIT, 0 AS FINALCREDIT, 0 AS FINALTOTAL,
+              TO_CHAR(DATEACCT,'J') AS DATEACCTNUMBER,
+              ? AS groupby, '' as bpid, '' as bpname, '' as pdid, '' as pdname, '' as pjid, '' as pjname, 
+              factaccttype, '' as fact_acct_id, 0 AS AMTACCTDRPREVSUM, 0 AS AMTACCTCRPREVSUM
+          FROM
+            (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+                DATEACCT, AMTACCTDR, AMTACCTCR,
+                FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,FACT_ACCT.em_sco_regnumber nreg,
+                CASE ?
+                  WHEN 'BPartner' THEN c_bpartner.c_bpartner_id
+                  WHEN 'Product' THEN m_product.m_product_id
+                  WHEN 'Project' THEN c_project.c_project_id
+                  ELSE '' END AS groupbyid,
+                CASE ?
+                  WHEN 'BPartner' THEN (case AD_COLUMN_IDENTIFIER('C_Bpartner',c_bpartner.c_bpartner_id, ?) when '**' then '' else AD_COLUMN_IDENTIFIER('C_Bpartner',c_bpartner.c_bpartner_id, ?) end)
+                  WHEN 'Product' THEN (case  AD_COLUMN_IDENTIFIER('M_Product',m_product.m_product_id, ?) when '**' then '' else AD_COLUMN_IDENTIFIER('M_Product',m_product.m_product_id, ?) end)
+                  WHEN 'Project' THEN (case  AD_COLUMN_IDENTIFIER('C_Project',c_project.c_project_id, ?) when '**' then '' else AD_COLUMN_IDENTIFIER('C_Project',c_project.c_project_id, ?) end)
+                  ELSE '' END AS groupbyname,
+                CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT, 
+		CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+            FROM FACT_ACCT
+              LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+              LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+              LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+              LEFT JOIN(
+                  select account_id, record_id2, sum(amtacctdr-amtacctcr) as sum
+                  from fact_acct f1
+                  where 5=5
+                  group by account_id, record_id2
+                ) f2 ON fact_acct.account_id = f2.account_id and fact_acct.record_id2 = f2.record_id2
+            WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                      SELECT c_elementvalue_id as name
+                      FROM C_ELEMENTVALUE
+                      WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and c_elementvalue.ELEMENTLEVEL = 'S'
+                    ))
+              AND FACT_ACCT.AD_ORG_ID IN ('1')
+              AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+              AND (? = 'N' OR (fact_acct.RECORD_ID2 IS NULL) OR (SUM != 0))
+              AND 1=1
+              AND  FACT_ACCT.AD_ORG_ID IN ('2')
+              AND 2=2
+              AND 3=3) D
+            WHERE 6=6
+            GROUP BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, DESCRIPTION,nreg, ISDEBIT
+            HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+            ORDER  BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE,  FACT_ACCT_GROUP_ID, DESCRIPTION, ISDEBIT
+          ) C
+        ) B WHERE 1=1
+      ) A ORDER BY  groupbyname, groupbyid, VALUE, DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, DESCRIPTION, ISDEBIT
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="groupbytext"/>
+    <Parameter name="groupby"/>
+    <Parameter name="groupby"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="parDateFrom" optional="true" after="where 5=5"><![CDATA[AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="where 5=5"><![CDATA[AND DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="hideMatched"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="accountId" optional="true" after="WHERE 6=6"><![CDATA[AND ID = ? ]]></Parameter>
+    <Parameter name="factAcctId" optional="true" after="WHERE 6=6"><![CDATA[and to_char(DATEACCT,'J')||FACT_ACCT_GROUP_ID||DESCRIPTION||ISDEBIT < ? ]]></Parameter>
+    <Parameter name="cBPartner" optional="true" after="WHERE 6=6"><![CDATA[AND groupbyid = ? ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after=",  FACT_ACCT_GROUP_ID, DESCRIPTION, ISDEBIT"><![CDATA[ LIMIT ]]></Parameter>
+    <Parameter name="oraLimit1" type="argument" optional="true" after=") C"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+    <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[ AND RN1 BETWEEN ]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="select2" type="preparedStatement" return="scrollable">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT *,0 as balancedr,0 as balancecr
+        FROM ( SELECT '0' AS RN1, C.* FROM (
+          SELECT VALUE, NAME, DATEACCT,
+              COALESCE(SUM(AMTACCTDR),0) AS AMTACCTDR, COALESCE(SUM(AMTACCTCR),0) AS AMTACCTCR, COALESCE(SUM(AMTACCTDR-AMTACCTCR),0) AS TOTAL,
+              MAX(FACT_ACCT_ID) AS FACT_ACCT_ID,
+              FACT_ACCT_GROUP_ID, ID, groupbyid, groupbyname,
+              DESCRIPTION,nreg , ISDEBIT,
+              0 AS TOTALACCTDR, 0 AS TOTALACCTCR, 0 AS TOTALACCTSUB,
+              0 AS PREVIOUSDEBIT, 0 AS PREVIOUSCREDIT, 0 AS PREVIOUSTOTAL,
+              0 AS FINALDEBIT, 0 AS FINALCREDIT, 0 AS FINALTOTAL,
+              TO_CHAR(DATEACCT,'J') AS DATEACCTNUMBER,
+              ? AS groupby, '' as bpid, '' as bpname, '' as pdid, '' as pdname, '' as pjid, '' as pjname, factaccttype
+              , 0 AS AMTACCTDRPREVSUM, 0 AS AMTACCTCRPREVSUM
+          FROM
+            (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+                DATEACCT, AMTACCTDR, AMTACCTCR, FACT_ACCT_ID,
+                FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,FACT_ACCT.em_sco_regnumber nreg ,
+                CASE ?
+                  WHEN 'BPartner' THEN c_bpartner.c_bpartner_id
+                  WHEN 'Product' THEN m_product.m_product_id
+                  WHEN 'Costcenter' THEN c_costcenter.c_costcenter_id
+                  WHEN 'Project' THEN c_project.c_project_id
+                  ELSE '' END AS groupbyid,
+                CASE ?
+                  WHEN 'BPartner' THEN (select to_char(name) from c_bpartner b where b.c_bpartner_id = c_bpartner.c_bpartner_id)
+                  WHEN 'Product' THEN (select to_char(value || ' - ' || name) from m_product p where p.m_product_id = m_product.m_product_id)
+                  WHEN 'Costcenter' THEN c_costcenter.name
+                  WHEN 'Project' THEN (select to_char(value || ' - ' || name) from c_project pj where pj.c_project_id = c_project.c_project_id)
+                  ELSE '' END AS groupbyname,
+                CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT, 
+                CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+            FROM FACT_ACCT
+              LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+              LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+              LEFT JOIN C_COSTCENTER ON FACT_ACCT.C_COSTCENTER_ID = C_COSTCENTER.C_COSTCENTER_ID
+              LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+            WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                      SELECT c_elementvalue_id as name
+                      FROM C_ELEMENTVALUE
+                      WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and c_elementvalue.ELEMENTLEVEL = 'S'
+                    ))
+              AND FACT_ACCT.AD_ORG_ID IN ('1')
+              AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+              AND 1=1
+              AND  FACT_ACCT.AD_ORG_ID IN ('2')
+              AND 2=2
+              AND 3=3) D
+            WHERE 6=6
+            GROUP BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, DESCRIPTION, nreg , ISDEBIT
+            HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+            ORDER  BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID,  FACT_ACCT_ID, DESCRIPTION, ISDEBIT
+          ) C
+        ) B WHERE 1=1
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="groupbytext"/>
+    <Parameter name="groupby"/>
+    <Parameter name="groupby"/>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="accountId" optional="true" after="WHERE 6=6"><![CDATA[AND ID = ? ]]></Parameter>
+    <Parameter name="cBPartner" optional="true" after="WHERE 6=6"><![CDATA[AND groupbyid = ? ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after=",  FACT_ACCT_ID, DESCRIPTION, ISDEBIT"><![CDATA[ LIMIT ]]></Parameter>
+    <Parameter name="oraLimit1" type="argument" optional="true" after=") C"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+    <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[ AND RN1 BETWEEN ]]></Parameter>
+    <Parameter name="factAcctId" optional="true" after="WHERE 1=1"><![CDATA[ and to_char(DATEACCT,'J')||FACTACCTTYPE||FACT_ACCT_GROUP_ID||FACT_ACCT_ID < ? ]]></Parameter>
+  </SqlMethod>
+  
+  <SqlMethod name="select2ugo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT *,0 as balancedr,0 as balancecr
+        FROM ( SELECT '0' AS RN1, C.* FROM (
+          SELECT VALUE, NAME, DATEACCT,
+              COALESCE(SUM(AMTACCTDR),0) AS AMTACCTDR, COALESCE(SUM(AMTACCTCR),0) AS AMTACCTCR, COALESCE(SUM(AMTACCTDR-AMTACCTCR),0) AS TOTAL,
+              MAX(FACT_ACCT_ID) AS FACT_ACCT_ID,
+              FACT_ACCT_GROUP_ID, ID, groupbyid, groupbyname,
+              DESCRIPTION,nreg , ISDEBIT,
+              0 AS TOTALACCTDR, 0 AS TOTALACCTCR, 0 AS TOTALACCTSUB,
+              0 AS PREVIOUSDEBIT, 0 AS PREVIOUSCREDIT, 0 AS PREVIOUSTOTAL,
+              0 AS FINALDEBIT, 0 AS FINALCREDIT, 0 AS FINALTOTAL,
+              TO_CHAR(DATEACCT,'J') AS DATEACCTNUMBER,
+              ? AS groupby, '' as bpid, '' as bpname, '' as pdid, '' as pdname, '' as pjid, '' as pjname, factaccttype
+              , 0 AS AMTACCTDRPREVSUM, 0 AS AMTACCTCRPREVSUM
+          FROM
+            (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+                DATEACCT, AMTACCTDR, AMTACCTCR, FACT_ACCT_ID,
+                FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,FACT_ACCT.em_sco_regnumber nreg ,
+                CASE ?
+                  WHEN 'BPartner' THEN c_bpartner.c_bpartner_id
+                  WHEN 'Product' THEN m_product.m_product_id
+                  WHEN 'Costcenter' THEN c_costcenter.c_costcenter_id
+                  WHEN 'Project' THEN c_project.c_project_id
+                  ELSE '' END AS groupbyid,
+                CASE ?
+                  WHEN 'BPartner' THEN (select to_char(name) from c_bpartner b where b.c_bpartner_id = c_bpartner.c_bpartner_id)
+                  WHEN 'Product' THEN (select to_char(value || ' - ' || name) from m_product p where p.m_product_id = m_product.m_product_id)
+                  WHEN 'Costcenter' THEN c_costcenter.name
+                  WHEN 'Project' THEN (select to_char(value || ' - ' || name) from c_project pj where pj.c_project_id = c_project.c_project_id)
+                  ELSE '' END AS groupbyname,
+                CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT, 
+                CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+            FROM FACT_ACCT
+              LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+              LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+              LEFT JOIN C_COSTCENTER ON FACT_ACCT.C_COSTCENTER_ID = C_COSTCENTER.C_COSTCENTER_ID
+              LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+            WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                      SELECT c_elementvalue_id as name
+                      FROM C_ELEMENTVALUE
+                      WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and c_elementvalue.ELEMENTLEVEL = 'S'
+                    ))
+              AND FACT_ACCT.FACTACCTTYPE NOT IN ('O')
+              AND FACT_ACCT.AD_ORG_ID IN ('1')
+              AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+              AND 1=1
+              AND  FACT_ACCT.AD_ORG_ID IN ('2')
+              AND 2=2
+              AND 3=3) D
+            WHERE 6=6
+            GROUP BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, DESCRIPTION, nreg , ISDEBIT
+            HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+            ORDER  BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID,  FACT_ACCT_ID, DESCRIPTION, ISDEBIT
+          ) C
+        ) B WHERE 1=1
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="groupbytext"/>
+    <Parameter name="groupby"/>
+    <Parameter name="groupby"/>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="accountId" optional="true" after="WHERE 6=6"><![CDATA[AND ID = ? ]]></Parameter>
+    <Parameter name="cBPartner" optional="true" after="WHERE 6=6"><![CDATA[AND groupbyid = ? ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after=",  FACT_ACCT_ID, DESCRIPTION, ISDEBIT"><![CDATA[ LIMIT ]]></Parameter>
+    <Parameter name="oraLimit1" type="argument" optional="true" after=") C"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+    <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[ AND RN1 BETWEEN ]]></Parameter>
+    <Parameter name="factAcctId" optional="true" after="WHERE 1=1"><![CDATA[ and to_char(DATEACCT,'J')||FACTACCTTYPE||FACT_ACCT_GROUP_ID||FACT_ACCT_ID < ? ]]></Parameter>
+  </SqlMethod>
+  
+  <SqlMethod name="select2balanceanterior" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT id,value,name,sum(amtacctdr) balancedr,sum(amtacctcr) balancecr
+        FROM ( SELECT '0' AS RN1, C.* FROM (
+          SELECT VALUE, NAME, DATEACCT,
+              COALESCE(SUM(AMTACCTDR),0) AS AMTACCTDR, COALESCE(SUM(AMTACCTCR),0) AS AMTACCTCR, COALESCE(SUM(AMTACCTDR-AMTACCTCR),0) AS TOTAL,
+              MAX(FACT_ACCT_ID) AS FACT_ACCT_ID,
+              FACT_ACCT_GROUP_ID, ID, groupbyid, groupbyname,
+              DESCRIPTION,nreg , ISDEBIT,
+              0 AS TOTALACCTDR, 0 AS TOTALACCTCR, 0 AS TOTALACCTSUB,
+              0 AS PREVIOUSDEBIT, 0 AS PREVIOUSCREDIT, 0 AS PREVIOUSTOTAL,
+              0 AS FINALDEBIT, 0 AS FINALCREDIT, 0 AS FINALTOTAL,
+              TO_CHAR(DATEACCT,'J') AS DATEACCTNUMBER,
+              ? AS groupby, '' as bpid, '' as bpname, '' as pdid, '' as pdname, '' as pjid, '' as pjname, factaccttype
+              , 0 AS AMTACCTDRPREVSUM, 0 AS AMTACCTCRPREVSUM
+          FROM
+            (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+                DATEACCT, AMTACCTDR, AMTACCTCR, FACT_ACCT_ID,
+                FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,FACT_ACCT.em_sco_regnumber nreg ,
+                CASE ?
+                  WHEN 'BPartner' THEN c_bpartner.c_bpartner_id
+                  WHEN 'Product' THEN m_product.m_product_id
+                  WHEN 'Costcenter' THEN c_costcenter.c_costcenter_id
+                  WHEN 'Project' THEN c_project.c_project_id
+                  ELSE '' END AS groupbyid,
+                CASE ?
+                  WHEN 'BPartner' THEN (select to_char(name) from c_bpartner b where b.c_bpartner_id = c_bpartner.c_bpartner_id)
+                  WHEN 'Product' THEN (select to_char(value || ' - ' || name) from m_product p where p.m_product_id = m_product.m_product_id)
+                  WHEN 'Costcenter' THEN c_costcenter.name
+                  WHEN 'Project' THEN (select to_char(value || ' - ' || name) from c_project pj where pj.c_project_id = c_project.c_project_id)
+                  ELSE '' END AS groupbyname,
+                CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT, 
+                CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+            FROM FACT_ACCT
+              LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+              LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+              LEFT JOIN C_COSTCENTER ON FACT_ACCT.C_COSTCENTER_ID = C_COSTCENTER.C_COSTCENTER_ID
+              LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+            WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                      SELECT c_elementvalue_id as name
+                      FROM C_ELEMENTVALUE
+                      WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and c_elementvalue.ELEMENTLEVEL = 'S'
+                    ))
+              AND FACT_ACCT.FACTACCTTYPE NOT IN ('C')
+              AND FACT_ACCT.AD_ORG_ID IN ('1')
+              AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+              AND 1=1
+              AND  FACT_ACCT.AD_ORG_ID IN ('2')
+              AND 2=2
+              AND 3=3) D
+            WHERE 6=6
+            GROUP BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, DESCRIPTION, nreg , ISDEBIT
+            HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+            ORDER  BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID,  FACT_ACCT_ID, DESCRIPTION, ISDEBIT
+          ) C
+        ) B WHERE 1=1
+        group by id,value,name
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="groupbytext"/>
+    <Parameter name="groupby"/>
+    <Parameter name="groupby"/>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="accountId" optional="true" after="WHERE 6=6"><![CDATA[AND ID = ? ]]></Parameter>
+    <Parameter name="cBPartner" optional="true" after="WHERE 6=6"><![CDATA[AND groupbyid = ? ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after=",  FACT_ACCT_ID, DESCRIPTION, ISDEBIT"><![CDATA[ LIMIT ]]></Parameter>
+    <Parameter name="oraLimit1" type="argument" optional="true" after=") C"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+    <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[ AND RN1 BETWEEN ]]></Parameter>
+    <Parameter name="factAcctId" optional="true" after="WHERE 1=1"><![CDATA[ and to_char(DATEACCT,'J')||FACTACCTTYPE||FACT_ACCT_GROUP_ID||FACT_ACCT_ID < ? ]]></Parameter>
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="select2sum" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT Coalesce(SUM(S.amtacctdr), 0) AS AMTACCTDR,
+               Coalesce(SUM(S.amtacctcr), 0) AS AMTACCTCR
+        FROM (
+          SELECT *
+          FROM ( SELECT '0' AS RN1, C.* FROM (
+            SELECT VALUE, NAME, DATEACCT,
+                COALESCE(SUM(AMTACCTDR),0) AS AMTACCTDR, COALESCE(SUM(AMTACCTCR),0) AS AMTACCTCR, COALESCE(SUM(AMTACCTDR-AMTACCTCR),0) AS TOTAL,
+                MAX(FACT_ACCT_ID) AS FACT_ACCT_ID,
+                FACT_ACCT_GROUP_ID, ID, groupbyid, groupbyname,
+                DESCRIPTION, ISDEBIT,
+                0 AS TOTALACCTDR, 0 AS TOTALACCTCR, 0 AS TOTALACCTSUB,
+                0 AS PREVIOUSDEBIT, 0 AS PREVIOUSCREDIT, 0 AS PREVIOUSTOTAL,
+                0 AS FINALDEBIT, 0 AS FINALCREDIT, 0 AS FINALTOTAL,
+                TO_CHAR(DATEACCT,'J') AS DATEACCTNUMBER,
+                ? AS groupby, '' as bpid, '' as bpname, '' as pdid, '' as pdname, '' as pjid, '' as pjname, factaccttype
+                , 0 AS AMTACCTDRPREVSUM, 0 AS AMTACCTCRPREVSUM
+            FROM
+              (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+                  DATEACCT, AMTACCTDR, AMTACCTCR, FACT_ACCT_ID,
+                  FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,
+                  CASE ?
+                    WHEN 'BPartner' THEN c_bpartner.c_bpartner_id
+                    WHEN 'Product' THEN m_product.m_product_id
+                    WHEN 'Project' THEN c_project.c_project_id
+                    ELSE '' END AS groupbyid,
+                  CASE ?
+                    WHEN 'BPartner' THEN (select to_char(name) from c_bpartner b where b.c_bpartner_id = c_bpartner.c_bpartner_id)
+                    WHEN 'Product' THEN (select to_char(value || ' - ' || name) from m_product p where p.m_product_id = m_product.m_product_id)
+                    WHEN 'Project' THEN (select to_char(name) from c_project pj where pj.c_project_id = c_project.c_project_id)
+                    ELSE '' END AS groupbyname,
+                  CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT, 
+          CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+              FROM FACT_ACCT
+                LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+                LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+                LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+              WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                        SELECT c_elementvalue_id as name
+                        FROM C_ELEMENTVALUE
+                        WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                          and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                          and c_elementvalue.ELEMENTLEVEL = 'S'
+                      ))
+                AND FACT_ACCT.AD_ORG_ID IN ('1')
+                AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+                AND 1=1
+                AND  FACT_ACCT.AD_ORG_ID IN ('2')
+                AND 2=2
+                AND 3=3) D
+              WHERE 6=6
+              GROUP BY groupbyname, groupbyid, VALUE, NAME, ID,
+              DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, DESCRIPTION, ISDEBIT
+              HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+              ORDER  BY groupbyname, groupbyid, VALUE, NAME, ID,
+              DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID,  FACT_ACCT_ID, DESCRIPTION, ISDEBIT
+            ) C
+          ) B WHERE 1=1) S
+        WHERE S.id = ?
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="groupbytext"/>
+    <Parameter name="groupby"/>
+    <Parameter name="groupby"/>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="accountId" optional="true" after="WHERE 6=6"><![CDATA[AND ID = ? ]]></Parameter>
+    <Parameter name="cBPartner" optional="true" after="WHERE 6=6"><![CDATA[AND groupbyid = ? ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after=",  FACT_ACCT_ID, DESCRIPTION, ISDEBIT"><![CDATA[ LIMIT ]]></Parameter>
+    <Parameter name="oraLimit1" type="argument" optional="true" after=") C"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+    <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[ AND RN1 BETWEEN ]]></Parameter>
+    <Parameter name="factAcctId" optional="true" after="WHERE 1=1"><![CDATA[ and to_char(DATEACCT,'J')||FACTACCTTYPE||FACT_ACCT_GROUP_ID||FACT_ACCT_ID < ? ]]></Parameter>
+    <Parameter name="accountId2"/>
+  </SqlMethod>
+
+  <SqlMethod name="select2Total" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(SUM(AMTACCTDR),0) AS AMTACCTDR, COALESCE(SUM(AMTACCTCR),0) AS AMTACCTCR
+        FROM ( SELECT '0' AS RN1, C.* FROM (
+          SELECT VALUE, NAME, DATEACCT,
+          COALESCE(SUM(AMTACCTDR),0) AS AMTACCTDR, COALESCE(SUM(AMTACCTCR),0) AS AMTACCTCR,
+              COALESCE(SUM(AMTACCTDR-AMTACCTCR),0) AS TOTAL,
+              MAX(FACT_ACCT_ID) AS FACT_ACCT_ID,
+              FACT_ACCT_GROUP_ID, ID, groupbyid, groupbyname,
+              DESCRIPTION, ISDEBIT,
+              0 AS TOTALACCTDR, 0 AS TOTALACCTCR, 0 AS TOTALACCTSUB,
+              0 AS PREVIOUSDEBIT, 0 AS PREVIOUSCREDIT, 0 AS PREVIOUSTOTAL,
+              0 AS FINALDEBIT, 0 AS FINALCREDIT, 0 AS FINALTOTAL,
+              TO_CHAR(DATEACCT,'J') AS DATEACCTNUMBER,
+              ? AS groupby, '' as bpid, '' as bpname, '' as pdid, '' as pdname, '' as pjid, '' as pjname, factaccttype
+          FROM
+            (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+                DATEACCT, AMTACCTDR, AMTACCTCR, FACT_ACCT_ID,
+                FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,
+                CASE ?
+                  WHEN 'BPartner' THEN c_bpartner.c_bpartner_id
+                  WHEN 'Product' THEN m_product.m_product_id
+                  WHEN 'Project' THEN c_project.c_project_id
+                  ELSE '' END AS groupbyid,
+                CASE ?
+                  WHEN 'BPartner' THEN (select to_char(name) from c_bpartner b where b.c_bpartner_id = c_bpartner.c_bpartner_id)
+                  WHEN 'Product' THEN (select to_char(value || ' - ' || name) from m_product p where p.m_product_id = m_product.m_product_id)
+                  WHEN 'Project' THEN (select to_char(value || ' - ' || name) from c_project pj where pj.c_project_id = c_project.c_project_id)
+                  ELSE '' END AS groupbyname,
+                CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT, 
+        CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+            FROM FACT_ACCT
+              LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+              LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+              LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+            WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                      SELECT c_elementvalue_id as name
+                      FROM C_ELEMENTVALUE
+                      WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                        and c_elementvalue.ELEMENTLEVEL = 'S'
+                    ))
+              AND FACT_ACCT.AD_ORG_ID IN ('1')
+              AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+              AND 1=1
+              AND  FACT_ACCT.AD_ORG_ID IN ('2')
+              AND 2=2
+              AND 3=3) D
+            WHERE 6=6
+            GROUP BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, DESCRIPTION, ISDEBIT
+            HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+            ORDER  BY groupbyname, groupbyid, VALUE, NAME, ID,
+            DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID,  FACT_ACCT_ID, DESCRIPTION, ISDEBIT
+          ) C
+        ) B WHERE 1=1
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="groupbytext"/>
+    <Parameter name="groupby"/>
+    <Parameter name="groupby"/>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="accountId" optional="true" after="WHERE 6=6"><![CDATA[AND ID = ? ]]></Parameter>
+    <Parameter name="cBPartner" optional="true" after="WHERE 6=6"><![CDATA[AND groupbyid = ? ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after=",  FACT_ACCT_ID, DESCRIPTION, ISDEBIT"><![CDATA[ LIMIT ]]></Parameter>
+    <Parameter name="oraLimit1" type="argument" optional="true" after=") C"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+    <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[ AND RN1 BETWEEN ]]></Parameter>
+    <Parameter name="factAcctId" optional="true" after="WHERE 1=1"><![CDATA[ and to_char(DATEACCT,'J')||FACTACCTTYPE||FACT_ACCT_GROUP_ID||FACT_ACCT_ID < ? ]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="selectXLS" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT VALUE, NAME, DATEACCT,
+          SUM(AMTACCTDR) AS AMTACCTDR, SUM(AMTACCTCR) AS AMTACCTCR,
+          FACT_ACCT_GROUP_ID, ID, bpid, bpname, pdid, pdname, pjid, pjname,
+          DESCRIPTION, FACTACCTTYPE
+      FROM
+        (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+            DATEACCT, AMTACCTDR, AMTACCTCR,
+            FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,
+            c_bpartner.c_bpartner_id as bpid, m_product.m_product_id as pdid, c_project.c_project_id as pjid,
+            (case AD_COLUMN_IDENTIFIER('C_Bpartner',c_bpartner.c_bpartner_id, ?) when '**' then '' else AD_COLUMN_IDENTIFIER('C_Bpartner',c_bpartner.c_bpartner_id, ?) end) as bpname, (case AD_COLUMN_IDENTIFIER('M_Product',m_product.m_product_id, ?) when '**' then '' else AD_COLUMN_IDENTIFIER('M_Product',m_product.m_product_id, ?) end) as pdname, (case AD_COLUMN_IDENTIFIER('C_Project',c_project.c_project_id, ?) when '**' then '' else AD_COLUMN_IDENTIFIER('C_Project',c_project.c_project_id, ?) end)  as pjname,
+            CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT,
+            CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+        FROM FACT_ACCT
+          LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+          LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+          LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+          LEFT JOIN(
+              select account_id, record_id2, sum(amtacctdr-amtacctcr) as sum
+              from fact_acct f1
+              where 5=5
+              group by account_id, record_id2
+            ) f2 ON fact_acct.account_id = f2.account_id and fact_acct.record_id2 = f2.record_id2
+        WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                  SELECT c_elementvalue_id as name
+                  FROM C_ELEMENTVALUE
+                  WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                    and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                    and c_elementvalue.ELEMENTLEVEL = 'S'
+                ))
+          AND FACT_ACCT.AD_ORG_ID IN ('1')
+          AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+          AND (? = 'N' OR (fact_acct.RECORD_ID2 IS NULL) OR (SUM != 0))
+          AND 1=1
+          AND  FACT_ACCT.AD_ORG_ID IN ('2')
+          AND 2=2
+          AND 3=3) D
+        WHERE 6=6
+        GROUP BY VALUE, NAME, ID, FACTACCTTYPE, DATEACCT, FACT_ACCT_GROUP_ID, description, bpname, bpid, pdname, pdid, pjname, pjid, ISDEBIT
+        HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+        ORDER BY VALUE, NAME, ID, DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, description,  bpname, bpid, pdname, pdid, pjname, pjid, ISDEBIT
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="parDateFrom" optional="true" after="where 5=5"><![CDATA[AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="where 5=5"><![CDATA[AND DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="hideMatched"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="selectXLS2" type="preparedStatement" return="scrollable">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT VALUE, NAME, DATEACCT,
+          COALESCE(SUM(AMTACCTDR),0) AS AMTACCTDR, COALESCE(SUM(AMTACCTCR),0) AS AMTACCTCR,
+          FACT_ACCT_GROUP_ID, ID, bpid, bpname, pdid, pdname, pjid, pjname,
+          DESCRIPTION, FACTACCTTYPE
+      FROM
+        (SELECT FACT_ACCT.ACCTVALUE AS VALUE, FACT_ACCT.ACCTDESCRIPTION AS NAME,
+            DATEACCT, AMTACCTDR, AMTACCTCR,
+            FACT_ACCT_GROUP_ID, FACT_ACCT.ACCOUNT_ID AS ID, FACT_ACCT.DESCRIPTION,
+            c_bpartner.c_bpartner_id as bpid, m_product.m_product_id as pdid, c_project.c_project_id as pjid,
+            (select name from c_bpartner b where b.c_bpartner_id = c_bpartner.c_bpartner_id) as bpname, 
+            (select value || ' - ' || name from m_product p where p.m_product_id = m_product.m_product_id) as pdname, 
+            (select value || ' - ' || name from c_project pj where pj.c_project_id = c_project.c_project_id)  as pjname,
+            CASE WHEN AMTACCTDR <> 0 THEN 'Y' ELSE 'N' END AS ISDEBIT,
+            CASE WHEN FACT_ACCT.FACTACCTTYPE = 'O' THEN 1 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'N' THEN 2 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'R' THEN 3 ELSE (CASE WHEN FACT_ACCT.FACTACCTTYPE = 'C' THEN 4 END) END) END) END AS FACTACCTTYPE
+        FROM FACT_ACCT
+          LEFT JOIN C_BPARTNER ON FACT_ACCT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+          LEFT JOIN M_PRODUCT ON FACT_ACCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+          LEFT JOIN C_PROJECT ON FACT_ACCT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+        WHERE (?='Y' OR FACT_ACCT.ACCOUNT_ID IN (
+                  SELECT c_elementvalue_id as name
+                  FROM C_ELEMENTVALUE
+                  WHERE value >= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                    and value <= (  select value from c_elementvalue where c_elementvalue_id = ?)
+                    and c_elementvalue.ELEMENTLEVEL = 'S'
+                ))
+          AND FACT_ACCT.AD_ORG_ID IN ('1')
+          AND FACT_ACCT.AD_CLIENT_ID IN ('1')
+          AND 1=1
+          AND  FACT_ACCT.AD_ORG_ID IN ('2')
+          AND 2=2
+          AND 3=3) D
+        WHERE 6=6
+        GROUP BY VALUE, NAME, ID, FACTACCTTYPE, DATEACCT, FACT_ACCT_GROUP_ID, description, bpname, bpid, pdname, pdid, pjname, pjid, ISDEBIT
+        HAVING SUM(AMTACCTDR) - SUM(AMTACCTCR) <> 0
+        ORDER BY VALUE, NAME, ID, DATEACCT, FACTACCTTYPE, FACT_ACCT_GROUP_ID, description,  bpname, bpid, pdname, pdid, pjname, pjid, ISDEBIT
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="allaccounts"/>
+    <Parameter name="accountFrom"/>
+    <Parameter name="accountTo"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+    <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND FACT_ACCT.DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="org" type="replace" optional="true" after="AND  FACT_ACCT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="paramAmtFrom" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)>=TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="paramAmtTo" optional="true" after="3=3"><![CDATA[ AND (FACT_ACCT.AMTACCTDR + FACT_ACCT.AMTACCTCR)<=TO_NUMBER(?) ]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  
+  
+  
+ 
+
+
+<SqlMethod name="selectmioMejorado" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+
+		SELECT * from (
+		select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta,
+			
+				COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+				COALESCE (cbp.taxid, '000') AS ruc,
+				COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,max(substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1))) as ap
+			
+			,coalesce(ci.documentno) as numero_compro
+			
+			,max(fa.dateacct) as fecha
+			,max(COALESCE(fa.em_sco_tipdoc ,'')) as tipo_doc
+			
+			,COALESCE(ci.em_scr_physical_documentno,'') as numero_doc
+			
+			, case ci.issotrx 
+					when 'N' then ci.em_sco_newdateinvoiced  
+					WHEN 'Y' then ci.dateacct
+			  END
+			  as fecha_doc
+			
+			, CURRENT_TIMESTAMP + CAST(''||coalesce (ci.daystilldue,0)||' days' AS INTERVAL)   as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			,(SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id) as moneda
+			, fa.c_currency_id as monedaid
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+			
+			,fa.em_sco_regnumber as n_asiento
+			
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id
+						
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN c_invoice ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.c_invoice_id) or fa.em_sco_record3_id=ci.c_invoice_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ? 
+			AND 2=2
+			
+			GROUP BY cuenta,cod_cuenta,tercero,ruc,cod_tercero,numero_compro,numero_doc,fecha_doc,fecha_vto, ci.dateacct, ci.ad_client_id, fa.c_currency_id,fa.em_sco_regnumber
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id
+			having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0
+
+
+
+			UNION 
+
+
+
+			select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta,
+			
+				COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+				COALESCE (cbp.taxid, '000') AS ruc,
+				COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,max(substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1))) as ap
+			
+			,coalesce(ci.documentno) as numero_compro
+			
+			,max(fa.dateacct) as fecha
+			,max(COALESCE(fa.em_sco_tipdoc ,'')) as tipo_doc
+			
+			,COALESCE(ci.documentno,'') as numero_doc
+			
+			,  fa.dateacct as fecha_doc
+			
+			, ci.dategen   as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			,(SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id) as moneda
+			, fa.c_currency_id as monedaid
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+			
+			,fa.em_sco_regnumber as n_asiento
+			
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id		
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner  JOIN  sco_rendicioncuentas ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_rendicioncuentas_id) or fa.em_sco_record3_id=ci.sco_rendicioncuentas_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+ 			where  CP.periodtype = ?
+            AND 3=3
+            
+			GROUP BY cuenta,cod_cuenta,tercero,ruc,cod_tercero,numero_compro,numero_doc,fecha_doc,fecha_vto, ci.dategen, ci.ad_client_id, fa.c_currency_id,fa.em_sco_regnumber
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id
+			having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0
+
+
+
+			UNION 
+
+
+
+
+			select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta,
+			
+				COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+
+				COALESCE (cbp.taxid, '000') AS ruc,
+
+				COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,max(substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1))) as ap
+			
+			,coalesce(ci.documentno) as numero_compro
+			
+			,max(fa.dateacct) as fecha
+			,max(COALESCE(fa.em_sco_tipdoc ,'')) as tipo_doc
+			
+			,COALESCE(ci.documentno,'') as numero_doc
+			
+			, ci.dategen  as fecha_doc
+			
+			, ci.dategen   as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			,(SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id) as moneda
+			, fa.c_currency_id as monedaid
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+			
+			,fa.em_sco_regnumber as n_asiento
+			
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN sco_prepayment ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_prepayment_id) or fa.em_sco_record3_id=ci.sco_prepayment_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ?
+            AND 4=4
+
+			GROUP BY cuenta,cod_cuenta,tercero,ruc,cod_tercero,numero_compro,numero_doc,fecha_doc,fecha_vto, fa.dateacct, ci.ad_client_id, fa.c_currency_id,fa.em_sco_regnumber
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id
+			having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0
+
+
+
+
+
+			UNION 
+
+
+
+
+			select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta,
+			
+				COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+				COALESCE (cbp.taxid, '000') AS ruc,
+				COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,max(substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1))) as ap
+			
+			,coalesce(ci.documentno) as numero_compro
+			
+			,max(fa.dateacct) as fecha
+			,max(COALESCE(fa.em_sco_tipdoc ,'')) as tipo_doc
+			
+			,COALESCE(ci.physical_documentno,'') as numero_doc
+			
+			, ci.dateinvoiced as fecha_doc
+			
+			, ci.duedate  as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			,(SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id) as moneda
+			, fa.c_currency_id as monedaid
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+			
+			,fa.em_sco_regnumber as n_asiento
+			
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id
+						
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN sco_internal_doc ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_internal_doc_id) or fa.em_sco_record3_id=ci.sco_internal_doc_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ?
+            AND 5=5
+
+			GROUP BY cuenta,cod_cuenta,tercero,ruc,cod_tercero,numero_compro,numero_doc,fecha_doc,fecha_vto, ci.dateinvoiced, ci.ad_client_id, fa.c_currency_id,fa.em_sco_regnumber
+			,ci.AD_CLIENT_ID,ci.AD_ORG_ID,cbp.c_bpartner_id
+			having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0
+			
+			
+			
+			
+			UNION 
+			
+			
+			
+			
+			
+			
+			 select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta
+			
+			,COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+			COALESCE (cbp.taxid, '000') AS ruc,
+			COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1)) as ap
+			
+			,coalesce(fp.documentno) as numero_compro
+			
+			,fa.dateacct as fecha
+			
+			,COALESCE(fa.em_sco_tipdoc ,'') as tipo_doc
+			
+			,COALESCE(null,'????') as numero_doc
+			
+			, fp.paymentdate 
+			  as fecha_doc
+			
+			, now() as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			
+			,( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id ) as moneda
+			, fa.c_currency_id as monedaid
+			
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+						
+			,fa.em_sco_regnumber as n_asiento
+
+			,fp.ad_org_id
+
+			,fp.ad_client_id
+			
+			,cbp.c_bpartner_id
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN fin_payment fp on  (fa.record_id=fp.fin_payment_id and fa.em_sco_record3_id is null and fa.record_id2 is null )
+			LEFT JOIN c_bpartner cbp on fp.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ?
+            AND 6=6
+			
+			GROUP BY cuenta,cod_cuenta,tercero,cod_tercero,ruc,numero_compro,tipo_doc,numero_doc,fecha_doc,fecha_vto,moneda,ap,fecha, fp.paymentdate, fp.ad_client_id, monedaid,fa.em_sco_regnumber
+			,fp.ad_org_id,fp.ad_client_id			,cbp.c_bpartner_id
+			having (sum(fa.amtacctdr) - sum(fa.amtacctcr))<>0			
+			
+
+		) AS t
+			
+			where 
+			t.AD_CLIENT_ID IN ('1')
+			AND t.AD_ORG_ID IN ('1')
+			AND 1=1  
+					    and  (substring (t.cod_cuenta from 1 for length(coalesce(?,'')))) >= coalesce(?,'')
+		    and  (substring (t.cod_cuenta from 1 for length(coalesce(?,'')))) <= coalesce(?,'')
+		    and  t.cod_cuenta like any (array ['12%','13%','14%','16%','17%','19%', '41%','42%','43%','44%','45%','46%','47%','49%'])
+		    
+
+			ORDER BY cod_cuenta,ruc, numero_doc, fecha
+			
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+     <Parameter name="cProjectId" optional="true" after="AND 2=2"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 3=3"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 4=4"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 5=5"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 6=6"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     
+     <Parameter name="periodType" />
+     
+     <Parameter name="adUserClient" type="replace" optional="true" after="t.AD_CLIENT_ID IN (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="AND t.AD_ORG_ID IN (" text="'1'"/>
+     <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND t.fecha >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND t.fecha < TO_DATE(?) ]]></Parameter>
+     <Parameter name="ruc" optional="true" after="AND 1=1"><![CDATA[AND t.ruc=? ]]></Parameter>
+     <Parameter name="nroDocumento" optional="true" after="AND 1=1"><![CDATA[AND t.numero_doc=? ]]></Parameter>
+     
+     <Parameter name="cuentadesde" />
+       <Parameter name="cuentadesde" />
+     <Parameter name="cuentahasta" />
+          <Parameter name="cuentahasta" />
+     
+    
+  </SqlMethod>
+  
+
+
+
+
+
+<SqlMethod name="selectmioTodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+						  select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta
+			
+			,COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+			COALESCE (cbp.taxid, '000') AS ruc,
+			COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1)) as ap
+			
+			,coalesce(ci.documentno) as numero_compro
+			
+			,fa.dateacct as fecha
+			
+			,COALESCE(fa.em_sco_tipdoc ,'') as tipo_doc
+			
+			,COALESCE(ci.em_scr_physical_documentno,'') as numero_doc
+			
+			, case ci.issotrx 
+					when 'N' then fa.dateacct
+					WHEN 'Y' then ci.em_sco_newdateinvoiced 
+			  END
+			  as fecha_doc
+			
+			, CURRENT_TIMESTAMP + CAST(''||coalesce (ci.daystilldue,0)||' days' AS INTERVAL)   as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			
+			,( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id ) as moneda
+			, fa.c_currency_id as monedaid
+			
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+						
+			,fa.em_sco_regnumber as n_asiento
+			
+			from fact_acct fa
+			inner JOIN c_invoice ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.c_invoice_id) or fa.em_sco_record3_id=ci.c_invoice_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+			
+			where
+			ci.AD_CLIENT_ID IN ('1')
+			AND ci.AD_ORG_ID IN ('1')
+			AND 1=1 AND
+			
+			COALESCE( cbp.c_bpartner_id,'' ) like '%'||coalesce(?,'')||'%'
+		    and  (substring (fa.acctvalue from 1 for length(coalesce(?,'')))) >= coalesce(?,'')
+		    and  (substring (fa.acctvalue from 1 for length(coalesce(?,'')))) <= coalesce(?,'')
+			 
+			GROUP BY cuenta,cod_cuenta,tercero,cod_tercero,ruc,numero_compro,tipo_doc,numero_doc,fecha_doc,fecha_vto,moneda,ap,fecha, ci.dateacct, ci.ad_client_id, monedaid,fa.em_sco_regnumber
+			ORDER BY cod_cuenta,tercero, numero_doc,fecha
+			
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+     
+     <Parameter name="adUserClient" type="replace" optional="true" after="ci.AD_CLIENT_ID IN (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="AND ci.AD_ORG_ID IN (" text="'1'"/>
+     <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND fa.DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND fa.DATEACCT < TO_DATE(?) ]]></Parameter>
+     <Parameter name="ruc" />
+       <Parameter name="cuentadesde" />
+       <Parameter name="cuentadesde" />
+     <Parameter name="cuentahasta" />
+          <Parameter name="cuentahasta" />
+  </SqlMethod>
+
+
+
+
+	<SqlMethod name="selectmioTodosMejorado" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select * from(
+					select COALESCE(fa.ACCTVALUE,'') as  cod_cuenta, 
+					COALESCE(fa.ACCTDESCRIPTION,'') as cuenta, 
+					COALESCE ( cbp. NAME,'Sin Tercero') AS tercero, 
+					COALESCE (cbp.taxid, '000') AS ruc, 
+					COALESCE (cbp. VALUE, '000') AS cod_tercero, 
+					substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1)) as ap, 
+					coalesce(ci.documentno) as numero_compro, 
+					fa.dateacct as fecha, 
+					COALESCE(fa.em_sco_tipdoc ,'') as tipo_doc, 
+					COALESCE(ci.em_scr_physical_documentno,'') as numero_doc, 
+					case ci.issotrx 
+						when 'N' then ci.em_sco_newdateinvoiced 
+						WHEN 'Y' then  ci.dateacct END as fecha_doc, 
+					CURRENT_TIMESTAMP + CAST(''||coalesce (ci.daystilldue,0)||' days' AS INTERVAL) as fecha_vto, 
+					
+					case (SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id)
+				when 'USD' then sum(fa.amtsourcedr + fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then (fa.amtsourcedr + fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			
+			,( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id ) as moneda
+			, fa.c_currency_id as monedaid
+			
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+						
+			,fa.em_sco_regnumber as n_asiento
+
+			,ci.ad_org_id
+
+			,ci.ad_client_id,
+			cbp.c_bpartner_id
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN c_invoice ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.c_invoice_id) or fa.em_sco_record3_id=ci.c_invoice_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+			 where  CP.periodtype = ? 
+            AND 2=2
+			GROUP BY cuenta,cod_cuenta,tercero,cod_tercero,ruc,numero_compro,tipo_doc,numero_doc,fecha_doc,fecha_vto,moneda,ap,fecha, ci.dateacct, ci.ad_client_id, monedaid,fa.amtsourcedr,fa.amtsourcecr,fa.em_sco_regnumber
+			,ci.ad_org_id,ci.ad_client_id,cbp.c_bpartner_id
+			
+			UNION 
+
+			select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta
+			
+			,COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+			COALESCE (cbp.taxid, '000') AS ruc,
+			COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1)) as ap
+			
+			,coalesce(ci.documentno) as numero_compro
+			
+			,fa.dateacct as fecha
+			
+			,COALESCE(fa.em_sco_tipdoc ,'') as tipo_doc
+			
+			,COALESCE(ci.documentno,'') as numero_doc
+			
+			, ci.dategen  as fecha_doc
+			
+			, ci.dategen   as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr + fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then (fa.amtsourcedr + fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			,( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id ) as moneda
+
+			, fa.c_currency_id as monedaid
+			
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+						
+			,fa.em_sco_regnumber as n_asiento
+
+			,ci.ad_org_id
+
+			,ci.ad_client_id,cbp.c_bpartner_id
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN sco_rendicioncuentas ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_rendicioncuentas_id) or fa.em_sco_record3_id=ci.sco_rendicioncuentas_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ? 
+            AND 3=3
+			GROUP BY cuenta,cod_cuenta,tercero,cod_tercero,ruc,numero_compro,tipo_doc,numero_doc,fecha_doc,fecha_vto,moneda,ap,fecha, ci.dategen, ci.ad_client_id, monedaid,fa.amtsourcedr,fa.amtsourcecr,fa.em_sco_regnumber
+			,ci.ad_org_id,ci.ad_client_id,cbp.c_bpartner_id
+			
+			UNION 
+
+			select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta
+			
+			,COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+			COALESCE (cbp.taxid, '000') AS ruc,
+			COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1)) as ap
+			
+			,coalesce(ci.documentno) as numero_compro
+			
+			,fa.dateacct as fecha
+			
+			,COALESCE(fa.em_sco_tipdoc ,'') as tipo_doc
+			
+			,COALESCE(ci.documentno,'') as numero_doc
+			
+			, ci.dategen  as fecha_doc
+			
+			, ci.dategen   as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr + fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then (fa.amtsourcedr + fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			,( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id ) as moneda
+			, fa.c_currency_id as monedaid
+			
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+						
+			,fa.em_sco_regnumber as n_asiento
+
+			,ci.ad_org_id
+
+			,ci.ad_client_id
+			,cbp.c_bpartner_id
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN sco_prepayment ci on  (fa.em_sco_record3_id IS NULL and fa.record_id=ci.sco_prepayment_id) or fa.em_sco_record3_id=ci.sco_prepayment_id
+			LEFT JOIN c_bpartner cbp on ci.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ? 
+            AND 4=4
+			GROUP BY cuenta,cod_cuenta,tercero,cod_tercero,ruc,numero_compro,tipo_doc,numero_doc,fecha_doc,fecha_vto,moneda,ap,fecha, ci.dategen, ci.ad_client_id, monedaid,fa.amtsourcedr,fa.amtsourcecr,fa.em_sco_regnumber
+			,ci.ad_org_id,ci.ad_client_id,cbp.c_bpartner_id
+
+			UNION
+
+		  select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta
+			
+			,COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+			COALESCE (cbp.taxid, '000') AS ruc,
+			COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1)) as ap
+			
+			,coalesce(sid.documentno) as numero_compro
+			
+			,fa.dateacct as fecha
+			
+			,COALESCE(fa.em_sco_tipdoc ,'') as tipo_doc
+			
+			,COALESCE(sid.physical_documentno,'') as numero_doc
+			
+			, sid.dateinvoiced 
+			  as fecha_doc
+			
+			, sid.duedate  as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			,( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id ) as moneda
+			, fa.c_currency_id as monedaid
+			
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+						
+			,fa.em_sco_regnumber as n_asiento
+
+			,sid.ad_org_id
+
+			,sid.ad_client_id
+			
+			,cbp.c_bpartner_id
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN sco_internal_doc sid on  (fa.em_sco_record3_id IS NULL and fa.record_id=sid.sco_internal_doc_id) or fa.em_sco_record3_id=sid.sco_internal_doc_id
+			LEFT JOIN c_bpartner cbp on sid.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ? 
+            AND 5=5
+			GROUP BY cuenta,cod_cuenta,tercero,cod_tercero,ruc,numero_compro,tipo_doc,numero_doc,fecha_doc,fecha_vto,moneda,ap,fecha, sid.dateinvoiced, sid.ad_client_id, monedaid,fa.em_sco_regnumber
+			,sid.ad_org_id,sid.ad_client_id,cbp.c_bpartner_id
+			
+			UNION
+
+			 select 
+			
+			COALESCE(fa.ACCTVALUE,'') as  cod_cuenta,
+			
+			COALESCE(fa.ACCTDESCRIPTION,'') as cuenta
+			
+			,COALESCE ( cbp. NAME,'Sin Tercero') AS tercero,
+			COALESCE (cbp.taxid, '000') AS ruc,
+			COALESCE (cbp. VALUE, '000') AS cod_tercero
+			
+			,substring(fa.em_sco_regnumber from 1 for (position ('-' in fa.em_sco_regnumber )-1)) as ap
+			
+			,coalesce(fp.documentno) as numero_compro
+			
+			,fa.dateacct as fecha
+			
+			,COALESCE(fa.em_sco_tipdoc ,'') as tipo_doc
+			
+			,COALESCE(null,'????') as numero_doc
+			
+			, fp.paymentdate 
+			  as fecha_doc
+			
+			, now()  as fecha_vto
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'USD' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_dol
+			
+			,case ( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id )
+				when 'EUR' then sum(fa.amtsourcedr) + sum(fa.amtsourcecr)
+				ELSE 0.0 
+			 end as importe_eur
+			
+			
+			,( SELECT iso_code from c_currency cc where cc.c_currency_id=fa.c_currency_id ) as moneda
+			, fa.c_currency_id as monedaid
+			
+			, sum( fa.amtacctdr) as debe
+			
+			, sum(fa.amtacctcr) as haber
+			
+			,sum( fa.amtacctdr) -  sum(fa.amtacctcr) as saldo
+						
+			,fa.em_sco_regnumber as n_asiento
+
+			,fp.ad_org_id
+
+			,fp.ad_client_id
+			
+			,cbp.c_bpartner_id
+			
+			from fact_acct fa
+			INNER JOIN C_PERIOD CP ON fa.C_PERIOD_ID=CP.C_PERIOD_ID
+			inner JOIN fin_payment fp on  (fa.record_id=fp.fin_payment_id and fa.em_sco_record3_id is null and fa.record_id2 is null )
+			LEFT JOIN c_bpartner cbp on fp.c_bpartner_id=cbp.c_bpartner_id
+			where  CP.periodtype = ? 
+            AND 6=6
+			GROUP BY cuenta,cod_cuenta,tercero,cod_tercero,ruc,numero_compro,tipo_doc,numero_doc,fecha_doc,fecha_vto,moneda,ap,fecha, fp.paymentdate, fp.ad_client_id, monedaid,fa.em_sco_regnumber
+			,fp.ad_org_id,fp.ad_client_id			,cbp.c_bpartner_id
+			
+			) as  t1
+
+			where
+			t1.AD_CLIENT_ID IN ('1')
+			AND t1.AD_ORG_ID IN ('1')
+			AND 1=1 
+		    and  (substring (t1.cod_cuenta from 1 for length(coalesce(?,'')))) >= coalesce(?,'')
+		    and  (substring (t1.cod_cuenta from 1 for length(coalesce(?,'')))) <= coalesce(?,'')
+		     and  t1.cod_cuenta like any (array ['12%','13%','14%','16%','17%','19%', '41%','42%','43%','44%','45%','46%','47%','49%'])
+			 
+			ORDER BY cod_cuenta,ruc, numero_doc, fecha
+			
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 2=2"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 3=3"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 4=4"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 5=5"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     <Parameter name="periodType" />
+     <Parameter name="cProjectId" optional="true" after="AND 6=6"><![CDATA[AND fa.c_project_id=? ]]></Parameter>
+     
+     <Parameter name="adUserClient" type="replace" optional="true" after="t1.AD_CLIENT_ID IN (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="AND t1.AD_ORG_ID IN (" text="'1'"/>
+     <Parameter name="parDateFrom2" optional="true" after="AND 1=1"><![CDATA[AND t1.fecha >= TO_DATE(?) ]]></Parameter>
+     <Parameter name="parDateTo2" optional="true" after="AND 1=1"><![CDATA[AND t1.fecha < TO_DATE(?) ]]></Parameter>
+     <Parameter name="ruc" optional="true" after="AND 1=1"><![CDATA[AND t1.ruc=? ]]></Parameter>
+     <Parameter name="nroDocumento" optional="true" after="AND 1=1"><![CDATA[AND t1.numero_doc=? ]]></Parameter>
+     
+     <Parameter name="cuentadesde" />
+     <Parameter name="cuentadesde" />
+     <Parameter name="cuentahasta" />
+     <Parameter name="cuentahasta" />
+  </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+ 	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	/*where periodtype!='A'*/
+	ORDER BY 1,cp.startdate desc
+
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+  
+  
+
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectOrganization" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectRUC" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TAXID
+        FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectTotal" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      SELECT COALESCE(SUM(AMTACCTDR),0) AS TOTALACCTDR, COALESCE(SUM(AMTACCTCR),0) AS TOTALACCTCR,
+      COALESCE(SUM(AMTACCTDR-AMTACCTCR),0) AS TOTAL
+      FROM FACT_ACCT
+      LEFT JOIN(
+        select account_id, record_id2, sum(amtacctdr-amtacctcr) as sum
+        from fact_acct f1
+        where 5=5
+        group by account_id, record_id2
+      ) f2 ON fact_acct.account_id = f2.account_id and fact_acct.record_id2 = f2.record_id2
+      WHERE 1=1
+      AND FACT_ACCT.ACCOUNT_ID = ?
+      AND DATEACCT >= TO_DATE(?)
+      AND DATEACCT < TO_DATE(?)
+      AND FACT_ACCT.AD_ORG_ID IN ('1')
+      AND (? = 'N' OR ((fact_acct.RECORD_ID2 IS NULL) OR (DATEACCT < TO_DATE(?)) OR (SUM != 0)))
+      ]]></Sql>
+      <Parameter name="dateFrom" optional="true" after="where 5=5"><![CDATA[AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+      <Parameter name="dateTo" optional="true" after="where 5=5"><![CDATA[AND DATEACCT < TO_DATE(?) ]]></Parameter>
+      <Parameter name="bpartner" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+      <Parameter name="bpartnerNULL" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IS NULL]]></Parameter>
+      <Parameter name="product" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+      <Parameter name="productNULL" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IS NULL]]></Parameter>
+      <Parameter name="project" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+      <Parameter name="projectNULL" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IS NULL]]></Parameter>
+      <Parameter name="acctschema" optional="true" after="1=1"><![CDATA[ AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+      <Parameter name="account"/>
+      <Parameter name="initialYearBalance"/>
+      <Parameter name="dateTo2"/>
+      <Parameter name="orgs" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+      <Parameter name="hideMatched"/>
+      <Parameter name="dateFrom"/>
+   </SqlMethod>
+
+  <SqlMethod name="selectTotal2" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      SELECT COALESCE(SUM(AMTACCTDR),0) AS TOTALACCTDR, COALESCE(SUM(AMTACCTCR),0) AS TOTALACCTCR,
+      COALESCE(SUM(AMTACCTDR-AMTACCTCR),0) AS TOTAL
+      FROM FACT_ACCT
+      WHERE 1=1
+      AND FACT_ACCT.ACCOUNT_ID = ?
+      AND DATEACCT < TO_DATE(?)
+      AND FACT_ACCT.AD_ORG_ID IN ('1')
+      ]]></Sql>
+      <Parameter name="bpartner" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IN]]></Parameter>
+      <Parameter name="bpartnerNULL" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_BPARTNER_ID IS NULL]]></Parameter>
+      <Parameter name="product" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IN]]></Parameter>
+      <Parameter name="productNULL" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.M_PRODUCT_ID IS NULL]]></Parameter>
+      <Parameter name="project" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IN]]></Parameter>
+      <Parameter name="projectNULL" optional="true" type="argument" after="1=1"><![CDATA[ AND FACT_ACCT.C_PROJECT_ID IS NULL]]></Parameter>
+      <Parameter name="acctschema" optional="true" after="1=1"><![CDATA[ AND FACT_ACCT.C_ACCTSCHEMA_ID = ? ]]></Parameter>
+      <Parameter name="account"/>
+      <Parameter name="dateFrom" optional="true" after="ACCOUNT_ID = ?"><![CDATA[ AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+      <Parameter name="dateTo2"/>
+      <Parameter name="orgs" type="replace" optional="true" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+   </SqlMethod>
+   
+  <SqlMethod name="yearInitialDate" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      SELECT TO_CHAR(MAX(INI),?) AS STARTDATE
+      FROM
+        (
+        SELECT MIN(P.STARTDATE) AS INI
+        FROM C_YEAR Y, C_PERIOD P, C_PERIODCONTROL PC
+        WHERE Y.C_YEAR_ID = P.C_YEAR_ID
+          AND P.C_PERIOD_ID = PC.C_PERIOD_ID
+          AND P.STARTDATE <= TO_DATE(?)
+          AND PC.AD_CLIENT_ID IN ('1')
+          AND PC.AD_ORG_ID IN ('1')
+        GROUP BY Y.YEAR
+        ) PERIOD
+      ]]></Sql>
+      <Parameter name="dateTemplate"/>
+      <Parameter name="date"/>
+      <Parameter name="client" type="replace" optional="true" after="AND PC.AD_CLIENT_ID IN (" text="'1'"/>
+      <Parameter name="orgs" type="replace" optional="true" after="AND PC.AD_ORG_ID IN (" text="'1'"/>
+   </SqlMethod>
+
+  <SqlMethod name="selectSubaccountDescription" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT  COALESCE(TO_CHAR(VALUE),TO_CHAR('')) ||' - '|| COALESCE(TO_CHAR(NAME),TO_CHAR(''))
+      FROM C_ELEMENTVALUE
+      WHERE C_ELEMENTVALUE_ID = ?
+    ]]></Sql>
+    <Parameter name="elementValueId"/>
+  </SqlMethod>
+  <SqlMethod name="getFinancialOrgs" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql><![CDATA[
+     	SELECT NODE_ID AS ID
+	FROM AD_TREENODE
+	WHERE AD_TREE_ID = ?
+	AND (AD_ISORGINCLUDED(?, NODE_ID, ?) <> -1
+	  OR AD_ISORGINCLUDED(NODE_ID, ?, ?) <> -1)
+     ]]></Sql>
+     <Parameter name="adTreeId"/>
+     <Parameter name="adOrgId"/>
+     <Parameter name="adClientId"/>
+     <Parameter name="adOrgId"/>
+     <Parameter name="adClientId"/>
+  </SqlMethod>
+  
+  
+  
+     <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+    
+    
+  </SqlMethod>   
+  
+  		  <SqlMethod name="selectBPartner" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		      SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+		    </Sql>
+		    <Parameter name="cBpartnerId"/>
+ </SqlMethod>
+ 
+ 
+  <SqlMethod name="select_libros" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+
+				SELECT cas.C_ACCTSCHEMA_ID as idlibro, 
+		((CASE cas.isActive WHEN 'N' THEN '**' ELSE '' END) || cas.Name) as nombrelibro,
+		ao3.ad_org_id as idorganizacion
+				 FROM C_ACCTSCHEMA cas
+			INNER   join ad_org ao on cas.ad_org_id=ao.ad_org_id
+			LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+			on ao.social_name=ao3.social_name
+		ORDER BY ao3.name
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+
+     
+  
+
+</SqlClass>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="BaseWebServiceServletData" package="org.openbravo.service.web">
+  <SqlClassComment></SqlClassComment>
+    <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS default_ad_client_id, '' AS default_ad_org_id, '' AS default_ad_role_id,
+               '' AS webser_ad_client_id, '' AS webser_ad_org_id, '' AS webser_ad_role_id FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+  <SqlMethod name="getDefaultsFromUser" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT default_ad_client_id, default_ad_org_id, default_ad_role_id FROM AD_User WHERE AD_User_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  <SqlMethod name="getWebServiceVarsFromUser" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT em_scr_webser_ad_client_id AS webser_ad_client_id , em_scr_webser_ad_org_id AS webser_ad_org_id, em_scr_webser_ad_role_id AS webser_ad_role_id FROM AD_User WHERE AD_User_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  </SqlClass>

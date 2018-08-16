@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_ORDER_UPDATESPDOC_TRG">
+    <trigger name="SSA_ORDER_UPDATESPDOC_TRG" table="C_ORDER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialmethod VARCHAR(60):=NULL;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+      :NEW.em_ssa_specialdoctype := v_specialdoctype;
+
+      IF(:NEW.fin_paymentmethod_id IS NOT NULL) THEN
+         SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+         :NEW.em_sco_specialmethod := v_specialmethod;
+      END IF;
+
+      IF(:NEW.ISSOTRX='N')THEN
+         :NEW.em_spr_purchasetype:= 'PR';
+        IF(v_specialdoctype='SREPURCHASEORDERSERVICE')THEN
+         :NEW.em_spr_purchasetype:= 'SR';
+        END IF;
+      END IF;
+    ELSE
+      IF(COALESCE(:OLD.c_doctypetarget_id,'')<>COALESCE(:NEW.c_doctypetarget_id,'')) THEN
+        SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+        :NEW.em_ssa_specialdoctype := v_specialdoctype;
+
+        UPDATE fin_payment_schedule SET em_sco_specialdoctype=v_specialdoctype WHERE c_order_id = :NEW.c_order_id;
+        UPDATE c_orderline SET em_ssa_specialdoctype=v_specialdoctype WHERE c_order_id = :NEW.c_order_id;
+        UPDATE sre_serviceorderline SET specialdoctype=v_specialdoctype WHERE c_order_id = :NEW.c_order_id;
+        UPDATE c_ordertax SET em_ssa_specialdoctype=v_specialdoctype WHERE c_order_id = :NEW.c_order_id;
+      END IF;
+
+      IF(COALESCE(:OLD.fin_paymentmethod_id,'')<>COALESCE(:NEW.fin_paymentmethod_id,'')) THEN
+        IF(:NEW.fin_paymentmethod_id IS NOT NULL) THEN
+          SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+          :NEW.em_sco_specialmethod := v_specialmethod;        
+        END IF;  
+      END IF;
+
+    END IF;
+
+    END SSA_ORDER_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

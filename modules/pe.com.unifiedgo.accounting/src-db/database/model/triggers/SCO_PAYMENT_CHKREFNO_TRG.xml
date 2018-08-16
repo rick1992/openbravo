@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_CHKREFNO_TRG">
+    <trigger name="SCO_PAYMENT_CHKREFNO_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+v_referenceno VARCHAR(40);
+BEGIN
+   
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.referenceno IS NOT NULL) THEN
+      v_referenceno := trim(:NEW.referenceno);
+      IF(v_referenceno = '') THEN
+        :NEW.referenceno := NULL;
+      END IF;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.referenceno,'')<>COALESCE(:NEW.referenceno,'')) THEN
+      IF(:NEW.referenceno IS NOT NULL) THEN
+        v_referenceno := trim(:NEW.referenceno);
+        IF(v_referenceno = '') THEN
+          :NEW.referenceno := NULL;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  END SCO_PAYMENT_CHKREFNO_TRG
+]]></body>
+    </trigger>
+  </database>

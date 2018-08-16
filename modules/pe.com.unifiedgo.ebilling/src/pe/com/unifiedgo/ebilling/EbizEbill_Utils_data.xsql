@@ -1,0 +1,1686 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2013 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="EbizEbillUtilsData" package="pe.com.unifiedgo.ebilling">
+  <SqlClassComment>Class EbizEbillUtilsData</SqlClassComment>
+  <SqlMethod name="selectInfoInvoice" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS facturaId , '' AS fechaEmision, '' AS correlativo, '' AS clienteNroDocumento, '' AS clienteTipoDocumento, 
+          '' AS clienteRazonSocial, '' AS moneda, '' AS facturaTotalVtaOpGrabadas, '' AS facturaTotalVtaOpInafectas,
+          '' AS facturaTotalVtaOpExoneradas, '' AS facturaTotalIGV, '' AS facturaTotalISC, '' AS facturaTotalTributos,
+          '' AS facturaOtrosCargos, '' AS facturaTotalImporteDscto, '' AS facturaImporteTotal, '' AS facturaTotalVtaOpGratuitas, 
+          '' AS facturaDsctoGlobales, '' AS clienteDireccion,'' AS clienteTelefono,'' AS clienteCorreo,
+          '' AS adicional1,'' AS adicional2,'' AS adicional3, '' AS adicional4, 
+          '' AS documentoRelacionado, '' AS tipoDocumentoRelacionado,
+          '' AS numeroItem, '' AS productoCodigo , '' AS itemUnidadMedida, '' AS itemCantidad, 
+          '' AS description, '' AS itemValorUnitario, '' AS itemPrecioVtaUnitario, '' AS itemIGV,
+          '' AS taxid , '' AS itemMontoISC, '' AS itemCodigoISC, '' AS itemTotalValorVta, '' AS valorRefOpNoOnerosas,
+          '' AS itemIndicadorDsctos, '' AS itemMontoDsctos, '' as esTituloGratuito, 
+          '' as specialtax, '' as emisorRUC, '' as monedaDescripcion, '' as motivo, '' as identificadorDocumentoRelacionado,
+          '' as nroordenservicio, '' as nrodocumentooriginal,
+          '' as guiaRemisionNumero, '' as tipoOperacionFactura, '' as percepcionMNBase, '' as percepcionMNMonto, '' as percepcionMNTotalMonto, 
+          '' as documentoAnticipo, '' as boletaId, '' as emisorRazonSocial, '' as emisorTipoDocumento, '' as identificador, 
+          '' as motivoAnulacion, '' as correlativoSerie, '' as correlativoNumero,         
+          '' as control, '' as dtBienServicioCodigo, '' as dtBienServicioValor, '' as dtCuentaCorrienteCodigo, '' as dtCuentaCorrienteValor,
+          '' as dtDetraccionesCodigo, '' as dtDetraccionPorcentaje, '' as dtDetraccionMontoValor, '' as dtNombreMatriculaCode, '' as dtNombreEmbarcacion,
+          '' as dtMatriculaEmbarcacion, '' as dtTipoCantidadEspecieCodigo, '' as dtTipoEspecie, '' as dtCantidadEspecie, '' as dtLugarDescargaCodigo,
+          '' as dtLugarDescargaValor, '' as dtFechaDescargaCodigo, '' as dtfechaDescargaValor,
+          '' as percepcionBase, '' as percepcionMonto, '' as percepcionTotalMonto, '' as fechaArchivo, '' as codigomotivo, '' as c_bpartner_location_id,
+          '' as emisorUbigeo, '' as proveedorNroDocumento, '' as proveedorTipoDocumento, '' as proveedorRazonSocial, '' as regimenRetencion,
+          '' as importeTotalRetenido, '' as importeTotalPagado, '' as monedaComprobanteRetencion, '' as compretencionid, '' as tasaretencion,
+          '' as monedaretenido, '' as monedapagado, '' as proveedorubigeo, '' AS retinvTotalretenido,'' AS retinvTotalpagado,'' AS retinvCorrelativo,
+          '' AS retinvFechaEmision,'' AS retinvFacturaImporteTotal,'' AS retinvMoneda,'' AS retinvFechaPago,'' AS numPago,
+          '' AS retinvTotalpagadoNoRet,'' AS retinvMonedaPago,'' AS retinvMonedaImpRetenido,'' AS retinvFechaRetencion,'' AS retinvMonedaImpNetoPago,
+          '' AS retinvMonedaRef,'' AS retinvMonedaObjetivo,'' AS tc,'' AS fechaTc, '' AS ppartida_ubigeo, '' AS ppartida_direccion, '' AS ppartida_urbanizacion,
+          '' AS ppartida_provincia, '' AS ppartida_departamento, '' AS ppartida_distrito, '' AS pllegada_ubigeo, '' AS pllegada_direccion, 
+          '' AS pllegada_urbanizacion, '' AS pllegada_provincia, '' AS pllegada_departamento, '' AS pllegada_distrito, '' AS m_inout_id, '' as codigo_leyenda,
+          '' AS proveedor_direccion, '' AS proveedor_urbanizacion, '' AS proveedor_provincia, '' AS proveedor_departamento, '' AS proveedor_distrito, 
+          '' AS proveedor_pais, '' as proveedorCorreo, 
+          '' AS emisor_direccion, '' AS emisor_urbanizacion, '' AS emisor_provincia, '' AS emisor_departamento, '' AS emisor_distrito, '' AS emisor_pais 
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectFactura" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,                
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                           from c_invoiceline il
+                    left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+                          where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0)
+                ELSE 0 END) as facturaTotalVtaOpGrabadas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpInafectas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN COALESCE(i.grandtotal,0) ELSE 0 END) as facturaImporteTotal,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 
+                ELSE coalesce((select sum(il.linenetamt) 
+                                 from c_invoiceline il
+                                  left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                             where il.c_invoice_id=i.c_invoice_id and coalesce(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV') 
+                               + (i.grandtotal-i.totallines),0) END) as facturaTotalVtaOpGratuitas,
+               0 as facturaDsctoGlobales,
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+               coalesce(array_to_string(array(select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+             from c_invoiceline lin 
+                  left join m_inoutline l on lin.m_inoutline_id = l.m_inoutline_id
+                  left join m_inout iou on l.m_inout_id = iou.m_inout_id
+            where lin.c_invoice_id=i.c_invoice_id 
+              and iou.em_scr_physical_documentno is not null
+              and iou.docstatus!='VO'
+              and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+              and (select count(ped.c_order_id) from c_order ped
+                          inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                    where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            union
+            select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+              from c_invoiceline lin 
+                   left join m_inoutline l on lin.c_orderline_id = l.c_orderline_id
+                   left join m_inout iou on l.m_inout_id = iou.m_inout_id
+             where lin.c_invoice_id=i.c_invoice_id 
+               and iou.em_scr_physical_documentno is not null
+               and iou.docstatus!='VO'
+               and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+               and (select count(ped.c_order_id) from c_order ped
+                           inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                     where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            order by 1 limit 5),','),'') as adicional1,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end)
+                || ' ' || (case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then '0' else pt.name end)) || ':' || ':' || coalesce(i.em_sco_convrate,0)) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN '1000' ELSE '1002' END) as codigo_leyenda, 
+               '0' as control,
+               coalesce(case trim(i.poreference) when '' then null else i.poreference end,'') as documentoRelacionado,
+               '99' as tipoDocumentoRelacionado,            
+               cur.description as monedaDescripcion,
+           (CASE WHEN i.em_sco_isforfree<>'Y' THEN 'N' ELSE 'Y' END) as esTituloGratuito 
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+             INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id
+             LEFT JOIN c_order o ON i.c_order_id = o.c_order_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+
+  <SqlMethod name="selectFacturaGuia" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT T.*,
+               scr_getubigeo(lwh.c_location_id) as ppartida_ubigeo,
+               COALESCE(lwh.address1,'') as ppartida_direccion,
+               COALESCE(lwh.address2,'') as ppartida_urbanizacion,
+               pwh.name as ppartida_provincia,
+               rwh.name as ppartida_departamento,
+               cwh.name as ppartida_distrito,
+               scr_getubigeo(lp.c_location_id) as pllegada_ubigeo,
+               COALESCE(lp.address1,'') as pllegada_direccion,
+               COALESCE(lp.address2,'') as pllegada_urbanizacion,
+               plp.name as pllegada_provincia,
+               rlp.name as pllegada_departamento,
+               clp.name as pllegada_distrito
+        FROM
+        (SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,                
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                           from c_invoiceline il 
+                    left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+                               where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) 
+                ELSE 0 END) as facturaTotalVtaOpGrabadas, 
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpInafectas, 
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN COALESCE(i.grandtotal,0) ELSE 0 END) as facturaImporteTotal,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 
+                ELSE coalesce((select sum(il.linenetamt) 
+                                 from c_invoiceline il
+                                  left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                             where il.c_invoice_id=i.c_invoice_id and coalesce(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV') 
+                               + (i.grandtotal-i.totallines),0) END) as facturaTotalVtaOpGratuitas,
+               0 as facturaDsctoGlobales,
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+           coalesce(array_to_string(array(select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+             from c_invoiceline lin 
+              left join m_inoutline l on lin.m_inoutline_id = l.m_inoutline_id
+              left join m_inout iou on l.m_inout_id = iou.m_inout_id
+            where lin.c_invoice_id=i.c_invoice_id 
+              and iou.em_scr_physical_documentno is not null
+              and iou.docstatus!='VO'
+              and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+              and (select count(ped.c_order_id) from c_order ped
+                      inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            union
+            select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+              from c_invoiceline lin 
+               left join m_inoutline l on lin.c_orderline_id = l.c_orderline_id
+               left join m_inout iou on l.m_inout_id = iou.m_inout_id
+             where lin.c_invoice_id=i.c_invoice_id 
+               and iou.em_scr_physical_documentno is not null
+               and iou.docstatus!='VO'
+               and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+               and (select count(ped.c_order_id) from c_order ped
+                       inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                 where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            order by 1 limit 5),','),'') as adicional1,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end)
+                || ' ' || (case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then '0' else pt.name end)) || ':' || ':' || coalesce(i.em_sco_convrate,0)) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN '1000' ELSE '1002' END) as codigo_leyenda, 
+               '1' as control,
+               coalesce(case trim(i.poreference) when '' then null else i.poreference end,'') as documentoRelacionado,
+               '99' as tipoDocumentoRelacionado,            
+               cur.description as monedaDescripcion,
+               (
+                 SELECT io2.m_inout_id 
+                 FROM c_invoiceline il2, m_inoutline iol2, m_inout io2
+                 WHERE il2.c_invoice_id = i.c_invoice_id
+                 AND il2.m_inoutline_id = iol2.m_inoutline_id
+                 AND iol2.m_inout_id = io2.m_inout_id
+                 AND io2.docstatus = 'CO' LIMIT 1
+               ) as m_inout_id, 
+           (CASE WHEN i.em_sco_isforfree<>'Y' THEN 'N' ELSE 'Y' END) as esTituloGratuito 
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+             INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id
+             LEFT JOIN c_order o ON i.c_order_id = o.c_order_id
+        WHERE i.c_invoice_id = ? ) as T
+        INNER JOIN m_inout io ON io.m_inout_id = T.m_inout_id
+        INNER JOIN m_warehouse wh on io.m_warehouse_id = wh.m_warehouse_id
+        LEFT JOIN c_bpartner_location cbplsa ON io.em_swa_source_address_id = cbplsa.c_bpartner_location_id
+        INNER JOIN c_location lwh on lwh.c_location_id = (CASE WHEN io.em_swa_edit_source_address='Y' AND cbplsa.c_location_id IS NOT NULL THEN cbplsa.c_location_id ELSE wh.c_location_id END)
+        INNER JOIN c_city cwh ON lwh.c_city_id = cwh.c_city_id
+        INNER JOIN scr_province pwh ON lwh.em_scr_province_id = pwh.scr_province_id
+        INNER JOIN c_region rwh on lwh.c_region_id = rwh.c_region_id
+        INNER JOIN c_bpartner_location iobpl ON iobpl.c_bpartner_location_id = (CASE WHEN io.delivery_location_id IS NOT NULL THEN io.delivery_location_id ELSE io.c_bpartner_location_id END)
+        INNER JOIN c_location lp ON iobpl.c_location_id = lp.c_location_id
+        INNER JOIN c_city clp ON lp.c_city_id = clp.c_city_id
+        INNER JOIN scr_province plp ON lp.em_scr_province_id = plp.scr_province_id
+        INNER JOIN c_region rlp on lp.c_region_id = rlp.c_region_id
+
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+        
+    <SqlMethod name="selectFacturaLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 b.value AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 b.itemIndicadorDsctos,
+                 b.itemMontoDsctos,
+                 b.adicional1,
+                 b.adicional2
+            FROM (
+            SELECT il.line,
+                   (case when il.m_product_id is not null then p.value else '' end) as value,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   (case when il.m_product_id is not null then p.name else gl.name end) as name,
+                   il.priceactual as priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN tax.em_sco_specialtax ELSE '15' END) as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN il.linenetamt ELSE 0 END) as linenetamt,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 ELSE il.linenetamt END) AS valorRefOpNoOnerosas,
+                   (case when i.em_sco_isforfree<>'Y' AND coalesce((il.pricelist-il.priceactual),0) > 0 then 'false' else '' end) AS itemIndicadorDsctos,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN GREATEST(coalesce((il.pricelist-il.priceactual),0), 0.00) ELSE 0 END) AS itemMontoDsctos,
+                   coalesce((select uomsymbol from c_uom_trl where c_uom_id=uom.c_uom_id and ad_language='es_PE'),uom.uomsymbol) AS adicional1,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN (CASE WHEN il.pricelist <> 0 THEN il.pricelist ELSE il.priceactual END) ELSE il.priceactual END) AS adicional2                    
+               FROM C_INVOICELINE il                
+                 INNER JOIN c_invoice i ON i.c_invoice_id=il.c_invoice_id  
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN M_PRODUCT p on il.m_product_id = p.m_product_id
+                  LEFT JOIN c_glitem gl on il.account_id = gl.c_glitem_id                 
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ? 
+                   AND COALESCE(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV'
+                 GROUP BY il.m_product_id, il.line, p.value, uom.em_ssa_code, uom.c_uom_id, uom.uomsymbol, 
+                 il.qtyinvoiced,p.name, gl.name, il.pricelist, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.em_sco_isforfree
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+   <SqlMethod name="selectBoleta" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as boletaId,
+               i.dateacct as fechaEmision,
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,                
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                               from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+                         where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) 
+                ELSE 0 END) as facturaTotalVtaOpGrabadas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpInafectas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN COALESCE(i.grandtotal,0) ELSE 0 END) as facturaImporteTotal,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 
+                ELSE coalesce((select sum(il.linenetamt) 
+                                 from c_invoiceline il
+                                  left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                             where il.c_invoice_id=i.c_invoice_id and coalesce(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV') 
+                               + (i.grandtotal-i.totallines),0) END) as facturaTotalVtaOpGratuitas,
+               0 as facturaDsctoGlobales,
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+               '' as adicional1,
+               (case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then '0' else pt.name end) as adicional2,
+               coalesce((select name from ad_user where ad_user_id=i.salesrep_id),'') as adicional3,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN '1000' ELSE '1002' END) as codigo_leyenda, 
+               '' as guiaRemisionNumero,
+               '' as tipoOperacionFactura,
+               '' as percepcionMNBase,
+               '' as percepcionMNMonto,
+               '' as percepcionMNTotalMonto,
+               '' as documentoAnticipo,               
+               COALESCE(o.documentno,'') as documentoRelacionado,
+               '99' as tipoDocumentoRelacionado,            
+               cur.description as monedaDescripcion,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 'N' ELSE 'Y' END) as esTituloGratuito 
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+             INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id
+             LEFT JOIN c_order o ON i.c_order_id = o.c_order_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+
+
+   <SqlMethod name="selectBoletaLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 b.value AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 b.itemIndicadorDsctos,
+                 b.itemMontoDsctos,
+                 b.adicional1
+            FROM (
+            SELECT il.line,
+                   (case when il.m_product_id is not null then p.value else '' end) as value,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   (case when il.m_product_id is not null then p.name else gl.name end) as name,
+                   il.priceactual as priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,
+                   0 AS itemIGV,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN tax.em_sco_specialtax ELSE '15' END) as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN il.linenetamt ELSE 0 END) as linenetamt,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 ELSE il.linenetamt END) AS valorRefOpNoOnerosas,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' AND coalesce((il.pricelist-il.priceactual),0) > 0 THEN 'false' ELSE '' END) AS itemIndicadorDsctos,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN GREATEST(coalesce((il.pricelist-il.priceactual),0), 0.00) ELSE 0 END) AS itemMontoDsctos,
+                   ((CASE WHEN i.em_sco_isforfree<>'Y' THEN GREATEST(ROUND(((il.pricelist * (100+tax.rate)/100.00) - il.EM_Ssa_Taxpriceactual),2),0.00) ELSE 0 END) 
+                    || ':' || ROUND((il.linenetamt + COALESCE(sum(ilt.taxamt),0)),2) 
+                    || ':' || coalesce((select uomsymbol from c_uom_trl where c_uom_id=uom.c_uom_id and ad_language='es_PE'),uom.uomsymbol)
+                    || ':' || (CASE WHEN i.em_sco_isforfree<>'Y' THEN ROUND(((CASE WHEN il.pricelist<>0 THEN il.pricelist ELSE il.priceactual END) * (100+tax.rate)/100.00),5) ELSE il.priceactual END)) AS adicional1
+               FROM C_INVOICELINE il
+                 INNER JOIN c_invoice i ON i.c_invoice_id=il.c_invoice_id  
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN M_PRODUCT p on il.m_product_id = p.m_product_id
+                  LEFT JOIN c_glitem gl on il.account_id = gl.c_glitem_id                 
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ?
+                   AND COALESCE(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV' 
+                 GROUP BY il.m_product_id, il.line, p.value, uom.em_ssa_code, uom.c_uom_id, uom.uomsymbol, 
+                 il.qtyinvoiced,p.name, gl.name, il.pricelist, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.em_sco_isforfree, il.em_ssa_taxpriceactual, tax.rate 
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+        
+    
+    
+  <SqlMethod name="selectAnticipo" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,               
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,    
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               coalesce((select sum(il.linenetamt) 
+                          from c_invoiceline il 
+                    left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+                               where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) as facturaTotalVtaOpGrabadas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpInafectas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               COALESCE(i.grandtotal,0) as facturaImporteTotal,
+               0 as facturaTotalVtaOpGratuitas,
+               0 as facturaDsctoGlobales,
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+               coalesce(array_to_string(array(select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+             from c_invoiceline lin 
+                  left join m_inoutline l on lin.m_inoutline_id = l.m_inoutline_id
+                  left join m_inout iou on l.m_inout_id = iou.m_inout_id
+            where lin.c_invoice_id=i.c_invoice_id 
+              and iou.em_scr_physical_documentno is not null
+              and iou.docstatus!='VO'
+              and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+              and (select count(ped.c_order_id) from c_order ped
+                          inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                    where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            union
+            select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+              from c_invoiceline lin 
+                   left join m_inoutline l on lin.c_orderline_id = l.c_orderline_id
+                   left join m_inout iou on l.m_inout_id = iou.m_inout_id
+             where lin.c_invoice_id=i.c_invoice_id 
+               and iou.em_scr_physical_documentno is not null
+               and iou.docstatus!='VO'
+               and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+               and (select count(ped.c_order_id) from c_order ped
+                           inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                     where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            order by 1 limit 5),','),'') as adicional1,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end)
+                || ' ' || (case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then '0' else pt.name end)) || ':' || ':' || coalesce(i.em_sco_convrate,0)) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4,
+               '1000' as codigo_leyenda, 
+               '3' as control,
+               '04' as tipoOperacionFactura,
+               '' as documentoAnticipo, 
+               coalesce(case trim(i.poreference) when '' then null else i.poreference end,'') as documentoRelacionado,
+               '' as nroDocumentoOriginal,
+               cur.description as monedaDescripcion 
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+             INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+    
+    <SqlMethod name="selectAnticipoLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 '' AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 b.itemIndicadorDsctos,
+                 b.itemMontoDsctos,
+                 b.adicional1,
+                 b.adicional2
+            FROM (
+            SELECT il.line,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   gl.name,
+                   il.priceactual as priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,                   
+                   tax.em_sco_specialtax as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   il.linenetamt as linenetamt,
+                   0 AS valorRefOpNoOnerosas,
+                   '' AS itemIndicadorDsctos,
+                   0 AS itemMontoDsctos,
+                   '' AS adicional1,
+                   '' AS adicional2
+               FROM C_INVOICELINE il
+                 INNER JOIN c_invoice i ON i.c_invoice_id=il.c_invoice_id  
+                 INNER JOIN c_glitem gl on il.account_id = gl.c_glitem_id
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ?
+                   AND COALESCE(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV' 
+                 GROUP BY il.line, gl.name, uom.em_ssa_code, uom.c_uom_id, uom.name, 
+                 il.qtyinvoiced, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.em_sco_isforfree 
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>    
+       
+
+  <SqlMethod name="selectFacturaConAnticipo" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,               
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,    
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               coalesce((select sum(il.linenetamt) 
+                          from c_invoiceline il 
+                    left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+                               where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) as facturaTotalVtaOpGrabadas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpInafectas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               COALESCE(i.grandtotal,0) as facturaImporteTotal,
+               0 as facturaTotalVtaOpGratuitas,
+               0 as facturaDsctoGlobales,
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+               coalesce(array_to_string(array(select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+             from c_invoiceline lin 
+                  left join m_inoutline l on lin.m_inoutline_id = l.m_inoutline_id
+                  left join m_inout iou on l.m_inout_id = iou.m_inout_id
+            where lin.c_invoice_id=i.c_invoice_id 
+              and iou.em_scr_physical_documentno is not null
+              and iou.docstatus!='VO'
+              and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+              and (select count(ped.c_order_id) from c_order ped
+                          inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                    where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            union
+            select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+              from c_invoiceline lin 
+                   left join m_inoutline l on lin.c_orderline_id = l.c_orderline_id
+                   left join m_inout iou on l.m_inout_id = iou.m_inout_id
+             where lin.c_invoice_id=i.c_invoice_id 
+               and iou.em_scr_physical_documentno is not null
+               and iou.docstatus!='VO'
+               and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+               and (select count(ped.c_order_id) from c_order ped
+                           inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                     where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            order by 1 limit 5),','),'') as adicional1,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end)
+                || ' ' || (case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then '0' else pt.name end)) || ':' || ':' || coalesce(i.em_sco_convrate,0)) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4,
+               '1000' as codigo_leyenda, 
+               '3' as control,
+               '' as tipoOperacionFactura,
+               coalesce(array_to_string(array(select prepay.em_scr_physical_documentno||':'||round(-(il.linenetamt+ilt.taxamt),2) 
+                      from c_invoiceline il 
+                           inner join C_Glitem gl on il.Account_ID=gl.C_Glitem_id   
+                           inner join c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id   
+                           inner join c_invoiceline prepayli on il.em_sco_invoiceline_prepay_id=prepayli.c_invoiceline_id
+                           inner join c_invoice prepay on prepayli.c_invoice_id=prepay.c_invoice_id                           
+                     where il.c_invoice_id=i.c_invoice_id and coalesce(gl.EM_Sco_Specialglitem,'.')='SCOPREPAYMENT'),';'),'') as documentoAnticipo, 
+               coalesce(case trim(i.poreference) when '' then null else i.poreference end,'') as documentoRelacionado,
+               '' as nroDocumentoOriginal,
+               cur.description as monedaDescripcion 
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+             INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+    
+    <SqlMethod name="selectFacturaConAnticipoLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 b.value AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 b.itemIndicadorDsctos,
+                 b.itemMontoDsctos,
+                 b.adicional1,
+                 b.adicional2
+            FROM (
+            SELECT il.line,
+                   (case when il.m_product_id is not null then p.value else '' end) as value,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   (case when il.m_product_id is not null then p.name else gl.name end) as name,
+                   il.priceactual as priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN tax.em_sco_specialtax ELSE '15' END) as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   il.linenetamt as linenetamt,
+                   0 AS valorRefOpNoOnerosas,
+                   (case WHEN coalesce((il.pricelist-il.priceactual),0) > 0 then 'false' else '' end) AS itemIndicadorDsctos,
+                   GREATEST(coalesce((il.pricelist-il.priceactual),0), 0.00) AS itemMontoDsctos,
+                   coalesce((select uomsymbol from c_uom_trl where c_uom_id=uom.c_uom_id and ad_language='es_PE'),uom.uomsymbol) AS adicional1,
+                   (CASE WHEN il.pricelist <> 0 THEN il.pricelist ELSE il.priceactual END) AS adicional2                    
+               FROM C_INVOICELINE il                
+                 INNER JOIN c_invoice i ON i.c_invoice_id=il.c_invoice_id  
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN M_PRODUCT p on il.m_product_id = p.m_product_id
+                  LEFT JOIN c_glitem gl on il.account_id = gl.c_glitem_id                 
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ? 
+                   AND COALESCE(gl.EM_Sco_Specialglitem,'.')<>'SCOPREPAYMENT'   
+                 GROUP BY il.m_product_id, il.line, p.value, uom.em_ssa_code, uom.c_uom_id, uom.uomsymbol, 
+                 il.qtyinvoiced,p.name, gl.name, il.pricelist, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.em_sco_isforfree
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+        
+    
+  <SqlMethod name="selectNotaCredito" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,               
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,    
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               coalesce((select sum(il.linenetamt) 
+               from c_invoiceline il 
+                    left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+               where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) as facturaTotalVtaOpGrabadas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpInafectas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               COALESCE(i.grandtotal,0) as facturaImporteTotal,
+               coalesce(cbomm.name,'') as motivo,
+               coalesce(cbomm.code,'03') as codigomotivo,
+               (case when i.EM_Sco_Invoiceref_ID is not null then (select em_scr_physical_documentno from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else i.EM_Sco_Manualinvoiceref end) as documentoRelacionado,
+               (case when i.EM_Sco_Invoiceref_ID is not null then (select em_sco_specialdoctype from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else 'SCOARINVOICE' end) as identificadorDocumentoRelacionado, 
+           ((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end) 
+                || ':' || (case when i.EM_Sco_Invoiceref_ID is not null then (select date(dateacct) from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else date(i.EM_Sco_Manualinvoicerefdate) end)) as adicional1,     
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+           coalesce((select o.poreference from c_order o where o.c_order_id=(select c_order_id from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID))
+               ,'') as nroordenservicio, 
+               '' as nrodocumentooriginal,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (coalesce(i.em_sco_convrate,0) || ':' || coalesce((select documentno from m_inout where m_inout_id = (select m_inout_id from m_inoutline where m_inoutline_id = (select m_inoutline_id from c_invoiceline where c_invoice_id = i.c_invoice_id order by created limit 1)limit 1) limit 1),'')) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+         INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id 
+             LEFT JOIN scr_combo_item cbomm ON i.em_sco_memo_motive_cmb_id = cbomm.scr_combo_item_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+    
+    <SqlMethod name="selectNotaCreditoLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 b.value AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 '' as adicional1
+            FROM (
+            SELECT il.line,
+                   (case when il.m_product_id is not null then p.value else '' end) as value,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   COALESCE(il.description,substring(coalesce(gl.name,'') from (position(' ' in coalesce(gl.name,''))+1) for 100)) || '/' 
+                   || 'OBSERVACIONES' || ':' || trim(coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'')) as name,                   
+                   il.priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,
+                   tax.em_sco_specialtax as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   il.linenetamt,
+                   0 AS valorRefOpNoOnerosas
+               FROM C_INVOICELINE il             
+                 INNER JOIN c_invoice i ON i.c_invoice_id = il.c_invoice_id    
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN M_PRODUCT p on il.m_product_id = p.m_product_id
+                  LEFT JOIN c_glitem gl on il.account_id = gl.c_glitem_id
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ?
+                 GROUP BY il.line, il.m_product_id, p.value, uom.em_ssa_code, uom.c_uom_id, uom.name,  
+                 il.qtyinvoiced, p.name, gl.name, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.description, il.description 
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>   
+
+  <SqlMethod name="selectNotaCreditoDevolucion" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,               
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,    
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               coalesce((select sum(-il.linenetamt) 
+               from c_invoiceline il 
+                    left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+               where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) as facturaTotalVtaOpGrabadas,
+               coalesce((select sum(-il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto' and coalesce(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV'),0) as facturaTotalVtaOpInafectas,
+               coalesce((select sum(-il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto' and coalesce(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV'),0) as facturaTotalVtaOpExoneradas,
+               COALESCE(-(i.grandtotal-i.totallines),0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               COALESCE(-i.grandtotal,0) as facturaImporteTotal,
+               coalesce(cbomm.name,'') as motivo,
+               coalesce(cbomm.code,'03') as codigomotivo,
+               (case when i.EM_Sco_Invoiceref_ID is not null then (select em_scr_physical_documentno from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else i.EM_Sco_Manualinvoiceref end) as documentoRelacionado,
+               (case when i.EM_Sco_Invoiceref_ID is not null then (select em_sco_specialdoctype from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else 'SCOARINVOICE' end) as identificadorDocumentoRelacionado, 
+           ((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end) 
+                || ':' || (case when i.EM_Sco_Invoiceref_ID is not null then (select date(dateacct) from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else date(i.EM_Sco_Manualinvoicerefdate) end)) as adicional1,     
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+           coalesce((select o.poreference from c_order o where o.c_order_id=(select c_order_id from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID))
+               ,'') as nroordenservicio, 
+               '' as nrodocumentooriginal,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (coalesce(i.em_sco_convrate,0) || ':' || coalesce((select documentno from m_inout where m_inout_id = (select m_inout_id from m_inoutline where m_inoutline_id = (select m_inoutline_id from c_invoiceline where c_invoice_id = i.c_invoice_id order by created limit 1)limit 1) limit 1),'')) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+         INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id 
+             LEFT JOIN scr_combo_item cbomm ON i.em_sco_memo_motive_cmb_id = cbomm.scr_combo_item_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>    
+    
+    <SqlMethod name="selectNotaCreditoDevolucionLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 b.value AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 b.adicional1 as adicional1
+            FROM (
+            SELECT il.line,
+                   (case when il.m_product_id is not null then p.value else '' end) as value,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   -il.qtyinvoiced as qtyinvoiced,
+                   (case p.em_sco_genericwithoutcode when 'N' then coalesce(p.name,'') || coalesce(' - '||case trim(il.description) when '' then null else il.description end,'') 
+      else il.description end) as name,
+                   il.priceactual,
+                   (-il.linenetamt + COALESCE(sum(-ilt.taxamt),0))/-il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(-ilt.taxamt),0) as igvline,
+                   tax.em_sco_specialtax as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   -il.linenetamt as linenetamt,
+                   0 AS valorRefOpNoOnerosas,
+                   coalesce((select uomsymbol from c_uom_trl where c_uom_id=uom.c_uom_id and ad_language='es_PE'),uom.uomsymbol) AS adicional1
+               FROM C_INVOICELINE il             
+                 INNER JOIN c_invoice i ON i.c_invoice_id = il.c_invoice_id    
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN M_PRODUCT p on il.m_product_id = p.m_product_id
+                  LEFT JOIN c_glitem gl on il.account_id = gl.c_glitem_id
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ?
+                 GROUP BY il.line, il.m_product_id, p.value, uom.em_ssa_code, uom.c_uom_id, uom.uomsymbol, 
+                 il.qtyinvoiced, p.name, gl.name, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.description, il.description, p.em_sco_genericwithoutcode 
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>   
+
+    
+  <SqlMethod name="selectNotaDebito" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,               
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,    
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               coalesce((select sum(il.linenetamt) 
+                           from c_invoiceline il 
+                left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+              where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) as facturaTotalVtaOpGrabadas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpInafectas,
+               coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               COALESCE(i.grandtotal,0) as facturaImporteTotal,
+               coalesce(cbomm.name,'') as motivo,
+               coalesce(cbomm.code,'02') as codigomotivo,
+               (case when i.EM_Sco_Invoiceref_ID is not null then (select em_scr_physical_documentno from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else i.EM_Sco_Manualinvoiceref end) as documentoRelacionado,
+               (case when i.EM_Sco_Invoiceref_ID is not null then (select em_sco_specialdoctype from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else 'SCOARINVOICE' end) as identificadorDocumentoRelacionado, 
+               ((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end) 
+                || ':' || (case when i.EM_Sco_Invoiceref_ID is not null then (select date(dateacct) from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID)
+                    else date(i.EM_Sco_Manualinvoicerefdate) end)) as adicional1,     
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+           coalesce((select o.poreference from c_order o where o.c_order_id=(select c_order_id from c_invoice where c_invoice_id=i.EM_Sco_Invoiceref_ID))
+               ,'') as nroordenservicio, 
+               '' as nrodocumentooriginal,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (coalesce(i.em_sco_convrate,0) || ':' || coalesce((select documentno from m_inout where m_inout_id = (select m_inout_id from m_inoutline where m_inoutline_id = (select m_inoutline_id from c_invoiceline where c_invoice_id = i.c_invoice_id order by created limit 1)limit 1) limit 1),'')) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+         INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id 
+             LEFT JOIN scr_combo_item cbomm ON i.em_sco_memo_motive_cmb_id = cbomm.scr_combo_item_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+    
+    <SqlMethod name="selectNotaDebitosLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 '' AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 '' as adicional1
+            FROM (
+            SELECT il.line,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   COALESCE(il.description,substring(coalesce(gl.name,'') from (position(' ' in coalesce(gl.name,''))+1) for 100)) || '/' 
+                   || 'OBSERVACIONES' || ':' || trim(coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'')) as name,
+                   il.priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,
+                   tax.em_sco_specialtax as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   il.linenetamt,
+                   0 AS valorRefOpNoOnerosas
+               FROM C_INVOICELINE il   
+                 INNER JOIN c_invoice i ON i.c_invoice_id = il.c_invoice_id              
+                 INNER JOIN c_glitem gl on il.account_id = gl.c_glitem_id
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id                 
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ?
+                 GROUP BY il.line, uom.em_ssa_code, uom.c_uom_id, uom.name, 
+                 il.qtyinvoiced, gl.name, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.description, il.description
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>    
+    
+  <SqlMethod name="selectFacturaDetraccion" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,                
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                           from c_invoiceline il 
+                    left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+                              where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) 
+                ELSE 0 END) as facturaTotalVtaOpGrabadas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpInafectas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                    coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN COALESCE(i.grandtotal,0) ELSE 0 END) as facturaImporteTotal,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 
+                ELSE coalesce((select sum(il.linenetamt) 
+                                 from c_invoiceline il
+                                  left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                             where il.c_invoice_id=i.c_invoice_id and coalesce(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV') 
+                               + (i.grandtotal-i.totallines),0) END) as facturaTotalVtaOpGratuitas,
+               0 as facturaDsctoGlobales,
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+               coalesce(array_to_string(array(select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+             from c_invoiceline lin 
+                  left join m_inoutline l on lin.m_inoutline_id = l.m_inoutline_id
+                  left join m_inout iou on l.m_inout_id = iou.m_inout_id
+            where lin.c_invoice_id=i.c_invoice_id 
+              and iou.em_scr_physical_documentno is not null
+              and iou.docstatus!='VO'
+              and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+              and (select count(ped.c_order_id) from c_order ped
+                          inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                    where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            union
+            select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+              from c_invoiceline lin 
+                   left join m_inoutline l on lin.c_orderline_id = l.c_orderline_id
+                   left join m_inout iou on l.m_inout_id = iou.m_inout_id
+             where lin.c_invoice_id=i.c_invoice_id 
+               and iou.em_scr_physical_documentno is not null
+               and iou.docstatus!='VO'
+               and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+               and (select count(ped.c_order_id) from c_order ped
+                           inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                     where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            order by 1 limit 5),','),'') as adicional1,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end)
+                || ' ' || (case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then '0' else pt.name end)) || ':' || ':' || coalesce(i.em_sco_convrate,0)) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN '1000' ELSE '1002' END) as codigo_leyenda, 
+               '2' as control,
+               '3000' as dtBienServicioCodigo, 
+               lpad(dtcod.code,3,'0') as dtBienServicioValor,
+               '3001' as dtCuentaCorrienteCodigo,                
+               (select GenericAccountNo from FIN_Financial_Account fa where Codebank='18' and AD_ISORGINCLUDED(i.ad_org_id,fa.ad_org_id,fa.ad_client_id)<>-1 limit 1) as dtCuentaCorrienteValor, 
+               '2003' as dtDetraccionesCodigo,
+               i.EM_Sco_Detraction_Percent as dtDetraccionPorcentaje,
+               ROUND((i.EM_Sco_Detraction_Percent*i.grandtotal/100.00),2) as dtDetraccionMontoValor,
+               '' as dtNombreMatriculaCode,
+               '' as dtNombreEmbarcacion,
+               '' as dtMatriculaEmbarcacion,
+               '' as dtTipoCantidadEspecieCodigo,
+               '' as dtTipoEspecie,
+               '' as dtCantidadEspecie,
+               '' as dtLugarDescargaCodigo,
+               '' as dtLugarDescargaValor,
+               '' as dtFechaDescargaCodigo,
+               '' as dtfechaDescargaValor,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 'N' ELSE 'Y' END) as esTituloGratuito 
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+             INNER JOIN scr_combo_item dtcod ON i.EM_Sco_Codtabla5_Cmb_Item_ID = dtcod.scr_combo_item_id
+             INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id
+        WHERE i.c_invoice_id = ?
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+        
+    <SqlMethod name="selectFacturaDetraccionLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 b.value AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 b.itemIndicadorDsctos,
+                 b.itemMontoDsctos,
+                 b.adicional1,
+                 b.adicional2
+            FROM (
+            SELECT il.line,
+                   (case when il.m_product_id is not null then p.value else '' end) as value,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   (case when il.m_product_id is not null then p.name else gl.name end) as name,
+                   il.priceactual as priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,                   
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN tax.em_sco_specialtax ELSE '15' END) as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN il.linenetamt ELSE 0 END) as linenetamt,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 ELSE il.linenetamt END) AS valorRefOpNoOnerosas,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' AND coalesce((il.pricelist-il.priceactual),0) > 0 THEN 'false' ELSE '' END) AS itemIndicadorDsctos,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN GREATEST(coalesce((il.pricelist-il.priceactual),0), 0.00) ELSE 0 END) AS itemMontoDsctos,
+                   coalesce((select uomsymbol from c_uom_trl where c_uom_id=uom.c_uom_id and ad_language='es_PE'),uom.uomsymbol) AS adicional1,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN (CASE WHEN il.pricelist <> 0 THEN il.pricelist ELSE il.priceactual END) ELSE il.priceactual END) AS adicional2 
+               FROM C_INVOICELINE il
+                 INNER JOIN c_invoice i ON i.c_invoice_id=il.c_invoice_id 
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN M_PRODUCT p on il.m_product_id = p.m_product_id
+                  LEFT JOIN c_glitem gl on il.account_id = gl.c_glitem_id                 
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ?
+                   AND COALESCE(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV'
+                 GROUP BY il.m_product_id, il.line, p.value, uom.em_ssa_code, uom.c_uom_id, uom.uomsymbol, 
+                 il.qtyinvoiced,p.name, gl.name, il.pricelist, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.em_sco_isforfree
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>   
+    
+    <SqlMethod name="selectFacturaPercepcion" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               i.dateacct as fechaEmision,
+               orginfo.taxid as emisorRUC,                    
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               COALESCE(bp.taxid,'--') as clienteNroDocumento,                
+               COALESCE(cbo.value,'--') as clienteTipoDocumento,
+               COALESCE(bp.name,'--') as clienteRazonSocial,
+               cur.iso_code as moneda,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                     coalesce((select sum(il.linenetamt) 
+                           from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax<>'SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id),0) 
+                ELSE 0 END) as facturaTotalVtaOpGrabadas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                     coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                     left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t 
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')='PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpInafectas,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 
+                     coalesce((select sum(il.linenetamt) 
+                                from c_invoiceline il 
+                         left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                                     left join scr_combo_item cmbi on cmbi.Scr_Combo_Item_ID=il.em_Scr_Combo_Item_ID, c_tax t                                    
+                                where il.c_tax_id=t.c_tax_id and t.em_sco_specialtax='SCOEXEMPT' and COALESCE(il.em_ssa_isprepayment_inline,'N')<>'Y' and il.c_invoice_id=i.c_invoice_id and COALESCE(cmbi.value,'PVTE-Inafecto-porDefecto')<>'PVTE-Inafecto-porDefecto'),0) 
+                ELSE 0 END) as facturaTotalVtaOpExoneradas,
+               COALESCE(i.grandtotal-i.totallines,0) as facturaTotalIGV,               
+               0 as facturaTotalISC,
+               0 as facturaTotalTributos,
+               0 as facturaOtrosCargos,
+               0 as facturaTotalImporteDscto,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN COALESCE(i.grandtotal,0) ELSE 0 END) as facturaImporteTotal,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 
+                ELSE coalesce((select sum(il.linenetamt) 
+                                 from c_invoiceline il
+                                  left join C_Glitem gl on il.Account_ID=gl.C_Glitem_id
+                             where il.c_invoice_id=i.c_invoice_id and coalesce(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV') 
+                               + (i.grandtotal-i.totallines),0) END) as facturaTotalVtaOpGratuitas,
+               0 as facturaDsctoGlobales,
+               COALESCE(bpl.name,'') as clienteDireccion,
+               coalesce((select coalesce(ci.phone,ci.phone2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteTelefono,
+               coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as clienteCorreo,
+               coalesce(array_to_string(array(select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+             from c_invoiceline lin 
+                  left join m_inoutline l on lin.m_inoutline_id = l.m_inoutline_id
+                  left join m_inout iou on l.m_inout_id = iou.m_inout_id
+            where lin.c_invoice_id=i.c_invoice_id 
+              and iou.em_scr_physical_documentno is not null
+              and iou.docstatus!='VO'
+              and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+              and (select count(ped.c_order_id) from c_order ped
+                          inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                    where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            union
+            select coalesce(case trim(iou.em_scr_physical_documentno) when '' then null else iou.em_scr_physical_documentno end,'') as nrodoc
+              from c_invoiceline lin 
+                   left join m_inoutline l on lin.c_orderline_id = l.c_orderline_id
+                   left join m_inout iou on l.m_inout_id = iou.m_inout_id
+             where lin.c_invoice_id=i.c_invoice_id 
+               and iou.em_scr_physical_documentno is not null
+               and iou.docstatus!='VO'
+               and iou.em_sco_specialdoctype not in ('SWAMMDISPATCH')
+               and (select count(ped.c_order_id) from c_order ped
+                           inner join scr_combo_item sci on ped.em_ssa_combo_item_id=sci.scr_combo_item_id
+                     where sci.value='consignacion' and ped.c_order_id=i.c_order_id)=0 
+            order by 1 limit 5),','),'') as adicional1,
+               coalesce((select u.username || ':' || u.name from ad_user u where u.ad_user_id=i.salesrep_id),':') as adicional2,
+               (((case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then 'CONTADO' 
+                      else (select pm.name from fin_paymentmethod pm where pm.fin_paymentmethod_id=i.fin_paymentmethod_id) end)
+                || ' ' || (case when pt.EM_Sco_Specialpayterm='SCOINMEDIATETERM' then '0' else pt.name end)) || ':' || ':' || coalesce(i.em_sco_convrate,0)) as adicional3,
+               coalesce(regexp_replace(i.description, E'[\\n\\r]+', '', 'g' ),'') as adicional4,
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN '1000' ELSE '1002' END) as codigo_leyenda, 
+               '4' as control,
+               (select t.rate from c_invoicetax it, c_tax t where it.c_invoice_id=i.c_invoice_id and it.c_tax_id=t.c_tax_id and t.em_sco_specialtax 
+                       IN ('SCOSINMEDIATEPERCEPTION','SCOSINMEDIATEPERCEPTIONHALF', 'SCOPCREDITPERCEPTION','SCOSCREDITPERCEPTIONHALF') limit 1) as percepcionBase,
+               (select it.taxamt from c_invoicetax it, c_tax t where it.c_invoice_id=i.c_invoice_id and it.c_tax_id=t.c_tax_id and t.em_sco_specialtax 
+                       IN ('SCOSINMEDIATEPERCEPTION','SCOSINMEDIATEPERCEPTIONHALF', 'SCOPCREDITPERCEPTION','SCOSCREDITPERCEPTIONHALF') limit 1) as percepcionMonto,
+               COALESCE(i.grandtotal,0) as percepcionTotalMonto, 
+               (CASE WHEN i.em_sco_isforfree<>'Y' THEN 'N' ELSE 'Y' END) as esTituloGratuito                
+         FROM c_invoice i
+             INNER JOIN c_bpartner bp ON bp.c_bpartner_id = i.c_bpartner_id
+             INNER JOIN c_bpartner_location bpl ON i.c_bpartner_location_id = bpl.c_bpartner_location_id
+             INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN c_currency cur ON i.c_currency_id = cur.c_currency_id
+             INNER JOIN c_paymentterm pt ON pt.c_paymentterm_id = i.c_paymentterm_id
+             LEFT JOIN c_order o ON i.c_order_id = o.c_order_id
+        WHERE i.c_invoice_id = ?        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+        
+    <SqlMethod name="selectFacturaPercepcionLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 
+                 b.line as numeroItem,
+                 b.value AS productoCodigo,
+                 b.unidad AS itemUnidadMedida,
+                 b.qtyinvoiced as itemCantidad,
+                 b.name as description,
+                 b.priceactual as itemValorUnitario,
+                 b.lineunitpriceventa as itemPrecioVtaUnitario,
+                 b.lineunitpriceventa - b.priceactual as itemIGV,
+                 b.specialtax as specialtax,
+                 b.itemMontoISC,
+                 b.itemCodigoISC,
+                 b.linenetamt as itemTotalValorVta,
+                 b.valorRefOpNoOnerosas,
+                 b.itemIndicadorDsctos,
+                 b.itemMontoDsctos,
+                 b.adicional1,
+                 b.adicional2
+            FROM (
+            SELECT il.line,
+                   (case when il.m_product_id is not null then p.value else '' end) as value,
+                   upper(coalesce(uom.em_ssa_code,'')) as unidad,
+                   il.qtyinvoiced,
+                   (case when il.m_product_id is not null then p.name else gl.name end) as name,
+                   il.priceactual as priceactual,
+                   (il.linenetamt + COALESCE(sum(ilt.taxamt),0))/il.qtyinvoiced as lineunitpriceventa, 
+                   COALESCE(sum(ilt.taxamt),0) as igvline,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN tax.em_sco_specialtax ELSE '15' END) as specialtax,
+                   0 AS itemMontoISC,
+                   '' AS itemCodigoISC,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN il.linenetamt ELSE 0 END) as linenetamt,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN 0 ELSE il.linenetamt END) AS valorRefOpNoOnerosas,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' AND coalesce((il.pricelist-il.priceactual),0) > 0 THEN 'false' ELSE '' END) AS itemIndicadorDsctos,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN GREATEST(coalesce((il.pricelist-il.priceactual),0), 0.00) ELSE 0 END) AS itemMontoDsctos,
+                   coalesce((select uomsymbol from c_uom_trl where c_uom_id=uom.c_uom_id and ad_language='es_PE'),uom.uomsymbol) AS adicional1,
+                   (CASE WHEN i.em_sco_isforfree<>'Y' THEN (CASE WHEN il.pricelist <> 0 THEN il.pricelist ELSE il.priceactual END) ELSE il.priceactual END) AS adicional2 
+               FROM C_INVOICELINE il
+                 INNER JOIN c_invoice i ON i.c_invoice_id=il.c_invoice_id 
+                 INNER JOIN c_uom uom ON il.c_uom_id = uom.c_uom_id
+                 INNER JOIN c_tax tax ON il.c_tax_id=tax.c_tax_id
+                  LEFT JOIN M_PRODUCT p on il.m_product_id = p.m_product_id
+                  LEFT JOIN c_glitem gl on il.account_id = gl.c_glitem_id                 
+                  LEFT JOIN c_invoicelinetax ilt ON ilt.c_invoiceline_id = il.c_invoiceline_id                
+                 WHERE il.c_invoice_id = ?
+                   AND COALESCE(gl.EM_Sco_Specialglitem,'.')<>'SCOFREEIGV' 
+                 GROUP BY il.m_product_id, il.line, p.value, uom.em_ssa_code, uom.c_uom_id, uom.uomsymbol, 
+                 il.qtyinvoiced,p.name, gl.name, il.pricelist, il.priceactual, il.linenetamt,
+                 tax.em_sco_specialtax,  il.c_invoiceline_id, i.em_sco_isforfree
+                 ORDER BY il.line
+            ) b
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+    <SqlMethod name="selectDocumentoBaja" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT i.c_invoice_id as facturaId,
+               trunc(now()) as fechaEmision,               
+               orginfo.taxid as emisorRUC,
+               i.em_sco_specialdoctype as identificadorDocumentoRelacionado,
+               COALESCE(i.em_scr_physical_documentno,'') as correlativo,
+               cbo.name as motivoAnulacion
+         FROM c_invoice i
+             INNER JOIN ad_org org ON i.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+             INNER JOIN scr_combo_item cbo on i.EM_Sco_Voidmotive_Cmbitem_ID = cbo.scr_combo_item_id
+        WHERE i.c_invoice_id = ?
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="strInvoiceId"/>
+    </SqlMethod>
+    
+
+    <SqlMethod name="selectComprobanteRetencion" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+               SELECT pwr.sco_pwithholding_receipt_id as compRetencionId,
+               pwr.dateacct as fechaEmision,
+               orginfo.taxid as emisorRUC,
+               scr_getubigeo(orginfo.c_location_id) as emisorUbigeo,
+               COALESCE(orglp.address1,'') as emisor_direccion,
+               COALESCE(orglp.address2,'') as emisor_urbanizacion,
+               orgplp.name as emisor_provincia,
+               orgrlp.name as emisor_departamento,
+               orgclp.name as emisor_distrito,
+               COALESCE(orgcolp.countrycode,'PE') as emisor_pais,
+               org.social_name as emisorRazonSocial,          
+               COALESCE(pwr.withholdingnumber,'') as correlativo,
+               COALESCE(bp.taxid,'--') as proveedorNroDocumento,                
+               COALESCE(cbo.value,'--') as proveedorTipoDocumento,
+               COALESCE(bp.name,'--') as proveedorRazonSocial,    
+               scr_getubigeo(bpl.c_location_id) as proveedorUbigeo,
+               COALESCE(lp.address1,'') as proveedor_direccion,
+               COALESCE(lp.address2,'') as proveedor_urbanizacion,
+               plp.name as proveedor_provincia,
+               rlp.name as proveedor_departamento,
+               clp.name as proveedor_distrito,
+               COALESCE(colp.countrycode,'PE') as proveedor_pais,
+               '01' as regimenRetencion,
+               org.em_sco_withholding_perc as tasaRetencion,
+               cur.iso_code as monedaRetenido,
+               cur.iso_code as monedaPagado,
+           coalesce((select coalesce(ci.email,ci.email2) 
+                           from ssa_contact_information ci 
+                          where ci.em_bill_isebill='Y' and ci.c_bpartner_id=bp.c_bpartner_id limit 1),'') as proveedorCorreo    
+               FROM sco_pwithholding_receipt pwr
+                 INNER JOIN c_bpartner bp ON bp.c_bpartner_id = pwr.c_bpartner_id
+                 INNER JOIN c_bpartner_location bpl ON pwr.c_bpartner_location_id = bpl.c_bpartner_location_id
+                 INNER JOIN c_location lp ON bpl.c_location_id = lp.c_location_id
+                 INNER JOIN c_city clp ON lp.c_city_id = clp.c_city_id
+                 INNER JOIN scr_province plp ON lp.em_scr_province_id = plp.scr_province_id
+                 INNER JOIN c_region rlp on lp.c_region_id = rlp.c_region_id
+                 INNER JOIN c_country colp on lp.c_country_id = colp.c_country_id
+                 INNER JOIN scr_combo_item cbo ON bp.EM_Scr_Combo_Item_ID = cbo.scr_combo_item_id
+                 INNER JOIN ad_org org ON pwr.ad_org_id=org.ad_org_id
+                 INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+                 INNER JOIN c_location orglp ON orginfo.c_location_id = orglp.c_location_id
+                 INNER JOIN c_city orgclp ON orglp.c_city_id = orgclp.c_city_id
+                 INNER JOIN scr_province orgplp ON orglp.em_scr_province_id = orgplp.scr_province_id
+                 INNER JOIN c_region orgrlp on orglp.c_region_id = orgrlp.c_region_id
+                 INNER JOIN c_country orgcolp on orglp.c_country_id = orgcolp.c_country_id
+                 INNER JOIN c_currency cur ON pwr.c_currency_id = cur.c_currency_id
+               WHERE pwr.sco_pwithholding_receipt_id = ?
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="scoPwithholdingReceiptId"/>
+    </SqlMethod>
+
+   <SqlMethod name="selectComprobanteRetencionLines" type="preparedStatement" return="multiple">
+   <Sql>
+    <![CDATA[
+      SELECT rl.amount as retinvTotalretenido, 
+             rl.paymentamount as retinvTotalpagado, 
+             dt.em_sco_specialdoctype as identificadorDocumentoRelacionado,
+             COALESCE(inv.em_scr_physical_documentno,'') as retinvCorrelativo,
+             inv.em_sco_newdateinvoiced as retinvFechaEmision,
+             inv.grandtotal as retinvFacturaImporteTotal,
+             cur.iso_code as retinvMoneda,
+             p.paymentdate as retinvFechaPago,
+             COALESCE(
+             (
+              SELECT T2.position 
+              FROM (select ROW_NUMBER() OVER(ORDER BY p2.paymentdate,p2.created) as position, p2.fin_payment_id 
+                    from sco_pwithho_rec_line rl2
+                    INNER JOIN sco_pwithholding_receipt r2 ON rl2.sco_pwithholding_receipt_id = r2.sco_pwithholding_receipt_id
+                    INNER JOIN fin_payment p2 ON r2.fin_withholdingpayment_id = p2.fin_payment_id
+                    WHERE rl2.invoiceref_id = inv.c_invoice_id
+                    AND r2.docstatus='CO'
+                    ORDER BY p2.paymentdate,p2.created) T2
+              WHERE T2.fin_payment_id = p.fin_payment_id
+              ),1) as numPago,
+              (rl.amount + rl.paymentamount) retinvTotalpagadoNoRet,
+              facur.iso_code as retinvMonedaPago,
+              rcur.iso_code as retinvMonedaImpRetenido,
+              r.dategen as retinvFechaRetencion,
+              rcur.iso_code as retinvMonedaImpNetoPago,
+              cur.iso_code as retinvMonedaRef,
+              rcur.iso_code as retinvMonedaObjetivo,
+              COALESCE(cr.multiplyrate,1.0) as tc,
+              p.paymentdate as fechaTc
+      FROM sco_pwithho_rec_line rl 
+      INNER JOIN sco_pwithholding_receipt r ON rl.sco_pwithholding_receipt_id=r.sco_pwithholding_receipt_id 
+      INNER JOIN c_currency rcur ON r.c_currency_id = rcur.c_currency_id
+      INNER JOIN fin_payment p ON p.fin_payment_id= r.fin_withholdingpayment_id 
+      INNER JOIN c_invoice inv ON inv.c_invoice_id=rl.invoiceref_id 
+      INNER JOIN c_currency cur ON inv.c_currency_id = cur.c_currency_id
+      INNER JOIN c_doctype dt ON inv.c_doctypetarget_id=dt.c_doctype_id 
+      INNER JOIN fin_financial_account fa ON fa.fin_financial_account_id=p.fin_financial_account_id 
+      INNER JOIN c_currency facur ON fa.c_currency_id = facur.c_currency_id
+      LEFT JOIN C_CONVERSION_RATE cr ON cr.validfrom = p.paymentdate AND cr.validto=p.paymentdate AND cr.c_currency_id=inv.c_currency_id AND cr.c_currency_id_to='308' 
+      WHERE r.sco_pwithholding_receipt_id = ?
+      ]]></Sql>
+      <Parameter name="scoPwithholdingReceiptId"/>   
+  </SqlMethod>
+  
+  <SqlMethod name="selectComprobanteRetencionBaja" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT trunc(now()) as fechaEmision,               
+               orginfo.taxid as emisorRUC,
+               COALESCE(pwr.withholdingnumber,'') as correlativo,
+               pwr.description as motivoAnulacion
+         FROM sco_pwithholding_receipt pwr
+             INNER JOIN ad_org org ON pwr.ad_org_id=org.ad_org_id
+             INNER JOIN ad_orginfo orginfo ON org.ad_org_id=orginfo.ad_org_id
+        WHERE pwr.sco_pwithholding_receipt_id = ?
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+      <Parameter name="scoPwithholdingReceiptId"/>
+  </SqlMethod>
+        
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

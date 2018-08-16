@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_PARTIAL_EXPENSES_TRG">
+    <trigger name="SIM_PARTIAL_EXPENSES_TRG" table="C_ORDER" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+      /*********
+      *cuando en una Importacion se Actualice los campos en mi parcial de Flete Seguro Inland y Otros Gastos 
+      *vamos a prorratear todo esto en las lineas
+      */
+  
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+    
+    TYPE RECORD IS REF CURSOR;
+    Cur_Discounts RECORD;
+    CUR_partial_in_folio RECORD;
+    V_RequiresDescription CHAR(1);
+    v_c_order_id VARCHAR2(32);
+    v_totallines NUMBER:=0;
+    v_factor NUMBER:=0;
+    Cur_orderlines RECORD;
+    v_freight NUMBER:=0;
+    v_insurance NUMBER:=0;
+    v_inland NUMBER:=0;
+    v_more_expenses NUMBER:=0;
+   
+BEGIN
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+    
+IF(UPDATING) THEN
+
+	IF((:OLD.em_sim_freight <> :NEW.em_sim_freight OR
+	   :OLD.em_sim_insurance <> :NEW.em_sim_insurance OR
+	   :OLD.em_sim_inland <> :NEW.em_sim_inland OR
+	   :OLD.em_sim_more_expenses <> :NEW.em_sim_more_expenses) AND :NEW.issotrx='N' AND :NEW.em_sim_is_import='Y' AND :NEW.totallines > 0
+	)THEN 
+
+		v_c_order_id:= :NEW.c_order_id;
+		v_totallines:= :NEW.totallines;
+		--Vamos a Prorratear estos gastos en cada linea del parcial
+		FOR Cur_orderlines IN (
+		   SELECT c_orderline_id, linenetamt FROM C_ORDERLINE WHERE C_ORDER_ID = v_c_order_id FOR UPDATE
+		)
+		LOOP
+                   
+		   v_factor:=Cur_orderlines.linenetamt/v_totallines;
+
+                   v_freight:= ROUND(v_factor*COALESCE(:NEW.em_sim_freight,0),2);
+                   v_insurance:= ROUND(v_factor*COALESCE(:NEW.em_sim_insurance,0),2);
+                   v_inland:= ROUND(v_factor*COALESCE(:NEW.em_sim_inland,0),2);
+                   v_more_expenses:=ROUND(v_factor*COALESCE(:NEW.em_sim_more_expenses,0),2);
+		   
+		   UPDATE C_ORDERLINE
+		     SET  em_sim_freight= v_freight,
+		          em_sim_insurance= v_insurance ,
+		          em_sim_inland =  v_inland,
+		          em_sim_more_expenses= v_more_expenses
+		     WHERE C_ORDERLINE_ID = Cur_orderlines.c_orderline_id;
+		END LOOP;
+	        ----
+	END IF;
+END IF;
+
+  
+END SIM_PARTIAL_EXPENSES_TRG
+]]></body>
+    </trigger>
+  </database>

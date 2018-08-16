@@ -1,0 +1,1098 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_Preliquidation_ugo" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="842" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.0000000000000062"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_NAME" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'INVOICE'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_Preliquidation_Lines_ugo" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[select sett.sim_imp_settlement_id as "PRELIQUIDATION_ID",
+sett.documentno as "NRO_DOC",
+sett.dateordered as "FEC_EMI",
+coalesce(fol.description_importation,'') as "IMPORT",
+coalesce(cou.name,'') as "PAIS",
+coalesce(dua.sco_duanumber,'') as "NRO_DUA",
+--coalesce(trl.name,coalesce(lst.name,'')) "CANAL",
+(select coalesce(t.name,l.name) from ad_ref_list l
+join ad_ref_list_trl t on l.ad_ref_list_id = t.ad_ref_list_id
+where l.ad_reference_id = (select ad_reference_id from ad_reference where name = 'sim_folio_canal')
+and l.value = sett.canal) as "CANAL",
+coalesce(sett.observation,'NINGUNA') as "OBS",
+coalesce(sett.valor_fob ,0.00) as "FOB",
+coalesce(sett.valor_freight,0.00) as "FLETE",
+sim_currency_convert_table(1,cur.c_currency_id,
+(select c_currency_id from c_currency where iso_code = 'USD'),
+sett.dateordered, dtp.ad_table_id, sett.sim_imp_settlement_id,
+sett.ad_client_id, sett.ad_org_id) as "T/C",
+
+org.ad_org_id as "ORG_ID",
+org.name as "ORG",
+coalesce(inf.taxid,'') as "RUC",
+
+--DERECHOS
+coalesce(sett.total_cif,0.00) as "DER_TOT_CIF",
+coalesce(sett.total_adv,0.00) as "DER_TOT_ADV",
+coalesce(sett.total_isc,0.00) as "TOT_ISC",
+coalesce(sett.subtotal,0.00) as "SUB_TOTAL",
+coalesce(sett.impuesto,0.00) as "DER_IGV",
+coalesce(sett.derechos_srv_despacho,0.00) as "SRV_DESP",
+coalesce(sett.total,0.00) as "TOT_DER",
+coalesce(sett.derechos_total_dollar,0.00) as "TOT_DER_DOLL",
+coalesce(sett.tipo_cambio,0.00) as "TIP_CAMB",
+coalesce(sett.total_derechos,0.00) as "TC_TOT_DER",
+
+--PERCEPCION
+coalesce(sett.valor_cif,0.00) as "PER_TOT_CIF",
+coalesce(sett.percepcion_cif_exonerado,0.00) as "EXO_CIF",
+coalesce(sett.percepcion_base_cif,0.00) as "BASE_CIF",
+coalesce(sett.percepcion_adv,0.00) as "PER_TOT_ADV",
+coalesce(sett.percepcion_igv_total,0.00) as "PER_IGV",
+coalesce(sett.percepcion_total,0.00) as "PER_TOTAL",
+coalesce(sett.antidumping,0.00) as "ANTI_DUM",
+coalesce(sett.percepction_percent,0.00) as "PER_PORC",
+coalesce(sett.total_percepcion,0.00) as "TOT_PER",
+coalesce(sett.percepcion_total_soles,0.00) as "TC_TOT_PER",
+
+--Campos Adicionales
+coalesce(sett.gastos_en_destino,0.00) as "GAS_DEST",
+coalesce(sett.handling,0.00) as "HANDLING",
+coalesce(sett.transporte_interno,0.00) as "T_INTERNO",
+coalesce(sett.chk_print_dep_comercio_ext,'N') as "CHECK"
+
+from sim_imp_settlement sett
+join c_currency cur on sett.c_currency_id = cur.c_currency_id
+join c_doctype dtp on sett.c_doctype_id = dtp.c_doctype_id
+left join sco_dua dua on sett.sco_dua_id = dua.sco_dua_id
+left join sim_folioimport fol on sett.sim_folioimport_id = fol.sim_folioimport_id
+left join c_country cou on sett.c_country_id = cou.c_country_id
+--left join ad_ref_list lst on sett.canal=lst.value
+--left join ad_ref_list_trl trl on lst.ad_ref_list_id = trl.ad_ref_list_id
+,
+ad_org org
+join ad_orgtype t using (ad_orgtype_id)
+join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+where AD_ISORGINCLUDED(sett.ad_org_id, org.ad_org_id, sett.ad_client_id)<>-1
+and(t.IsLegalEntity='Y' or t.IsAcctLegalEntity='Y')
+and sett.isactive = 'Y'
+and sett.sim_imp_settlement_id in ($P{DOCUMENT_ID})]]>
+	</queryString>
+	<field name="PRELIQUIDATION_ID" class="java.lang.String"/>
+	<field name="NRO_DOC" class="java.lang.String"/>
+	<field name="FEC_EMI" class="java.sql.Timestamp"/>
+	<field name="IMPORT" class="java.lang.String"/>
+	<field name="PAIS" class="java.lang.String"/>
+	<field name="NRO_DUA" class="java.lang.String"/>
+	<field name="CANAL" class="java.lang.String"/>
+	<field name="OBS" class="java.lang.String"/>
+	<field name="FOB" class="java.math.BigDecimal"/>
+	<field name="FLETE" class="java.math.BigDecimal"/>
+	<field name="T/C" class="java.math.BigDecimal"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<field name="DER_TOT_CIF" class="java.math.BigDecimal"/>
+	<field name="DER_TOT_ADV" class="java.math.BigDecimal"/>
+	<field name="TOT_ISC" class="java.math.BigDecimal"/>
+	<field name="SUB_TOTAL" class="java.math.BigDecimal"/>
+	<field name="DER_IGV" class="java.math.BigDecimal"/>
+	<field name="SRV_DESP" class="java.math.BigDecimal"/>
+	<field name="TOT_DER" class="java.math.BigDecimal"/>
+	<field name="TOT_DER_DOLL" class="java.math.BigDecimal"/>
+	<field name="TIP_CAMB" class="java.math.BigDecimal"/>
+	<field name="TC_TOT_DER" class="java.math.BigDecimal"/>
+	<field name="PER_TOT_CIF" class="java.math.BigDecimal"/>
+	<field name="EXO_CIF" class="java.math.BigDecimal"/>
+	<field name="BASE_CIF" class="java.math.BigDecimal"/>
+	<field name="PER_TOT_ADV" class="java.math.BigDecimal"/>
+	<field name="PER_IGV" class="java.math.BigDecimal"/>
+	<field name="PER_TOTAL" class="java.math.BigDecimal"/>
+	<field name="ANTI_DUM" class="java.math.BigDecimal"/>
+	<field name="PER_PORC" class="java.math.BigDecimal"/>
+	<field name="TOT_PER" class="java.math.BigDecimal"/>
+	<field name="TC_TOT_PER" class="java.math.BigDecimal"/>
+	<field name="GAS_DEST" class="java.math.BigDecimal"/>
+	<field name="HANDLING" class="java.math.BigDecimal"/>
+	<field name="T_INTERNO" class="java.math.BigDecimal"/>
+	<field name="CHECK" class="java.lang.String"/>
+	<variable name="TOTAL_FACTURA" class="java.math.BigDecimal">
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOTAL_FOB" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$F{FOB}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOTAL_FLETE" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$F{FLETE}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOTAL_SEGURO" class="java.math.BigDecimal">
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOTAL_CIF" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$F{DER_TOT_CIF}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOTAL_ADV" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$F{DER_TOT_ADV}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="AG_GAS_OP" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[new BigDecimal(20).add(new BigDecimal(0.03).multiply($F{PER_TOT_CIF}))]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(80.0)]]></initialValueExpression>
+	</variable>
+	<variable name="POR_PRIMA" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[new BigDecimal(0.0015)]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.0015)]]></initialValueExpression>
+	</variable>
+	<variable name="POR_EMI" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[new BigDecimal(0.03)]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.03)]]></initialValueExpression>
+	</variable>
+	<variable name="IGV" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[new BigDecimal(0.18)]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.18)]]></initialValueExpression>
+	</variable>
+	<variable name="sobreseguro" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[($V{AG_GAS_OP}.compareTo( new BigDecimal(80))>0)?$F{GAS_DEST}.add($V{AG_GAS_OP}).add($F{HANDLING}).add($F{T_INTERNO}).add($V{TOTAL_ADV}):$F{GAS_DEST}.add(new BigDecimal(80)).add($F{HANDLING}).add($F{T_INTERNO}).add($V{TOTAL_ADV})]]></variableExpression>
+		<initialValueExpression><![CDATA[]]></initialValueExpression>
+	</variable>
+	<variable name="total" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$V{sobreseguro}.add($V{TOTAL_FOB}.add($V{TOTAL_FLETE}))]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0)]]></initialValueExpression>
+	</variable>
+	<variable name="prima_neta" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$V{total}.multiply(new BigDecimal(0.0015))]]></variableExpression>
+	</variable>
+	<variable name="derecho_emision" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$V{prima_neta}.multiply(new BigDecimal(0.03))]]></variableExpression>
+	</variable>
+	<variable name="igv_final" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[($V{prima_neta}.add($V{derecho_emision})).multiply(new BigDecimal(0.18))]]></variableExpression>
+	</variable>
+	<group name="C_PRELIQUIDATION_ID">
+		<groupExpression><![CDATA[$F{PRELIQUIDATION_ID}]]></groupExpression>
+		<groupFooter>
+			<band height="240" splitType="Stretch">
+				<rectangle>
+					<reportElement mode="Transparent" x="409" y="20" width="420" height="145"/>
+				</rectangle>
+				<rectangle>
+					<reportElement mode="Transparent" x="11" y="20" width="360" height="130"/>
+				</rectangle>
+				<staticText>
+					<reportElement x="18" y="2" width="160" height="15"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[CALCULO DE DERECHOS:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="425" y="2" width="160" height="15"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[CALCULO DE PERCEPCION:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="25" width="80" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL CIF:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="40" width="80" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL ADV:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="55" width="80" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL ISC:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="70" width="80" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[SUBTOTAL ]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="85" width="60" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[IGV US$]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="100" width="110" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[SRV. DESPACHO]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="115" width="110" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL DERECHOS]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="17" y="130" width="110" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[TOTAL DERECHOS]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="25" width="70" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL CIF:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="40" width="160" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[CIF DE ITEMS EXONERADOS:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="55" width="165" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[BASE DE CIF PARA PERCEPCION:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="70" width="100" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL ADV:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="85" width="40" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[IGV:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="100" width="248" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL (CIF+ADV+IGV) (INCLUYE SRV. DESPACHO)]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="115" width="119" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[TOTAL ANTIDUMPING:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="130" width="81" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[PERCEPCION:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="416" y="145" width="120" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[TOTAL PERCEPCION]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="196" y="25" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{DER_TOT_CIF})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="293" y="40" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{DER_TOT_ADV})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="293" y="55" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TOT_ISC})]]></textFieldExpression>
+				</textField>
+				<textField pattern="dd/MM/yyyy">
+					<reportElement x="120" y="130" width="60" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMI}]]></textFieldExpression>
+				</textField>
+				<textField pattern="dd/MM/yyyy">
+					<reportElement x="543" y="145" width="60" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMI}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="751" y="40" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{EXO_CIF})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="751" y="25" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PER_TOT_CIF})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="751" y="55" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{BASE_CIF})]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="707" y="40" width="30" height="13"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[(-)]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="751" y="115" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{ANTI_DUM})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="751" y="85" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PER_IGV})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="751" y="70" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PER_TOT_ADV})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="293" y="100" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{SRV_DESP})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="196" y="70" width="70" height="15"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{SUB_TOTAL})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="68" y="85" width="60" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{DER_IGV})]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="180" y="130" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[T.C.]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="208" y="130" width="40" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{T/C}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="253" y="130" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[S/.]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="293" y="130" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TC_TOT_DER})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="639" y="145" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{T/C}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="612" y="145" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[T.C.]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="678" y="100" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{SRV_DESP})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="751" y="100" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PER_TOTAL})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="506" y="130" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{PER_PORC})]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="583" y="130" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[%]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="751" y="130" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TOT_PER})]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="131" y="85" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[%:]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="293" y="85" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TOT_DER})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="293" y="115" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TOT_DER_DOLL})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="751" y="145" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TC_TOT_PER})]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="230" y="100" width="40" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[Us$]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="230" y="115" width="40" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[Us$]]></text>
+				</staticText>
+				<rectangle>
+					<reportElement x="524" y="177" width="295" height="50"/>
+				</rectangle>
+				<staticText>
+					<reportElement x="530" y="180" width="120" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="false"/>
+					</textElement>
+					<text><![CDATA[TOTAL DERECHOS]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="530" y="195" width="120" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="false"/>
+					</textElement>
+					<text><![CDATA[TOTAL PERCEPCION]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="530" y="210" width="120" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[TOTAL A PAGAR]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="740" y="180" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TC_TOT_DER})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="740" y="195" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TC_TOT_PER})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="740" y="210" width="70" height="13"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{TC_TOT_DER}.add($F{TC_TOT_PER}))]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="686" y="180" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[s/.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="686" y="195" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10"/>
+					</textElement>
+					<text><![CDATA[s/.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="686" y="210" width="30" height="13"/>
+					<textElement>
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[s/.]]></text>
+				</staticText>
+				<line>
+					<reportElement x="676" y="177" width="1" height="50"/>
+				</line>
+				<line>
+					<reportElement x="727" y="177" width="1" height="50"/>
+				</line>
+				<line>
+					<reportElement x="524" y="209" width="295" height="1"/>
+				</line>
+				<line>
+					<reportElement x="524" y="193" width="295" height="1"/>
+				</line>
+			</band>
+		</groupFooter>
+	</group>
+	<title>
+		<band height="130" splitType="Stretch">
+			<rectangle>
+				<reportElement x="11" y="77" width="820" height="42"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<textField>
+				<reportElement x="20" y="10" width="600" height="20"/>
+				<textElement>
+					<font fontName="SansSerif" size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ORG}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="35" y="29" width="150" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["RUC: "+$F{RUC}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="321" y="46" width="200" height="25"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PRE-LIQUIDACION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="15" y="80" width="50" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[N°:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="128" y="80" width="90" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[FEC. EMISION:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="280" y="80" width="90" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[IMPORTACION:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="460" y="80" width="50" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PAIS:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="15" y="100" width="50" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DUA:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="280" y="100" width="60" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[CANAL:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="460" y="100" width="110" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[OBSERVACIONES:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="35" y="80" width="100" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_DOC}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="43" y="100" width="230" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_DUA}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="197" y="80" width="80" height="15">
+					<printWhenExpression><![CDATA[$F{FEC_EMI}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMI}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="492" y="80" width="331" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{PAIS}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="320" y="100" width="100" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{CANAL}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="357" y="80" width="100" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{IMPORT}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="550" y="100" width="280" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{OBS}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="753" y="25" width="70" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Integer"><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="753" y="15" width="70" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="714" y="15" width="70" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Fecha:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="714" y="25" width="70" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Pagina:]]></text>
+			</staticText>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="50" splitType="Stretch">
+			<printWhenExpression><![CDATA[$V{PAGE_NUMBER}!=1]]></printWhenExpression>
+			<staticText>
+				<reportElement x="714" y="15" width="70" height="13">
+					<printWhenExpression><![CDATA[$V{PAGE_NUMBER}!=1]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Fecha:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="714" y="25" width="70" height="13">
+					<printWhenExpression><![CDATA[$V{PAGE_NUMBER}!=1]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Pagina:]]></text>
+			</staticText>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="753" y="15" width="70" height="13">
+					<printWhenExpression><![CDATA[$V{PAGE_NUMBER}!=1]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="753" y="25" width="70" height="13">
+					<printWhenExpression><![CDATA[$V{PAGE_NUMBER}!=1]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Integer"><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<subreport isUsingCache="true">
+				<reportElement key="subreport-3" style="Report_Footer" x="0" y="0" width="842" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[$P{LOCALE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PRELIQUIDATION_ID">
+					<subreportParameterExpression><![CDATA[$P{DOCUMENT_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="TOTAL_FACTURA" toVariable="TOTAL_FACTURA"/>
+				<returnValue subreportVariable="TOTAL_SEGURO" toVariable="TOTAL_SEGURO"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_Preliquidation_Lines_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="10"/>
+	</pageFooter>
+	<summary>
+		<band height="299" splitType="Stretch">
+			<printWhenExpression><![CDATA[$F{CHECK}.equals("Y")]]></printWhenExpression>
+			<staticText>
+				<reportElement x="30" y="24" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[A. FOB]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="39" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[B. FLETE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="54" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[C. Gastos en Destino]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="69" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[D. Agente y g/operativos]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="85" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[E. Handing]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="100" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[F. Transporte Interno]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="115" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[G. ADV]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="200" y="24" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{TOTAL_FOB})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="200" y="39" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{TOTAL_FLETE})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="30" y="230" width="130" height="15"/>
+				<textElement textAlignment="Left">
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[Prima Bruta]]></text>
+			</staticText>
+			<line>
+				<reportElement x="197" y="225" width="74" height="1"/>
+			</line>
+			<textField>
+				<reportElement x="200" y="54" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{GAS_DEST})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="200" y="85" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{HANDLING})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="200" y="100" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{T_INTERNO})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="30" y="5" width="313" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Dpto. Comercio Exterior]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="200" y="69" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{AG_GAS_OP}.compareTo( new BigDecimal(80))>0)?$P{NUMBERFORMAT}.format($V{AG_GAS_OP}):$P{NUMBERFORMAT}.format(new BigDecimal(80))]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="200" y="115" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{TOTAL_ADV})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="200" y="230" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{igv_final}.add($V{prima_neta}.add($V{derecho_emision})))]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="30" y="130" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[H. Sobreseguro]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="145" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[TOTAL (A+B+H)]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="201" y="130" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{sobreseguro})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="201" y="145" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{total})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="30" y="178" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[Prima Neta]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="193" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[Derecho de Emisión]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="209" width="130" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<text><![CDATA[IGV]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="200" y="178" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{prima_neta})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="200" y="194" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{derecho_emision})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="200" y="209" width="70" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{igv_final})]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

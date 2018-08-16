@@ -1,0 +1,537 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="PickingList_ugo" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="842" leftMargin="0" rightMargin="0" topMargin="14" bottomMargin="14">
+	<property name="ireport.zoom" value="1.2418426461183125"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SUBREP_PickingList_lines_ugo" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["http://localhost/openbravo"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[select pkl.obwpl_pickinglist_id as "PICK_ID",
+
+(select coalesce(t.name,l.name) from ad_ref_list l
+left join ad_ref_list_trl t on l.ad_ref_list_id = t.ad_ref_list_id
+and t.ad_language = $P{LANGUAGE}
+where l.ad_reference_id = (select ad_reference_id from ad_reference
+where name = 'OBWPL_PickingList' and l.value = pkl.pickliststatus)) as "ESTADO",
+
+pkl.ad_org_id as "ORG_ID",
+coalesce(org.name,'') as "ORG",
+coalesce(inf.taxid,'') as "RUC",
+
+upper(coalesce((select coalesce(t.name,coalesce(l.name,'Despacho')) from ad_reference r
+left join ad_ref_list l on r.ad_reference_id = l.ad_reference_id
+left join ad_ref_list_trl t on l.ad_ref_list_id = t.ad_ref_list_id
+and t.ad_language = $P{LANGUAGE}
+where r.name = 'C_Order DeliveryViaRule'
+and l.value = ord.deliveryviarule),'Despacho')) as "MED_ENV",
+coalesce(pkl.documentno,'') as "NRO_PL",
+
+coalesce((select name from ad_user where ad_user_id = pkl.em_swa_user_pickero),'') as "ENC_PICK",
+(select name from scr_combo_item where scr_combo_item_id = pkl.em_swa_combo_item_id) as "TIP_PED",
+
+(select name from c_bpartner where c_bpartner_id = i.c_bpartner_id) as "TERCERO",
+
+(select coalesce(loc.address1||' ','')||coalesce(' '||loc.address2,'')||coalesce(' - '||loc.city,'')||
+coalesce(' - '||(select description from c_region where c_region_id = loc.c_region_id),'')||
+coalesce(' - '||(select description from c_country where c_country_id = loc.c_country_id),'')
+from c_bpartner_location bpl
+join c_location loc on bpl.c_location_id = loc.c_location_id
+where c_bpartner_location_id = i.c_bpartner_location_id) as "DIR_FISCAL",
+
+(select coalesce(loc.address1||' ','')||coalesce(' '||loc.address2,'')||coalesce(' - '||loc.city,'')||
+coalesce(' - '||(select description from c_region where c_region_id = loc.c_region_id),'')||
+coalesce(' - '||(select description from c_country where c_country_id = loc.c_country_id),'')
+from c_bpartner_location bpl
+join c_location loc on bpl.c_location_id = loc.c_location_id
+where c_bpartner_location_id = coalesce(i.delivery_location_id,i.c_bpartner_location_id)) as "DIR_ENTREGA",
+
+coalesce(i.description,'') as "DES_GUIA",
+
+case dt.em_sco_specialdoctype
+when 'SCOMMSHIPMENT' then 'Guia'
+when 'SWAINTERNALSHIPMENT' then 'Guia'
+when 'SWAMMDISPATCH' then 'Nota de Salida'
+else '' end as "TIPO_INOUT",
+
+case when dt.em_sco_specialdoctype in('SCOMMSHIPMENT','SWAINTERNALSHIPMENT') then i.em_scr_physical_documentno
+	when dt.em_sco_specialdoctype = 'SWAMMDISPATCH' then i.documentno
+	else '' end as "NUM_GUIA",
+
+(select i.em_scr_physical_documentno from c_invoice i
+left join c_invoiceline il on i.c_invoice_id = il.c_invoice_id
+left join c_orderline ol on il.c_orderline_id = ol.c_orderline_id
+where ol.c_order_id = (case
+when pkl.em_swa_c_order_id is not null then ven.c_order_id
+when pkl.em_ssa_service_order_id is not null then ser.c_order_id
+end)order by ol.c_orderline_id limit 1) as "NUM_FACTURA",
+
+case
+when pkl.em_swa_c_order_id is not null and (select em_sco_specialdoctype from c_doctype
+where c_doctype_id = ven.c_doctypetarget_id) = 'SSASAMPLEORDER' then 'Pedido de Muestra'
+
+when pkl.em_swa_c_order_id is not null then 'Pedido de Venta'
+when pkl.em_swa_requerepo_id is not null then 'Reposicion'
+when pkl.em_ssa_service_order_id is not null then 'Orden de Servicio'
+when pkl.em_swa_m_production_id is not null then 'Producción'
+when pkl.em_swa_rtv_c_order_id is not null then 'Devolución a Proveedor'
+else null
+end as "TIP_PICK",
+
+(case
+when pkl.em_swa_c_order_id is not null then ven.documentno
+when pkl.em_swa_requerepo_id is not null then (select documentno from swa_requerimientoreposicion where swa_requerimientoreposicion_id = pkl.em_swa_requerepo_id)
+when pkl.em_ssa_service_order_id is not null then ser.documentno
+when pkl.em_swa_m_production_id is not null then (select documentno from m_production where m_production_id = pkl.em_swa_m_production_id)
+when pkl.em_swa_rtv_c_order_id is not null then (select documentno from c_order where c_order_id = pkl.em_swa_rtv_c_order_id)
+end) as "NRO_PICKING",
+
+(select to_char(em_swa_pickdatetime,'dd/MM/yyyy HH12:MI A.M.') from m_inout i
+left join m_inoutline l on i.m_inout_id = l.m_inout_id
+where l.em_obwpl_pickinglist_id = pkl.obwpl_pickinglist_id
+order by l.line limit 1) as "FEC_PROCE",
+
+pkl.created as "FEC_EMI",
+pkl.dateprinted as "FEC_IMPRESION",
+
+
+(select value from c_bpartner where c_bpartner_id =
+(select c_bpartner_id from ad_user where ad_user_id = ven.salesrep_id)) as "COD_VENDEDOR",
+
+coalesce('/'||trim(ven.poreference),'') as "NRO_OC"
+
+,case when pkl.em_swa_requerepo_id is not null then
+(	select (SELECT "name" from c_bpartner where c_bpartner_id=srr.samplerep_id limit 1) from swa_requerimientoreposicion srr
+	inner join c_doctype cd on srr.c_doctype_id=cd.c_doctype_id
+	WHERE srr.swa_requerimientoreposicion_id= pkl.em_swa_requerepo_id  and cd.em_sco_specialdoctype='SWAREQUESTSAMPE'
+)
+ else null end as "ENCARGADO_MUESTRA"
+
+from obwpl_pickinglist pkl
+
+/* nueva relacion entre tablas*/
+left join swa_pickinglist_lines_v il on pkl.obwpl_pickinglist_id = il.em_swa_pickinglist_id
+left join m_inoutline lin on il.m_inoutline_id = lin.m_inoutline_id
+left join m_inout i on lin.m_inout_id = i.m_inout_id
+left join c_doctype dt on i.c_doctype_id = dt.c_doctype_id
+
+/* documentos que generan picking */
+left join c_order ven on pkl.em_swa_c_order_id = ven.c_order_id /* pedido de venta */
+--left join swa_requerimientoreposicion rep on pkl.em_swa_requerepo_id = rep.swa_requerimientoreposicion_id /* transferencia entre almacenes */
+left join c_order ser on pkl.em_ssa_service_order_id = ser.c_order_id/* orden por servicios */
+--left join m_production pdt on pkl.em_swa_m_production_id = pdt.m_production_id /* produccion */
+--left join c_order rtv on pkl.em_swa_rtv_c_order_id = rtv.c_order_id /* Ord. Dev. a Proveedor */
+/* En caso de un m_inout se accede a travez de sus lineas */
+
+left join c_order ord on pkl.em_swa_c_order_id = ord.c_order_id
+
+,ad_org org join ad_orgtype typ using (ad_orgtype_id)
+left join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+where ad_isorgincluded(pkl.ad_org_id, org.ad_org_id, pkl.ad_client_id)<>-1
+and(typ.islegalentity='Y' or typ.isacctlegalentity='Y')
+and pkl.isactive='Y'
+--and i.m_inout_id is not null
+and pkl.obwpl_pickinglist_id in ($P{DOCUMENT_ID})
+
+order by lin.line,lin.created
+
+limit 1]]>
+	</queryString>
+	<field name="PICK_ID" class="java.lang.String"/>
+	<field name="ESTADO" class="java.lang.String"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<field name="MED_ENV" class="java.lang.String"/>
+	<field name="NRO_PL" class="java.lang.String"/>
+	<field name="ENC_PICK" class="java.lang.String"/>
+	<field name="TIP_PED" class="java.lang.String"/>
+	<field name="TERCERO" class="java.lang.String"/>
+	<field name="DIR_FISCAL" class="java.lang.String"/>
+	<field name="DIR_ENTREGA" class="java.lang.String"/>
+	<field name="DES_GUIA" class="java.lang.String"/>
+	<field name="TIPO_INOUT" class="java.lang.String"/>
+	<field name="NUM_GUIA" class="java.lang.String"/>
+	<field name="NUM_FACTURA" class="java.lang.String"/>
+	<field name="TIP_PICK" class="java.lang.String"/>
+	<field name="NRO_PICKING" class="java.lang.String"/>
+	<field name="FEC_PROCE" class="java.lang.String"/>
+	<field name="FEC_EMI" class="java.sql.Timestamp"/>
+	<field name="FEC_IMPRESION" class="java.sql.Timestamp"/>
+	<field name="COD_VENDEDOR" class="java.lang.String"/>
+	<field name="NRO_OC" class="java.lang.String"/>
+	<field name="ENCARGADO_MUESTRA" class="java.lang.String"/>
+	<title>
+		<band height="134" splitType="Stretch">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="20" y="0" width="296" height="20"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ORG}+ "    " +"RUC: "+$F{RUC}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="20" y="59" width="166" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Encargado de Picking]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="186" y="59" width="277" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ENC_PICK}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="20" y="31" width="794" height="26"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="18" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["PICKING LIST PARA "+$F{MED_ENV}+" NRO "+$F{NRO_PL}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="186" y="74" width="277" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TIP_PED}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="20" y="74" width="156" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo de Orden]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="20" y="104" width="166" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Dirección de Entrega]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="463" y="74" width="224" height="15">
+					<printWhenExpression><![CDATA[!$F{TIPO_INOUT}.equalsIgnoreCase("")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Número de "+$F{TIPO_INOUT}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="463" y="89" width="224" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Número de Factura]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="463" y="104" width="224" height="15">
+					<printWhenExpression><![CDATA[$F{TIP_PICK}!=null]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Número de "+$F{TIP_PICK}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="694" y="74" width="120" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NUM_GUIA}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="694" y="89" width="120" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NUM_FACTURA}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="694" y="104" width="120" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_PICKING}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="20" y="89" width="156" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tercero]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="186" y="89" width="277" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TERCERO}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="463" y="59" width="224" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Emisión]]></text>
+			</staticText>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="694" y="59" width="120" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMI}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="675" y="31" width="139" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement textAlignment="Right">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ESTADO}.toUpperCase()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="176" y="59" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="176" y="74" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="176" y="89" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="176" y="104" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="684" y="59" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="684" y="74" width="10" height="15">
+					<printWhenExpression><![CDATA[!$F{TIPO_INOUT}.equalsIgnoreCase("")]]></printWhenExpression>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="684" y="89" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="684" y="104" width="10" height="15">
+					<printWhenExpression><![CDATA[$F{TIP_PICK}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="463" y="119" width="224" height="15">
+					<printWhenExpression><![CDATA[$F{TIP_PICK}.equalsIgnoreCase("Pedido de Venta")||$F{ENCARGADO_MUESTRA}!=null]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ENCARGADO_MUESTRA}!=null?"Encargado de Muestra":"Cod vendedor"]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="684" y="119" width="10" height="15">
+					<printWhenExpression><![CDATA[$F{TIP_PICK}.equalsIgnoreCase("Pedido de Venta")||$F{ENCARGADO_MUESTRA}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="694" y="119" width="120" height="15">
+					<printWhenExpression><![CDATA[$F{TIP_PICK}.equalsIgnoreCase("Pedido de Venta")||$F{ENCARGADO_MUESTRA}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ENCARGADO_MUESTRA}!=null?$F{ENCARGADO_MUESTRA}:$F{COD_VENDEDOR}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="359" y="0" width="178" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="11" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Fecha de Procesado:]]></text>
+			</staticText>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="537" y="0" width="185" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{FEC_PROCE}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="780" y="0" width="34" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Integer"><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="726" y="0" width="54" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Pag.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="359" y="15" width="178" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="11" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Fecha de Impresión:]]></text>
+			</staticText>
+			<textField pattern="dd/MM/yyyy h.mm a" isBlankWhenNull="true">
+				<reportElement x="537" y="15" width="185" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_IMPRESION}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="186" y="104" width="277" height="15"/>
+				<textElement>
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DIR_ENTREGA}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<detail>
+		<band height="15" splitType="Stretch">
+			<staticText>
+				<reportElement x="20" y="0" width="156" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Inf. adicional]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="176" y="0" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="463" y="0" width="224" height="15">
+					<printWhenExpression><![CDATA[$F{TIP_PICK}.equalsIgnoreCase("Pedido de Venta")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Orden: ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="684" y="0" width="10" height="15">
+					<printWhenExpression><![CDATA[$F{TIP_PICK}.equalsIgnoreCase("Pedido de Venta")]]></printWhenExpression>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="186" y="0" width="277" height="15"/>
+				<textElement>
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DES_GUIA}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="694" y="0" width="120" height="15"/>
+				<textElement>
+					<font size="11"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["OC"+$F{NRO_OC}]]></textFieldExpression>
+			</textField>
+		</band>
+		<band height="14">
+			<subreport isUsingCache="true">
+				<reportElement x="0" y="0" width="842" height="14"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LANGUAGE">
+					<subreportParameterExpression><![CDATA[$P{LANGUAGE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="PICKINGLIST_ID">
+					<subreportParameterExpression><![CDATA[$F{PICK_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_PickingList_lines_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+</jasperReport>

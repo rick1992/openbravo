@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SPR_BUDGET_CALCULATETAX">
+    <function name="SPR_BUDGET_CALCULATETAX" type="NULL">
+      <parameter name="p_sprbudget_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_totaltax" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[Cur_BudgetLine RECORD;
+v_taxamount NUMBER:=0;
+BEGIN
+    --Only for m_transaction consumptions in SRE_CONSUMPTRANSACTION_V view
+
+
+    FOR Cur_BudgetLine IN (
+     SELECT BL.linenetamt , T.rate FROM SPR_BUDGETLINE BL 
+      INNER JOIN C_TAX T ON BL.C_TAX_ID = T.C_TAX_ID
+      WHERE BL.SPR_BUDGET_ID = p_sprbudget_id
+    )LOOP
+         v_taxamount:=v_taxamount + COALESCE(Cur_BudgetLine.linenetamt * Cur_BudgetLine.rate/100 ,0);
+
+    END LOOP;
+
+        p_totaltax:= ROUND(v_taxamount,5);
+END SPR_BUDGET_CALCULATETAX
+]]></body>
+    </function>
+  </database>

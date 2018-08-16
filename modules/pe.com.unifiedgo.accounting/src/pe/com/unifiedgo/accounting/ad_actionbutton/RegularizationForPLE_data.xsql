@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="RegularizationForPLEData" package="pe.com.unifiedgo.accounting.ad_actionbutton">
+	<SqlClassComment></SqlClassComment>
+	
+	<SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select '' as rownum, '' as ad_org_id, '' as ad_client_id, '' as areaname, '' as areacode, '' as isgljournal, 
+				'' as idorganizacion, '' as idperiodo, '' as periodo, '' as fechainicial, '' as fechafinal, 
+				'' as scoareaid, '' as scoareaschemaid, '' as cperiodid, '' as acctname, '' as isclosed, '' as regnumber, 
+				
+				'' as recordId, '' as tableId, '' as docNumber, '' issotrx, 
+				'' as documentnum, '' as documenttype, '' as bpartnername, '' as bpartnertaxid, '' as factacctid, '' as docpriority, '' as docreltype 
+				
+				from dual 
+			]]>
+		</Sql>
+	</SqlMethod>
+	
+	
+	<SqlMethod name="selectids" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select ds.recordId, ds.tableId, ds.docpriority, ds.docreltype 
+				from (
+					select distinct fa.record_id as recordId, 
+					fa.ad_table_id as tableId, 
+					to_char('1') as docpriority, 
+					to_char('Documento Principal') as docreltype 
+					from fact_acct fa
+					where em_sco_regnumber=?
+					and em_sco_correlnum =? 
+					union
+					select distinct fa.em_sco_record3_id as recordId, 
+					fa.em_sco_record3_table_id as tableId, 
+					to_char('2') as docpriority, 
+					to_char('Documento Relacionado') as docreltype 
+					from fact_acct fa
+					where fa.em_sco_record3_id is not null
+					and em_sco_regnumber=?
+					and em_sco_correlnum =?
+				) as ds 
+				order by ds.docpriority
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strRegNumber" />
+		<Parameter name="strCorrelNumber" />
+		<Parameter name="strRegNumber" />
+		<Parameter name="strCorrelNumber" />
+	</SqlMethod>
+	
+	<SqlMethod name="selectfactacctids" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select fa.fact_acct_id as factacctid from fact_acct fa where fa.record_id=? and fa.ad_table_id=?
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strRecordId" />
+		<Parameter name="strAdTableId" />
+	</SqlMethod>
+	
+	<SqlMethod name="selectDocWithTranslate" type="preparedStatement" return="String">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select coalesce((select name from c_doctype_trl t where t.c_doctype_id = doc.c_doctype_id and t.ad_Language = 'es_PE' limit 1),doc.name) as documenttype 
+				from c_doctype doc 
+				where doc.c_doctype_id = ?
+			]]>
+		</Sql>
+		
+		<Field name="rownum" value="count"/>
+		<Parameter name="strDocType" />
+	</SqlMethod>
+	
+	<SqlMethod name="selectData" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				select are.sco_area_id as scoareaid,
+				sch.sco_areaschema_id as scoareaschemaid,
+				sch.c_period_id as cperiodid,
+				are.areaname || ' - ' || acs.name as acctname, 
+				case sch.isclosed when 'Y' then 'SI' else 'NO' end as isclosed 
+				
+				from sco_area are
+				join sco_areaschema sch on are.sco_area_id = sch.sco_area_id
+				join c_acctschema acs on sch.c_acctschema_id = acs.c_acctschema_id
+				
+				where sch.c_period_id = ?
+				and sch.isclosed = ?
+				
+				order by 4 
+			]]>
+		</Sql>
+		<Field name="rownum" value="count"/>
+		<!-- <Parameter name="strAdOrgId" />
+		<Parameter name="strAdClientId" /> -->
+		<Parameter name="strCPeriodId" />
+		<Parameter name="strIsClosed" />
+	</SqlMethod>
+   
+	<SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				SELECT ao3.ad_org_id as idorganizacion, 
+				cp.c_period_id as idperiodo, 
+				cp.name as periodo, 
+				to_char(cp.startdate,'dd-MM-yyyy') as fechainicial, 
+				to_char(cp.enddate,'dd-MM-yyyy') as fechafinal 
+				
+				FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate  desc
+
+      
+    ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+     <SqlMethod name="getRegNumberFromFactAcct" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT em_sco_regnumber AS regnumber
+      FROM Fact_Acct
+      WHERE AD_Client_ID = ?
+      AND AD_Table_ID = ?
+      AND record_ID = ? LIMIT 1
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adTableId"/>
+    <Parameter name="recordId"/>
+  </SqlMethod>
+   
+   
+</SqlClass>

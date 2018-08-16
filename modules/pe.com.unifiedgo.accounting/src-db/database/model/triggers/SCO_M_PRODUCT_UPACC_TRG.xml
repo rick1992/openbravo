@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_M_PRODUCT_UPACC_TRG">
+    <trigger name="SCO_M_PRODUCT_UPACC_TRG" table="M_PRODUCT" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+   TYPE RECORD IS REF CURSOR;
+   Cur_Product_Acct RECORD;
+
+   Cur_New_M_Product_Cat_Acct RECORD;
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  --Remove this update for now
+  IF(COALESCE(:OLD.m_product_category_id,'.')<>COALESCE(:NEW.m_product_category_id,'.') AND 1=2) THEN
+    --Change Accts
+    FOR Cur_Product_Acct IN (SELECT * FROM M_Product_Acct WHERE M_Product_ID = :NEW.M_Product_ID)
+    LOOP
+      SELECT * 
+        INTO Cur_New_M_Product_Cat_Acct
+        FROM M_Product_Category_Acct
+      WHERE c_acctschema_id = Cur_Product_Acct.c_acctschema_id AND
+            m_product_category_id = :NEW.m_product_category_id;
+
+      UPDATE M_Product_Acct SET
+        p_revenue_acct = Cur_New_M_Product_Cat_Acct.p_revenue_acct,
+        p_expense_acct = Cur_New_M_Product_Cat_Acct.p_expense_acct,
+        p_asset_acct = Cur_New_M_Product_Cat_Acct.p_asset_acct,
+        p_purchasepricevariance_acct = Cur_New_M_Product_Cat_Acct.p_purchasepricevariance_acct,
+        p_invoicepricevariance_acct = Cur_New_M_Product_Cat_Acct.p_invoicepricevariance_acct,
+        p_cogs_acct = Cur_New_M_Product_Cat_Acct.p_cogs_acct,
+        p_tradediscountrec_acct = Cur_New_M_Product_Cat_Acct.p_tradediscountrec_acct,
+        p_tradediscountgrant_acct = Cur_New_M_Product_Cat_Acct.p_tradediscountgrant_acct,
+        p_revenue_return_acct = Cur_New_M_Product_Cat_Acct.p_revenue_return_acct,
+        p_cogs_return_acct = Cur_New_M_Product_Cat_Acct.p_cogs_return_acct,
+        p_def_revenue_acct = Cur_New_M_Product_Cat_Acct.p_def_revenue_acct,
+        p_def_expense_acct = Cur_New_M_Product_Cat_Acct.p_def_expense_acct,
+        em_sco_stockvariation_acct = Cur_New_M_Product_Cat_Acct.em_sco_stockvariation_acct,
+        em_sco_p_other_revenue_acct = Cur_New_M_Product_Cat_Acct.em_sco_p_other_revenue_acct,
+        em_sco_p_mat_expense_acct = Cur_New_M_Product_Cat_Acct.em_sco_p_mat_expense_acct,
+        em_sco_p_mat_expbridge_acct = Cur_New_M_Product_Cat_Acct.em_sco_p_mat_expbridge_acct
+      WHERE M_Product_Acct_ID = Cur_Product_Acct.M_Product_Acct_ID;
+
+    END LOOP;
+  END IF;
+
+  END SCO_M_PRODUCT_UPACC_TRG
+]]></body>
+    </trigger>
+  </database>

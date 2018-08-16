@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_BUDGETLINE_VAL_TRG">
+    <trigger name="SPR_BUDGETLINE_VAL_TRG" table="SPR_BUDGETLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_count NUMBER:=0;
+  v_docstatus  VARCHAR(60);
+  v_budgettype VARCHAR(60);
+  v_budgetitem_id VARCHAR(32);
+  v_istitletext character(1);
+
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+   v_ID:=:OLD.spr_budget_id;
+ELSE
+   v_ID:=:NEW.spr_budget_id;
+END IF;
+
+
+
+IF(DELETING) THEN
+
+    SELECT docstatus
+      INTO v_docstatus
+      FROM SPR_BUDGET WHERE SPR_BUDGET_ID = :OLD.spr_budget_id;
+
+    --No puedo borrar la lineas si estàn completadas o canceladas o cualquiera menos en borrador
+    IF (v_docStatus <> 'DR') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@spr_budget_invalid_delete@');
+    END IF;
+END IF;
+
+
+
+IF(INSERTING) THEN
+ --Validation if it has a BudgetEntry a is title 
+   SELECT type INTO v_budgettype FROM SPR_BUDGET WHERE SPR_BUDGET_ID = :NEW.SPR_BUDGET_ID;
+
+   IF(v_budgettype='BDG')THEN
+
+     SELECT COALESCE(istitletext,'N'),
+            spr_budgetitem_id
+       INTO v_istitletext,
+            v_budgetitem_id
+       FROM SPR_BudgetEntry where spr_budgetentry_id = :NEW.spr_budgetentry_id;
+
+     IF(v_istitletext='Y' OR (v_istitletext='N' AND v_budgetitem_id IS NULL))THEN
+      RAISE_APPLICATION_ERROR(-20000, '@spr_budgetline_titleentry_invalid_insert@');
+     END IF; 
+   END IF;
+   
+ 
+
+ --Validation when make a request order for adjusment
+ IF(:NEW.qtyrequested <> 0 )THEN
+   :NEW.qtyordered:=:NEW.qtyrequested;
+ END IF;
+END IF;
+
+--Validation when make a request order for adjusment
+IF(UPDATING) THEN
+ IF(:OLD.qtyrequested <> :NEW.qtyrequested )THEN
+   :NEW.qtyordered:=:NEW.qtyrequested;
+ END IF;
+END IF;
+
+
+END SPR_BUDGETLINE_VAL_TRG
+]]></body>
+    </trigger>
+  </database>

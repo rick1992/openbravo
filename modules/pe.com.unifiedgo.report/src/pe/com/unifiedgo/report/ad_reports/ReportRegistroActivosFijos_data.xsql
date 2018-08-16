@@ -1,0 +1,1351 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportRegistroActivosFijosData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+      <SqlMethod name="selectActivosFijos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+                    SELECT
+    '' AS idorganizacion,
+    '' AS idperiodo,
+    '' AS periodo,
+    '' AS fechainicial,
+    '' AS fechafinal,
+    '' AS vida_util_tmp,
+    '' AS vida_cumplida_tmp,
+    '' AS diffmeses_migracion,
+    '' AS saldo_inicial_mejoras,
+    '' AS importetotal_mejoras,
+    '' AS saldo_inicial_reevaluaciones,
+    '' AS reevaluaciones,
+    '' AS importetotal_reevaluaciones,
+    '' AS es_intangible,
+    0.00 as  depreciacion_ejercicio1,
+    0.00 as  depreciacion_ejercicio2,
+    0.00 as  depreciacion_ejercicio3,
+    0.00 as  depreciacion_ejercicio4,
+    0.00 as  depreciacion_ejercicio5,
+    0.00 as  depreciacion_ejercicio6,
+    0.00 as  depreciacion_ejercicio7,
+    0.00 as  depreciacion_ejercicio8,
+    0.00 as  depreciacion_ejercicio9,
+    0.00 as  depreciacion_ejercicio10,
+    0.00 as  depreciacion_ejercicio11,
+    0.00 as  depreciacion_ejercicio12,
+    0.00 as depreciacion_anual,
+    
+    
+    f.*,
+    (
+        CASE
+        WHEN vida_util > 0 THEN
+            vida_util - vida_cumplida
+        ELSE
+            0
+        END
+    ) :: INTEGER AS vida_x_cumplir,
+    (CASE WHEN coalesce(f.Depreciatedpreviousamt,0)=0 THEN
+     vida_util
+     ELSE
+     ROUND((100/depreciacion)*12)
+     END) :: INTEGER AS vida_util_scr,
+    coalesce(depreciacion_acumulada + depreciacion_ejercicio,0) AS depreciacion_historica,
+    coalesce(depreciacion_acumulada + depreciacion_ejercicio,0) AS depreciacion_acumulada_inflasion,
+     CASE 
+       WHEN estado_activo='SCO_RET' AND datecancelled<=to_date(?) THEN 0.0 
+       ELSE COALESCE ( saldo_inicial - ( depreciacion_acumulada + depreciacion_ejercicio),0.0)
+     END  AS activo_neto,
+     CASE 
+       WHEN estado_activo='SCO_RET' AND datecancelled<=to_date(?) THEN COALESCE ( saldo_inicial - (depreciacion_acumulada + depreciacion_ejercicio),0.0) 
+       ELSE 0.0 
+     END AS depreciacion_bajas
+    FROM
+    (
+        SELECT
+            aa.ad_org_id,
+            aa.Depreciatedpreviousamt,
+            aa.datecancelled,
+            ao. NAME,
+            aag. NAME AS clase,
+            (
+                SELECT
+                    cev.
+                VALUE
+
+                FROM
+                    a_asset_acct aaa2
+                LEFT JOIN c_validcombination cvc ON aaa2.em_sco_assets_acct = cvc.c_validcombination_id
+                INNER JOIN c_elementvalue cev ON cvc.account_id = cev.c_elementvalue_id
+                WHERE
+                    aaa2.a_asset_id = aa.a_asset_id
+                LIMIT 1
+            ) AS codigo_cuenta,
+            aa.
+        VALUE
+            AS codigo_activo,
+            aa. NAME AS activo,
+            (
+                CASE
+                WHEN aa.amortizationcalctype = 'PE' THEN
+                    'porcentaje'
+                WHEN aa.amortizationcalctype = 'TI' THEN
+                    'tiempo'
+                END
+            ) AS tipodepreciacion,
+            (
+                CASE
+                WHEN aa.assetschedule = 'YE' THEN
+                    'anual'
+                WHEN aa.assetschedule = 'MO' THEN
+                    'mensual'
+                END
+            ) AS tiempo,
+            aa.amortizationstartdate AS fecha_inicio,
+            aa.datepurchased AS fecha_adquisicion,
+            em_sco_amort_anualperc AS depreciacion,
+            round(
+                (
+                    CASE
+                    WHEN aa.amortizationcalctype = 'TI' THEN
+                    
+                        CASE WHEN aa.assetschedule='MO' THEN COALESCE (aa.uselifemonths, 0)
+                        WHEN aa.assetschedule='YE' THEN COALESCE (aa.uselifeyears * 12,0)
+                        ELSE 0 END
+
+                    WHEN aa.amortizationcalctype = 'PE' THEN
+                        (
+                            SELECT
+                                COUNT (aaml.a_amortizationline_id)
+                            FROM
+                                a_amortizationline aaml
+                            INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                            WHERE
+                                aaml.a_asset_id = aa.a_asset_id
+                        ) * 12
+                    END
+                ),
+                0
+            ) AS vida_util,
+            GREATEST(round(
+                COALESCE (
+                    (
+                        (
+                            SELECT
+                                (
+                                    DATE_PART(
+                                        'year',
+                                        to_date((?))
+                                    ) - DATE_PART(
+                                        'year',
+                                        aa.amortizationstartdate
+                                    )
+                                ) * 12 + (
+                                    DATE_PART(
+                                        'month',
+                                        to_date((?))
+                                    ) - DATE_PART(
+                                        'month',
+                                        aa.amortizationstartdate
+                                    )
+                                )
+                        )
+                    ) + 1,
+                    0
+                )
+            ),0) AS vida_cumplida,
+            (
+                SELECT
+                    COALESCE (
+                        arlt. NAME,
+                        COALESCE (arl. NAME, '')
+                    )
+                FROM
+                    ad_ref_list arl
+                LEFT JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+                WHERE
+                    arl.
+                VALUE
+                    = aa.amortizationtype
+            ) AS tipo_regresion,
+            1 AS cantidad,
+            coalesce(round(aa.assetvalueamt, 2),0) AS saldo_inicial,
+            0.00 AS adquisiciones_adicionales,
+            em_sco_improvements AS mejoras,
+            0.00 AS retiro_bajas,
+            round(aa.assetvalueamt, 2) AS valor_historico,
+            round(aa.assetvalueamt, 2) AS valor_ajustado,
+            aa.a_asset_id,
+            COALESCE (
+                (
+                    SELECT
+                        COALESCE(SUM (aaml.amortizationamt),0)
+                    FROM
+                        a_amortizationline aaml
+                    INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                    WHERE
+                        am2.processed = 'Y'
+                    AND aaml.a_asset_id = aa.a_asset_id
+                    AND (
+                        CASE
+                        WHEN aa.assetschedule = 'MO' THEN
+                            (
+                                am2.enddate < to_date(?)
+                            )
+                        WHEN aa.assetschedule = 'YE'
+                        OR aa.amortizationcalctype = 'PE' THEN
+                            (
+                                am2.startdate < to_date(?) - INTERVAL '11 month'
+                            )
+                        ELSE
+                            TRUE
+                        END
+                    )
+                ),
+                0
+            ) + coalesce(aa.Depreciatedpreviousamt,0) AS depreciacion_acumulada,
+            COALESCE (
+                (
+                    SELECT
+                            COALESCE(SUM (aaml.amortizationamt),0.0)
+                    FROM
+                        a_amortizationline aaml
+                    INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                    WHERE
+                        am2.processed = 'Y'
+                    AND aaml.a_asset_id = aa.a_asset_id
+                    AND (
+                        CASE
+                        WHEN aa.assetschedule = 'MO' THEN
+                            (
+                                am2.startdate >= to_date(?)
+                                AND am2.enddate <= to_date(?)
+                            )
+                        WHEN aa.assetschedule = 'YE'
+                        OR aa.amortizationcalctype = 'PE' THEN
+                            (
+                                am2.startdate >= (
+                                    to_date(?) - INTERVAL '11 month'
+                                )
+                                AND am2.enddate <= (
+                                    to_date(?) - INTERVAL '11 month'
+                                )
+                            )
+                        ELSE
+                            TRUE
+                        END
+                    )
+                ),
+                0
+            ) AS depreciacion_ejercicio,
+            aa.c_currency_id AS id_moneda
+            ,aa.em_sco_asset_status as estado_activo
+            ,aa.isdepreciated,
+            aa.assetvalueamt,
+            COALESCE(aa.em_sco_ismigrated,'N') AS em_sco_ismigrated
+        FROM
+            a_asset aa
+        INNER JOIN ad_org ao ON aa.ad_org_id = ao.ad_org_id
+        LEFT JOIN a_asset_group aag ON aa.a_asset_group_id = aag.a_asset_group_id
+        
+        where 
+        aa.em_scr_isintangible='N' and ( (cast(aa.datepurchased as date) <=(to_date(?))
+        AND (case when  aa.datecancelled  is not null  then (aa.datecancelled  > to_date(?)) else true end) ) or aa.isdepreciated='N')
+        and
+        ao.AD_CLIENT_ID IN ('1')
+        AND ao.AD_ORG_ID IN('1')
+        
+        order by clase,codigo_cuenta,codigo_activo
+        ) as  f
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+        <Parameter name="dateTo6"/>
+        <Parameter name="dateTo7"/>
+        <Parameter name="dateTo4"/>
+        <Parameter name="dateTo5"/>
+         <Parameter name="dateFrom3"/>
+          <Parameter name="dateFrom4"/>
+           <Parameter name="dateFrom5"/>
+        <Parameter name="dateTo1"/>
+         <Parameter name="dateFrom6"/>
+                <Parameter name="dateTo2"/>
+         <Parameter name="dateTo3"/>
+        <Parameter name="dateFrom8"/>
+         
+    <Parameter name="adUserClient" type="replace" optional="true" after="ao.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND ao.AD_ORG_ID IN(" text="'1'"/>
+   
+   </SqlMethod>
+   
+    <SqlMethod name="selectActivosFijosNuevaVersion" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+      SELECT
+        '' AS idorganizacion,
+        '' AS idperiodo,
+        '' AS periodo,
+        '' AS fechainicial,
+        '' AS fechafinal,
+        f.*,
+        (
+         CASE
+           WHEN vida_util > 0 THEN vida_util - vida_cumplida
+           ELSE 0
+         END
+        ) :: INTEGER AS vida_x_cumplir,
+        (
+         CASE 
+           WHEN coalesce(f.Depreciatedpreviousamt,0)=0 THEN vida_util
+         ELSE
+           ROUND((100/depreciacion)*12)
+         END
+        ) :: INTEGER AS vida_util_scr,
+        CASE
+          WHEN f.estado_activo = 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_bajas,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_historica,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_acumulada_inflasion,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN (f.valor_historico - coalesce(depreciacion_acumulada + depreciacion_ejercicio,0))
+          ELSE 0
+        END AS activo_neto
+      FROM
+        (SELECT 
+             aa.ad_org_id,
+             aa.Depreciatedpreviousamt,
+             aa.datecancelled,
+             ao.name,
+             aag.name AS clase,
+             (SELECT cev.value
+              FROM a_asset_acct aaa2
+              LEFT JOIN c_validcombination cvc ON aaa2.em_sco_assets_acct = cvc.c_validcombination_id
+              INNER JOIN c_elementvalue cev ON cvc.account_id = cev.c_elementvalue_id
+              WHERE aaa2.a_asset_id = aa.a_asset_id LIMIT 1
+             ) AS codigo_cuenta,
+             aa.value AS codigo_activo,
+             aa.name AS activo,
+             CASE
+               WHEN aa.amortizationcalctype = 'PE' THEN 'porcentaje'
+               WHEN aa.amortizationcalctype = 'TI' THEN 'tiempo'
+             END AS tipodepreciacion,
+             CASE
+               WHEN aa.assetschedule = 'YE' THEN 'anual'
+               WHEN aa.assetschedule = 'MO' THEN 'mensual'
+             END AS tiempo,
+             aa.amortizationstartdate AS fecha_inicio,
+             aa.datepurchased AS fecha_adquisicion,
+             em_sco_amort_anualperc AS depreciacion,
+             round((
+                   CASE
+                      WHEN aa.amortizationcalctype = 'TI' THEN
+                        CASE WHEN aa.assetschedule='MO' THEN COALESCE (aa.uselifemonths, 0)
+                          WHEN aa.assetschedule='YE' THEN COALESCE (aa.uselifeyears * 12,0)
+                        ELSE 0 
+                        END
+                      WHEN aa.amortizationcalctype = 'PE' THEN
+                        (
+                          SELECT COUNT (aaml.a_amortizationline_id)
+                          FROM a_amortizationline aaml
+                          INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                          WHERE aaml.a_asset_id = aa.a_asset_id
+                        ) * 12
+                      END
+             ),0) AS vida_util,
+             GREATEST(round(COALESCE (((
+                            SELECT
+                                (
+                                    DATE_PART(
+                                        'year',
+                                        to_date((?))
+                                    ) - DATE_PART(
+                                        'year',
+                                        aa.amortizationstartdate
+                                    )
+                                ) * 12 + (
+                                    DATE_PART(
+                                        'month',
+                                        to_date((?))
+                                    ) - DATE_PART(
+                                        'month',
+                                        aa.amortizationstartdate
+                                    )
+                                )
+                        )
+                    ) + 1,
+                    0
+                )
+             ),0) AS vida_cumplida,
+             (SELECT COALESCE (arlt. NAME,COALESCE (arl. NAME, ''))
+               FROM ad_ref_list arl
+               LEFT JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+               WHERE arl.VALUE = aa.amortizationtype
+             ) AS tipo_regresion,
+             1 AS cantidad,
+             CASE 
+               WHEN COALESCE(aa.em_sco_ismigrated,'N')='Y' THEN coalesce(round(aa.assetvalueamt, 2),0)
+               WHEN DATE_PART('year', to_date(?)) > DATE_PART('year', aa.amortizationstartdate) THEN coalesce(round(aa.assetvalueamt, 2),0)
+               ELSE 0
+             END AS saldo_inicial,
+             CASE 
+               WHEN COALESCE(aa.em_sco_ismigrated,'N')='Y' THEN 0
+               WHEN DATE_PART('year', to_date(?)) <= DATE_PART('year', aa.amortizationstartdate) THEN coalesce(round(aa.assetvalueamt, 2),0)
+               ELSE 0
+             END AS adquisiciones_adicionales,
+             COALESCE((
+              SELECT SUM(aai.amount)
+              FROM sco_asset_improv aai
+              WHERE aai.a_asset_id = aa.a_asset_id
+              AND improvdate <= to_date(?)
+             ),0) AS mejoras,
+             CASE
+               WHEN aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN coalesce(round(aa.assetvalueamt, 2),0)
+               ELSE 0
+             END AS retiro_bajas,
+             CASE
+               WHEN aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN 0
+               ELSE coalesce(round(aa.assetvalueamt, 2),0)
+             END AS valor_historico,
+             CASE
+               WHEN aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN 0
+               ELSE coalesce(round(aa.assetvalueamt, 2),0)
+             END AS valor_ajustado,
+             COALESCE (
+                (
+                    SELECT
+                        COALESCE(SUM (aaml.amortizationamt),0)
+                    FROM
+                        a_amortizationline aaml
+                    INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                    WHERE
+                        am2.processed = 'Y'
+                    AND aaml.a_asset_id = aa.a_asset_id
+                    AND DATE_PART('year', am2.dateacct)<DATE_PART('year', to_date(?))
+                ),
+                0
+             ) + coalesce(aa.Depreciatedpreviousamt,0) AS depreciacion_acumulada,
+             COALESCE (
+                      (
+                    SELECT
+                        COALESCE(SUM (aaml.amortizationamt),0)
+                    FROM
+                        a_amortizationline aaml
+                    INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                    WHERE
+                        am2.processed = 'Y'
+                    AND aaml.a_asset_id = aa.a_asset_id
+                    AND DATE_PART('year', am2.dateacct)=DATE_PART('year', to_date(?))
+                  AND am2.dateacct<=to_date(?)
+                ),
+                0
+             ) AS depreciacion_ejercicio,
+             CASE
+               WHEN aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN 'SCO_RET'
+               ELSE 'SCO_ACT'
+             END AS estado_activo,
+             aa.c_currency_id AS id_moneda,
+             aa.isdepreciated,
+             aa.a_asset_id,
+             aa.assetvalueamt,
+             COALESCE(aa.em_sco_ismigrated,'N') AS em_sco_ismigrated
+
+        FROM a_asset aa
+        INNER JOIN ad_org ao ON aa.ad_org_id = ao.ad_org_id
+        LEFT JOIN a_asset_group aag ON aa.a_asset_group_id = aag.a_asset_group_id
+        WHERE aa.em_scr_isintangible='N'
+        AND ( (cast(aa.datepurchased as date) <=to_date(?) AND (case when  aa.datecancelled  is not null  then (DATE_PART('year', aa.datecancelled)  >= DATE_PART('year', to_date(?))) else true end) ) or aa.isdepreciated='N')
+        AND ao.AD_CLIENT_ID IN ('1')
+        AND ao.AD_ORG_ID IN('1')
+        ORDER BY clase,codigo_cuenta,codigo_activo
+        ) AS f
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>       
+        <Parameter name="adUserClient" type="replace" optional="true" after="ao.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="AND ao.AD_ORG_ID IN(" text="'1'"/>
+   </SqlMethod>
+    <SqlMethod name="selectActivosFijosUltimaVersion" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT
+        '' AS idorganizacion,
+        '' AS idperiodo,
+        '' AS periodo,
+        '' AS fechainicial,
+        '' AS fechafinal,
+        f.*,
+        (
+         CASE
+           WHEN vida_util > 0 THEN vida_util - vida_cumplida
+           ELSE 0
+         END
+        ) :: INTEGER AS vida_x_cumplir,
+        CASE
+          WHEN f.estado_activo = 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_bajas,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_historica,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_acumulada_inflasion,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN (f.valor_historico - coalesce(depreciacion_acumulada + depreciacion_ejercicio,0))
+          ELSE 0
+        END AS activo_neto
+      FROM
+        (SELECT T1.*,
+               (vida_util_tmp + diffmeses_migracion) AS vida_util,
+               (CASE 
+                 WHEN (vida_util_tmp + diffmeses_migracion) < GREATEST(vida_cumplida_tmp + diffmeses_migracion,0) THEN (vida_util_tmp + diffmeses_migracion)
+                 ELSE GREATEST(vida_cumplida_tmp + diffmeses_migracion,0)
+               END) AS vida_cumplida,
+               ((CASE 
+                 WHEN DATE_PART('year', to_date(?)) > DATE_PART('year', fecha_inicio) THEN coalesce(round(aa2.assetvalueamt, 2),0)
+                   ELSE 0
+               END)
+               + saldo_inicial_mejoras 
+               + saldo_inicial_reevaluaciones
+               ) AS saldo_inicial,
+               CASE 
+                 WHEN DATE_PART('year', to_date(?)) <= DATE_PART('year', fecha_inicio) THEN coalesce(round(aa2.assetvalueamt, 2),0)
+                 ELSE 0
+               END AS adquisiciones_adicionales,
+               CASE
+                   WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=to_date(?) THEN coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+                   ELSE 0
+               END AS retiro_bajas,
+               CASE
+                 WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=to_date(?) THEN 0
+                 ELSE coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+               END AS valor_historico,
+               CASE
+                 WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=to_date(?) THEN 0
+                 ELSE coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+               END AS valor_ajustado,
+               COALESCE (
+                (
+                  SELECT
+                    COALESCE(SUM (aaml.amortizationamt),0)
+                    FROM a_amortizationline aaml
+                    INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                    WHERE am2.processed = 'Y'
+                    AND aaml.a_asset_id = aa2.a_asset_id
+                    AND DATE_PART('year', am2.dateacct)<DATE_PART('year', to_date(?))
+                    ),0
+               ) + coalesce(aa2.Depreciatedpreviousamt,0) AS depreciacion_acumulada,
+               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=DATE_PART('year', to_date(?))
+                     AND am2.dateacct<=to_date(?)
+                ),0
+               ) AS depreciacion_ejercicio
+                FROM
+                (SELECT 
+                     aa.ad_org_id,
+                     aa.Depreciatedpreviousamt,
+                     aa.datecancelled,
+                     ao.name,
+                     aag.name AS clase,
+                     (SELECT cev.value
+                      FROM a_asset_acct aaa2
+                      LEFT JOIN c_validcombination cvc ON aaa2.em_sco_assets_acct = cvc.c_validcombination_id
+                      INNER JOIN c_elementvalue cev ON cvc.account_id = cev.c_elementvalue_id
+                      WHERE aaa2.a_asset_id = aa.a_asset_id LIMIT 1
+                     ) AS codigo_cuenta,
+                     aa.value AS codigo_activo,
+                     aa.name AS activo,
+                     CASE
+                       WHEN aa.amortizationcalctype = 'PE' THEN 'porcentaje'
+                       WHEN aa.amortizationcalctype = 'TI' THEN 'tiempo'
+                     END AS tipodepreciacion,
+                     CASE
+                       WHEN aa.assetschedule = 'YE' THEN 'anual'
+                       WHEN aa.assetschedule = 'MO' THEN 'mensual'
+                     END AS tiempo,
+                     CASE 
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' THEN aa.em_sco_migr_amortstartdate
+                       ELSE aa.amortizationstartdate
+                     END AS fecha_inicio,
+                     aa.datepurchased AS fecha_adquisicion,
+                     em_sco_amort_anualperc AS depreciacion,
+                     (CASE
+                      WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN
+                      ROUND((100.0/aa.em_sco_amort_anualperc)*12)
+                      ELSE
+                       (round((
+                             CASE
+                                WHEN aa.amortizationcalctype = 'TI' THEN
+                                  CASE WHEN aa.assetschedule='MO' THEN COALESCE (aa.uselifemonths, 0)
+                                    WHEN aa.assetschedule='YE' THEN COALESCE (aa.uselifeyears * 12,0)
+                                  ELSE 0 
+                                  END
+                                WHEN aa.amortizationcalctype = 'PE' THEN
+                                  round((100/aa.annualamortizationpercentage)*12)
+                                END
+                       ),0)
+                     ) END) AS vida_util_tmp,
+                    (CASE
+                      WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN
+                      ROUND((100.0/aa.em_sco_amort_anualperc)*12)
+                      WHEN aa.datecancelled IS NOT NULL AND aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN
+                        (GREATEST(round(COALESCE (((
+                                    SELECT
+                                        (
+                                            DATE_PART(
+                                                'year',
+                                                aa.datecancelled
+                                            ) - DATE_PART(
+                                                'year',
+                                                aa.amortizationstartdate
+                                            )
+                                        ) * 12 + (
+                                            DATE_PART(
+                                                'month',
+                                                aa.datecancelled
+                                            ) - DATE_PART(
+                                                'month',
+                                                aa.amortizationstartdate
+                                            )
+                                        )
+                                )
+                            ),
+                            0
+                          )
+                       )
+                       ,0))
+                      ELSE
+                      (GREATEST(round(COALESCE (((
+                                    SELECT
+                                        (
+                                            DATE_PART(
+                                                'year',
+                                                to_date((?))
+                                            ) - DATE_PART(
+                                                'year',
+                                                aa.amortizationstartdate
+                                            )
+                                        ) * 12 + (
+                                            DATE_PART(
+                                                'month',
+                                                to_date((?))
+                                            ) - DATE_PART(
+                                                'month',
+                                                aa.amortizationstartdate
+                                            )
+                                        )
+                                )
+                            ) + 1,
+                            0
+                          )
+                       )
+                       ,0))
+                      END) AS vida_cumplida_tmp,
+                     (CASE
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN 0
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' THEN
+                         COALESCE((
+                           SELECT
+                             (
+                               DATE_PART(
+                                 'year',
+                                 aa.amortizationstartdate
+                                 ) - DATE_PART(
+                                 'year',
+                                 aa.em_sco_migr_amortstartdate
+                                 )
+                             ) * 12 + 
+                             (
+                               DATE_PART(
+                                 'month',
+                                 aa.amortizationstartdate
+                                 ) - DATE_PART(
+                                 'month',
+                                 aa.em_sco_migr_amortstartdate
+                                 )
+                             )
+                             +
+                             (
+                               ROUND((DATE_PART('day', aa.amortizationstartdate) - DATE_PART('day',aa.em_sco_migr_amortstartdate))/30.0)
+                             )
+                         ),0)
+                       ELSE 0
+                     END) AS diffmeses_migracion,
+                     COALESCE((SELECT SUM(ai.amount) FROM sco_asset_improv ai
+                      WHERE ai.a_asset_id = aa.a_asset_id
+                      AND DATE_PART('year', to_date(?)) > DATE_PART('year', ai.improvdate)
+                     ),0) AS saldo_inicial_mejoras,
+                     COALESCE((SELECT SUM(ai.amount) FROM sco_asset_improv ai
+                      WHERE ai.a_asset_id = aa.a_asset_id
+                      AND DATE_PART('year', to_date(?)) = DATE_PART('year', ai.improvdate)
+                      AND ai.improvdate <= to_date(?)
+                     ),0) AS mejoras,
+                     COALESCE((SELECT SUM(ai.amount) FROM sco_asset_improv ai
+                      WHERE ai.a_asset_id = aa.a_asset_id
+                     ),0) AS importetotal_mejoras,
+                     COALESCE((SELECT SUM(ar.amount) FROM sco_asset_reeval ar
+                      WHERE ar.a_asset_id = ar.a_asset_id
+                      AND DATE_PART('year', to_date(?)) > DATE_PART('year', ar.reevaldate)
+                     ),0) AS saldo_inicial_reevaluaciones,
+                     COALESCE((SELECT SUM(ar.amount) FROM sco_asset_reeval ar
+                      WHERE ar.a_asset_id = aa.a_asset_id
+                      AND DATE_PART('year', to_date(?)) = DATE_PART('year', ar.reevaldate)
+                      AND ar.reevaldate <= to_date(?)
+                     ),0) AS reevaluaciones,
+                     COALESCE((SELECT SUM(ar.amount) FROM sco_asset_reeval ar
+                      WHERE ar.a_asset_id = aa.a_asset_id
+                     ),0) AS importetotal_reevaluaciones,
+                     (SELECT COALESCE (arlt. NAME,COALESCE (arl. NAME, ''))
+                       FROM ad_ref_list arl
+                       LEFT JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+                       WHERE arl.VALUE = aa.amortizationtype
+                     ) AS tipo_regresion,
+                     1 AS cantidad,
+                     CASE
+                       WHEN aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN 'SCO_RET'
+                       ELSE 'SCO_ACT'
+                     END AS estado_activo,
+                     aa.c_currency_id AS id_moneda,
+                     aa.isdepreciated,
+                     aa.a_asset_id,
+                     aa.assetvalueamt,
+                     COALESCE(aa.em_sco_ismigrated,'N') AS em_sco_ismigrated
+
+                FROM a_asset aa
+                INNER JOIN ad_org ao ON aa.ad_org_id = ao.ad_org_id
+                LEFT JOIN a_asset_group aag ON aa.a_asset_group_id = aag.a_asset_group_id
+                WHERE aa.em_scr_isintangible='N'
+                AND ( (cast(aa.datepurchased as date) <=to_date(?) AND (case when  aa.datecancelled  is not null  then (DATE_PART('year', aa.datecancelled)  >= DATE_PART('year', to_date(?))) else true end) ) or aa.isdepreciated='N')
+                AND ao.AD_CLIENT_ID IN ('1')
+                AND ao.AD_ORG_ID IN('1')
+                ORDER BY clase,codigo_cuenta,codigo_activo) as T1
+        INNER JOIN a_asset aa2 ON T1.a_asset_id = aa2.a_asset_id
+        ) as f
+        ORDER BY clase,codigo_cuenta,codigo_activo
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="adUserClient" type="replace" optional="true" after="ao.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="AND ao.AD_ORG_ID IN(" text="'1'"/>
+   </SqlMethod>
+   
+   
+   
+   
+    <SqlMethod name="selectActivosFijosAnualUltimaVersion" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT
+
+        f.*,
+        (
+         CASE
+           WHEN vida_util > 0 THEN vida_util - vida_cumplida
+           ELSE 0
+         END
+        ) :: INTEGER AS vida_x_cumplir,
+        CASE
+          WHEN f.estado_activo = 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_bajas,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_historica,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_acumulada_inflasion,
+        CASE
+          WHEN f.estado_activo <> 'SCO_RET' THEN (f.valor_historico - coalesce(depreciacion_acumulada + depreciacion_ejercicio,0))
+          ELSE 0
+        END AS activo_neto
+      FROM
+        (SELECT T1.*,
+               (vida_util_tmp + diffmeses_migracion) AS vida_util,
+               (CASE 
+                 WHEN (vida_util_tmp + diffmeses_migracion) < GREATEST(vida_cumplida_tmp + diffmeses_migracion,0) THEN (vida_util_tmp + diffmeses_migracion)
+                 ELSE GREATEST(vida_cumplida_tmp + diffmeses_migracion,0)
+               END) AS vida_cumplida,
+               ((CASE 
+                 WHEN DATE_PART('year', to_date(?)) > DATE_PART('year', fecha_inicio) THEN coalesce(round(aa2.assetvalueamt, 2),0)
+                   ELSE 0
+               END)
+               + saldo_inicial_mejoras 
+               + saldo_inicial_reevaluaciones
+               ) AS saldo_inicial,
+               CASE 
+                 WHEN DATE_PART('year', to_date(?)) <= DATE_PART('year', fecha_inicio) THEN coalesce(round(aa2.assetvalueamt, 2),0)
+                 ELSE 0
+               END AS adquisiciones_adicionales,
+               CASE
+                   WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=to_date(?) THEN coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+                   ELSE 0
+               END AS retiro_bajas,
+               CASE
+                 WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=to_date(?) THEN 0
+                 ELSE coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+               END AS valor_historico,
+               CASE
+                 WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=to_date(?) THEN 0
+                 ELSE coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+               END AS valor_ajustado,
+               COALESCE (
+                (
+                  SELECT
+                    COALESCE(SUM (aaml.amortizationamt),0)
+                    FROM a_amortizationline aaml
+                    INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                    WHERE am2.processed = 'Y'
+                    AND aaml.a_asset_id = aa2.a_asset_id
+                    AND DATE_PART('year', am2.dateacct)<DATE_PART('year', to_date(?))
+                    ),0
+               ) + coalesce(aa2.Depreciatedpreviousamt,0) AS depreciacion_acumulada,
+               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=DATE_PART('year', to_date(?))
+                     AND am2.dateacct<=to_date(?)
+                ),0
+               ) AS depreciacion_ejercicio,
+               
+                COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=1
+                ),0
+               ) AS depreciacion_ejercicio1,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=2
+                ),0
+               ) AS depreciacion_ejercicio2,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=3
+                ),0
+               ) AS depreciacion_ejercicio3,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=4
+                ),0
+               ) AS depreciacion_ejercicio4,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=5
+                ),0
+               ) AS depreciacion_ejercicio5,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=6
+                ),0
+               ) AS depreciacion_ejercicio6,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=7
+                ),0
+               ) AS depreciacion_ejercicio7,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=8
+                ),0
+               ) AS depreciacion_ejercicio8,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=9
+                ),0
+               ) AS depreciacion_ejercicio9,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=10
+                ),0
+               ) AS depreciacion_ejercicio10,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=11
+                ),0
+               ) AS depreciacion_ejercicio11,
+                               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0.00)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                     AND DATE_PART('year', am2.dateacct)=(?)::INTEGER
+                     AND DATE_PART('month', am2.dateacct)=12
+                ),0
+               ) AS depreciacion_ejercicio12
+                FROM
+                (SELECT 
+                     aa.ad_org_id,
+                     aa.Depreciatedpreviousamt,
+                     aa.datecancelled,
+                     ao.name,
+                     aag.name AS clase,
+                     (SELECT cev.value
+                      FROM a_asset_acct aaa2
+                      LEFT JOIN c_validcombination cvc ON aaa2.em_sco_assets_acct = cvc.c_validcombination_id
+                      INNER JOIN c_elementvalue cev ON cvc.account_id = cev.c_elementvalue_id
+                      WHERE aaa2.a_asset_id = aa.a_asset_id LIMIT 1
+                     ) AS codigo_cuenta,
+                     aa.value AS codigo_activo,
+                     aa.name AS activo,
+                     CASE
+                       WHEN aa.amortizationcalctype = 'PE' THEN 'porcentaje'
+                       WHEN aa.amortizationcalctype = 'TI' THEN 'tiempo'
+                     END AS tipodepreciacion,
+                     CASE
+                       WHEN aa.assetschedule = 'YE' THEN 'anual'
+                       WHEN aa.assetschedule = 'MO' THEN 'mensual'
+                     END AS tiempo,
+                     CASE 
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' THEN aa.em_sco_migr_amortstartdate
+                       ELSE aa.amortizationstartdate
+                     END AS fecha_inicio,
+                     aa.datepurchased AS fecha_adquisicion,
+                     em_sco_amort_anualperc AS depreciacion,
+                     (CASE
+                      WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN
+                      ROUND((100.0/aa.em_sco_amort_anualperc)*12)
+                      ELSE
+                       (round((
+                             CASE
+                                WHEN aa.amortizationcalctype = 'TI' THEN
+                                  CASE WHEN aa.assetschedule='MO' THEN COALESCE (aa.uselifemonths, 0)
+                                    WHEN aa.assetschedule='YE' THEN COALESCE (aa.uselifeyears * 12,0)
+                                  ELSE 0 
+                                  END
+                                WHEN aa.amortizationcalctype = 'PE' THEN
+                                  round((100/aa.annualamortizationpercentage)*12)
+                                END
+                       ),0)
+                     ) END) AS vida_util_tmp,
+                    (CASE
+                      WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN
+                      ROUND((100.0/aa.em_sco_amort_anualperc)*12)
+                      WHEN aa.datecancelled IS NOT NULL AND aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN
+                        (GREATEST(round(COALESCE (((
+                                    SELECT
+                                        (
+                                            DATE_PART(
+                                                'year',
+                                                aa.datecancelled
+                                            ) - DATE_PART(
+                                                'year',
+                                                aa.amortizationstartdate
+                                            )
+                                        ) * 12 + (
+                                            DATE_PART(
+                                                'month',
+                                                aa.datecancelled
+                                            ) - DATE_PART(
+                                                'month',
+                                                aa.amortizationstartdate
+                                            )
+                                        )
+                                )
+                            ),
+                            0
+                          )
+                       )
+                       ,0))
+                      ELSE
+                      (GREATEST(round(COALESCE (((
+                                    SELECT
+                                        (
+                                            DATE_PART(
+                                                'year',
+                                                to_date((?))
+                                            ) - DATE_PART(
+                                                'year',
+                                                aa.amortizationstartdate
+                                            )
+                                        ) * 12 + (
+                                            DATE_PART(
+                                                'month',
+                                                to_date((?))
+                                            ) - DATE_PART(
+                                                'month',
+                                                aa.amortizationstartdate
+                                            )
+                                        )
+                                )
+                            ) + 1,
+                            0
+                          )
+                       )
+                       ,0))
+                      END) AS vida_cumplida_tmp,
+                     (CASE
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN 0
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' THEN
+                         COALESCE((
+                           SELECT
+                             (
+                               DATE_PART(
+                                 'year',
+                                 aa.amortizationstartdate
+                                 ) - DATE_PART(
+                                 'year',
+                                 aa.em_sco_migr_amortstartdate
+                                 )
+                             ) * 12 + 
+                             (
+                               DATE_PART(
+                                 'month',
+                                 aa.amortizationstartdate
+                                 ) - DATE_PART(
+                                 'month',
+                                 aa.em_sco_migr_amortstartdate
+                                 )
+                             )
+                             +
+                             (
+                               ROUND((DATE_PART('day', aa.amortizationstartdate) - DATE_PART('day',aa.em_sco_migr_amortstartdate))/30.0)
+                             )
+                         ),0)
+                       ELSE 0
+                     END) AS diffmeses_migracion,
+                     COALESCE((SELECT SUM(ai.amount) FROM sco_asset_improv ai
+                      WHERE ai.a_asset_id = aa.a_asset_id
+                      AND DATE_PART('year', to_date(?)) > DATE_PART('year', ai.improvdate)
+                     ),0) AS saldo_inicial_mejoras,
+                     COALESCE((SELECT SUM(ai.amount) FROM sco_asset_improv ai
+                      WHERE ai.a_asset_id = aa.a_asset_id
+                      AND DATE_PART('year', to_date(?)) = DATE_PART('year', ai.improvdate)
+                      AND ai.improvdate <= to_date(?)
+                     ),0) AS mejoras,
+                     COALESCE((SELECT SUM(ai.amount) FROM sco_asset_improv ai
+                      WHERE ai.a_asset_id = aa.a_asset_id
+                     ),0) AS importetotal_mejoras,
+                     COALESCE((SELECT SUM(ar.amount) FROM sco_asset_reeval ar
+                      WHERE ar.a_asset_id = ar.a_asset_id
+                      AND DATE_PART('year', to_date(?)) > DATE_PART('year', ar.reevaldate)
+                     ),0) AS saldo_inicial_reevaluaciones,
+                     COALESCE((SELECT SUM(ar.amount) FROM sco_asset_reeval ar
+                      WHERE ar.a_asset_id = aa.a_asset_id
+                      AND DATE_PART('year', to_date(?)) = DATE_PART('year', ar.reevaldate)
+                      AND ar.reevaldate <= to_date(?)
+                     ),0) AS reevaluaciones,
+                     COALESCE((SELECT SUM(ar.amount) FROM sco_asset_reeval ar
+                      WHERE ar.a_asset_id = aa.a_asset_id
+                     ),0) AS importetotal_reevaluaciones,
+                     (SELECT COALESCE (arlt. NAME,COALESCE (arl. NAME, ''))
+                       FROM ad_ref_list arl
+                       LEFT JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+                       WHERE arl.VALUE = aa.amortizationtype
+                     ) AS tipo_regresion,
+                     1 AS cantidad,
+                     CASE
+                       WHEN aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=to_date(?) THEN 'SCO_RET'
+                       ELSE 'SCO_ACT'
+                     END AS estado_activo,
+                     aa.c_currency_id AS id_moneda,
+                     aa.isdepreciated,
+                     aa.a_asset_id,
+                     aa.assetvalueamt,
+                     COALESCE(aa.em_sco_ismigrated,'N') AS em_sco_ismigrated
+
+                FROM a_asset aa
+                INNER JOIN ad_org ao ON aa.ad_org_id = ao.ad_org_id
+                LEFT JOIN a_asset_group aag ON aa.a_asset_group_id = aag.a_asset_group_id
+                WHERE aa.em_scr_isintangible='N'
+                AND ( (cast(aa.datepurchased as date) <=to_date(?) AND (case when  aa.datecancelled  is not null  then (DATE_PART('year', aa.datecancelled)  >= DATE_PART('year', to_date(?))) else true end) ) )
+                AND aa.isdepreciated='Y'
+                AND ao.AD_CLIENT_ID IN ('1')
+                AND ao.AD_ORG_ID IN('1')
+                ORDER BY clase,codigo_cuenta,codigo_activo) as T1
+        INNER JOIN a_asset aa2 ON T1.a_asset_id = aa2.a_asset_id
+        ) as f
+        ORDER BY clase,codigo_cuenta,codigo_activo
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        <Parameter name="anio"/>
+        
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="dateTo"/>       
+        <Parameter name="adUserClient" type="replace" optional="true" after="ao.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="AND ao.AD_ORG_ID IN(" text="'1'"/>
+   </SqlMethod>
+      
+   
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+     SELECT 
+    ao3.ad_org_id as idorganizacion,
+    cp.c_period_id as idperiodo,
+    cp.name as periodo,
+    to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+    to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+       
+    FROM c_period cp
+    INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+    LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+    on ao.social_name=ao3.social_name
+    
+    where periodtype!='A'
+    ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+</SqlClass>

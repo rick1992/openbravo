@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_LOCATOR_ORG_VAL">
+    <trigger name="SWA_LOCATOR_ORG_VAL" table="M_LOCATOR" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_count NUMBER;
+  v_org_id VARCHAR(32);
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+  
+  IF INSERTING THEN
+
+     SELECT AD_ORG_ID INTO v_org_id FROM M_WAREHOUSE WHERE M_WAREHOUSE_ID = :NEW.M_WAREHOUSE_ID;
+     :NEW.AD_ORG_ID:=v_org_id;
+
+  END IF;
+
+  END SWA_LOCATOR_ORG_VAL
+]]></body>
+    </trigger>
+  </database>

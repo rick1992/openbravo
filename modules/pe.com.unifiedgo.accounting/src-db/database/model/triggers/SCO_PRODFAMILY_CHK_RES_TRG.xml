@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PRODFAMILY_CHK_RES_TRG">
+    <trigger name="SCO_PRODFAMILY_CHK_RES_TRG" table="SCO_PRODUCTFAMILY" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Aux NUMBER;
+v_AD_Org_ID VARCHAR(32);
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    SELECT AD_Org_ID
+      INTO v_AD_Org_ID
+      FROM Prdc_ProductGroup
+    WHERE Prdc_ProductGroup_ID = :NEW.Prdc_ProductGroup_ID;
+
+    IF(AD_ISORGINCLUDED(:NEW.AD_Org_ID,v_AD_Org_ID,:NEW.AD_Client_ID)=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidProductGroup@') ;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(:OLD.AD_Org_ID<>:NEW.AD_Org_ID OR :OLD.Prdc_ProductGroup_ID<>:NEW.Prdc_ProductGroup_ID) THEN
+      SELECT AD_Org_ID
+        INTO v_AD_Org_ID
+        FROM Prdc_ProductGroup
+      WHERE Prdc_ProductGroup_ID = :NEW.Prdc_ProductGroup_ID;
+
+      IF(AD_ISORGINCLUDED(:NEW.AD_Org_ID,v_AD_Org_ID,:NEW.AD_Client_ID)=-1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidProductGroup@') ;
+      END IF;
+    END IF;
+  END IF;
+
+  END SCO_PRODFAMILY_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

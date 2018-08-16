@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_Return_Sample_ugo" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="1.3286707500000057"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["http://localhost/openbravo"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["E:\\workspaceerplima\\openbravo\\modules\\pe.com.unifiedgo.report\\src\\pe\\com\\unifiedgo\\report\\ad_reports\\"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_ID" class="java.lang.String"/>
+	<parameter name="SUBREP_Rpt_Return_Sample_Lines_ugo" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<queryString>
+		<![CDATA[select ord.c_order_id as "RFS_ID",
+(select current_date) as "FECHA",
+coalesce(ord.documentno,'') as "NRO_DOC",
+ord.dateordered as "FEC_PED",
+coalesce((select coalesce(trl.name,coalesce(lst.name,'')) from ad_reference ref
+left join ad_ref_list lst on ref.ad_reference_id = lst.ad_reference_id
+left join ad_ref_list_trl trl on lst.ad_ref_list_id = trl.ad_ref_list_id
+where ref.name = 'C_Order InvoiceRule'
+and lst.value = ord.invoicerule),'') as "FACTURACION",
+coalesce(bp.name,'') as "RAZ_SOCIAL",
+coalesce(bp.taxid,'') as "BP_RUC",
+coalesce(c.description,coalesce(cur.description,'')) as "MONEDA",
+coalesce(c.cursymbol,coalesce(cur.cursymbol,'')) as "SIMB",
+coalesce((select t.rate from c_ordertax o left join c_tax t on o.c_tax_id = t.c_tax_id
+where t.em_sco_specialtax = 'SCOIGV'
+and o.c_order_id = ord.c_order_id),0.00) as "TASA",
+coalesce(whl.address1||' ','')||coalesce(whl.address2,'')||
+coalesce(' - '||whl.city,'')||coalesce(' - '||whr.description,'')||
+coalesce(' - '||whc.description,'') as "DIRECCION",
+coalesce(iou.em_scr_physical_documentno,'') as "NRO_GUIA",
+coalesce(ped.documentno,'') as "NRO_PEDIDO",
+org.ad_org_id as "ORG_ID",
+coalesce(org.name,'') as "ORG",
+coalesce(inf.taxid,'') as "RUC"
+
+from c_order ord
+join c_bpartner bp on ord.c_bpartner_id = bp.c_bpartner_id
+join c_currency cur on ord.C_currency_id = cur.c_currency_id
+left join c_currency_trl c on cur.c_currency_id = c.c_currency_id
+join m_warehouse wh on ord.m_warehouse_id = wh.m_warehouse_id
+left join c_location whl on wh.c_location_id = whl.c_location_id
+left join c_region whr on whl.c_region_id = whr.c_region_id
+left join c_country whc  on whl.c_country_id = whc.c_country_id
+--guia y orden
+left join c_orderline lin on ord.c_order_id = lin.c_order_id
+left join m_inoutline iol on lin.m_inoutline_id = iol.m_inoutline_id
+left join m_inout iou on iol.m_inout_id = iou.m_inout_id
+left join c_order ped on iou.c_order_id = ped.c_order_id
+,
+ad_org org
+join ad_orgtype t using (ad_orgtype_id)
+join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+where AD_ISORGINCLUDED(ord.ad_org_id, org.ad_org_id, ord.ad_client_id)<>-1
+and(t.IsLegalEntity='Y' or t.IsAcctLegalEntity='Y')
+and ord.isactive = 'Y'
+and ord.c_order_id in($P{DOCUMENT_ID})
+order by lin.created,iol.created
+limit 1]]>
+	</queryString>
+	<field name="RFS_ID" class="java.lang.String"/>
+	<field name="FECHA" class="java.sql.Date"/>
+	<field name="NRO_DOC" class="java.lang.String"/>
+	<field name="FEC_PED" class="java.sql.Timestamp"/>
+	<field name="FACTURACION" class="java.lang.String"/>
+	<field name="RAZ_SOCIAL" class="java.lang.String"/>
+	<field name="BP_RUC" class="java.lang.String"/>
+	<field name="MONEDA" class="java.lang.String"/>
+	<field name="SIMB" class="java.lang.String"/>
+	<field name="TASA" class="java.math.BigDecimal"/>
+	<field name="DIRECCION" class="java.lang.String"/>
+	<field name="NRO_GUIA" class="java.lang.String"/>
+	<field name="NRO_PEDIDO" class="java.lang.String"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<group name="RFS_ID" isStartNewPage="true">
+		<groupExpression><![CDATA[$F{RFS_ID}]]></groupExpression>
+	</group>
+	<title>
+		<band height="250" splitType="Stretch">
+			<rectangle radius="5">
+				<reportElement mode="Transparent" x="22" y="96" width="550" height="130"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<textField>
+				<reportElement x="20" y="15" width="400" height="20"/>
+				<textElement>
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ORG}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="20" y="33" width="150" height="20"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["RUC: "+$F{RUC}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="463" y="15" width="70" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="28" y="188" width="60" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[R.U.C.:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="28" y="201" width="100" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{BP_RUC}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="51" y="96" width="120" height="15"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DESTINATARIO]]></text>
+			</staticText>
+			<line>
+				<reportElement x="22" y="111" width="550" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="28" y="135" width="170" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{RAZ_SOCIAL}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="28" y="121" width="160" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[APELLIDOS Y NOMBRES/RAZON SOCIAL:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="47" y="55" width="500" height="30"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="14" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["DEVOLUCION DE MUESTRAS NRO: "+$F{NRO_DOC}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="215" y="134" width="80" height="13">
+					<printWhenExpression><![CDATA[$F{FEC_PED}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_PED}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="215" y="121" width="110" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[FECHA DE DEVOLUCION:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="215" y="150" width="50" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[ALMACEN:]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="215" y="166" width="180" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DIRECCION}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="494" y="15" width="80" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="204" y="96" width="1" height="130"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="401" y="96" width="1" height="130"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="218" y="96" width="169" height="15"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[INFORMACION DE DEVOLUCION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="422" y="96" width="120" height="15"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[OTROS DETALLES]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="413" y="121" width="110" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[NRO GUIA DE SALIDA:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="413" y="150" width="110" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[NRO PEDIDO:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="413" y="134" width="100" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_GUIA}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="413" y="164" width="100" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_PEDIDO}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<subreport>
+				<reportElement x="0" y="0" width="595" height="13"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="RFSORDER_ID">
+					<subreportParameterExpression><![CDATA[$F{RFS_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_Return_Sample_Lines_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="81" splitType="Stretch"/>
+	</pageFooter>
+</jasperReport>

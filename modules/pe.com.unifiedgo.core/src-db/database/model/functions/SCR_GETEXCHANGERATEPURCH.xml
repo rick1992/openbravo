@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_GETEXCHANGERATEPURCH">
+    <function name="SCR_GETEXCHANGERATEPURCH" type="VARCHAR">
+      <parameter name="p_adclientid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_adorgid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ccurrencyid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convratedate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+
+  v_cConvRateId VARCHAR(32);
+  v_cConvRate NUMBER;
+  
+BEGIN
+    SELECT conv.c_conversion_rate_id , conv.dividerate as convrate
+      INTO v_cConvRateId, v_cConvRate
+      FROM c_conversion_rate conv
+     WHERE conv.AD_Client_ID = p_adclientid
+       AND AD_ISORGINCLUDED(p_adorgid,conv.AD_Org_ID,p_adclientid) <> -1
+       AND conv.conversionratetype = 'S'
+       AND conv.c_currency_id = '308'
+       AND conv.c_currency_id_to = p_ccurrencyid
+       AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(p_convratedate))
+       AND TRUNC(conv.validto) >= TRUNC(TO_DATE(p_convratedate));
+       
+    IF (v_cConvRateId IS NOT NULL) THEN
+       RETURN v_cConvRate;
+    END IF;	
+    
+    RETURN NULL;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      RETURN v_ProductPrices;
+END SCR_GETEXCHANGERATEPURCH
+]]></body>
+    </function>
+  </database>

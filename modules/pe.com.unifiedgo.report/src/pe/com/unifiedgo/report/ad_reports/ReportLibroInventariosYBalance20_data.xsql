@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportLibroInventariosYBalance20Data" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+    <SqlMethod name="selectCuenta20" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    select 
+    
+    	'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal
+    
+    ,t1.* from (
+     SELECT sum(coalesce(t.movementqty,0)) qty,p.value pcode,p.name pname,uom.em_ssa_code t6code,  ci2.code  t5code,COALESCE(t.transactioncost,0) costo
+                FROM  m_transaction t 
+                LEFT JOIN m_inoutline grline on grline.m_inoutline_id=t.m_inoutline_id
+               LEFT JOIN m_inout gr on gr.m_inout_id=grline.m_inout_id and gr.posted='Y'
+                LEFT JOIN m_inventoryline invline on invline.m_inventoryline_id= t.m_inventoryline_id
+                LEFT JOIN m_inventory inv on inv.m_inventory_id=invline.m_inventory_id and inv.posted='Y'
+                LEFT JOIN m_movementline movline on movline.m_movementline_id=t.m_movementline_id
+                 LEFT JOIN m_movement mov on mov.m_movement_id=movline.m_movement_id and mov.posted='Y'
+                 LEFT JOIN m_productionline prodline on prodline.m_productionline_id=t.m_productionline_id
+                LEFT JOIN m_productionplan prodplan on prodplan.m_productionplan_id=prodline.m_productionplan_id
+                LEFT JOIN m_production prod on prod.m_production_id=prodplan.m_production_id and prod.posted='Y'
+                JOIN fact_acct fa on fa.record_id=inv.m_inventory_id OR fa.record_id=mov.m_movement_id OR fa.record_id=gr.m_inout_id
+                left join m_product p on t.m_product_id=p.m_product_id
+                LEFT JOIN m_locator m ON m.m_locator_id=t.m_locator_id 
+                left JOIN  c_uom uom on p.c_uom_id=uom.c_uom_id
+                JOIN prdc_productgroup cat ON p.em_prdc_productgroup_id=cat.prdc_productgroup_id
+                LEFT JOIN scr_combo_item ci on t.em_ssa_combo_item_id=ci.scr_combo_item_id AND ci.value not in ('MovimientoInterno', 'ReposicionPorConsignacion')
+                left join scr_combo_item ci2 on cat.em_sco_codtabla5_cmb_item_id=ci2.scr_combo_item_id
+                WHERE 
+                     p.em_sco_isconsignment='N'      
+                    AND fa.ad_table_id in ('319','321','323','325')
+                    and (fa.acctvalue ilike '20%' or fa.acctvalue ilike '21%')
+                    AND p.em_sco_isconsignment='N'      
+                    AND t.AD_CLIENT_ID IN ('1')
+                    AND t.AD_ORG_ID IN ('1')
+                    AND 1=1
+                    AND 2=2          
+                GROUP BY costo,t5code,pcode,pname,t6code   ) as t1    
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND t.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND t.AD_ORG_ID IN (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND t.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND t.movementdate < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+  
+</SqlClass>

@@ -1,0 +1,618 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_Entregas_Rendir_Lines_ugo" pageWidth="595" pageHeight="842" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="ISTAXINCLUDED" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="RENDICION_CUENTAS_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<queryString>
+		<![CDATA[select ren.sco_rendicioncuentas_id as "RC_ID",
+ren.documentno as "NRO_DOC",
+coalesce((select name from ad_org where ad_org_id = ren.ad_org_id),'') as "AREA_DOC",
+coalesce((select name from c_bpartner where c_bpartner_id = ren.c_bpartner_id),'') as "BENEF",
+coalesce((select name from fin_paymentmethod where fin_paymentmethod_id = ape.fin_paymentmethod_id),'') as "FORMA",
+coalesce(fa.codebank,'') as "BANCO",
+coalesce(fa.accountno,'') as "NRO_CUENTA",
+coalesce((select description from c_currency_trl where c_currency_id = cur.c_currency_id),coalesce(cur.description,'')) as "MONEDA",
+coalesce(ape.referenceno,'') as "NRO_CHEQUE",
+ren.dategen as "FEC_APER",
+
+(select max(dateacct) from fact_acct where
+(record_id in (select fin_payment_open_id from sco_rendicioncuentas where sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID})
+or record_id in (select distinct fin_payment_refund_id from sco_rendcurefund_line where sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID})
+or record_id in (select distinct fin_payment_id from sco_apppayment_detail_v d where d.sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID}))
+and c_period_id = linea.c_period_id
+and ad_table_id = 'D1A97202E832470285C9B1EB026D54E2') as "FEC_REND",
+coalesce(ren.amount,0.00) as "APERTU",
+(coalesce(ren.amount,0.00)-coalesce(ren.refund,0.00)) as "UTILI",
+coalesce(ren.refund,0.00) as "SALDO",
+coalesce((select areacode from sco_area where sco_area_id = dtp.em_sco_area_id),'') as "AREA",
+sim_currency_convert_table(1,(select c_currency_id from c_currency where iso_code = 'USD'),
+(select c_currency_id from c_currency where iso_code = 'PEN'),(select max(dateacct) from fact_acct where
+(record_id in (select fin_payment_open_id from sco_rendicioncuentas where sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID})
+or record_id in (select distinct fin_payment_refund_id from sco_rendcurefund_line where sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID})
+or record_id in (select distinct fin_payment_id from sco_apppayment_detail_v d where d.sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID}))
+and c_period_id = linea.c_period_id
+and ad_table_id = 'D1A97202E832470285C9B1EB026D54E2'),dtp.ad_table_id,
+ren.sco_rendicioncuentas_id,ren.ad_client_id,ren.ad_org_id) as "TC",
+
+linea.*
+
+from sco_rendicioncuentas ren
+left join fin_payment ape on ren.fin_payment_open_id = ape.fin_payment_id
+left join fin_financial_account fa on ape.fin_financial_account_id = fa.fin_financial_account_id
+join c_currency cur on ren.c_currency_id = cur.c_currency_id
+join c_doctype dtp on ren.c_doctypetarget_id = dtp.c_doctype_id
+
+left join (
+-- entrega a rendir
+select r.sco_rendicioncuentas_id,f.dateacct as "FECHA",f.acctvalue as "CUENTA",
+f.c_period_id,(select name from c_period where c_period_id = f.c_period_id) as "PERIODO",
+(select startdate from c_period where c_period_id = f.c_period_id) as "INI_PERIODO",
+f.amtsourcedr,f.amtsourcecr,f.amtacctdr as "DEBE",f.amtacctcr as "HABER",
+case when f.acctvalue like '1413%' then f.acctdescription else f.description end as  "GLOSA",f.acctdescription,em_sco_tipdoc as "TIPO_DOC",
+''::varchar(30) as "NRO_FACTURA",
+case f.c_currency_id when '100' then coalesce(f.amtsourcedr,0.0)+coalesce(f.amtsourcecr,0.0) else 0.0 end as "IMPORTE",f.em_sco_regnumber
+
+
+from sco_rendicioncuentas r, fact_acct f
+
+where ad_table_id = 'F90F4E012DF74D2B92BACC79473FF588'  AND f.em_sco_regnumber in (select distinct em_sco_regnumber from fact_acct fa where fa.em_sco_record3_id=$P{RENDICION_CUENTAS_ID})
+and f.record_id in(r.sco_rendicioncuentas_id)
+and r.sco_rendicioncuentas_id in ($P{RENDICION_CUENTAS_ID})
+
+union
+
+--pago de apertura, reembolsos y de facturas
+select $P{RENDICION_CUENTAS_ID},f.dateacct,f.acctvalue,
+f.c_period_id,(select name from c_period where c_period_id = f.c_period_id),
+(select startdate from c_period where c_period_id = f.c_period_id),
+f.amtsourcedr,f.amtsourcecr,f.amtacctdr,f.amtacctcr,
+case when f.acctvalue like '1413%' then f.acctdescription else f.description end as  "GLOSA",f.acctdescription,em_sco_tipdoc,
+(select em_scr_physical_documentno from c_invoice where c_invoice_id = f.em_sco_record3_id),
+case f.c_currency_id when '100' then coalesce(f.amtsourcedr,0.0)+coalesce(f.amtsourcecr,0.0) else 0.0 end
+,f.em_sco_regnumber
+
+
+from fact_acct f
+
+where f.ad_table_id = 'D1A97202E832470285C9B1EB026D54E2' AND f.em_sco_regnumber in (select distinct em_sco_regnumber from fact_acct fa where fa.em_sco_record3_id=$P{RENDICION_CUENTAS_ID})
+and (f.record_id in (select fin_payment_open_id from sco_rendicioncuentas where sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID})
+or f.record_id in (select distinct fin_payment_refund_id from sco_rendcurefund_line where sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID} )
+or f.record_id in (select distinct fin_payment_id from sco_apppayment_detail_v d where d.sco_rendicioncuentas_id = $P{RENDICION_CUENTAS_ID})
+)
+
+order by 6,11
+
+) as linea on ren.sco_rendicioncuentas_id = linea.sco_rendicioncuentas_id
+
+where ren.isactive = 'Y'
+and ren.sco_rendicioncuentas_id in ($P{RENDICION_CUENTAS_ID})
+ORDER BY "FECHA",em_sco_regnumber,"CUENTA" DESC]]>
+	</queryString>
+	<field name="RC_ID" class="java.lang.String"/>
+	<field name="NRO_DOC" class="java.lang.String"/>
+	<field name="AREA_DOC" class="java.lang.String"/>
+	<field name="BENEF" class="java.lang.String"/>
+	<field name="FORMA" class="java.lang.String"/>
+	<field name="BANCO" class="java.lang.String"/>
+	<field name="NRO_CUENTA" class="java.lang.String"/>
+	<field name="MONEDA" class="java.lang.String"/>
+	<field name="NRO_CHEQUE" class="java.lang.String"/>
+	<field name="FEC_APER" class="java.sql.Timestamp"/>
+	<field name="FEC_REND" class="java.sql.Timestamp"/>
+	<field name="APERTU" class="java.math.BigDecimal"/>
+	<field name="UTILI" class="java.math.BigDecimal"/>
+	<field name="SALDO" class="java.math.BigDecimal"/>
+	<field name="AREA" class="java.lang.String"/>
+	<field name="TC" class="java.math.BigDecimal"/>
+	<field name="sco_rendicioncuentas_id" class="java.lang.String"/>
+	<field name="FECHA" class="java.sql.Timestamp"/>
+	<field name="CUENTA" class="java.lang.String"/>
+	<field name="c_period_id" class="java.lang.String"/>
+	<field name="PERIODO" class="java.lang.String"/>
+	<field name="INI_PERIODO" class="java.sql.Timestamp"/>
+	<field name="amtsourcedr" class="java.math.BigDecimal"/>
+	<field name="amtsourcecr" class="java.math.BigDecimal"/>
+	<field name="DEBE" class="java.math.BigDecimal"/>
+	<field name="HABER" class="java.math.BigDecimal"/>
+	<field name="GLOSA" class="java.lang.String"/>
+	<field name="acctdescription" class="java.lang.String"/>
+	<field name="TIPO_DOC" class="java.lang.String"/>
+	<field name="NRO_FACTURA" class="java.lang.String"/>
+	<field name="IMPORTE" class="java.math.BigDecimal"/>
+	<field name="em_sco_regnumber" class="java.lang.String"/>
+	<variable name="TOT_DEBE" class="java.math.BigDecimal" resetType="Group" resetGroup="RENDICION_CUENTAS_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{DEBE}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOT_HABER" class="java.math.BigDecimal" resetType="Group" resetGroup="RENDICION_CUENTAS_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{HABER}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOT_IMPORTE" class="java.math.BigDecimal" resetType="Group" resetGroup="RENDICION_CUENTAS_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{IMPORTE}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.0)]]></initialValueExpression>
+	</variable>
+	<variable name="NRO_ASIENTO" class="java.lang.String" calculation="First">
+		<variableExpression><![CDATA[$F{em_sco_regnumber}]]></variableExpression>
+	</variable>
+	<group name="RENDICION_CUENTAS_ID" isStartNewPage="true">
+		<groupExpression><![CDATA[$F{PERIODO}]]></groupExpression>
+		<groupHeader>
+			<band height="138" splitType="Stretch">
+				<rectangle radius="5">
+					<reportElement mode="Transparent" x="7" y="107" width="580" height="28"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</rectangle>
+				<rectangle radius="5">
+					<reportElement mode="Transparent" x="7" y="0" width="580" height="100"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</rectangle>
+				<staticText>
+					<reportElement mode="Transparent" x="13" y="82" width="70" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[N° Cheque:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="505" y="45" width="70" height="15"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{APERTU}==null?"":$P{NUMBERFORMAT}.format($F{APERTU})]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="505" y="79" width="70" height="15"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{SALDO}==null?"":$P{NUMBERFORMAT}.format($F{SALDO})]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="232" y="42" width="75" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Fecha Apertura:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="71" y="17" width="200" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{BENEF}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="463" y="45" width="50" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Apertura:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement mode="Transparent" x="13" y="30" width="70" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Forma:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="71" y="4" width="200" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{AREA_DOC}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="71" y="82" width="100" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_CHEQUE}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="71" y="69" width="100" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{MONEDA}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="13" y="43" width="70" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Banco:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="505" y="61" width="70" height="15"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{UTILI}==null?"":$P{NUMBERFORMAT}.format($F{UTILI})]]></textFieldExpression>
+				</textField>
+				<textField evaluationTime="Page" isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="505" y="20" width="50" height="15"/>
+					<textElement>
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{PERIODO}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="13" y="17" width="70" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Beneficiaro:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement mode="Transparent" x="13" y="56" width="70" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[N° Cuenta:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="71" y="56" width="100" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_CUENTA}]]></textFieldExpression>
+				</textField>
+				<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="301" y="57" width="70" height="15">
+						<printWhenExpression><![CDATA[$F{FEC_REND}!=null]]></printWhenExpression>
+					</reportElement>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_REND}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="71" y="30" width="150" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{FORMA}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="232" y="57" width="75" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Fecha Rendición:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement mode="Transparent" x="463" y="61" width="50" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Utilizado:]]></text>
+				</staticText>
+				<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+					<reportElement x="301" y="42" width="70" height="15">
+						<printWhenExpression><![CDATA[$F{FEC_APER}!=null]]></printWhenExpression>
+					</reportElement>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_APER}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="463" y="79" width="50" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Saldo:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="71" y="43" width="150" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.nombreBanco($F{BANCO})]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="463" y="20" width="50" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Periodo:]]></text>
+				</staticText>
+				<line>
+					<reportElement mode="Transparent" x="505" y="77" width="70" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement mode="Transparent" x="13" y="4" width="70" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Area:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement mode="Transparent" x="13" y="69" width="70" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[Moneda:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="7" y="114" width="50" height="15"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Fecha]]></text>
+				</staticText>
+				<line>
+					<reportElement x="390" y="107" width="1" height="28"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<line>
+					<reportElement x="84" y="107" width="1" height="28"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement x="157" y="114" width="45" height="15"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Cuenta]]></text>
+				</staticText>
+				<line>
+					<reportElement x="203" y="107" width="1" height="28"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<line>
+					<reportElement x="57" y="107" width="1" height="28"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement x="522" y="117" width="65" height="14"/>
+					<textElement textAlignment="Center" verticalAlignment="Bottom">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Haber]]></text>
+				</staticText>
+				<line>
+					<reportElement x="456" y="107" width="1" height="28"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<line>
+					<reportElement x="457" y="120" width="130" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement x="205" y="114" width="185" height="15"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Glosa]]></text>
+				</staticText>
+				<line>
+					<reportElement x="521" y="121" width="1" height="14"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement x="58" y="108" width="25" height="26"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Tipo Doc.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="456" y="117" width="65" height="14"/>
+					<textElement textAlignment="Center" verticalAlignment="Bottom">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Debe]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="85" y="114" width="70" height="15"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Documento]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="391" y="114" width="65" height="14"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Importe ($)]]></text>
+				</staticText>
+				<line>
+					<reportElement x="155" y="107" width="1" height="28"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement x="462" y="108" width="120" height="14"/>
+					<textElement textAlignment="Center" verticalAlignment="Top">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Importe (S/.)]]></text>
+				</staticText>
+				<staticText>
+					<reportElement mode="Transparent" x="372" y="42" width="25" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="false"/>
+					</textElement>
+					<text><![CDATA[T/C:]]></text>
+				</staticText>
+				<textField pattern="###0.0000" isBlankWhenNull="false">
+					<reportElement x="391" y="42" width="60" height="15"/>
+					<textElement>
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{TC}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="24" splitType="Stretch">
+				<staticText>
+					<reportElement x="338" y="5" width="50" height="15"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[TOTAL]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="455" y="5" width="65" height="15"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{TOT_DEBE}==null?"":$P{NUMBERFORMAT}.format($V{TOT_DEBE})]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement x="521" y="5" width="65" height="15"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{TOT_HABER}==null?"":$P{NUMBERFORMAT}.format($V{TOT_HABER})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="389" y="5" width="65" height="15"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{TOT_IMPORTE}==null?"":$P{NUMBERFORMAT}.format($V{TOT_IMPORTE})]]></textFieldExpression>
+				</textField>
+				<line>
+					<reportElement mode="Transparent" x="397" y="2" width="57" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<line>
+					<reportElement mode="Transparent" x="537" y="2" width="49" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<line>
+					<reportElement mode="Transparent" x="473" y="2" width="49" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+			</band>
+		</groupFooter>
+	</group>
+	<pageHeader>
+		<band splitType="Stretch"/>
+	</pageHeader>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<printWhenExpression><![CDATA[$F{FECHA}!=null]]></printWhenExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement x="87" y="0" width="70" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_FACTURA}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="160" y="0" width="45" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{CUENTA}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="208" y="0" width="183" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{GLOSA}.toUpperCase()]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="455" y="0" width="65" height="13"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DEBE}==null?"":$P{NUMBERFORMAT}.format($F{DEBE})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="521" y="0" width="65" height="13"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{HABER}==null?"":$P{NUMBERFORMAT}.format($F{HABER})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="60" y="0" width="25" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO_DOC}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="10" y="0" width="50" height="13"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FECHA}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="389" y="0" width="65" height="13"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{IMPORTE}==null?"":$P{NUMBERFORMAT}.format($F{IMPORTE})]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

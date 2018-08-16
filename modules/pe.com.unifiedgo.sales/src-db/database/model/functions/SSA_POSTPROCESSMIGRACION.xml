@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_POSTPROCESSMIGRACION">
+    <function name="SSA_POSTPROCESSMIGRACION" type="NULL">
+      <body><![CDATA[Cur_Parameter RECORD;
+Cur_ParameterLine RECORD;
+SerieNumero TEXT[2];
+NumPar INT;
+LineA INT;
+BEGIN
+
+FOR Cur_Parameter IN (
+        SELECT ci.c_invoice_id,  ci.em_scr_physical_documentno
+        FROM C_INVOICE ci
+        WHERE ci.issotrx='Y' AND ci.em_scr_physical_documentno LIKE '%-%'
+    ) LOOP
+
+		SELECT COUNT(*) INTO NumPar FROM (SELECT regexp_split_to_table(Cur_Parameter.em_scr_physical_documentno, '-')) AS ALIAS;
+
+		IF (NumPar = 2) THEN
+
+        select *  INTO SerieNumero from (select regexp_split_to_array(Cur_Parameter.em_scr_physical_documentno, '-')) AS ALIAS2;
+
+		IF (character_length(SerieNumero[1])=3 AND character_length(SerieNumero[2])=6) THEN
+			UPDATE c_invoice SET em_scr_physical_documentno = SerieNumero[1] || '-0' || SerieNumero[2] WHERE c_invoice_id=Cur_Parameter.c_invoice_id; 
+		END IF;
+      END IF;
+    END LOOP; -- Get Parameter  
+
+
+FOR Cur_Parameter IN (
+        SELECT ci.m_inout_id,  ci.em_scr_physical_documentno
+        FROM M_INOUT ci
+        WHERE ci.issotrx='Y' AND ci.em_scr_physical_documentno LIKE '%-%'
+    ) LOOP
+
+		SELECT COUNT(*) INTO NumPar FROM (SELECT regexp_split_to_table(Cur_Parameter.em_scr_physical_documentno, '-')) AS ALIAS;
+
+		IF (NumPar = 2) THEN
+
+        select *  INTO SerieNumero from (select regexp_split_to_array(Cur_Parameter.em_scr_physical_documentno, '-')) AS ALIAS2;
+
+		IF (character_length(SerieNumero[1])=3 AND character_length(SerieNumero[2])=6) THEN
+			UPDATE m_inout SET em_scr_physical_documentno = SerieNumero[1] || '-0' || SerieNumero[2] WHERE m_inout_id=Cur_Parameter.m_inout_id; 
+		END IF;
+      END IF;
+    END LOOP; -- Get Parameter  
+
+
+--CAMBIO DE NUMERO DE LINEAS
+ALTER TABLE c_invoiceline DISABLE TRIGGER USER;
+
+FOR Cur_Parameter IN (
+        SELECT ci.c_invoice_id
+        FROM C_INVOICE ci
+    ) LOOP
+		LineA:=10;
+		FOR Cur_ParameterLine IN (
+		SELECT cil.c_invoiceline_id
+		FROM C_INVOICELINE cil 
+		WHERE cil.C_INVOICE_ID=Cur_Parameter.c_invoice_id ORDER BY line ASC
+		) LOOP
+			UPDATE c_invoiceline SET line = LineA WHERE c_invoiceline_id=Cur_ParameterLine.c_invoiceline_id; 
+		  LineA:=LineA+10;
+		END LOOP; -- Get Parameter 
+    
+    END LOOP; -- Get Parameter  
+    
+ALTER TABLE c_invoiceline ENABLE TRIGGER USER;
+
+
+ALTER TABLE c_orderline DISABLE TRIGGER USER;
+
+FOR Cur_Parameter IN (
+        SELECT ci.c_order_id
+        FROM C_ORDER ci
+    ) LOOP
+		LineA:=10;
+		FOR Cur_ParameterLine IN (
+		SELECT cil.c_orderline_id
+		FROM C_ORDERLINE cil 
+		WHERE cil.C_ORDER_ID=Cur_Parameter.c_order_id ORDER BY line ASC
+		) LOOP
+			UPDATE c_orderline SET line = LineA WHERE c_orderline_id=Cur_ParameterLine.c_orderline_id; 
+		  LineA:=LineA+10;
+		END LOOP; -- Get Parameter 
+    
+    END LOOP; -- Get Parameter  
+    
+ALTER TABLE c_orderline ENABLE TRIGGER USER;
+
+
+ALTER TABLE m_inoutline DISABLE TRIGGER USER;
+
+FOR Cur_Parameter IN (
+        SELECT ci.m_inout_id
+        FROM M_INOUT ci
+    ) LOOP
+		LineA:=10;
+		FOR Cur_ParameterLine IN (
+		SELECT cil.m_inoutline_id
+		FROM M_INOUTLINE cil 
+		WHERE cil.M_INOUT_ID=Cur_Parameter.m_inout_id ORDER BY line ASC
+		) LOOP
+			UPDATE m_inoutline SET line = LineA WHERE m_inoutline_id=Cur_ParameterLine.m_inoutline_id; 
+		  LineA:=LineA+10;
+		END LOOP; -- Get Parameter 
+    
+    END LOOP; -- Get Parameter  
+    
+ALTER TABLE m_inoutline ENABLE TRIGGER USER;
+
+
+--ACTUALIZACION DE BALANCE INICIAL DE CUENTAS FINANCIERAS MIGRADAS
+UPDATE fin_financial_account 
+   SET initialbalance=currentbalance 
+ WHERE fin_financial_account_id IN (SELECT finacc.fin_financial_account_id 
+				      FROM fin_financial_account finacc 
+				     WHERE NOT EXISTS(SELECT 1 FROM fin_reconciliation frec 
+				                       WHERE frec.fin_financial_account_id = finacc.fin_financial_account_id));
+
+
+
+  RETURN;
+END SSA_POSTPROCESSMIGRACION
+]]></body>
+    </function>
+  </database>

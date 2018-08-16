@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_PRODUCTION_RESERVATION">
+    <function name="SWA_PRODUCTION_RESERVATION" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  countLines NUMBER:=0; -- Success
+  v_partner_id VARCHAR2(32);
+  v_from_warehouse VARCHAR2(32);
+  v_to_warehouse VARCHAR2(32);
+  v_iscreated CHAR; --OBTG:VARCHAR2--
+  v_em_swa_state_tmp_bom VARCHAR2(60);
+
+-- Record Info
+  Cur_Parameter VARCHAR%ROWTYPE; --OBTG:VARCHAR2--
+  v_orderApprovedState VARCHAR2(32);
+  v_m_warehouse_id VARCHAR2(32); 
+  CUR_productionline VARCHAR%ROWTYPE;  --OBTG:VARCHAR2--
+  v_count_reservation NUMBER:=0;
+  v_m_reservation_id VARCHAR(32);
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+    SELECT iscreated,em_swa_state_tmp_bom
+      INTO v_iscreated,v_em_swa_state_tmp_bom
+    FROM m_production
+    WHERE m_production_id=v_Record_ID;
+    
+   IF (v_iscreated <>'Y' AND v_em_swa_state_tmp_bom <>'PE') THEN
+        RAISE_APPLICATION_ERROR(-20000,'@swa_no_permit_approval_BOM@');
+   END IF;
+
+
+    UPDATE m_production
+    SET em_swa_state_tmp_bom='CO'
+    WHERE m_production_id=v_Record_ID;
+
+    /***HACER LA RESERVA PARA TODOS LOS M_PRODUCTIONLINE*/
+
+
+    FOR CUR_productionline IN (
+     SELECT * FROM M_PRODUCTIONLINE mpl
+       INNER JOIN M_PRODUCTIONPLAN mpp on mpl.m_productionplan_id = mpp.m_productionplan_id
+       INNER JOIN M_PRODUCT mp ON mpl.m_product_id = mp.m_product_id
+       WHERE mpp.m_production_id = v_Record_ID
+        AND mpl.movementqty < 0
+        AND mp.IsStocked = 'Y'
+    )
+    LOOP
+
+      --Verificando si esta Linea està asociada a un pedido con reserva
+	--SELECT * INTO v_count_reservation FROM swa_search_reservation_ioline(CUR_INOUTLINE.M_INOUTLINE_ID);
+	-- 
+    SELECT m_warehouse_id 
+      INTO v_m_warehouse_id 
+      FROM M_LOCATOR 
+     WHERE M_LOCATOR_ID = CUR_productionline.m_locator_id;
+
+  
+	
+    IF(v_count_reservation=0 AND CUR_productionline.movementqty < 0)THEN
+         v_m_reservation_id:=get_uuid();
+          
+         INSERT INTO M_RESERVATION(
+	  m_reservation_id, ad_client_id,ad_org_id,isactive,
+	  created,createdby,updated,updatedby,
+	  m_product_id,quantity,c_uom_id,em_swa_m_productionline_id,
+	  res_status,res_process,m_warehouse_id, em_obwpl_generatedbypicking
+	  )
+         VALUES ( 
+          v_m_reservation_id,CUR_productionline.ad_client_id, CUR_productionline.ad_org_id,'Y',
+	  now(),v_User_ID, now(), v_User_ID,
+	  CUR_productionline.m_product_id, CUR_productionline.movementqty*-1 , CUR_productionline.c_uom_id, CUR_productionline.m_productionline_id,
+	  'DR','PR',v_m_warehouse_id,'N'
+          );
+
+          --Reservando la cantidad de cada linea
+
+          INSERT INTO M_RESERVATION_STOCK(
+	   M_RESERVATION_STOCK_ID, AD_CLIENT_ID,AD_ORG_ID,ISACTIVE,
+	   created,createdby,updated,updatedby,
+	   m_reservation_id, c_orderline_id, quantity,M_LOCATOR_ID
+	  )
+	   VALUES(
+	   get_uuid(), CUR_productionline.ad_client_id, CUR_productionline.ad_org_id, 'Y',
+	   now(),v_User_ID, now(), v_User_ID,
+	   v_m_reservation_id, null, CUR_productionline.movementqty*-1,CUR_productionline.M_LOCATOR_ID
+	  );	
+          --Con este PERFORM se procesa la reserva para que quede separada.  
+           M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',v_User_ID) ;
+          
+	  ---
+     END IF;
+      
+    END LOOP;
+    
+    /******* FIN DE RESERVA*/
+    
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_PRODUCTION_RESERVATION
+]]></body>
+    </function>
+  </database>

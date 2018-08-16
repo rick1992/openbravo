@@ -1,0 +1,298 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_REQUIREMENT_REQUEST">
+    <function name="SWA_REQUIREMENT_REQUEST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+-- Record Info
+  v_Client_id VARCHAR(32);
+  v_ad_org_id VARCHAR(32);
+  v_LineSeqNo NUMBER:=0;
+  v_CDocTypeID VARCHAR(32);
+  v_DocumentNo VARCHAR(30);
+  v_Message_detail VARCHAR2(120);
+  v_request_status VARCHAR(60);
+  v_to_warehouse_id VARCHAR(32);
+  v_from_m_warehouse_id VARCHAR(32);
+  v_organization_child_id VARCHAR(32);
+  v_bpartner_id VARCHAR(32);
+  v_bpartner_location_id VARCHAR(32);
+  v_warehouse_sample_id VARCHAR(32);
+  v_doctype_id VARCHAR(32);
+  v_em_swa_warehousetype VARCHAR(60);
+  v_specialdoctype VARCHAR(60);
+  v_fromrequest_list VARCHAR(60);
+  v_countline NUMBER:=0;
+  v_count_tmp NUMBER:=0;
+  v_count_orgchild NUMBER:=0;
+  v_swa_requerimientoreposicion_id VARCHAR(32);
+  v_swa_requerimientoDetail_id VARCHAR(32);
+  v_ignore_to_warehouse CHAR(1):='N';
+  v_doctype_create_id VARCHAR(32);
+  Cur_Parameter RECORD;
+  CUR_detail RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+   --Validacion de Lineas
+    SELECT count(swa_requerepo_detail) 
+      INTO v_countline
+      FROM swa_requerepo_detail 
+     WHERE swa_requerimientoreposicion_id = v_Record_ID;
+
+    IF(v_countline=0)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_notlinesforOrder@');
+    END IF;
+   --
+
+   FOR CUR_detail IN (
+                      SELECT count(*), p.value || ' ' || p.name as info FROM swa_requerepo_detail rd
+                       INNER JOIN M_PRODUCT p ON rd.m_product_id = p.m_product_id
+                       WHERE rd.swa_requerimientoreposicion_id = v_Record_ID
+                       GROUP BY rd.M_PRODUCT_ID, p.value, p.name
+                       HAVING count(*)>1
+                      )
+   LOOP
+     RAISE_APPLICATION_ERROR(-20000,'@swa_request_repeat_product@' || ' - ' ||COALESCE(CUR_detail.info,'-'));
+   END LOOP;                     
+                        
+
+
+    SELECT ad_org_id,ad_client_id,c_doctype_id,c_bpartner_id,c_bpartner_location_id, request_status, from_m_warehouse_id,to_m_warehouse_id,request_motive,c_doctype_create_id
+      INTO v_ad_org_id,v_Client_id,v_doctype_id,v_bpartner_id,v_bpartner_location_id,v_request_status,v_from_m_warehouse_id ,v_to_warehouse_id,v_Message_detail,v_doctype_create_id
+    FROM swa_requerimientoreposicion
+    WHERE swa_requerimientoreposicion_id=v_Record_ID;
+
+   --Segun el tipo de Documento:
+   --1. Podremos determinar si hay validacion en el campo de almacen Destino to_warehouse v_ignore_to_warehouse
+   --2. Determinamos el origen de la Orden de Transferencia a Crear v_fromrequest_list
+   
+   v_fromrequest_list:='ST'; -- Diremos que la Orden de Transferencia a Crear proviene de una solicitud de Transferencia ST
+   IF(v_doctype_id IS NOT NULL)THEN
+    SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DOCTYPE WHERE C_DOCTYPE_ID = v_doctype_id;
+    IF(v_specialdoctype='SWAREQUESTSAMPE')THEN
+      v_ignore_to_warehouse:='Y';
+      v_fromrequest_list:='SM'; --Diremos que la Orden de Transferencia a Crear, Proviene de Uns solicitud de Muestra
+
+      --Validacion para Aprobacion de Muestras
+      IF(v_request_status='DR')THEN
+
+             IF(v_to_warehouse_id IS NULL)THEN
+               --Si la muestra no tiene seleccionada un almacèn de Muestras, entonces debemos de insertar uno tipo MT
+               SELECT M_WAREHOUSE_id 
+                 INTO v_warehouse_sample_id
+                 FROM M_WAREHOUSE 
+                 WHERE em_swa_warehousetype = 'MU'
+                 AND isactive='Y'
+                 AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id) <> -1
+                 limit 1;
+
+                 IF(v_warehouse_sample_id IS NULL)THEN
+                  RAISE_APPLICATION_ERROR(-20000,'@swa_nowarehousetosample@');
+                 END IF;
+
+                 UPDATE swa_requerimientoreposicion
+	            SET to_m_warehouse_id=v_warehouse_sample_id
+ 	          WHERE swa_requerimientoreposicion_id =v_Record_ID;
+              END IF;
+         
+      
+            UPDATE swa_requerimientoreposicion
+	       SET status='PD'
+	     WHERE swa_requerimientoreposicion_id =v_Record_ID;
+
+	   v_Message := '@swa_samplerequestmustbeapproved@' || v_Message;       
+	   v_Result := 2;
+           AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+	   RETURN;
+      END IF;
+      ------
+    END IF;
+   END IF;
+   ------
+
+   IF(v_ignore_to_warehouse = 'N')THEN
+       IF(v_to_warehouse_id IS NULL) THEN --Validacion de Almacèn de destino null
+          RAISE_APPLICATION_ERROR(-20000,'@swa_to_warehouse_nodefined@');
+       END IF;
+
+       SELECT em_swa_warehousetype
+         INTO v_em_swa_warehousetype
+	 FROM M_warehouse 
+	WHERE m_warehouse_id = v_to_warehouse_id;
+
+
+      --Validacion para almacen destino de Consignacion
+      IF(v_em_swa_warehousetype='CO' AND v_request_status='DR')THEN
+	 UPDATE swa_requerimientoreposicion
+	    SET request_status='PD',
+		status='CO'
+	  WHERE swa_requerimientoreposicion_id =v_Record_ID;
+
+	v_Message := '@swa_requestmustbeapproved@' || v_Message;       
+	v_Result := 2;
+             AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+	RETURN;
+      END IF;
+   END IF;
+
+
+     SELECT  em_swa_organization_child_id
+      INTO  v_organization_child_id
+      FROM M_warehouse 
+     WHERE m_warehouse_id = v_from_m_warehouse_id;
+
+   --Validacion si el Almacen de Origen no tiene asociado una organizacion de Referencia
+    IF(v_organization_child_id IS NULL)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_warehouse_not_orgchild@');
+    END IF;
+   ------------
+
+    v_bpartner_id:=null;
+    v_bpartner_location_id:=null;
+   
+
+   --Creando Orden de Transferencia para la Organizacion a Transferir a partir de esta solicitud   
+	-- GET DOCTYPE
+          SELECT C_DocType_ID INTO v_CDocTypeID
+		FROM C_DOCTYPE
+		WHERE em_sco_specialdoctype='SWAREPOSITION'
+		AND ISACTIVE='Y' 
+		AND AD_Client_Id= v_Client_id
+		AND AD_ISORGINCLUDED(v_organization_child_id, AD_Org_ID, v_Client_id) <> -1
+		AND COALESCE(isreturn, 'N') = 'N'
+		ORDER BY AD_ISORGINCLUDED(v_organization_child_id, AD_Org_ID, v_Client_id),
+		IsDefault DESC,
+		C_DocType_ID;
+        -----------
+
+         IF (v_CDocTypeID IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000,'@swa_doctype_reposition@');
+         END IF;
+
+
+         FOR Cur_Parameter IN 
+	 (SELECT swa_requerepo_detail_id, m_product_id,c_uom_id,qtyrequired,qtyordered---en este caso qtyordered es igual a qtyrequired porque generamos a traves de un required
+	    FROM swa_requerepo_detail where swa_requerimientoreposicion_id = v_Record_ID
+	 )
+	 LOOP  
+
+           IF(v_count_tmp=0)THEN --Se deberà crear una Orden de Transferencia cada 15 Lineas
+
+                AD_Sequence_DocType(v_CDocTypeID, v_Client_id, 'Y', v_DocumentNo) ;
+                
+                v_swa_requerimientoreposicion_id:=get_uuid();
+	        INSERT INTO swa_requerimientoreposicion
+	        (swa_requerimientoreposicion_id,ad_client_id,ad_org_id,isactive,created,createdby,
+	        updated,updatedby,c_doctype_create_id,request_motive,from_m_warehouse_id,to_m_warehouse_id,status,c_bpartner_id,c_bpartner_location_id,
+	        pickinglist_state,c_doctype_id,documentno,swa_requirement_request_id, windowsname_list, Isfromrequest , isfromrequest_list
+	        )
+		VALUES 
+		(v_swa_requerimientoreposicion_id,v_Client_id,v_organization_child_id,'Y',now(),v_User_ID,
+		 now(),v_User_ID,v_doctype_create_id,v_Message_detail,v_from_m_warehouse_id,v_to_warehouse_id,'DR',v_bpartner_id,v_bpartner_location_id,
+		 'NG',v_CDocTypeID,v_DocumentNo,v_Record_ID ,'OT' ,'Y' , v_fromrequest_list
+		);
+		
+		v_LineSeqNo:=0;
+           END IF;
+          
+	   
+                v_LineSeqNo:= 10 + v_LineSeqNo;
+	        v_swa_requerimientoDetail_id:=get_uuid();
+	        INSERT INTO swa_requerepo_detail
+	        (swa_requerepo_detail_id,ad_client_id,ad_org_id,line,isactive,created,createdby,
+	        updated,updatedby,m_product_id,c_uom_id,qtyrequired,qtyordered,swa_requerimientoreposicion_id,
+	        requerepo_from_line_id
+	        )
+	        VALUES 
+	        (v_swa_requerimientoDetail_id,v_Client_id,v_organization_child_id,v_LineSeqNo,'Y',now(),v_User_ID,
+	        now(),v_User_ID,Cur_Parameter.m_product_id,Cur_Parameter.c_uom_id,Cur_Parameter.qtyrequired,Cur_Parameter.qtyordered,v_swa_requerimientoreposicion_id,
+	        Cur_Parameter.swa_requerepo_detail_id
+	        ); 
+
+	    v_count_tmp = v_count_tmp +1;
+	    IF(v_count_tmp=15)THEN
+	     v_count_tmp = 0;
+	    END IF;
+	 END LOOP;
+
+
+/*
+	v_swa_requerimientoreposicion_id:=get_uuid();
+	INSERT INTO swa_requerimientoreposicion
+	(swa_requerimientoreposicion_id,ad_client_id,ad_org_id,isactive,created,createdby,
+	 updated,updatedby,c_doctype_create_id,requer_name,from_m_warehouse_id,to_m_warehouse_id,status,
+	 pickinglist_state,c_doctype_id,documentno,swa_requirement_request_id
+	)
+	VALUES 
+	(v_swa_requerimientoreposicion_id,v_Client_id,v_organization_child_id,'Y',now(),v_User_ID,
+	 now(),v_User_ID,v_doctype_create_id,v_Message_detail,v_from_m_warehouse_id,v_to_warehouse_id,'DR',
+	 'NG',v_CDocTypeID,v_DocumentNo,v_Record_ID
+	);
+
+
+    --Insertando Lineas
+	 FOR Cur_Parameter IN 
+	 (SELECT swa_requerepo_detail_id, m_product_id,c_uom_id,qtyrequired,qtyordered---en este caso qtyordered es igual a qtyrequired porque generamos a traves de un required
+	    FROM swa_requerepo_detail where swa_requerimientoreposicion_id = v_Record_ID
+	 )
+	 LOOP     
+	    v_LineSeqNo:= 10 + v_LineSeqNo;
+	    v_swa_requerimientoDetail_id:=get_uuid();
+	    INSERT INTO swa_requerepo_detail
+	    (swa_requerepo_detail_id,ad_client_id,ad_org_id,line,isactive,created,createdby,
+	     updated,updatedby,m_product_id,c_uom_id,qtyrequired,qtyordered,swa_requerimientoreposicion_id,
+	     requerepo_from_line_id
+	    )
+	   VALUES 
+	    (v_swa_requerimientoDetail_id,v_Client_id,v_organization_child_id,v_LineSeqNo,'Y',now(),v_User_ID,
+	     now(),v_User_ID,Cur_Parameter.m_product_id,Cur_Parameter.c_uom_id,Cur_Parameter.qtyrequired,Cur_Parameter.qtyordered,v_swa_requerimientoreposicion_id,
+	     Cur_Parameter.swa_requerepo_detail_id
+	    ); 
+	 END LOOP;
+   */
+   ---------------------------------------
+
+    UPDATE swa_requerimientoreposicion 
+       SET status='CO',
+           request_status='CO_PD'
+    WHERE swa_requerimientoreposicion_id=v_Record_ID;
+
+   
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_REQUIREMENT_REQUEST
+]]></body>
+    </function>
+  </database>

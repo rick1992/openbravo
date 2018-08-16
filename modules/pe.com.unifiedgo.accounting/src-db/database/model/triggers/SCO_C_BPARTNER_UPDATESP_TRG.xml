@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_C_BPARTNER_UPDATESP_TRG">
+    <trigger name="SCO_C_BPARTNER_UPDATESP_TRG" table="C_BPARTNER" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialmethod VARCHAR(60):=NULL;
+  v_pospecialmethod VARCHAR(60):=NULL;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+
+      SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+      :NEW.em_sco_specialmethod := v_specialmethod;
+
+      SELECT em_sco_specialmethod INTO v_pospecialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.po_paymentmethod_id;
+      :NEW.em_sco_pospecialmethod := v_pospecialmethod;
+
+
+    ELSE
+
+      IF(COALESCE(:OLD.fin_paymentmethod_id,'')<>COALESCE(:NEW.fin_paymentmethod_id,'')) THEN
+         SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+         :NEW.em_sco_specialmethod := v_specialmethod;
+      END IF;
+
+      IF(COALESCE(:OLD.po_paymentmethod_id,'')<>COALESCE(:NEW.po_paymentmethod_id,'')) THEN
+         SELECT em_sco_specialmethod INTO v_pospecialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.po_paymentmethod_id;
+         :NEW.em_sco_pospecialmethod := v_pospecialmethod;
+      END IF;
+
+    END IF;
+
+    END SCO_C_BPARTNER_UPDATESP_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="CreateNewConversionRateData" package="pe.com.unifiedgo.accounting.ad_actionbutton">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS C_CONVERSION_RATE_ID, '' AS CONVRATE FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+   <SqlMethod name="getExchangeRateUSDPurch" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.dividerate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '308'
+      AND conv.c_currency_id_to = '100'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getExchangeRateUSDSales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.multiplyrate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '100'
+      AND conv.c_currency_id_to = '308'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getExchangeRateEURSales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.multiplyrate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '102'
+      AND conv.c_currency_id_to = '308'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getExchangeRateEURPurch" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.dividerate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '308'
+      AND conv.c_currency_id_to = '102'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getUSDExchangeRateEURPurch" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.dividerate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '100'
+      AND conv.c_currency_id_to = '102'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+   <SqlMethod name="getUSDExchangeRateEURSales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT conv.c_conversion_rate_id , conv.multiplyrate as convrate
+      FROM c_conversion_rate conv
+      WHERE conv.AD_Client_ID = ?
+      AND AD_ISORGINCLUDED(?,conv.AD_Org_ID,?) <> -1
+      AND conv.conversionratetype = 'S'
+      AND conv.c_currency_id = '102'
+      AND conv.c_currency_id_to = '100'
+      AND TRUNC(conv.validfrom) <= TRUNC(TO_DATE(?))
+      AND TRUNC(conv.validto) >= TRUNC(TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="convrateDate"/>
+    <Parameter name="convrateDate"/>
+   </SqlMethod>
+</SqlClass>

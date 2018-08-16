@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="DocLineBoeData" package="pe.com.unifiedgo.accounting.posting">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT sco_boetodisc_line.sco_boetodisc_line_ID, sco_boetodisc_line.AD_CLIENT_ID, sco_boetodisc_line.AD_ORG_ID AS AD_ORG_ID,
+          sco_boetodisc_line.ISACTIVE, sco_boetodisc_line.sco_boe_to_discount_id, 
+        sco_boetodisc_line.LINE, sco_boetodisc_line.DESCRIPTION, C_INVOICE.grandtotal as AMOUNT, C_INVOICE.C_BPARTNER_ID, 
+        sco_boetodisc_line.INVOICEREF_ID, sco_boetodisc_line.DOCTYPEREF_ID, sco_boetodisc_line.previous_boe_type, C_INVOICE.DATEINVOICED,
+        C_INVOICE.EM_SCO_DOCTYPEREF_ID, C_INVOICE.C_COSTCENTER_ID, C_INVOICE.C_CURRENCY_ID,
+        sco_boe_to_discount.EM_SCR_TYPETRANSACTION FROM sco_boetodisc_line INNER JOIN C_INVOICE ON sco_boetodisc_line.INVOICEREF_ID = C_INVOICE.C_INVOICE_ID 
+        INNER JOIN sco_boe_to_discount ON sco_boetodisc_line.sco_boe_to_discount_ID = sco_boe_to_discount.sco_boe_to_discount_ID
+        WHERE sco_boetodisc_line.sco_boe_to_discount_id = ?
+        ORDER BY LINE
+     ]]>
+     </Sql>
+     <Parameter name="sco_boe_to_discount_Id"/>
+   </SqlMethod>
+  <SqlMethod name="selectTotal" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT sco_boetodisc_line.sco_boetodisc_line_ID, sco_boetodisc_line.AD_CLIENT_ID, sco_boetodisc_line.AD_ORG_ID AS AD_ORG_ID,
+          sco_boetodisc_line.ISACTIVE, sco_boetodisc_line.sco_boe_to_discount_id, 
+        sco_boetodisc_line.LINE, sco_boetodisc_line.DESCRIPTION, C_INVOICE.grandtotal as AMOUNT, C_INVOICE.C_BPARTNER_ID, 
+        sco_boetodisc_line.INVOICEREF_ID, sco_boetodisc_line.DOCTYPEREF_ID, sco_boetodisc_line.previous_boe_type, C_INVOICE.DATEINVOICED,
+        C_INVOICE.EM_SCO_DOCTYPEREF_ID, C_INVOICE.C_COSTCENTER_ID, C_INVOICE.C_CURRENCY_ID,
+        sco_boe_to_discount.EM_SCR_TYPETRANSACTION FROM sco_boetodisc_line INNER JOIN C_INVOICE ON sco_boetodisc_line.INVOICEREF_ID = C_INVOICE.C_INVOICE_ID 
+        INNER JOIN sco_boe_to_discount ON sco_boetodisc_line.sco_boe_to_discount_ID = sco_boe_to_discount.sco_boe_to_discount_ID
+        WHERE sco_boetodisc_line.sco_boe_to_discount_id = ?
+        ORDER BY LINE
+     ]]>
+     </Sql>
+     <Parameter name="sco_boe_to_discount_Id"/>
+   </SqlMethod>
+   
+  </SqlClass>

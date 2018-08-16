@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_DetraccionCompras_UGO" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="14" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.589203410794831"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["http://localhost/openbravo"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["E:\\workspaceerplima\\openbravo\\modules\\pe.com.unifiedgo.report\\src\\pe\\com\\unifiedgo\\report\\ad_reports\\"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_ID" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="FEC_INICIO" class="java.util.Date"/>
+	<parameter name="FEC_FIN" class="java.util.Date"/>
+	<parameter name="ORG_ID" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[select wre.sco_swithholding_receipt_id as RETENCION_ID,
+									cbp.taxid as TERCERO_RUC,
+                 coalesce(wre.documentno,'') as NRO_RETENCION,
+                 to_char(wre.dategen) as FECHA,
+                 coalesce(inv.em_scr_physical_documentno,coalesce(inv.documentno,'')) as NRO_FACTURA,
+                 lin.amount as MONTO,
+                 org.name as ORG,
+                 inf.taxid as ORG_RUC ,
+								'Factura' as TIPO_DOC,
+
+									to_char(INV.dateinvoiced) AS FECHA_DOC,
+
+
+								INV.grandtotal AS IMPORTE_DOC,
+
+								cl.city as OFICINA,
+
+								 '' as PLANILLA_PAGO
+            from sco_swithholding_receipt wre
+                 join sco_swithho_rec_line lin on wre.sco_swithholding_receipt_id = lin.sco_swithholding_receipt_id
+                 left join c_invoice inv on lin.invoiceref_id = inv.c_invoice_id
+									left join c_bpartner cbp on cbp.c_bpartner_id=inv.c_bpartner_id,
+                 ad_org org join ad_orgtype typ using (ad_orgtype_id)
+                 join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+									left JOIN c_location cl on inf.c_location_id= cl.c_location_id
+
+           where AD_ISORGINCLUDED(wre.ad_org_id, org.ad_org_id, wre.ad_client_id)<>-1
+             and (typ.IsLegalEntity='Y' or typ.IsAcctLegalEntity='Y')]]>
+	</queryString>
+	<field name="retencion_id" class="java.lang.String"/>
+	<field name="tercero_ruc" class="java.lang.String"/>
+	<field name="nro_retencion" class="java.lang.String"/>
+	<field name="fecha" class="java.lang.String"/>
+	<field name="nro_factura" class="java.lang.String"/>
+	<field name="monto" class="java.math.BigDecimal"/>
+	<field name="org" class="java.lang.String"/>
+	<field name="org_ruc" class="java.lang.String"/>
+	<field name="tipo_doc" class="java.lang.String"/>
+	<field name="fecha_doc" class="java.lang.String"/>
+	<field name="importe_doc" class="java.math.BigDecimal"/>
+	<field name="oficina" class="java.lang.String"/>
+	<field name="planilla_pago" class="java.lang.String"/>
+	<field name="nro_doc_retencion" class="java.lang.String"/>
+	<field name="tercero" class="java.lang.String"/>
+	<field name="total_fisico" class="java.math.BigDecimal"/>
+	<variable name="IMPORTE" class="java.math.BigDecimal" resetType="Group" resetGroup="RETENCION_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{monto}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOTAL" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{monto}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<variable name="TOTAL_GRUPO" class="java.math.BigDecimal" incrementType="Group" incrementGroup="RETENCION_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{total_fisico}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<group name="RETENCION_ID">
+		<groupExpression><![CDATA[$F{nro_doc_retencion}+""+$F{tercero_ruc}]]></groupExpression>
+		<groupHeader>
+			<band height="55" splitType="Stretch">
+				<staticText>
+					<reportElement x="13" y="16" width="100" height="16"/>
+					<textElement verticalAlignment="Middle" markup="none">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[RETENCION Nro:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="491" y="37" width="80" height="18"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[IMP. RETEN.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="110" y="37" width="75" height="18"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[NRO. DOC.]]></text>
+				</staticText>
+				<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+					<reportElement x="387" y="16" width="55" height="16"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{fecha}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement x="98" y="16" width="99" height="16"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{nro_doc_retencion}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="447" y="0" width="79" height="16"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[RUC TERCERO:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="24" y="37" width="80" height="18"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[TIPO DOC]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="195" y="37" width="65" height="18"/>
+					<textElement verticalAlignment="Middle" markup="none">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[FECHA DOC: ]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="273" y="37" width="54" height="18"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle" markup="none">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[OFICINA:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="333" y="37" width="62" height="18"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[PLLA. COBR.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="408" y="37" width="80" height="18"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[MONTO DOC.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="322" y="16" width="65" height="16"/>
+					<textElement verticalAlignment="Middle" markup="none">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[FECHA RET.: ]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="520" y="0" width="62" height="16"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{tercero_ruc}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement x="237" y="16" width="81" height="16"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{nro_retencion}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="212" y="16" width="47" height="16"/>
+					<textElement verticalAlignment="Middle" markup="none">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Nro.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="13" y="0" width="86" height="16"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[TERCERO:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="85" y="0" width="355" height="16"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{tercero}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="24" splitType="Stretch">
+				<line>
+					<reportElement x="24" y="0" width="546" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<textField isBlankWhenNull="true">
+					<reportElement x="447" y="3" width="100" height="18"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="9"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$V{IMPORTE}!=null?$P{NUMBERFORMAT}.format($V{IMPORTE}):"0.00"]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="350" y="3" width="80" height="18"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[IMPORTE]]></text>
+				</staticText>
+			</band>
+		</groupFooter>
+	</group>
+	<title>
+		<band height="54" splitType="Stretch">
+			<staticText>
+				<reportElement x="147" y="28" width="300" height="20"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" isBold="true"/>
+				</textElement>
+				<text><![CDATA[REPORTE DE RETENCIONES DE VENTA]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="20" y="0" width="450" height="24"/>
+				<textElement>
+					<font fontName="SansSerif" size="12" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{org}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="20" y="23" width="100" height="15"/>
+				<textElement>
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{org_ruc}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="177" y="46" width="240" height="1"/>
+			</line>
+			<staticText>
+				<reportElement x="478" y="14" width="80" height="13"/>
+				<textElement textAlignment="Left">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[FECHA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="478" y="0" width="80" height="13"/>
+				<textElement textAlignment="Left">
+					<font fontName="SansSerif" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[PAGINA]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="514" y="0" width="50" height="13"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Integer"><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="520" y="14" width="70" height="13"/>
+				<textElement textAlignment="Left">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<detail>
+		<band height="15" splitType="Stretch">
+			<printWhenExpression><![CDATA[true]]></printWhenExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement x="113" y="0" width="75" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{nro_factura}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="494" y="0" width="80" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{monto})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="27" y="0" width="80" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{tipo_doc}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="198" y="0" width="65" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{fecha_doc}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="276" y="0" width="54" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{oficina}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="417" y="0" width="74" height="15"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{importe_doc}!=null?$P{NUMBERFORMAT}.format($F{importe_doc}):""]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="336" y="0" width="62" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{planilla_pago}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="21" y="0" width="546" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+		</band>
+	</detail>
+	<summary>
+		<band height="30" splitType="Stretch">
+			<staticText>
+				<reportElement x="350" y="5" width="80" height="18"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="447" y="5" width="100" height="18"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{TOTAL})]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="341" y="5" width="211" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+		</band>
+	</summary>
+</jasperReport>

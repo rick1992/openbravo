@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_INVOICE_UPDATETAXID_TRG">
+    <trigger name="SCR_INVOICE_UPDATETAXID_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_taxID VARCHAR(20);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING OR UPDATING) THEN
+      SELECT taxID INTO v_taxID
+        FROM c_bpartner
+       WHERE c_bpartner_ID = :NEW.c_bpartner_id;
+
+      :NEW.em_scr_taxid := v_taxID; 
+    END IF;
+
+    END SCR_INVOICE_UPDATETAXID_TRG
+]]></body>
+    </trigger>
+  </database>

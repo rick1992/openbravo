@@ -1,0 +1,635 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReportLibroInventariosYbalance34" pageWidth="892" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="848" leftMargin="22" rightMargin="22" topMargin="22" bottomMargin="22">
+	<property name="ireport.zoom" value="2.6573415000000016"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_NAME" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'INVOICE'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="strDateFrom" class="java.lang.String"/>
+	<parameter name="dateTo" class="java.util.Date"/>
+	<parameter name="Ruc" class="java.lang.String"/>
+	<parameter name="Razon" class="java.lang.String"/>
+	<parameter name="strDateTo" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[SELECT
+        '' AS idorganizacion,
+        '' AS idperiodo,
+        '' AS periodo,
+        '' AS fechainicial,
+        '' AS fechafinal,
+        f.*,
+        (
+         CASE
+           WHEN vida_util > 0 THEN vida_util - vida_cumplida
+           ELSE 0
+         END
+        ) :: INTEGER AS vida_x_cumplir,
+        CASE
+          WHEN 'SCO_RET' = 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_bajas,
+        CASE
+          WHEN 'SCO_RET' <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_historica,
+        CASE
+          WHEN 'SCO_RET' <> 'SCO_RET' THEN coalesce(depreciacion_acumulada + depreciacion_ejercicio,0)
+          ELSE 0
+        END AS depreciacion_acumulada_inflasion,
+        CASE
+          WHEN 'SCO_RET' <> 'SCO_RET' THEN (f.valor_historico - coalesce(depreciacion_acumulada + depreciacion_ejercicio,0))
+          ELSE 0
+        END AS activo_neto,
+        CASE
+          WHEN 'SCO_RET' <> 'SCO_RET' THEN (f.valor_ajustado - coalesce(depreciacion_acumulada + depreciacion_ejercicio,0))
+          ELSE f.valor_ajustado
+        END AS valor_contable_neto
+      FROM
+        (SELECT T1.*,
+               (vida_util_tmp + diffmeses_migracion) AS vida_util,
+               (CASE
+                 WHEN (vida_util_tmp + diffmeses_migracion) < GREATEST(vida_cumplida_tmp + diffmeses_migracion,0) THEN (vida_util_tmp + diffmeses_migracion)
+                 ELSE GREATEST(vida_cumplida_tmp + diffmeses_migracion,0)
+               END) AS vida_cumplida,
+               CASE
+                   WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=now() THEN coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+                   ELSE 0
+               END AS retiro_bajas,
+               CASE
+                 WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=now() THEN 0
+                 ELSE coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+               END AS valor_historico,
+               CASE
+                 WHEN aa2.em_sco_asset_status = 'SCO_RET' AND aa2.datecancelled<=now() THEN 0
+                 ELSE coalesce(round(aa2.assetvalueamt + importetotal_reevaluaciones + importetotal_mejoras, 2),0)
+               END AS valor_ajustado,
+               COALESCE (
+                (
+                  SELECT
+                    COALESCE(SUM (aaml.amortizationamt),0)
+                    FROM a_amortizationline aaml
+                    INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                    WHERE am2.processed = 'Y'
+                    AND aaml.a_asset_id = aa2.a_asset_id
+                    ),0
+               ) + coalesce(aa2.Depreciatedpreviousamt,0) AS depreciacion_acumulada,
+               COALESCE (
+                (
+                  SELECT
+                     COALESCE(SUM (aaml.amortizationamt),0)
+                     FROM a_amortizationline aaml
+                     INNER JOIN a_amortization am2 ON aaml.a_amortization_id = am2.a_amortization_id
+                     WHERE am2.processed = 'Y'
+                     AND aaml.a_asset_id = aa2.a_asset_id
+                ),0
+               ) AS depreciacion_ejercicio
+                FROM
+                (SELECT
+                     aa.ad_org_id,
+                     aa.Depreciatedpreviousamt,
+                     aa.datecancelled,
+                     ao.name,
+                     aag.name AS clase,
+                     (SELECT cev.value
+                      FROM a_asset_acct aaa2
+                      LEFT JOIN c_validcombination cvc ON aaa2.em_sco_assets_acct = cvc.c_validcombination_id
+                      INNER JOIN c_elementvalue cev ON cvc.account_id = cev.c_elementvalue_id
+                      WHERE aaa2.a_asset_id = aa.a_asset_id LIMIT 1
+                     ) AS codigo_cuenta,
+                     aa.value AS codigo_activo,
+                     aa.name AS activo,
+             aa.em_scr_isintangible as es_intangible,
+                     CASE
+                       WHEN aa.amortizationcalctype = 'PE' THEN 'porcentaje'
+                       WHEN aa.amortizationcalctype = 'TI' THEN 'tiempo'
+                     END AS tipodepreciacion,
+                     CASE
+                       WHEN aa.assetschedule = 'YE' THEN 'anual'
+                       WHEN aa.assetschedule = 'MO' THEN 'mensual'
+                     END AS tiempo,
+                     CASE
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' THEN aa.em_sco_migr_amortstartdate
+                       ELSE aa.amortizationstartdate
+                     END AS fecha_inicio,
+                     aa.datepurchased AS fecha_adquisicion,
+                     em_sco_amort_anualperc AS depreciacion,
+                     (CASE
+                      WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN
+                      ROUND((100.0/aa.em_sco_amort_anualperc)*12)
+                      ELSE
+                       (round((
+                             CASE
+                                WHEN aa.amortizationcalctype = 'TI' THEN
+                                  CASE WHEN aa.assetschedule='MO' THEN COALESCE (aa.uselifemonths, 0)
+                                    WHEN aa.assetschedule='YE' THEN COALESCE (aa.uselifeyears * 12,0)
+                                  ELSE 0
+                                  END
+                                WHEN aa.amortizationcalctype = 'PE' THEN
+                                  round((100/aa.annualamortizationpercentage)*12)
+                                END
+                       ),0)
+                     ) END) AS vida_util_tmp,
+                    (CASE
+                      WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN
+                      ROUND((100.0/aa.em_sco_amort_anualperc)*12)
+                      WHEN aa.datecancelled IS NOT NULL AND aa.em_sco_asset_status = 'SCO_RET' AND datecancelled<=now() THEN
+                        (GREATEST(round(COALESCE (((
+                                    SELECT
+                                        (
+                                            DATE_PART(
+                                                'year',
+                                                aa.datecancelled
+                                            ) - DATE_PART(
+                                                'year',
+                                                aa.amortizationstartdate
+                                            )
+                                        ) * 12 + (
+                                            DATE_PART(
+                                                'month',
+                                                aa.datecancelled
+                                            ) - DATE_PART(
+                                                'month',
+                                                aa.amortizationstartdate
+                                            )
+                                        )
+                                )
+                            ),
+                            0
+                          )
+                       )
+                       ,0))
+                      ELSE
+                      (GREATEST(round(COALESCE (((
+                                    SELECT
+                                        (
+                                            DATE_PART(
+                                                'year',
+                                                aa.amortizationstartdate
+                                            )
+                                        ) * 12 + (
+                                            DATE_PART(
+                                                'month',
+                                                aa.amortizationstartdate
+                                            )
+                                        )
+                                )
+                            ) + 1,
+                            0
+                          )
+                       )
+                       ,0))
+                      END) AS vida_cumplida_tmp,
+                     (CASE
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' AND (aa.depreciatedpreviousamt >= aa.assetvalueamt) AND COALESCE(aa.em_sco_amort_anualperc,0)>0 THEN 0
+                       WHEN COALESCE(aa.em_sco_ismigrated,'N') = 'Y' THEN
+                         COALESCE((
+                           SELECT
+                             (
+                               DATE_PART(
+                                 'year',
+                                 aa.amortizationstartdate
+                                 ) - DATE_PART(
+                                 'year',
+                                 aa.em_sco_migr_amortstartdate
+                                 )
+                             ) * 12 +
+                             (
+                               DATE_PART(
+                                 'month',
+                                 aa.amortizationstartdate
+                                 ) - DATE_PART(
+                                 'month',
+                                 aa.em_sco_migr_amortstartdate
+                                 )
+                             )
+                             +
+                             (
+                               ROUND((DATE_PART('day', aa.amortizationstartdate) - DATE_PART('day',aa.em_sco_migr_amortstartdate))/30.0)
+                             )
+                         ),0)
+                       ELSE 0
+                     END) AS diffmeses_migracion,
+                     COALESCE((SELECT SUM(ai.amount) FROM sco_asset_improv ai
+                      WHERE ai.a_asset_id = aa.a_asset_id
+                     ),0) AS importetotal_mejoras,
+                     COALESCE((SELECT SUM(ar.amount) FROM sco_asset_reeval ar
+                      WHERE ar.a_asset_id = aa.a_asset_id
+                     ),0) AS importetotal_reevaluaciones,
+                     (SELECT COALESCE (arlt. NAME,COALESCE (arl. NAME, ''))
+                       FROM ad_ref_list arl
+                       LEFT JOIN ad_ref_list_trl arlt ON arl.ad_ref_list_id = arlt.ad_ref_list_id
+                       WHERE arl.VALUE = aa.amortizationtype
+                     ) AS tipo_regresion,
+                     1 AS cantidad,
+                     aa.c_currency_id AS id_moneda,
+                     aa.isdepreciated,
+                     aa.a_asset_id,
+                     aa.assetvalueamt,
+                     COALESCE(aa.em_sco_ismigrated,'N') AS em_sco_ismigrated,
+                     COALESCE((select code from scr_combo_item where scr_combo_item_id=aa.EM_Scr_Type),'') as tipo_intangible
+
+                FROM a_asset aa
+                INNER JOIN ad_org ao ON aa.ad_org_id = ao.ad_org_id
+                LEFT JOIN a_asset_group aag ON aa.a_asset_group_id = aag.a_asset_group_id
+                WHERE aa.em_scr_isintangible='Y'
+                AND ao.AD_CLIENT_ID IN ('1')
+                AND ao.AD_ORG_ID IN('1')
+                ORDER BY clase,codigo_cuenta,codigo_activo) as T1
+        INNER JOIN a_asset aa2 ON T1.a_asset_id = aa2.a_asset_id
+        ) as f
+    WHERE 'SCO_RET-' <> 'SCO_RET'
+      AND es_intangible='Y'
+          AND codigo_cuenta LIKE '34%'
+        ORDER BY clase,codigo_cuenta,codigo_activo]]>
+	</queryString>
+	<field name="idorganizacion" class="java.lang.String"/>
+	<field name="idperiodo" class="java.lang.String"/>
+	<field name="periodo" class="java.lang.String"/>
+	<field name="fechainicial" class="java.lang.String"/>
+	<field name="fechafinal" class="java.lang.String"/>
+	<field name="ad_org_id" class="java.lang.String"/>
+	<field name="depreciatedpreviousamt" class="java.math.BigDecimal"/>
+	<field name="datecancelled" class="java.sql.Timestamp"/>
+	<field name="name" class="java.lang.String"/>
+	<field name="clase" class="java.lang.String"/>
+	<field name="codigo_cuenta" class="java.lang.String"/>
+	<field name="codigo_activo" class="java.lang.String"/>
+	<field name="activo" class="java.lang.String"/>
+	<field name="es_intangible" class="java.lang.String"/>
+	<field name="tipodepreciacion" class="java.lang.String"/>
+	<field name="tiempo" class="java.lang.String"/>
+	<field name="fecha_inicio" class="java.util.Date"/>
+	<field name="fecha_adquisicion" class="java.util.Date"/>
+	<field name="depreciacion" class="java.math.BigDecimal"/>
+	<field name="vida_util_tmp" class="java.math.BigDecimal"/>
+	<field name="vida_cumplida_tmp" class="java.lang.Double"/>
+	<field name="diffmeses_migracion" class="java.lang.Double"/>
+	<field name="importetotal_mejoras" class="java.math.BigDecimal"/>
+	<field name="importetotal_reevaluaciones" class="java.math.BigDecimal"/>
+	<field name="tipo_regresion" class="java.lang.String"/>
+	<field name="cantidad" class="java.lang.Integer"/>
+	<field name="id_moneda" class="java.lang.String"/>
+	<field name="isdepreciated" class="java.lang.String"/>
+	<field name="a_asset_id" class="java.lang.String"/>
+	<field name="assetvalueamt" class="java.math.BigDecimal"/>
+	<field name="em_sco_ismigrated" class="java.lang.String"/>
+	<field name="tipo_intangible" class="java.lang.String"/>
+	<field name="vida_util" class="java.lang.Double"/>
+	<field name="vida_cumplida" class="java.lang.Double"/>
+	<field name="retiro_bajas" class="java.math.BigDecimal"/>
+	<field name="valor_historico" class="java.math.BigDecimal"/>
+	<field name="valor_ajustado" class="java.math.BigDecimal"/>
+	<field name="depreciacion_acumulada" class="java.math.BigDecimal"/>
+	<field name="depreciacion_ejercicio" class="java.math.BigDecimal"/>
+	<field name="vida_x_cumplir" class="java.lang.Integer"/>
+	<field name="depreciacion_bajas" class="java.math.BigDecimal"/>
+	<field name="depreciacion_historica" class="java.math.BigDecimal"/>
+	<field name="depreciacion_acumulada_inflasion" class="java.math.BigDecimal"/>
+	<field name="activo_neto" class="java.math.BigDecimal"/>
+	<field name="valor_contable_neto" class="java.math.BigDecimal"/>
+	<variable name="SHOWLOGO" class="java.lang.String"/>
+	<variable name="SHOWCOMPANYDATA" class="java.lang.String"/>
+	<variable name="valor_ajustado_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{valor_ajustado}]]></variableExpression>
+	</variable>
+	<variable name="depreciacion_acumulada_inflasion_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{depreciacion_acumulada_inflasion}]]></variableExpression>
+	</variable>
+	<variable name="valor_contable_neto_1" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{valor_contable_neto}]]></variableExpression>
+	</variable>
+	<title>
+		<band height="115" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="848" height="30"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[FORMATO 3.9: "LIBRO DE INVENTARIOS Y BALANCES - DETALLE DEL SALDO DE LA CUENTA 34 - INTANGIBLES"]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="32" width="100" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[EJERCICIO:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="47" width="100" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[RUC:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="62" width="330" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[APELLIDOS Y NOMBRES, DENOMINACIÓN O RAZÓN SOCIAL:]]></text>
+			</staticText>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement x="100" y="32" width="150" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.MonthToSpanish($P{dateTo})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="100" y="47" width="150" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{Ruc}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="330" y="62" width="518" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement>
+					<font fontName="SansSerif" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{Razon}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="79" width="93" height="36" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" lineSpacing="Single">
+					<font fontName="SansSerif" size="8" isBold="true" isStrikeThrough="false" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[FECHA DE
+INICIO DE LA
+OPERACIÓN]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="93" y="79" width="285" height="36" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DESCRIPCIÓN DEL INTANGIBLE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="610" y="79" width="119" height="36" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[AMORTIZACIÓN
+CONTABLE
+ACUMULADA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="487" y="79" width="123" height="36" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[VALOR
+CONTABLE DEL
+INTANGIBLE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="378" y="79" width="109" height="36" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle" lineSpacing="Single">
+					<font fontName="SansSerif" size="8" isBold="true" isStrikeThrough="false" isPdfEmbedded="false"/>
+				</textElement>
+				<text><![CDATA[TIPO DE
+INTANGIBLE
+(TABLA 7)]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="729" y="79" width="119" height="36" backcolor="#CCCCCC"/>
+				<box>
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[VALOR NETO
+CONTABLE DEL
+INTANGIBLE]]></text>
+			</staticText>
+		</band>
+	</title>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="0" y="0" width="93" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<topPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<leftPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<bottomPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<rightPen lineWidth="0.5" lineColor="#CCCCCC"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{fecha_adquisicion}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true">
+				<reportElement stretchType="RelativeToBandHeight" x="93" y="0" width="285" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<topPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<leftPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<bottomPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<rightPen lineWidth="0.5" lineColor="#CCCCCC"/>
+				</box>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{activo}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement stretchType="RelativeToBandHeight" x="487" y="0" width="123" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<topPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<leftPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<bottomPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<rightPen lineWidth="0.5" lineColor="#CCCCCC"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{valor_ajustado}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement stretchType="RelativeToBandHeight" x="378" y="0" width="109" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<topPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<leftPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<bottomPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<rightPen lineWidth="0.5" lineColor="#CCCCCC"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{tipo_intangible}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement stretchType="RelativeToBandHeight" x="610" y="0" width="119" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<topPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<leftPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<bottomPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<rightPen lineWidth="0.5" lineColor="#CCCCCC"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{depreciacion_acumulada_inflasion}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement stretchType="RelativeToBandHeight" x="729" y="0" width="119" height="13"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<topPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<leftPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<bottomPen lineWidth="0.5" lineColor="#CCCCCC"/>
+					<rightPen lineWidth="0.5" lineColor="#CCCCCC"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{valor_contable_neto}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="15">
+			<textField>
+				<reportElement x="487" y="0" width="123" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{valor_ajustado_1}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="610" y="0" width="119" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{depreciacion_acumulada_inflasion_1}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="729" y="0" width="119" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{valor_contable_neto_1}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="378" y="0" width="109" height="15"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTALES]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReporteStockConsolidadoExcel" pageWidth="5669" pageHeight="2380" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="5635" leftMargin="17" rightMargin="17" topMargin="28" bottomMargin="14">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="0.9892233445006772"/>
+	<property name="ireport.x" value="75"/>
+	<property name="ireport.y" value="54"/>
+	<property name="net.sf.jasperreports.export.xls.white.page.background" value="false"/>
+	<property name="net.sf.jasperreports.print.keep.full.text" value="true"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="SansSerif" fontSize="8"/>
+	<style name="Report_Title" fontName="SansSerif" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="SansSerif" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="SansSerif" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="SansSerif" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="SansSerif" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="SansSerif" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="SansSerif" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="SansSerif" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="SansSerif" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="SansSerif" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="SansSerif" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="SansSerif" fontSize="10"/>
+	<style name="Group_Footer" fontName="SansSerif" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="SansSerif" fontSize="11"/>
+	<style name="Crosstab Data Text" hAlign="Center"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["http://localhost/openbravo"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["E:\\workspaceerplima\\openbravo\\modules\\pe.com.unifiedgo.report\\src\\pe\\com\\unifiedgo\\report\\ad_reports\\"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DESDE" class="java.util.Date" isForPrompting="false"/>
+	<parameter name="HASTA" class="java.util.Date" isForPrompting="false"/>
+	<parameter name="ORGANIZACION" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="RUC_ORGANIZACION" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="TIPO_ALMACEN" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[select pro.value as codigo,
+pro.name as detalle,
+coalesce((select name from c_uom_trl where c_uom_id = uom.c_uom_id and ad_language = 'es_PE' limit 1),uom.name) as um,
+wh.value||' - '||wh.name as almacen,
+to_char('1') as orden,
+coalesce(qtyonhand,0.0) as total
+
+from swa_product_warehouse_v v
+join m_warehouse wh on v.m_warehouse_id = wh.m_warehouse_id
+join m_product pro on v.m_product_id = pro.m_product_id
+join c_uom uom on pro.c_uom_id = uom.c_uom_id
+
+where v.isactive = 'Y'
+and pro.ad_org_id in ('3D64A6C76D214C31B43C58B8FF84CE50')
+and pro.m_product_id in ('SK-20010004')
+
+union
+
+select pro.value as codigo,
+pro.name as detalle,
+coalesce((select name from c_uom_trl where c_uom_id = uom.c_uom_id and ad_language = 'es_PE'),uom.name) as um,
+
+
+
+(select (select name from ad_ref_list_trl where ad_ref_list_id = l.ad_ref_list_id and ad_language = 'es_PE' limit 1)
+from ad_ref_list l where ad_reference_id = (select ad_reference_id from ad_reference where name = 'swa_warehousetype')
+and l.value = wh.EM_Swa_Warehousetype ) as almacen,
+
+
+
+to_char('2') as orden,
+coalesce(qtyonhand,0.0) as total
+
+from swa_product_warehouse_v v
+join m_warehouse wh on v.m_warehouse_id = wh.m_warehouse_id
+join m_product pro on v.m_product_id = pro.m_product_id
+join c_uom uom on pro.c_uom_id = uom.c_uom_id
+
+where v.isactive = 'Y'
+and pro.ad_org_id in ('3D64A6C76D214C31B43C58B8FF84CE50')
+and pro.m_product_id in ('SK-20010004')
+
+order by 5,1
+
+--]]>
+	</queryString>
+	<field name="codigo" class="java.lang.String"/>
+	<field name="detalle" class="java.lang.String"/>
+	<field name="um" class="java.lang.String"/>
+	<field name="almacen" class="java.lang.String"/>
+	<field name="orden" class="java.lang.String"/>
+	<field name="total" class="java.math.BigDecimal"/>
+	<title>
+		<band height="50" splitType="Stretch">
+			<textField>
+				<reportElement x="72" y="20" width="454" height="15"/>
+				<textElement textAlignment="Center" markup="none">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["REPORTE DE STOCK CONSOLIDADO ("+$P{TIPO_ALMACEN}+")"]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<summary>
+		<band height="1148">
+			<crosstab>
+				<reportElement x="0" y="0" width="3334" height="1148"/>
+				<crosstabHeaderCell>
+					<cellContents>
+						<staticText>
+							<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="0" y="0" width="72" height="20"/>
+							<textElement verticalAlignment="Middle">
+								<font size="8"/>
+							</textElement>
+							<text><![CDATA[Código]]></text>
+						</staticText>
+						<staticText>
+							<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="72" y="0" width="250" height="20"/>
+							<textElement verticalAlignment="Middle">
+								<font size="8"/>
+							</textElement>
+							<text><![CDATA[Detalle]]></text>
+						</staticText>
+						<staticText>
+							<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="322" y="0" width="62" height="20"/>
+							<textElement verticalAlignment="Middle">
+								<font size="8"/>
+							</textElement>
+							<text><![CDATA[UM]]></text>
+						</staticText>
+					</cellContents>
+				</crosstabHeaderCell>
+				<rowGroup name="codigo" width="72">
+					<bucket>
+						<bucketExpression class="java.lang.String"><![CDATA[$F{codigo}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#FFFFFF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField isBlankWhenNull="true">
+								<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="0" y="0" width="72" height="13"/>
+								<textElement textAlignment="Right" verticalAlignment="Top">
+									<font size="8"/>
+								</textElement>
+								<textFieldExpression class="java.lang.String"><![CDATA[$V{codigo}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents/>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="detalle" width="250">
+					<bucket>
+						<bucketExpression class="java.lang.String"><![CDATA[$F{detalle}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#FFFFFF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="250" height="13"/>
+								<textElement textAlignment="Left" verticalAlignment="Top">
+									<font size="8"/>
+								</textElement>
+								<textFieldExpression class="java.lang.String"><![CDATA[$V{detalle}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents/>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<rowGroup name="um" width="62">
+					<bucket>
+						<bucketExpression class="java.lang.String"><![CDATA[$F{um}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#FFFFFF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5"/>
+								<topPen lineWidth="0.5"/>
+								<leftPen lineWidth="0.5"/>
+								<bottomPen lineWidth="0.5"/>
+								<rightPen lineWidth="0.5"/>
+							</box>
+							<textField isBlankWhenNull="true">
+								<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="0" y="0" width="62" height="13"/>
+								<textElement textAlignment="Left" verticalAlignment="Top">
+									<font size="8"/>
+								</textElement>
+								<textFieldExpression class="java.lang.String"><![CDATA[$V{um}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents/>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="almacen" height="20">
+					<bucket>
+						<bucketExpression class="java.lang.String"><![CDATA[$F{almacen}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents backcolor="#FFFFFF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+								<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="0" y="0" width="71" height="20"/>
+								<textElement verticalAlignment="Middle">
+									<font size="8"/>
+								</textElement>
+								<textFieldExpression class="java.lang.String"><![CDATA["\n"+$V{almacen}+"\n"]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents/>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="totalMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{total}]]></measureExpression>
+				</measure>
+				<crosstabCell width="71" height="13">
+					<cellContents backcolor="#FFFFFF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="###0.00000" isBlankWhenNull="true">
+							<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="0" y="0" width="71" height="13">
+								<printWhenExpression><![CDATA[!$V{almacen}.equalsIgnoreCase("Costo Valorizado")]]></printWhenExpression>
+							</reportElement>
+							<textElement textAlignment="Right" verticalAlignment="Top"/>
+							<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{totalMeasure}==null?new BigDecimal(0.0):$V{totalMeasure}]]></textFieldExpression>
+						</textField>
+						<textField pattern="###0.0000000" isBlankWhenNull="true">
+							<reportElement style="Crosstab Data Text" stretchType="RelativeToBandHeight" x="0" y="0" width="71" height="13">
+								<printWhenExpression><![CDATA[$V{almacen}.equalsIgnoreCase("Costo Valorizado")]]></printWhenExpression>
+							</reportElement>
+							<textElement textAlignment="Right" verticalAlignment="Top"/>
+							<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{totalMeasure}==null?new BigDecimal(0.0):$V{totalMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell height="25" rowTotalGroup="codigo">
+					<cellContents backcolor="#005FB3" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="50" height="25" forecolor="#FFFFFF"/>
+							<textElement/>
+							<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{totalMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="50" columnTotalGroup="almacen">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="50" height="25"/>
+							<textElement/>
+							<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{totalMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell rowTotalGroup="codigo" columnTotalGroup="almacen">
+					<cellContents backcolor="#005FB3" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="50" height="25" forecolor="#FFFFFF"/>
+							<textElement/>
+							<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{totalMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell height="25" rowTotalGroup="detalle">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="50" height="25"/>
+							<textElement/>
+							<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{totalMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell rowTotalGroup="detalle" columnTotalGroup="almacen">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField>
+							<reportElement style="Crosstab Data Text" x="0" y="0" width="50" height="25"/>
+							<textElement/>
+							<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{totalMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell rowTotalGroup="um">
+					<cellContents/>
+				</crosstabCell>
+				<crosstabCell rowTotalGroup="um" columnTotalGroup="almacen">
+					<cellContents/>
+				</crosstabCell>
+			</crosstab>
+		</band>
+	</summary>
+</jasperReport>

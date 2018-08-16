@@ -1,0 +1,270 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_INOUT_TRG_PROV">
+    <trigger name="M_INOUT_TRG_PROV" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.v
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    /*************************************************************************
+    * Description: Provisional. Added by Ismael Ciordia. Update movement type depending on document type
+    ************************************************************************/
+  v_docType_ID VARCHAR2(32) ;
+  v_docType2_ID VARCHAR2(32) ;
+  v_movementType VARCHAR(60) ;
+  v_movementType2 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType3 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType4 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType5 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType6 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType7 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType8 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType9 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType10 VARCHAR(60) ;--ADD BY VAFASTER
+  v_movementType11 VARCHAR(60) ;--ADD BY VAFASTER
+  v_isConsignation VARCHAR(60) ;--ADD BY VAFASTER 
+  v_movementType_special VARCHAR(60) ;--ADD BY VAFASTER 
+  v_from_warehouse_id VARCHAR2(32) ;
+  v_to_warehouse_id VARCHAR2(32) ;
+  v_count NUMBER;
+  v_em_sim_is_import char(1);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  v_docType_ID:=:NEW.C_DocType_ID;
+  SELECT(
+    CASE isSOTrx
+      WHEN 'N'
+      THEN 'V+'
+      ELSE 'C-' 
+    END
+    )
+  INTO v_movementType
+  FROM C_DOCTYPE
+  WHERE C_DocType_ID=v_docType_ID;
+
+--ADD BY VAFASTER
+ IF (:NEW.c_order_ID IS NOT NULL) THEN
+     SELECT c_doctype_id INTO v_docType2_ID
+     FROM c_order 
+     WHERE c_order_id = :NEW.c_order_ID;
+
+     SELECT(
+         CASE em_sco_specialdoctype
+           WHEN 'SSASAMPLEORDER'
+           THEN 'ssa_S-'
+           ELSE NULL 
+         END
+     )
+     INTO v_movementType2 FROM C_DOCTYPE
+     WHERE C_DocType_ID=v_docType2_ID
+        AND isSOTrx = 'Y';
+  END IF;
+
+SELECT(
+    CASE em_sco_specialdoctype
+      WHEN 'SSARFSRECEIPT'
+      THEN 'ssa_S-'
+      ELSE NULL 
+    END
+    )
+  INTO v_movementType3
+  FROM C_DOCTYPE
+  WHERE C_DocType_ID=v_docType_ID
+    AND isSOTrx = 'Y';
+
+
+SELECT em_sco_specialdoctype
+  INTO v_movementType_special
+  FROM C_DOCTYPE
+  WHERE C_DocType_ID=v_docType_ID
+    AND isSOTrx = 'Y';
+
+
+ --- VALIDATION Z- FOR REPSITION
+v_movementType6 = NULL;
+v_movementType7 = NULL;
+IF(:NEW.em_swa_requireposicion_id IS NOT NULL)THEN
+    
+    SELECT from_m_warehouse_id, to_m_warehouse_id 
+      INTO v_from_warehouse_id , v_to_warehouse_id
+      FROM swa_requerimientoreposicion
+     WHERE swa_requerimientoreposicion_id = :NEW.em_swa_requireposicion_id;
+
+
+  SELECT em_sco_specialdoctype
+  INTO v_movementType_special
+  FROM C_DOCTYPE
+  WHERE C_DocType_ID=v_docType_ID
+    AND isSOTrx = 'N';
+
+   IF (v_movementType_special IN ('SWAINTERNALRECEIPT','SCOMMRECEIPT')) THEN
+              v_movementType7 = 'swa_R+';
+              SELECT(
+        CASE em_swa_warehousetype 
+        WHEN 'CO'
+    THEN 'swa_Z+'
+    ELSE NULL
+    END
+        )INTO v_movementType8
+        FROM m_warehouse 
+        WHERE m_warehouse_id = v_from_warehouse_id;
+
+        SELECT(
+        CASE em_swa_warehousetype 
+        WHEN 'CO'
+    THEN 'swa_Z+'
+    ELSE NULL
+        END
+        )INTO v_movementType9
+        FROM m_warehouse 
+        WHERE m_warehouse_id = v_to_warehouse_id;
+    
+   ELSE
+              v_movementType6 = 'swa_R-';
+        SELECT(
+        CASE em_swa_warehousetype 
+        WHEN 'CO'
+    THEN 'swa_Z-'
+    ELSE NULL
+    END
+        )INTO v_movementType4
+        FROM m_warehouse 
+        WHERE m_warehouse_id = v_from_warehouse_id;
+
+        SELECT(
+        CASE em_swa_warehousetype 
+        WHEN 'CO'
+    THEN 'swa_Z-'
+    ELSE NULL
+        END
+        )INTO v_movementType5
+        FROM m_warehouse 
+        WHERE m_warehouse_id = v_to_warehouse_id;
+   END IF;
+ END IF; 
+
+IF (:NEW.c_order_ID IS NULL) THEN
+     SELECT(
+         CASE em_sco_specialdoctype
+           WHEN 'SWAMMDISPATCH'
+           THEN 'swa_O-'
+           ELSE NULL 
+         END
+     )
+     INTO v_movementType10 FROM C_DOCTYPE
+     WHERE C_DocType_ID=v_docType_ID
+        AND isSOTrx = 'Y';
+  END IF;
+
+IF (:NEW.c_order_ID IS NULL) THEN
+     SELECT(
+         CASE em_sco_specialdoctype
+           WHEN 'SWAMMDISPATCHIN'
+           THEN 'swa_O+'
+           ELSE NULL 
+         END
+     )
+     INTO v_movementType11 FROM C_DOCTYPE
+     WHERE C_DocType_ID=v_docType_ID
+        AND isSOTrx = 'N';
+  END IF;
+
+
+
+  IF (v_movementType2 IS NOT NULL ) THEN
+   :NEW.MOVEMENTTYPE:=v_movementType2;
+  ELSIF(v_movementType3 IS NOT NULL) THEN
+   :NEW.MOVEMENTTYPE:=v_movementType3;
+  ELSIF(v_movementType4 IS NOT NULL) THEN
+   :NEW.MOVEMENTTYPE:=v_movementType4;
+  ELSIF(v_movementType5 IS NOT NULL) THEN
+   :NEW.MOVEMENTTYPE:=v_movementType5;
+  ELSIF(v_movementType4 IS NULL and v_movementType5 IS NULL and v_movementType6 IS NOT NULL) THEN
+   :NEW.MOVEMENTTYPE:=v_movementType6;
+  ELSIF(v_movementType8 IS NOT NULL) THEN
+    :NEW.MOVEMENTTYPE:=v_movementType8;
+  ELSIF(v_movementType9 IS NOT NULL) THEN
+    :NEW.MOVEMENTTYPE:=v_movementType9;
+  ELSIF(v_movementType8 IS NULL and v_movementType9 IS NULL and v_movementType7 IS NOT NULL) THEN
+   :NEW.MOVEMENTTYPE:=v_movementType7;
+  ELSIF(v_movementType10 IS NOT NULL) THEN
+    :NEW.MOVEMENTTYPE:=v_movementType10;
+  ELSIF(v_movementType11 IS NOT NULL) THEN
+    :NEW.MOVEMENTTYPE:=v_movementType11;
+  ELSE  
+   :NEW.MOVEMENTTYPE:=v_movementType;
+  END IF;  
+
+
+---Validando que solo se creen documentos Manuales de Ingreso cuando son de Despacho y MMShipment
+SELECT em_sco_specialdoctype
+  INTO v_movementType_special
+  FROM C_DOCTYPE
+  WHERE C_DocType_ID=v_docType_ID;
+
+/*IF(:NEW.em_swa_requireposicion_id IS NULL AND v_movementType_special='SWAINTERNALSHIPMENT')THEN
+  RAISE_APPLICATION_ERROR(-20000, '@swa_documentnotmanually@') ;
+END IF;
+IF(:NEW.em_swa_requireposicion_id IS NULL AND v_movementType_special='SWAINTERNALRECEIPT')THEN
+  RAISE_APPLICATION_ERROR(-20000, '@swa_documentnotmanually@') ;
+END IF;
+IF(:NEW.c_order_id IS NULL AND v_movementType_special='SWAMMSHIPMENTINDIRECT')THEN
+  RAISE_APPLICATION_ERROR(-20000, '@swa_documentnotmanually@') ;
+END IF;*/
+
+--
+
+IF UPDATING THEN 
+ IF (:new.c_order_id IS NOT NULL)THEN
+  SELECT em_sim_is_import 
+    INTO v_em_sim_is_import 
+    FROM c_order 
+   WHERE c_order_id =  :new.c_order_id;
+   IF (v_em_sim_is_import = 'Y') THEN
+     :new.em_sim_is_import:='Y';
+   END IF;
+ END IF;
+END IF;
+
+
+
+
+  IF UPDATING THEN
+  IF ((COALESCE(:OLD.DATEACCT,  TO_DATE('31-12-9999', 'DD-MM-YYYY')) <> COALESCE(:NEW.DATEACCT, TO_DATE('31-12-9999', 'DD-MM-YYYY'))) AND :new.DOCSTATUS NOT IN ('DR', 'RE')) THEN
+    SELECT COUNT(*) INTO V_COUNT FROM M_MATCHINV M WHERE M.M_INOUTLINE_ID IN (SELECT MI.M_INOUTLINE_ID FROM M_INOUTLINE MI WHERE MI.M_INOUT_ID = :old.M_INOUT_ID)
+              AND M.POSTED = 'Y'; 
+    IF (:old.POSTED = 'Y') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    ELSIF (V_COUNT <> 0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20632@') ;
+    ELSE
+      UPDATE M_MATCHINV SET DATETRX = :NEW.DATEACCT WHERE M_INOUTLINE_ID IN (SELECT MI.M_INOUTLINE_ID FROM M_INOUTLINE MI WHERE MI.M_INOUT_ID = :old.M_INOUT_ID);
+    END IF;
+  END IF;
+  END IF;
+
+END M_INOUT_TRG_PROV
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_GETWINDOWREDIRECT">
+    <function name="SCO_GETWINDOWREDIRECT" type="NULL">
+      <parameter name="p_tablename" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_table_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_record_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_window_id" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_keyword_columnname VARCHAR(100);
+  v_keyword_statement VARCHAR(400);
+  v_keyword VARCHAR(200);
+BEGIN
+
+  p_ad_window_id := NULL;
+
+  SELECT AD_Column.columnname
+    INTO v_keyword_columnname
+    FROM AD_Column, AD_TABLE 
+  WHERE AD_TABLE.em_scr_keyword_column_id IS NOT NULL AND
+  AD_Column.AD_Column_ID = AD_TABLE.em_scr_keyword_column_id AND
+  AD_TABLE.AD_TABLE_ID = p_ad_table_id;
+
+  IF(v_keyword_columnname IS NULL) THEN
+    RETURN;
+  END IF;
+
+  BEGIN
+    v_keyword_statement := 'SELECT ' || v_keyword_columnname || ' FROM ' || p_tablename || ' WHERE ' || p_tablename || '_ID = ''' || p_record_id || '''';
+    execute v_keyword_statement into v_keyword;
+  EXCEPTION
+  WHEN OTHERS THEN
+    RETURN;
+  END;  
+
+
+  SELECT AD_Window_ID
+    INTO p_ad_window_id
+    FROM SCR_Tabredirect 
+  WHERE keyword = v_keyword
+  AND AD_TABLE_ID = p_ad_table_id;
+
+  RETURN;
+END SCO_GETWINDOWREDIRECT
+]]></body>
+    </function>
+  </database>

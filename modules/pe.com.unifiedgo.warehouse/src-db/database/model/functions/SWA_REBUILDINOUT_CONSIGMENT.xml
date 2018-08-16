@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_REBUILDINOUT_CONSIGMENT">
+    <function name="SWA_REBUILDINOUT_CONSIGMENT" type="NULL">
+      <parameter name="v_m_inout_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="v_docaction" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[--DECLARACION DE VARIABLES - BY PALK PARA SOPORTE 999-99999999
+v_org_id VARCHAR(32); 
+v_warehouse_id VARCHAR(32);
+v_qtypending_src NUMBER;
+v_qtytoreduce NUMBER;
+v_new_inoutline_id VARCHAR(32);
+v_Line NUMBER;
+v_Counter NUMBER;
+v_CountLines NUMBER;
+v_Into NUMBER;
+CUR_INOUTLINE RECORD;
+CUR_INOUTLINE_TG RECORD;
+CUR_INOUTLINE_SRC RECORD;
+v_Message TEXT;
+BEGIN
+
+	SELECT ad_org_id, m_warehouse_id INTO v_org_id, v_warehouse_id FROM m_inout where m_inout_id=v_m_inout_id;
+
+  IF(v_docaction='CO') THEN
+v_Message := '';
+	v_Counter := 100;
+	SELECT count(*) INTO v_CountLines FROM M_INOUTLINE WHERE M_INOUT_ID = v_m_inout_id AND em_scr_consig_ref_ioline_id IS NULL;
+	
+	WHILE (v_Counter>0 AND v_CountLines>0) LOOP
+	
+	FOR CUR_INOUTLINE IN (SELECT m_inoutline_id, m_product_id, movementqty FROM M_INOUTLINE WHERE M_INOUT_ID = v_m_inout_id AND em_scr_consig_ref_ioline_id IS NULL)
+	LOOP
+		v_qtypending_src:=CUR_INOUTLINE.movementqty;
+		v_Into := 0;
+		--SELECT TODAS LAS GUIAS ASOCIADAS POR ALMACEN Y PRODUCTO
+		FOR CUR_INOUTLINE_TG IN (SELECT il.m_inoutline_id, il.movementqty - il.em_scr_consig_consumed_qty as totaltoreduce FROM M_INOUTLINE il INNER JOIN M_INOUT i ON il.m_inout_id = i.m_inout_id WHERE  i.m_warehouse_id = v_warehouse_id AND i.em_ssa_cmbitem_value='ReposicionPorConsignacion' AND i.docstatus='CO' AND il.m_product_id=CUR_INOUTLINE.m_product_id AND il.movementqty>il.em_scr_consig_consumed_qty ORDER BY i.movementdate ASC)
+		LOOP
+			v_Into := 1;
+			--ASOCIAR CANTIDAD
+
+			IF (v_qtypending_src = 0) THEN  EXIT; END IF;
+
+			v_qtytoreduce := v_qtypending_src;
+
+			IF (v_qtytoreduce > CUR_INOUTLINE_TG.totaltoreduce) THEN v_qtytoreduce := CUR_INOUTLINE_TG.totaltoreduce; END IF;
+			v_qtypending_src := v_qtypending_src - v_qtytoreduce;
+
+			UPDATE m_inoutline SET em_scr_consig_consumed_qty=em_scr_consig_consumed_qty+v_qtytoreduce WHERE m_inoutline_id=CUR_INOUTLINE_TG.m_inoutline_id;
+			UPDATE m_inoutline SET em_scr_consig_ref_ioline_id=CUR_INOUTLINE_TG.m_inoutline_id WHERE m_inoutline_id=CUR_INOUTLINE.m_inoutline_id;
+
+--v_Message := v_Message || ' (' ||  CUR_INOUTLINE_TG.totaltoreduce || ' ' || v_qtypending_src|| ',' || v_qtytoreduce || ',' || CUR_INOUTLINE_TG.m_inoutline_id || ',' || CUR_INOUTLINE.m_inoutline_id ||  ')';
+
+			IF(v_qtypending_src <> 0) THEN --CREAR OTRA LINEA
+				UPDATE m_inoutline SET movementqty=v_qtytoreduce WHERE m_inoutline_id=CUR_INOUTLINE.m_inoutline_id;	
+
+				SELECT * INTO CUR_INOUTLINE_SRC FROM m_inoutline WHERE m_inoutline_id= CUR_INOUTLINE.m_inoutline_id;
+
+
+				v_Line := CUR_INOUTLINE_SRC.line + 1;
+				 v_new_inoutline_id:= get_uuid();
+				INSERT INTO M_INOUTLINE(
+				M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+				AD_Client_ID, AD_Org_ID, IsActive, Created,
+				CreatedBy, Updated, UpdatedBy, M_Product_ID,
+				M_AttributeSetInstance_ID, C_UOM_ID, M_Locator_ID, MovementQty,
+				Description, IsInvoiced,  
+				QuantityOrder, M_Product_UOM_ID, IsDescription,
+				canceled_inoutline_id, A_Asset_ID, C_Project_ID, C_BPartner_ID,
+				User1_ID, User2_ID, C_CostCenter_ID, 
+				explode, em_sco_voidorderline_id, em_swa_requerepo_detail_id
+				)
+				VALUES (
+				v_new_inoutline_id, v_Line, CUR_INOUTLINE_SRC.M_InOut_ID, CUR_INOUTLINE_SRC.C_ORDERLINE_ID,
+				CUR_INOUTLINE_SRC.AD_CLIENT_ID, CUR_INOUTLINE_SRC.AD_ORG_ID, 'Y', now(),
+				CUR_INOUTLINE_SRC.CreatedBy, now(), CUR_INOUTLINE_SRC.UpdatedBy, CUR_INOUTLINE_SRC.m_product_id,
+				CUR_INOUTLINE_SRC.M_AttributeSetInstance_ID, CUR_INOUTLINE_SRC.C_UOM_ID,CUR_INOUTLINE_SRC.M_LOCATOR_ID, v_qtypending_src,
+				CUR_INOUTLINE_SRC.Description || v_new_inoutline_id, CUR_INOUTLINE_SRC.IsInvoiced,
+				CUR_INOUTLINE_SRC.QuantityOrder,CUR_INOUTLINE_SRC.M_Product_UOM_ID, CUR_INOUTLINE_SRC.IsDescription,
+				CUR_INOUTLINE_SRC.canceled_inoutline_id, CUR_INOUTLINE_SRC.A_Asset_ID, CUR_INOUTLINE_SRC.C_Project_ID, CUR_INOUTLINE_SRC.C_BPartner_ID,
+				CUR_INOUTLINE_SRC.User1_ID, CUR_INOUTLINE_SRC.User2_ID, CUR_INOUTLINE_SRC.C_CostCenter_ID,
+				CUR_INOUTLINE_SRC.explode, CUR_INOUTLINE_SRC.em_sco_voidorderline_id , CUR_INOUTLINE_SRC.em_swa_requerepo_detail_id
+				);
+
+				v_qtypending_src :=0;
+				
+			END IF;
+		END LOOP;
+
+		IF (v_Into = 0) THEN --No entra, significa que no hay disponible
+		 RAISE_APPLICATION_ERROR(-20000,'@swa_consigment_nofound_entries@') ;
+		END IF;
+		
+	END LOOP;
+
+	SELECT count(*) INTO v_CountLines FROM M_INOUTLINE WHERE M_INOUT_ID = v_m_inout_id AND em_scr_consig_ref_ioline_id IS NULL;
+	v_Counter := v_Counter - 1;
+
+	END LOOP;--while
+
+
+  ELSIF(v_docaction='RC')THEN
+
+	FOR CUR_INOUTLINE IN (SELECT m_inoutline_id, m_product_id, movementqty,em_scr_consig_ref_ioline_id  FROM M_INOUTLINE WHERE M_INOUT_ID = v_m_inout_id AND em_scr_consig_ref_ioline_id IS NOT NULL)
+	LOOP
+		v_qtypending_src:=CUR_INOUTLINE.movementqty;
+		
+		UPDATE m_inoutline SET em_scr_consig_consumed_qty=em_scr_consig_consumed_qty-v_qtypending_src WHERE m_inoutline_id=CUR_INOUTLINE.em_scr_consig_ref_ioline_id;
+		UPDATE m_inoutline SET em_scr_consig_ref_ioline_id=NULL WHERE m_inoutline_id=CUR_INOUTLINE.m_inoutline_id;
+		
+	END LOOP;
+
+  ELSE
+ RAISE NO_DATA_FOUND ;
+  END IF;
+END SWA_REBUILDINOUT_CONSIGMENT
+]]></body>
+    </function>
+  </database>

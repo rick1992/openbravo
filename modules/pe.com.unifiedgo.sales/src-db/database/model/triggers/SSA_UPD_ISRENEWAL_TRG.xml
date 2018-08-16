@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_UPD_ISRENEWAL_TRG">
+    <trigger name="SSA_UPD_ISRENEWAL_TRG" table="SCO_BILLOFEXCHANGE" fires="before" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_specialdoctype VARCHAR(60);
+v_count NUMBER;
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_Doctype_ID = :NEW.c_doctypetarget_id;
+
+  IF UPDATING THEN
+    IF (v_specialdoctype='SCOBOEXBOE' AND COALESCE(:new.Isboerenewal,'.')<>COALESCE(:old.Isboerenewal,'.')) THEN	
+        SELECT COUNT(*)
+          INTO v_count
+          FROM SCO_Boe_From
+         WHERE SCO_Billofexchange_ID = :NEW.SCO_Billofexchange_ID;
+
+         IF v_count>0 THEN
+           RAISE_APPLICATION_ERROR(-20000, '@SSA_RenewalChangedWithLines@') ;
+         END IF;
+    END IF;
+  END IF;
+
+
+  END SSA_UPD_ISRENEWAL_TRG
+]]></body>
+    </trigger>
+  </database>

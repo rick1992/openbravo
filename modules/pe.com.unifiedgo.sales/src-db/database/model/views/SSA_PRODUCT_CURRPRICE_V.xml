@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SSA_PRODUCT_CURRPRICE_V">
+    <view name="SSA_PRODUCT_CURRPRICE_V"><![CDATA[SELECT DISTINCT ON (pp.m_product_id, plv.m_pricelist_id) COALESCE(pp.m_product_id, '-') || COALESCE(plv.m_pricelist_id, '-') AS ssa_product_currprice_v_id, pp.ad_client_id, pp.ad_org_id, pp.isactive, pp.updated, pp.updatedby, pp.created, pp.createdby, pp.m_product_id, COALESCE(pp.pricelist, 0) AS pricelist, COALESCE(pp.pricestd, 0) AS pricestd, COALESCE(pp.pricelimit, 0) AS pricelimit, plv.m_pricelist_id FROM m_productprice pp, m_pricelist_version plv WHERE pp.m_pricelist_version_id = plv.m_pricelist_version_id AND plv.isactive = 'Y' AND plv.validfrom <= now() ORDER BY pp.m_product_id, plv.m_pricelist_id, plv.validfrom DESC]]></view>
+  </database>

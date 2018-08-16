@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_Factura_ugo" pageWidth="708" pageHeight="501" orientation="Landscape" columnWidth="652" leftMargin="28" rightMargin="28" topMargin="14" bottomMargin="0">
+	<property name="ireport.zoom" value="1.2100000000000009"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="48"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_NAME" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'INVOICE'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SUBREP_Rpt_Factura_Lines_ugo" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String"/>
+	<parameter name="ISFORFREE" class="java.lang.String"/>
+	<parameter name="RATETAX" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select inv.c_invoice_id as "N_INVO",
+org.ad_org_id as "ID_ORG",
+bp.name as "B_PARTNER",
+org.name as "ORG",
+inv.em_sco_isforfree as "TRANSF",
+bp.taxid as "RUC",
+case when (lc.address1) is null then (case when (lc.address2) is null then '' else lc.address1 end) else lc.address1  end || ' - ' ||
+lc.city || ' - ' || reg.description || ' - ' || cnt.description  as "DIREC",
+case when (loc.phone) is null then '' else loc.phone || case when (loc.phone2) is null then '' else ' - '||loc.phone2 end end  as "TELEF",
+bp.value as "COD_CLIE",
+vnd.ad_user_id as "COD_VND",
+vnd.name as "VEND",
+io.documentno as "N_GREM",
+ord.documentno as "N_ORD",
+inv.created as "FEC",
+curr.c_currency_id as "ID_CURR",
+curr.description as "CURRENCY",
+curr.description as "MONED",
+pmth.name as "FOR_PAGO",
+itx.taxbaseamt as "T_BRUTO",
+tax.rate as "RATE",
+tax.rate/100 as "IMP",
+(select c_invoicetax.taxamt from c_invoicetax join c_tax
+on c_invoicetax.c_tax_id = c_tax.c_tax_id
+where c_invoicetax.c_invoice_id = inv.c_invoice_id and em_sco_specialtax= 'SCOIGV') as "MON_IGV",
+
+
+
+tax.em_sco_specialtax as "SPCL_TAX",
+
+(select c_tax.name from c_invoicetax join c_tax
+on c_invoicetax.c_tax_id = c_tax.c_tax_id
+where c_invoicetax.c_invoice_id = inv.c_invoice_id and em_sco_specialtax= 'SCOSINMEDIATEPERCEPTION') as "PER_CONT",
+
+(select c_invoicetax.taxamt from c_invoicetax join c_tax
+on c_invoicetax.c_tax_id = c_tax.c_tax_id
+where c_invoicetax.c_invoice_id = inv.c_invoice_id and em_sco_specialtax= 'SCOSINMEDIATEPERCEPTION') as "MON_PCONT",
+
+(select c_tax.name from c_invoicetax join c_tax
+on c_invoicetax.c_tax_id = c_tax.c_tax_id
+where c_invoicetax.c_invoice_id = inv.c_invoice_id and em_sco_specialtax= 'SCOSCREDITPERCEPTION') as "PER_CRED",
+
+(select c_invoicetax.taxamt from c_invoicetax join c_tax
+on c_invoicetax.c_tax_id = c_tax.c_tax_id
+where c_invoicetax.c_invoice_id = inv.c_invoice_id and em_sco_specialtax= 'SCOSCREDITPERCEPTION') as "MON_PCRED",
+
+inv.grandtotal as "TOTAL"
+
+
+
+from ad_org org
+
+join ad_orgtype t using (ad_orgtype_id),
+c_invoice inv
+left join m_pricelist plst
+on plst.m_pricelist_id = inv.m_pricelist_id
+left join c_bpartner bp
+on inv.c_bpartner_id = bp.c_bpartner_id
+left join c_bpartner_location loc
+on inv.c_bpartner_location_id = loc.c_bpartner_location_id
+left join c_location lc
+on loc.c_location_id = lc.c_location_id
+left join c_region reg
+on lc.c_region_id = reg.c_region_id
+left join c_country cnt
+on lc.c_country_id = cnt.c_country_id
+left join ad_user vnd
+on inv.salesrep_id = vnd.ad_user_id
+left join m_inout io
+on inv.c_invoice_id = io.c_invoice_id
+left join c_order ord
+on inv.c_order_id = ord.c_order_id
+left join c_currency curr
+on inv.c_currency_id = curr.c_currency_id
+left join c_paymentterm pmth
+on inv.c_paymentterm_id = pmth.c_paymentterm_id
+left join c_invoicetax itx
+on inv.c_invoice_id = itx.c_invoice_id
+left join c_tax tax
+on itx.c_tax_id = tax.c_tax_id
+
+where AD_ISORGINCLUDED(inv.ad_org_id, org.ad_org_id, inv.ad_client_id)<>-1
+and(t.IsLegalEntity='Y' or t.IsAcctLegalEntity='Y')
+and tax.em_sco_specialtax = 'SCOIGV'
+
+and inv.c_invoice_id in($P{DOCUMENT_ID})]]>
+	</queryString>
+	<field name="N_INVO" class="java.lang.String"/>
+	<field name="ID_ORG" class="java.lang.String"/>
+	<field name="B_PARTNER" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="TRANSF" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<field name="DIREC" class="java.lang.String"/>
+	<field name="TELEF" class="java.lang.String"/>
+	<field name="COD_CLIE" class="java.lang.String"/>
+	<field name="COD_VND" class="java.lang.String"/>
+	<field name="VEND" class="java.lang.String"/>
+	<field name="N_GREM" class="java.lang.String"/>
+	<field name="N_ORD" class="java.lang.String"/>
+	<field name="FEC" class="java.sql.Timestamp"/>
+	<field name="ID_CURR" class="java.lang.String"/>
+	<field name="CURRENCY" class="java.lang.String"/>
+	<field name="MONED" class="java.lang.String"/>
+	<field name="FOR_PAGO" class="java.lang.String"/>
+	<field name="T_BRUTO" class="java.math.BigDecimal"/>
+	<field name="RATE" class="java.math.BigDecimal"/>
+	<field name="IMP" class="java.math.BigDecimal"/>
+	<field name="MON_IGV" class="java.math.BigDecimal"/>
+	<field name="SPCL_TAX" class="java.lang.String"/>
+	<field name="PER_CONT" class="java.lang.String"/>
+	<field name="MON_PCONT" class="java.math.BigDecimal"/>
+	<field name="PER_CRED" class="java.lang.String"/>
+	<field name="MON_PCRED" class="java.math.BigDecimal"/>
+	<field name="TOTAL" class="java.math.BigDecimal"/>
+	<variable name="TOTAL_LINENETAMT" class="java.math.BigDecimal"/>
+	<variable name="TOTALBRUTO" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="TOTALBRUTO_PL" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="OTROS" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[]]></variableExpression>
+	</variable>
+	<variable name="DESCUENTO" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$V{TOTALBRUTO_PL}.subtract($V{TOTALBRUTO})]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(123456)]]></initialValueExpression>
+	</variable>
+	<variable name="VAL_VENTA" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$V{TOTALBRUTO_PL}.add($V{DESCUENTO}.add($V{OTROS}))]]></variableExpression>
+	</variable>
+	<variable name="IGV" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$V{VAL_VENTA}.multiply($F{IMP})]]></variableExpression>
+	</variable>
+	<variable name="P_VENTA" class="java.math.BigDecimal">
+		<variableExpression><![CDATA[$V{VAL_VENTA}.add($V{IGV})]]></variableExpression>
+	</variable>
+	<group name="PrintLarge" isReprintHeaderOnEachPage="true">
+		<groupExpression><![CDATA[]]></groupExpression>
+	</group>
+	<group name="PrintMedium" isReprintHeaderOnEachPage="true">
+		<groupExpression><![CDATA[]]></groupExpression>
+	</group>
+	<group name="PrintSmall" isReprintHeaderOnEachPage="true">
+		<groupExpression><![CDATA[]]></groupExpression>
+	</group>
+	<group name="C_INVOICE_ID">
+		<groupHeader>
+			<band height="190" splitType="Stretch">
+				<textField>
+					<reportElement x="81" y="121" width="250" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="7"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{B_PARTNER}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="81" y="133" width="250" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="7"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{DIREC}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="458" y="122" width="70" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{RUC}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="16" y="161" width="80" height="24"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{COD_CLIE}== null?"":$F{COD_CLIE}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="178" y="161" width="80" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{COD_VND}==null?"":$F{COD_VND}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="271" y="161" width="80" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{N_ORD}==null?"":$F{N_ORD}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="362" y="161" width="80" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{N_GREM}==null?"":$F{N_GREM}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="461" y="161" width="80" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{MONED}]]></textFieldExpression>
+				</textField>
+				<textField pattern="MM/dd/yyyy">
+					<reportElement x="542" y="161" width="80" height="12"/>
+					<textElement textAlignment="Right" verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="105" y="161" width="70" height="24"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{FOR_PAGO}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="528" y="122" width="112" height="12"/>
+					<textElement verticalAlignment="Top">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA["Telef: "+$F{TELEF}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+	</group>
+	<detail>
+		<band height="212" splitType="Stretch">
+			<subreport isUsingCache="true">
+				<reportElement key="" style="Report_Footer" x="0" y="0" width="652" height="16"/>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ID_ORG},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="LOCALE">
+					<subreportParameterExpression><![CDATA[]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="ISTAXINCLUDED">
+					<subreportParameterExpression><![CDATA[]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="RATETAX">
+					<subreportParameterExpression><![CDATA[$F{IMP}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="C_INVOICE_ID">
+					<subreportParameterExpression><![CDATA[$F{N_INVO}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="ISFORFREE">
+					<subreportParameterExpression><![CDATA[$F{TRANSF}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<returnValue subreportVariable="TOTALBRUTO" toVariable="TOTALBRUTO"/>
+				<returnValue subreportVariable="TOTALBRUTO_PL" toVariable="TOTALBRUTO_PL"/>
+				<returnValue subreportVariable="TOTAL_LINENETAMT" toVariable="TOTAL_LINENETAMT"/>
+				<returnValue subreportVariable="OTROS" toVariable="OTROS"/>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_Rpt_Factura_Lines_ugo}]]></subreportExpression>
+			</subreport>
+			<textField>
+				<reportElement x="40" y="161" width="582" height="24" forecolor="#000000"/>
+				<textElement>
+					<font fontName="SansSerif" size="10"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{PER_CRED}==null?"":"Sirvase pagar "+$P{NUMBERFORMAT}.format($F{MON_PCRED})+" soles de percepcion al momento de cancelar este comprobante"]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band height="60">
+			<textField>
+				<reportElement x="26" y="12" width="80" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?"":$P{NUMBERFORMAT}.format($V{TOTALBRUTO_PL})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="26" y="29" width="100" height="12"/>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{VEND} == null ?"":$F{VEND}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="40" y="46" width="293" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?pe.com.unifiedgo.report.common.Utility.Convertir(new String("0"),$F{CURRENCY}):$F{PER_CRED}==null?pe.com.unifiedgo.report.common.Utility.Convertir($F{TOTAL}.toString(),$F{CURRENCY}):pe.com.unifiedgo.report.common.Utility.Convertir($P{NUMBERFORMAT}.format($F{TOTAL}.subtract($F{MON_PCRED})),$F{CURRENCY})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="113" y="12" width="80" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?"":$P{NUMBERFORMAT}.format($V{TOTALBRUTO_PL}.subtract($V{TOTALBRUTO}))]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="203" y="12" width="80" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?"":$P{NUMBERFORMAT}.format($V{OTROS})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="293" y="12" width="80" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?"":$P{NUMBERFORMAT}.format($V{OTROS}.add($V{TOTALBRUTO}))]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="382" y="0" width="80" height="36"/>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{PER_CONT} != null ? $F{PER_CONT}+"\n"+$P{NUMBERFORMAT}.format($F{MON_PCONT}):""]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="472" y="3" width="61" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{RATE}+"%"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="472" y="15" width="80" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?"":$P{NUMBERFORMAT}.format($F{MON_IGV})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="540" y="15" width="80" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?"":$F{PER_CRED}==null?$P{NUMBERFORMAT}.format($F{TOTAL}):$P{NUMBERFORMAT}.format($F{TOTAL}.subtract($F{MON_PCRED}))]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="545" y="15" width="30" height="12"/>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANSF}.equals("Y")?"":"S/."]]></textFieldExpression>
+			</textField>
+		</band>
+	</columnFooter>
+</jasperReport>

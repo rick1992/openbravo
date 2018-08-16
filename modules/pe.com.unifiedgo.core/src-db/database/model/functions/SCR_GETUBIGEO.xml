@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_GETUBIGEO">
+    <function name="SCR_GETUBIGEO" type="NULL">
+      <parameter name="p_c_location_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ubigeo" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_regioncode VARCHAR(10);
+  v_provincecode VARCHAR(10);
+  v_citycode VARCHAR(10);
+
+  v_c_region_id VARCHAR(32);
+  v_scr_province_id VARCHAR(32);
+  v_c_city_id VARCHAR(32);
+BEGIN
+
+  v_regioncode := '--';
+  v_provincecode := '--';
+  v_citycode := '--';
+
+  SELECT c_region_id, em_scr_province_id,c_city_id
+    INTO v_c_region_id, v_scr_province_id, v_c_city_id
+    FROM C_Location
+  WHERE C_Location_ID = p_c_location_id;
+
+  IF(v_c_region_id IS NOT NULL) THEN
+    SELECT COALESCE(em_scr_areacode,'--')
+      INTO v_regioncode
+      FROM C_Region
+    WHERE C_Region_ID = v_c_region_id;
+  END IF;
+
+  IF(v_scr_province_id IS NOT NULL) THEN
+    SELECT COALESCE(areacode,'--')
+      INTO v_provincecode
+      FROM SCR_Province
+    WHERE SCR_Province_ID = v_scr_province_id;
+  END IF;
+
+  IF(v_c_city_id IS NOT NULL) THEN
+    SELECT COALESCE(areacode,'--')
+      INTO v_citycode
+      FROM C_City
+    WHERE C_City_ID = v_c_city_id;
+  END IF;
+
+  p_ubigeo := v_regioncode || v_provincecode || v_citycode;
+END SCR_GETUBIGEO
+]]></body>
+    </function>
+  </database>

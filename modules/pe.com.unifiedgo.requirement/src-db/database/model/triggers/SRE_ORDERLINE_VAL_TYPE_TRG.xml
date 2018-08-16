@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_ORDERLINE_VAL_TYPE_TRG">
+    <trigger name="SRE_ORDERLINE_VAL_TYPE_TRG" table="C_ORDERLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_C_ORDER_ID VARCHAR2(32) ;
+  
+  
+  
+  
+  
+
+  v_isexpense CHAR(1);
+  v_isfromrequisition  CHAR(1);
+  v_specialdoctype VARCHAR(60) ;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_ORDER_ID:=:NEW.C_ORDER_ID;
+  ELSE
+    v_C_ORDER_ID:=:OLD.C_ORDER_ID;
+  END IF;
+
+
+  SELECT PROCESSED, POSTED,   em_spr_isopexpense, em_ssa_specialdoctype, em_sre_isfromrequisition
+  INTO v_Processed, v_Posted,   v_isexpense , v_specialdoctype , v_isfromrequisition
+  FROM C_ORDER
+  WHERE C_ORDER_ID=v_C_ORDER_ID;
+
+  --Update the productgroup
+  IF(INSERTING) THEN
+
+    IF(v_specialdoctype = 'SREPURCHASEORDER') THEN
+     IF(COALESCE(v_isexpense,'N') = 'Y' AND COALESCE(v_isfromrequisition,'N') = 'Y') THEN
+      -- RAISE_APPLICATION_ERROR(-20000, '@sre_orderline_invalid_opexpenses@');
+     ELSIF(COALESCE(v_isexpense,'N') = 'N' AND COALESCE(v_isfromrequisition,'N') = 'N')THEN
+       --RAISE_APPLICATION_ERROR(-20000, '@sre_orderline_mustbe_opexpenses@');
+     END IF;
+    END IF;
+  END IF;
+
+
+  END SRE_ORDERLINE_VAL_TYPE_TRG
+]]></body>
+    </trigger>
+  </database>

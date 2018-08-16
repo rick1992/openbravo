@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_INSERTDATADEFDATASET">
+    <function name="SCO_INSERTDATADEFDATASET" type="NULL">
+      <body><![CDATA[v_NextDataSetTable VARCHAR(32);
+    v_module_id VARCHAR(32);
+    v_dataset1_id VARCHAR(32);
+    CUR_Table RECORD;
+    
+    v_Count NUMBER;
+BEGIN
+
+  v_module_id:='DCA2CF23BE5245D9AECC07ED6785979D';
+  v_dataset1_id:='D81C5C810AEF47C690E4F688ABC8AAC8';
+
+
+  FOR CUR_Table IN
+    (select * from ad_table where ad_package_id in (select ad_package_id from ad_package where javapackage like 'pe.com.unifiedgo.%') AND
+                                  AccessLevel in ('1','3','6') AND
+                                  DataOriginType in ('Table') AND
+                                  IsView='N' order by tablename)
+  LOOP
+    SELECT count(*) INTO v_Count FROM AD_Dataset_Table WHERE ad_dataset_id=v_dataset1_id AND ad_table_id = CUR_Table.ad_table_id;
+    IF(v_Count=0) THEN
+        AD_Sequence_Next('AD_Dataset_Table', '0', v_NextDataSetTable) ;
+	INSERT INTO ad_dataset_table(
+              ad_dataset_table_id, ad_client_id, ad_org_id, isactive, created, 
+              createdby, updated, updatedby, ad_dataset_id, ad_table_id, includeallcolumns, 
+              whereclause, excludeauditinfo, isbusinessobject, ad_module_id)
+    	VALUES (
+	      v_NextDataSetTable, '0', '0', 'Y', now(), 
+              '100', now(), '100', v_dataset1_id, CUR_Table.ad_table_id , 'Y', 
+              'client.id=:ClientID', 'N', 'N', v_module_id);
+    END IF;
+
+  END LOOP;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_INSERTDATADEFDATASET
+]]></body>
+    </function>
+  </database>

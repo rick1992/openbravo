@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_NEGATBLOCK_TRG">
+    <trigger name="SCO_INVOICE_NEGATBLOCK_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+  v_specialdoctype VARCHAR(32);
+	v_otherpo VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT em_sco_specialdoctype  INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+
+    IF(INSERTING) THEN
+      IF(:NEW.outstandingamt < -1 AND v_specialdoctype IN ('SCOAPINVOICE','SCOAPSIMPLEPROVISIONINVOICE', 'SCOAPBOEINVOICE', 'SCOAPLOANINVOICE')) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_APInvoiceNegativeBlock@');
+      END IF;
+    
+    ELSIF(UPDATING) THEN
+
+      
+      IF( COALESCE(:OLD.outstandingamt,0)<>COALESCE(:NEW.outstandingamt,0)
+       OR COALESCE(:OLD.c_doctypetarget_id,'')<>COALESCE(:NEW.c_doctypetarget_id,'')
+       OR COALESCE(:OLD.docstatus,'')<>COALESCE(:NEW.docstatus,'')
+      ) THEN
+        IF(:NEW.outstandingamt < -1 AND v_specialdoctype IN ('SCOAPINVOICE','SCOAPSIMPLEPROVISIONINVOICE', 'SCOAPBOEINVOICE', 'SCOAPLOANINVOICE')) THEN
+           SELECT ci.value INTO v_otherpo FROM scr_combo_item ci WHERE scr_combo_item_id = :NEW.em_sco_podoctype_comboitem_id;
+	   IF(v_otherpo NOT IN ('tabla10_99')) THEN
+		RAISE_APPLICATION_ERROR(-20000, '@SCO_APInvoiceNegativeBlock@');
+           END IF;
+        END IF;
+      END IF;
+    END IF;
+
+    END SCO_INVOICE_NEGATBLOCK_TRG
+]]></body>
+    </trigger>
+  </database>

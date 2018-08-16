@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_MERGE_PSD">
+    <function name="SCO_MERGE_PSD" type="NULL">
+      <parameter name="p_fin_payment_scheduledetail_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_AD_Client_ID VARCHAR(32); 
+  v_AD_Org_ID VARCHAR(32);
+  v_Order_FIN_Payment_Schedule_ID VARCHAR(32);
+  v_Invoice_FIN_Payment_Schedule_ID VARCHAR(32);
+  v_Amount NUMBER;
+  v_Doubful_Debt_Amt NUMBER;
+  v_Writeoff_Amt NUMBER;
+  
+  v_Count NUMBER;
+
+  CUR_psdToRemove RECORD;
+
+  BEGIN
+
+  SELECT ad_client_id, ad_org_id, fin_payment_schedule_order, 
+         fin_payment_schedule_invoice, amount, writeoffamt, doubtfuldebt_amount
+    INTO v_AD_Client_ID, v_AD_Org_ID, v_Order_FIN_Payment_Schedule_ID,
+	 v_Invoice_FIN_Payment_Schedule_ID, v_Amount, v_Writeoff_Amt, v_Doubful_Debt_Amt
+  FROM fin_payment_scheduledetail WHERE fin_payment_scheduledetail_id = p_fin_payment_scheduledetail_id FOR UPDATE;
+
+  IF(v_Writeoff_Amt IS NULL) THEN
+    v_Writeoff_Amt := 0;
+  END IF;
+
+  FOR CUR_psdToRemove IN
+    (SELECT * 
+       FROM FIN_Payment_ScheduleDetail
+     WHERE AD_Client_ID = v_AD_Client_ID AND
+           AD_Org_ID = v_AD_Org_ID AND
+           fin_payment_detail_id IS NULL AND
+       (em_sco_externalpayment='N' OR em_sco_externalpayment IS NULL) AND
+       (CASE WHEN v_Order_FIN_Payment_Schedule_ID IS NULL THEN 
+	   fin_payment_schedule_order IS NULL 
+         ELSE 
+           fin_payment_schedule_order=v_Order_FIN_Payment_Schedule_ID 
+        END) AND
+       (CASE WHEN v_Invoice_FIN_Payment_Schedule_ID IS NULL THEN 
+	   fin_payment_schedule_invoice IS NULL 
+         ELSE 
+           fin_payment_schedule_invoice=v_Invoice_FIN_Payment_Schedule_ID 
+        END) FOR UPDATE
+    )
+  LOOP
+
+    IF(CUR_psdToRemove.writeoffamt IS NULL) THEN
+      CUR_psdToRemove.writeoffamt := 0;
+    END IF;
+
+    v_Amount := v_Amount + CUR_psdToRemove.amount;
+    v_Doubful_Debt_Amt := v_Doubful_Debt_Amt + CUR_psdToRemove.doubtfuldebt_amount;
+    v_Writeoff_Amt := v_Writeoff_Amt + CUR_psdToRemove.writeoffamt;
+
+    DELETE FROM FIN_Payment_ScheduleDetail WHERE FIN_Payment_ScheduleDetail_ID = CUR_psdToRemove.FIN_Payment_ScheduleDetail_ID;
+
+  END LOOP;
+
+  UPDATE FIN_Payment_ScheduleDetail
+    SET amount = v_Amount + v_Writeoff_Amt,
+        writeoffamt = 0,
+        fin_payment_detail_id = NULL
+  WHERE fin_payment_scheduledetail_id = p_fin_payment_scheduledetail_id;
+
+  RETURN;
+END SCO_MERGE_PSD
+]]></body>
+    </function>
+  </database>

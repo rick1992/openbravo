@@ -1,0 +1,272 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_CALCULATELOCATOR">
+    <function name="SWA_CALCULATELOCATOR" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_movement_id VARCHAR2(32):='';
+  v_m_warehouse_id VARCHAR2(32):='';
+  v_LastProduct_ID VARCHAR2(32):='';
+  v_LastLocator_ID VARCHAR2(32):='';
+  v_product_id VARCHAR2(32):='';
+  v_uom_id VARCHAR2(32):='';
+  v_LastLocator_toInsert_ID VARCHAR2(32):='';
+  v_new_movementline_id VARCHAR2(32):='';
+  v_ad_client_id VARCHAR2(32):='';
+  v_ad_org_id VARCHAR2(32):='';
+  v_updatedby VARCHAR2(32):='';
+  v_locator_id VARCHAR2(32):='';
+  v_locatorto_id VARCHAR2(32):='';
+  v_em_swa_receipt_locator_id VARCHAR2(32):='';
+  v_em_swa_anull_locator_id VARCHAR2(32):='';
+  v_x VARCHAR2(60):='';
+  v_y VARCHAR2(60):='';
+  v_z VARCHAR2(60):='';
+  v_Result NUMBER:=1; -- Success
+
+-- Record Info
+  v_count_movementline NUMBER:=0;
+  v_reserved_stock NUMBER:=0;
+  v_storage_detail_qtyonhand NUMBER:=0;
+  v_cantidad_a_mover NUMBER:=0;
+  v_beginlocator NUMBER:=0;
+  v_LineSeqNo NUMBER:=0;
+  v_qtytoinsert NUMBER:=0;
+  v_movementqty NUMBER:=0;
+  v_count_movementqty NUMBER:=0;
+  CUR_PRODUCT RECORD;
+  CUR_DISTINTPRODUCT RECORD;
+  CUR_locator RECORD;
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parametersi'll be there for you
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+  --DETERMINANDO EL PRODUCTO Y LOS LOCATOR DE LA LINEA SELECCIONADA
+   SELECT M_MOVEMENT_ID, m_product_id , c_uom_id , m_locator_id, m_locatorto_id ,movementqty
+     INTO v_movement_id, v_product_id , v_uom_id , v_locator_id, v_locatorto_id ,v_movementqty
+     FROM M_MOVEMENTLINE 
+    WHERE M_MOVEMENTLINE_ID = v_Record_ID;
+    v_LastLocator_toInsert_ID:=v_locatorto_id;
+  -----------------------
+  --Determinando datos del Padre.. HEADER
+   SELECT ad_client_id, ad_org_id, updatedby, em_swa_m_warehouse_id 
+     INTO v_ad_client_id, v_ad_org_id,v_updatedby ,v_m_warehouse_id
+     FROM M_MOVEMENT
+    WHERE M_MOVEMENT_ID = v_movement_id;
+  --------------------
+  --Determinando warehouse de anulacion y recepcion por defecto en el warehouse
+   SELECT coalesce(em_swa_receipt_locator_id,'N'), coalesce(em_swa_annul_locator_id,'N') 
+     INTO v_em_swa_receipt_locator_id, v_em_swa_anull_locator_id 
+     FROM m_warehouse 
+    WHERE m_warehouse_id=v_m_warehouse_id;
+  --
+
+
+  --Determinando cuantas lineas hay para continuar insertando
+   SELECT count(M_MOVEMENTLINE_ID)
+     INTO v_count_movementline
+     FROM M_MOVEMENTLINE 
+     WHERE M_MOVEMENT_ID = v_movement_id;
+   v_LineSeqNo:=v_count_movementline*10;
+  ----------------------
+
+  -----Verificando cuantos quedan en STOCK qtyonhand
+  -----
+     SELECT qtyonhand
+       INTO v_storage_detail_qtyonhand
+       FROM m_storage_detail
+      WHERE m_locator_id = v_locator_id
+        AND m_product_id = v_product_id;
+  --------------
+  -----Verificando la cantidad de Productos reservados en ese Locator
+  ---
+    SELECT coalesce(sum(mrs.quantity),0) 
+      INTO v_reserved_stock
+      FROM m_reservation mr 
+  INNER JOIN m_reservation_stock mrs ON mr.m_reservation_id = mrs.m_reservation_id
+     WHERE mr.m_product_id= v_product_id
+       AND mrs.m_locator_id = v_locator_id
+       AND mrs.isallocated ='N';
+ 
+  
+  -- v_reserved_stock : Cantidades Reservadas por diferentes ventas
+    v_cantidad_a_mover:= v_storage_detail_qtyonhand - v_reserved_stock;
+  --Cuanto de este producto ya està en la ventana goods movement: " M_movement" 
+  --para descartarlo y solo poner lo que falta
+    SELECT coalesce(sum(movementqty),0)
+     INTO v_count_movementqty
+     FROM M_MOVEMENTLINE 
+     WHERE M_MOVEMENT_ID = v_movement_id
+      AND M_PRODUCT_ID = v_product_id;
+  -----
+   v_cantidad_a_mover:=v_cantidad_a_mover - v_count_movementqty;
+
+  --  RAISE v_storage_detail_qtyonhand || ' - ' || v_reserved_stock || ' - ' || v_count_movementqty;
+   IF(v_cantidad_a_mover>0)THEN
+      --Recorriendo los Locators Preferidos segùn su movimiento
+      --Los locators preferidos seràn aquellos que hallan tenido movimientos 
+      --luego ordenados por el tipo (salida, Stock) y Luego por prioridad
+      -------
+         v_beginlocator:= 0;
+         FOR CUR_locator 
+             IN(
+                 SELECT mt.m_locator_id,ml.value,coalesce(sum(mt.movementqty),0) as sumqty,ml.em_obwhs_type,ml.priorityno
+		   FROM m_transaction mt
+		        LEFT JOIN M_locator ml	ON ml.m_locator_id= mt.m_locator_id
+		  WHERE mt.m_product_id = v_product_id
+		    AND ml.m_warehouse_id=v_m_warehouse_id
+		    AND  mt.movementqty<0 
+		    AND  mt.created between now()-365 and now()
+		    AND  ml.m_locator_id NOT IN (SELECT m_locatorto_id
+						   FROM m_movementline 
+						  WHERE m_movement_id = v_movement_id 
+					        )
+                    AND ml.m_locator_id NOT IN (v_em_swa_receipt_locator_id, v_em_swa_anull_locator_id)
+		   GROUP BY mt.m_locator_id,ml.em_obwhs_type,ml.priorityno, ml.value
+		   ORDER BY ml.em_obwhs_type asc ,ml.priorityno asc , sumqty asc
+             ) 
+          LOOP
+               
+               IF(v_locator_id = CUR_locator.m_locator_id)THEN
+                CONTINUE;
+               END IF;
+          
+               IF(v_cantidad_a_mover > v_movementqty) THEN
+	          v_qtytoinsert:= v_movementqty;
+		  v_cantidad_a_mover:= v_cantidad_a_mover-v_movementqty;
+	       ELSE
+		  v_qtytoinsert:= v_cantidad_a_mover;
+		  v_cantidad_a_mover:= 0;
+	       END IF;
+	       v_new_movementline_id:=get_uuid();
+	       v_LineSeqNo:= 10 + v_LineSeqNo;
+               INSERT INTO m_movementline 
+		      (m_movementline_id, ad_client_id,ad_org_id,isactive,
+		       created,createdby,updated,updatedby,
+		       m_movement_id,m_locator_id,m_locatorto_id,m_product_id,
+		       line,movementqty,c_uom_id,em_obwpl_complete,em_obwpl_itemstatus,
+		       em_obwpl_edititem,em_obwpl_allowdelete,em_obwpl_raiseincidence,em_obwpl_reject
+		      ) 
+		VALUES
+		      (v_new_movementline_id,v_ad_client_id, v_ad_org_id,'Y',
+		       now(),v_updatedby,now(),v_updatedby,
+		       v_movement_id,v_locator_id,CUR_locator.m_locator_id,v_product_id,
+		       v_LineSeqNo,v_qtytoinsert,v_uom_id,'N','PE',
+		      'N','Y','N','N'
+		      );
+		 v_LastLocator_toInsert_ID:=CUR_locator.m_locator_id;
+		 IF(v_cantidad_a_mover=0)THEN
+		   EXIT;
+		 END IF;
+          END LOOP;
+
+
+          IF(v_cantidad_a_mover > 0)THEN
+              --Si hay aùn por mover entonces debemos de ponerlos en los locator por tipo y prioridad
+              --de menor a mayor pero necesariamente ahora no deben tener nada en los locators
+              -- RAISE v_movement_id || '-' || v_m_warehouse_id; 
+              FOR CUR_locator 
+		IN(
+			SELECT ml.m_locator_id, ml.value , ml.em_obwhs_type, ml.priorityno
+			  FROM m_storage_detail std 
+			       RIGHT JOIN m_locator ml   ON std.m_locator_id = ml.m_locator_id 
+			       INNER JOIN m_warehouse wr ON  ml.m_warehouse_id = wr.m_warehouse_id 
+			 WHERE wr.m_warehouse_id =  v_m_warehouse_id
+			   AND ml.m_locator_id NOT IN (SELECT m_locatorto_id 
+			                                 FROM m_movementline 
+			                                WHERE m_movement_id = v_movement_id
+                                                        )
+                           AND ml.m_locator_id NOT IN (v_em_swa_receipt_locator_id, v_em_swa_anull_locator_id)
+			GROUP BY ml.m_locator_id , ml.value ,ml.em_obwhs_type, ml.priorityno
+			HAVING COALESCE(sum(std.qtyonhand),0) = 0
+			ORDER BY ml.em_obwhs_type asc, ml.priorityno
+               ) 
+               LOOP
+                             
+
+                  IF(v_locator_id = CUR_locator.m_locator_id)THEN
+                   CONTINUE;
+                  END IF;
+                 IF(v_cantidad_a_mover > v_movementqty) THEN
+	            v_qtytoinsert:= v_movementqty;
+		    v_cantidad_a_mover:= v_cantidad_a_mover-v_movementqty;
+	         ELSE
+		    v_qtytoinsert:= v_cantidad_a_mover;
+		    v_cantidad_a_mover:= 0;
+	         END IF;
+	            v_new_movementline_id:=get_uuid();
+	            v_LineSeqNo:= 10 + v_LineSeqNo;
+                 INSERT INTO m_movementline 
+		      (m_movementline_id, ad_client_id,ad_org_id,isactive,
+		       created,createdby,updated,updatedby,
+		       m_movement_id,m_locator_id,m_locatorto_id,m_product_id,
+		       line,movementqty,c_uom_id,em_obwpl_complete,em_obwpl_itemstatus,
+		       em_obwpl_edititem,em_obwpl_allowdelete,em_obwpl_raiseincidence,em_obwpl_reject
+		      ) 
+		 VALUES
+		      (v_new_movementline_id,v_ad_client_id, v_ad_org_id,'Y',
+		       now(),v_updatedby,now(),v_updatedby,
+		       v_movement_id,v_locator_id,CUR_locator.m_locator_id,v_product_id,
+		       v_LineSeqNo,v_qtytoinsert,v_uom_id,'N','PE',
+		      'N','Y','N','N'
+		      );
+		  v_LastLocator_toInsert_ID:=CUR_locator.m_locator_id;
+		  IF(v_cantidad_a_mover=0)THEN
+		   EXIT;
+		  END IF;
+               END LOOP;
+
+
+
+            IF(v_cantidad_a_mover > 0 and v_LastLocator_toInsert_ID IS NOT NULL)THEN
+             v_LineSeqNo:= 10 + v_LineSeqNo;
+             v_new_movementline_id:=get_uuid();
+             INSERT INTO m_movementline 
+                 (m_movementline_id, ad_client_id,ad_org_id,isactive,
+                  created,createdby,updated,updatedby,
+                  m_movement_id,m_locator_id,m_locatorto_id,m_product_id,
+                  line,movementqty,c_uom_id,em_obwpl_complete,em_obwpl_itemstatus,
+                  em_obwpl_edititem,em_obwpl_allowdelete,em_obwpl_raiseincidence,em_obwpl_reject
+                 ) 
+                 VALUES
+                 (v_new_movementline_id,v_ad_client_id, v_ad_org_id,'Y',
+                  now(),v_updatedby,now(),v_updatedby,
+                  v_movement_id,v_locator_id,v_LastLocator_toInsert_ID,v_product_id,
+                  v_LineSeqNo,v_cantidad_a_mover,v_uom_id,'N','PE',
+                  'N','Y','N','N'
+                 );
+                 v_cantidad_a_mover:=0;
+              END IF; 
+            END IF;
+    END IF;
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_CALCULATELOCATOR
+]]></body>
+    </function>
+  </database>

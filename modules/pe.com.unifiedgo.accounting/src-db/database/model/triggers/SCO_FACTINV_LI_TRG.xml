@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_FACTINV_LI_TRG">
+    <trigger name="SCO_FACTINV_LI_TRG" table="SCO_FACTINV_LINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted VARCHAR(60) ;
+  v_Currency     VARCHAR2(32);
+  v_DocStatus VARCHAR(60);
+  v_SCO_Factoringinvoice_ID  VARCHAR2(32);
+  v_newinvamt NUMBER;
+  v_oldinvamt NUMBER;
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_SCO_Factoringinvoice_ID:=:NEW.SCO_Factoringinvoice_ID;
+  ELSE
+    v_SCO_Factoringinvoice_ID:=:OLD.SCO_Factoringinvoice_ID;
+  END IF;
+
+  IF (INSERTING OR UPDATING) THEN
+
+
+    SELECT COALESCE(grandtotal,0)
+      INTO v_newinvamt
+      FROM C_Invoice
+    WHERE C_Invoice_ID = :NEW.invoiceref_id;
+
+    --Update Header Totalamount Value
+    IF(INSERTING) THEN
+      UPDATE SCO_Factoringinvoice SET totalamount = totalamount + v_newinvamt
+    WHERE SCO_Factoringinvoice_ID = :NEW.SCO_Factoringinvoice_ID;
+    ELSE 
+
+      SELECT COALESCE(grandtotal,0)
+        INTO v_oldinvamt
+        FROM C_Invoice
+      WHERE C_Invoice_ID = :OLD.invoiceref_id;
+
+      UPDATE SCO_Factoringinvoice SET totalamount = (totalamount + v_newinvamt - v_oldinvamt)
+    WHERE SCO_Factoringinvoice_ID = :NEW.SCO_Factoringinvoice_ID;
+    END IF;
+
+  END IF;
+
+
+  IF(DELETING) THEN
+
+    SELECT COALESCE(grandtotal,0)
+      INTO v_oldinvamt
+      FROM C_Invoice
+    WHERE C_Invoice_ID = :OLD.invoiceref_id;
+
+    --Update Header Totalamount Value
+    UPDATE SCO_Factoringinvoice SET totalamount = totalamount - v_oldinvamt
+    WHERE SCO_Factoringinvoice_ID = :OLD.SCO_Factoringinvoice_ID;
+  END IF;
+
+  END SCO_FACTINV_LI_TRG
+]]></body>
+    </trigger>
+  </database>

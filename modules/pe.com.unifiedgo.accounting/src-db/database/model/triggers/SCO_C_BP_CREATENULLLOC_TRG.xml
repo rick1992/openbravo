@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_C_BP_CREATENULLLOC_TRG">
+    <trigger name="SCO_C_BP_CREATENULLLOC_TRG" table="C_BPARTNER" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  v_p_C_Location_ID VARCHAR(32);
+  v_p_C_Bpartner_Location_ID VARCHAR(32);
+  v_c_country_id VARCHAR(32);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT C_Country_ID
+      INTO v_c_country_id
+      FROM C_Country
+    WHERE countrycode = 'PE' LIMIT 1;
+
+    IF(v_c_country_id IS NOT NULL AND v_c_country_id<>'') THEN
+      --Create Location
+      AD_Sequence_Next('C_Location', :NEW.AD_Client_ID, v_p_C_Location_ID);
+      INSERT INTO c_location(
+                c_location_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+                updated, updatedby, c_country_id
+               )
+        VALUES (
+                v_p_C_Location_ID, :NEW.AD_Client_ID, :NEW.AD_Org_ID, 'Y', now(), :NEW.createdby, 
+                now(), :NEW.updatedby, v_c_country_id
+               );
+
+      --Create BP Location
+      AD_Sequence_Next('C_Bpartner_Location', :NEW.AD_Client_ID, v_p_C_Bpartner_Location_ID);
+      INSERT INTO c_bpartner_location(
+               c_bpartner_location_id, ad_client_id, ad_org_id, isactive, created, 
+               createdby, updated, updatedby, name,
+               c_bpartner_id, c_location_id, em_sco_nulllocation, isbillto, isshipto, ispayfrom ,isremitto
+              )
+       VALUES (
+               v_p_C_Bpartner_Location_ID, :NEW.AD_Client_ID, :NEW.AD_Org_ID, 'Y',  now(), 
+               :NEW.createdby, now(),  :NEW.updatedby, '.',
+               :NEW.c_bpartner_id, v_p_C_Location_ID, 'Y', 'N', 'N', 'N', 'N'
+              );
+
+    END IF;
+
+    END SCO_C_BP_CREATENULLLOC_TRG
+]]></body>
+    </trigger>
+  </database>

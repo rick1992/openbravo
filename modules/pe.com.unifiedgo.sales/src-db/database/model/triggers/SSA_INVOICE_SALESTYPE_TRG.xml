@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_INVOICE_SALESTYPE_TRG">
+    <trigger name="SSA_INVOICE_SALESTYPE_TRG" table="C_INVOICE" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[   v_n NUMBER;
+   v_count NUMBER;
+   v_result NUMBER;
+   v_salestype_cmb_cat_id VARCHAR(32);
+   v_defaultsalestype_cmb_item_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF(:NEW.em_ssa_salestype_cbo_item_id IS NULL OR :NEW.em_ssa_salestype_cbo_item_id='') THEN
+        --Find the default
+        SELECT SCR_Combo_Category_ID 
+          INTO v_salestype_cmb_cat_id
+          FROM SCR_Combo_Category cat 
+       WHERE cat.ad_client_id=:NEW.AD_Client_ID AND 
+             cat.value = 'TipoVenta' LIMIT 1;
+
+       IF(v_salestype_cmb_cat_id IS NOT NULL AND v_salestype_cmb_cat_id<>'') THEN
+         SELECT cmb.scr_combo_item_id 
+           INTO v_defaultsalestype_cmb_item_id
+           FROM SCR_Combo_item cmb 
+         WHERE cmb.value = 'TipoVenta001' AND 
+               cmb.SCR_combo_category_id = v_salestype_cmb_cat_id LIMIT 1;
+
+         :NEW.em_ssa_salestype_cbo_item_id := v_defaultsalestype_cmb_item_id;
+
+       END IF; 
+
+      END IF;
+    END IF;
+
+    END SSA_INVOICE_SALESTYPE_TRG
+]]></body>
+    </trigger>
+  </database>

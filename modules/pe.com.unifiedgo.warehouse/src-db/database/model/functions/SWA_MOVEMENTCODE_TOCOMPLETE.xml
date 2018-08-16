@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_MOVEMENTCODE_TOCOMPLETE">
+    <function name="SWA_MOVEMENTCODE_TOCOMPLETE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_docaction VARCHAR2(60);
+  v_docstatus VARCHAR2(60);
+  v_count_plan NUMBER:=0;
+  v_Result NUMBER:=1; -- Success
+  v_qtyavailable NUMBER:=1; -- Success
+  v_product_info VARCHAR2(200);
+
+  
+  
+  -- Record Info
+  Cur_Parameter RECORD;
+  Cur_PPlan RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+     
+    --Validaciones
+    --1. Debe de Haber registros en la sección de plan 
+
+    SELECT COALESCE(COUNT(SWA_MOVEMENTCODE_PLAN_ID),0) INTO v_count_plan FROM SWA_MOVEMENTCODE_PLAN WHERE SWA_MOVEMENTCODE_ID = v_Record_ID;
+    IF(v_count_plan = 0)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_noplan@');
+    END IF;
+
+    --2. No debe Haber registros con cantidades en 0 o menores
+    SELECT COALESCE(COUNT(SWA_MOVEMENTCODE_PLAN_ID),0) INTO v_count_plan FROM SWA_MOVEMENTCODE_PLAN WHERE SWA_MOVEMENTCODE_ID = v_Record_ID AND qtyordered <= 0;
+    IF(v_count_plan > 0)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_invalidqty@');
+    END IF;
+    
+
+    SELECT * INTO Cur_Parameter FROM SWA_MOVEMENTCODE WHERE SWA_MOVEMENTCODE_ID=v_Record_ID FOR UPDATE ;
+
+    IF(Cur_Parameter.processed = 'Y')THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_processed@');
+    END IF;
+ 
+      IF(Cur_Parameter.docstatus='DR')THEN
+
+          --Validando Stock
+            FOR Cur_PPlan IN(
+              SELECT * FROM SWA_MOVEMENTCODE_PLAN WHERE SWA_MOVEMENTCODE_ID = Cur_Parameter.SWA_MOVEMENTCODE_ID FOR UPDATE
+            )
+            LOOP
+               v_qtyavailable = swa_product_getstock(Cur_PPlan.m_product_id,Cur_Parameter.m_warehouse_id,null,3);
+               IF(Cur_PPlan.qtyordered > v_qtyavailable)THEN
+                SELECT value||' - ' || name INTO v_product_info FROM M_PRODUCT WHERE M_PRODUCT_ID = Cur_PPlan.M_PRODUCT_ID;
+                RAISE_APPLICATION_ERROR(-20000,'@NotEnoughAvailableStock@' || ' - ' || v_product_info);
+               END IF; 
+            END LOOP;
+          --
+      
+           UPDATE swa_movementcode
+              SET docstatus='PD'
+            WHERE swa_movementcode_id=Cur_Parameter.swa_movementcode_id;
+
+	  v_Message := '@swa_movementcodemustbeapproved@' || v_Message;       
+	  v_Result := 2;
+	  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+	  RETURN;
+      ELSIF(Cur_Parameter.docstatus='PD')THEN
+
+            UPDATE swa_movementcode
+	       SET docstatus='CO',
+	           evaluationby = v_User_ID,
+                   evaluation = now()
+	     WHERE swa_movementcode_id=Cur_Parameter.swa_movementcode_id;
+
+             SWA_MOVEMENTCODE_CALCULATE(v_Record_ID);
+	     
+      ELSE
+         RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_invalidaction@');
+      END IF;
+
+
+    
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:=  SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_MOVEMENTCODE_TOCOMPLETE
+]]></body>
+    </function>
+  </database>

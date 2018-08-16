@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_CREATE_WORKERS_INTDOC">
+    <function name="SCO_CREATE_WORKERS_INTDOC" type="NULL">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[CUR_Bpartner RECORD;
+  v_Count NUMBER;
+  v_physical_documentno VARCHAR(30);
+  v_podoctype_comboitem_id VARCHAR(32);
+  v_c_doctype_id VARCHAR(32);
+  v_sco_internal_doc_id VARCHAR(32);
+  v_DocumentNo VARCHAR(30);
+  BEGIN
+
+  SELECT i.scr_combo_item_id
+    INTO v_podoctype_comboitem_id
+  FROM SCR_Combo_Item i
+  INNER JOIN SCR_Combo_Category c ON i.scr_combo_category_id = c.scr_combo_category_id
+  WHERE i.ad_client_id = p_ad_client_id
+  AND c.value = 'tablasunat10'
+  AND i.value = 'tabla10_00' LIMIT 1;
+
+  IF(v_podoctype_comboitem_id IS NULL) THEN
+    RETURN;
+  END IF;
+
+  SELECT c_doctype_id
+    INTO v_c_doctype_id
+    FROM C_Doctype
+  WHERE AD_Client_ID = p_ad_client_id
+  AND AD_ISORGINCLUDED(p_ad_org_id, ad_org_id, p_ad_client_id) <> -1
+  AND em_sco_specialdoctype = 'SCOINTERNALDOCUMENT' LIMIT 1;
+
+  IF(v_c_doctype_id IS NULL) THEN
+    RETURN;
+  END IF;
+
+  FOR CUR_Bpartner IN 
+    ( SELECT b.* FROM C_Bpartner b 
+      INNER JOIN C_Bp_Group bg ON b.c_bp_group_id = bg.c_bp_group_id
+      WHERE b.AD_Client_ID = p_ad_client_id
+      AND AD_ISORGINCLUDED(b.ad_org_id,p_ad_org_id, p_ad_client_id) <> -1
+      AND bg.value = 'Trabajador'
+    )
+  LOOP
+    v_physical_documentno := 'VARIOS-' || CUR_Bpartner.taxid;
+    
+    SELECT count(*)
+      INTO v_Count
+      FROM SCO_Internal_Doc
+    WHERE AD_Client_ID = p_ad_client_id
+    AND C_Bpartner_ID = CUR_Bpartner.c_bpartner_id
+    AND physical_documentno = v_physical_documentno LIMIT 1;
+
+    IF(v_Count=0) THEN
+      DBMS_OUTPUT.PUT_LINE( 'Creating internal document for bpartner: ' || CUR_Bpartner.taxid || ' - ' || CUR_Bpartner.name);
+
+      Ad_Sequence_Next('SCO_Internal_Doc', p_AD_Client_ID, v_sco_internal_doc_id) ;
+      Ad_Sequence_Doctype(v_c_DocType_ID, p_AD_Client_ID, 'Y', v_DocumentNo) ;
+      IF(v_DocumentNo IS NULL) THEN
+        Ad_Sequence_Doc('DocumentNo_SCO_Internal_Doc', p_AD_Client_ID, 'Y', v_DocumentNo);
+      END IF;
+
+      INSERT INTO sco_internal_doc(
+              sco_internal_doc_id, ad_client_id, ad_org_id, isactive, created, 
+              createdby, updated, updatedby, podoctype_comboitem_id, physical_documentno, 
+              dateinvoiced, c_bpartner_id, account, description, documentno, 
+              docstatus, docaction, processing, processed, c_doctype_id, c_doctypetarget_id, 
+              grandtotal, duedate, c_currency_id, issotrx)
+      VALUES (
+              v_sco_internal_doc_id, p_ad_client_id, CUR_Bpartner.ad_org_id,'Y', now(), 
+              '100', now(), '100', v_podoctype_comboitem_id, v_physical_documentno, 
+              now(), CUR_Bpartner.c_bpartner_id, 'VARIOS', '', v_DocumentNo, 
+              'DR', 'CO', 'N', 'N', '0', v_c_DocType_ID, 
+              0, now(), NULL, 'N'
+      );
+
+      SCO_INTERNAL_DOC_POST(NULL, v_sco_internal_doc_id);
+    END IF;
+    
+  END LOOP;
+
+  RETURN;
+END SCO_CREATE_WORKERS_INTDOC
+]]></body>
+    </function>
+  </database>

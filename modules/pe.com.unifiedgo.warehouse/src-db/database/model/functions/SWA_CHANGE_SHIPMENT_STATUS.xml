@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_CHANGE_SHIPMENT_STATUS">
+    <function name="SWA_CHANGE_SHIPMENT_STATUS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- Success
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_Client_ID VARCHAR(32); 
+  v_Org_ID VARCHAR(32);
+  v_docStatus VARCHAR(60);
+  v_swa_shipstatus VARCHAR(60);
+ 
+--Parameter
+  Cur_Parameter RECORD;
+  p_shipmentaction VARCHAR(60); 
+  v_Count NUMBER;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SWA_ErrorInProcessCall@') ;
+    END IF;
+
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo) 
+    LOOP
+         IF (Cur_Parameter.ParameterName = 'shipmentaction') THEN
+             p_shipmentaction := Cur_Parameter.P_String;
+	     DBMS_OUTPUT.PUT_LINE('  p_shipmentaction=' || p_shipmentaction) ;
+         ELSE
+             DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+         END IF;
+	v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+    END LOOP; -- Get Parameter
+
+    SELECT AD_Client_ID, AD_Org_ID, DocStatus, em_swa_shipstatus
+      INTO v_Client_ID, v_Org_ID, v_docStatus, v_swa_shipstatus
+      FROM M_Inout WHERE M_Inout_ID = v_Record_ID FOR UPDATE;
+
+    IF (v_docStatus <> 'CO') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SWA_CShipStatusProcessInvalid@') ;
+    END IF; 
+
+    IF(v_swa_shipstatus= 'SWA_PACK' AND p_shipmentaction <> 'SWA_TODISP')THEN
+      RAISE_APPLICATION_ERROR(-20000, '@swa_shipment_status_nochangebypl@') ;
+    END IF; 
+
+    IF (p_shipmentaction = 'SWA_RE') THEN
+
+      IF (v_swa_shipstatus = 'SWA_PACK') THEN
+	UPDATE M_Inout 
+	  SET em_swa_shipstatus = 'SWA_PICK', 
+	      em_swa_shipmentaction = 'SWA_TOPACK',
+	      em_swa_packdatetime = NULL,
+	      em_swa_uwaydatetime = NULL,
+	      em_swa_delidatetime = NULL
+        WHERE M_Inout_ID = v_Record_ID;
+
+      ELSIF (v_swa_shipstatus = 'SWA_DISP') THEN
+	UPDATE M_Inout 
+	  SET em_swa_shipstatus = 'SWA_PACK', 
+	      em_swa_shipmentaction = 'SWA_TODISP',
+	      em_swa_uwaydatetime = NULL,
+	      em_swa_delidatetime = NULL
+        WHERE M_Inout_ID = v_Record_ID;
+
+        
+      ELSIF (v_swa_shipstatus = 'SWA_UWAY') THEN
+	UPDATE M_Inout 
+	  SET em_swa_shipstatus = 'SWA_DISP', 
+	      em_swa_shipmentaction = 'SWA_TOUWAY',
+	      em_swa_uwaydatetime = NULL,
+	      em_swa_delidatetime = NULL
+        WHERE M_Inout_ID = v_Record_ID;
+      ELSIF (v_swa_shipstatus = 'SWA_DELI') THEN
+	UPDATE M_Inout 
+	  SET em_swa_shipstatus = 'SWA_UWAY', 
+	      em_swa_shipmentaction = 'SWA_TODELI',
+	      em_swa_delidatetime = NULL
+        WHERE M_Inout_ID = v_Record_ID;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@SWA_CShipStatusProcessInvalid@') ;
+      END IF;
+
+  ELSIF (p_shipmentaction = 'SWA_TOPACK' AND v_swa_shipstatus='SWA_PICK') THEN
+
+      UPDATE M_Inout 
+	SET em_swa_shipstatus = 'SWA_PACK', 
+	    em_swa_shipmentaction = 'SWA_TOUWAY',
+	    em_swa_packdatetime = now()
+      WHERE M_Inout_ID = v_Record_ID;
+
+  ELSIF (p_shipmentaction = 'SWA_TODISP' AND v_swa_shipstatus='SWA_PACK') THEN
+
+     UPDATE M_Inout 
+	SET em_swa_shipstatus = 'SWA_DISP', 
+	    em_swa_shipmentaction = 'SWA_TOUWAY'
+      WHERE M_Inout_ID = v_Record_ID;
+
+  ELSIF (p_shipmentaction = 'SWA_TOUWAY' AND v_swa_shipstatus='SWA_DISP') THEN
+
+      UPDATE M_Inout 
+	SET em_swa_shipstatus = 'SWA_UWAY', 
+	    em_swa_shipmentaction = 'SWA_TODELI',
+	    em_swa_uwaydatetime = now()
+      WHERE M_Inout_ID = v_Record_ID;
+
+  ELSIF (p_shipmentaction = 'SWA_TOUWAY' AND v_swa_shipstatus='SWA_PACK') THEN
+
+      UPDATE M_Inout 
+	SET em_swa_shipstatus = 'SWA_UWAY', 
+	    em_swa_shipmentaction = 'SWA_TODELI',
+	    em_swa_uwaydatetime = now()
+      WHERE M_Inout_ID = v_Record_ID;
+
+    ELSIF (p_shipmentaction = 'SWA_TODELI' AND v_swa_shipstatus='SWA_UWAY') THEN
+
+      UPDATE M_Inout 
+	SET em_swa_shipstatus = 'SWA_DELI', 
+	    em_swa_shipmentaction = 'SWA_RE',
+	    em_swa_delidatetime = now()
+      WHERE M_Inout_ID = v_Record_ID;
+
+    ELSE
+      RAISE_APPLICATION_ERROR(-20000, '@SWA_CShipStatusProcessInvalid@') ;
+    END IF;
+
+
+    v_Message:='@SWA_ChangeShipmentStatusProcessCompleted@'; --OBTG:-20000--
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_CHANGE_SHIPMENT_STATUS
+]]></body>
+    </function>
+  </database>

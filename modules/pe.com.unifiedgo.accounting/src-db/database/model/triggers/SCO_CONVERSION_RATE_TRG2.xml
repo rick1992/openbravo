@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_CONVERSION_RATE_TRG2">
+    <trigger name="SCO_CONVERSION_RATE_TRG2" table="C_CONVERSION_RATE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Count NUMBER;
+       
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+   IF INSERTING THEN
+     --check for repeated dates
+   select count(*)
+    into v_Count
+    from c_Conversion_Rate r1
+         
+   where ((r1.VALIDFROM between :NEW.ValidFrom and :NEW.ValidTo)
+        or (r1.VALIDTo between :NEW.ValidFrom and :NEW.ValidTo))
+    and r1.C_CURRENCY_ID = :NEW.C_Currency_ID
+    and r1.C_Currency_ID_To =:NEW.C_Currency_ID_To
+    and r1.c_Conversion_Rate_ID != :NEW.c_Conversion_Rate_ID
+    and r1.ad_client_id = :NEW.ad_client_id;
+
+   if v_Count > 0 then
+     RAISE_APPLICATION_ERROR(-20000, '@20504@');
+   end if;
+
+
+   END IF;
+
+
+END SCO_CONVERSION_RATE_TRG2
+]]></body>
+    </trigger>
+  </database>

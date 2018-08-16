@@ -1,0 +1,1280 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="ReportCashBankData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+  
+  <SqlMethod name="selectCuentaCorriente" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+      SELECT
+      '' fecha_creacion,
+      '' as em_sco_isauto,
+        '' as idorganizacion,
+    '' as idperiodo,
+    '' as periodo,
+    '' as fechainicial,
+    '' as fechafinal,
+     '' as clienteId,
+     '' as possibleinvoice,
+     '' as currencyid,
+     '' as fact_cuenta_fin,
+      ffa.codebank codbanco,ffa.accountno nrocuenta,ft.fin_financial_account_id,fa.fact_acct_id,
+      ft.em_sco_correlativo em_sco_regnumber, ft.dateacct,fpm.em_sco_code mediopago,ft.description, fp.referenceno ,bp.value cliente,
+      fa.acctvalue codcuenta, fa.acctdescription nombrecuenta,  fa.amtacctcr,fa.amtacctdr,
+      '' cod_cuenta_rel,'' nombre_cuenta_rel,fp.referenceno ticketno,'' nombrebanco, '' as padre, '' as type, '' as id, '' as name
+      ,ffa.em_scr_isinbankbook
+        ,fa.AD_CLIENT_ID
+        ,fa.AD_ORG_ID
+        ,fa.datetrx
+        ,ft.em_sco_correlativo
+        ,ft.statementdate
+        
+      
+      
+      FROM fact_acct fa
+      JOIN fin_finacc_transaction ft on fa.record_id=ft.fin_finacc_transaction_id 
+      LEFT JOIN c_bpartner bp on bp.c_bpartner_id=fa.c_bpartner_id
+      LEFT JOIN fin_payment fp on fp.fin_payment_id=ft.fin_payment_id
+      LEFT JOIN fin_paymentmethod fpm on fp.fin_paymentmethod_id=fpm.fin_paymentmethod_id
+      LEFT JOIN fin_financial_account ffa on ffa.fin_financial_account_id=ft.fin_financial_account_id
+      
+      WHERE 
+        fa.acctvalue ilike '10%'
+        AND ffa.em_scr_isinbankbook='Y'
+        AND fa.AD_CLIENT_ID IN ('1')
+        AND fa.AD_ORG_ID IN('1')
+        AND 1=1
+        AND 2=2
+      ORDER BY ft.fin_financial_account_id,ft.em_sco_correlativo
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND fa.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND fa.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND fa.datetrx >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND fa.datetrx < TO_DATE(?)]]></Parameter>
+    <Parameter name="finaccountId" optional="true" after="AND 2=2"><![CDATA[ AND ffa .fin_financial_account_id = ? ]]></Parameter>
+
+  </SqlMethod>
+  
+  
+  
+  
+   <SqlMethod name="selectCuentaCorrienteModificado" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+         SELECT * FROM 
+        
+        (SELECT
+            ffa.codebank codbanco,
+            ffa.accountno nrocuenta,
+            ft.fin_financial_account_id,
+            fa.fact_acct_id,
+            fa.em_sco_regnumber,
+            ft.dateacct,
+            fpm.em_sco_code mediopago,
+            COALESCE (
+                NULLIF(ft.description,''),
+                fp.description
+            ) AS description,
+                    COALESCE (NULLIF(ft.em_sco_trxnumber,''),NULLIF(fp. referenceno,''),NULLIF(ft.documentno,''), '') AS referenceno,
+            bp.
+        VALUE
+            cliente,
+            fa.acctvalue codcuenta,
+            fa.acctdescription nombrecuenta,
+            fa.amtacctcr,
+            fa.amtacctdr,
+            '' cod_cuenta_rel,
+            '' nombre_cuenta_rel,
+            coalesce(NULLIF(fp.referenceno,''), ft.documentno) ticketno,
+            '' nombrebanco,
+            '' AS padre,
+            ffa.type AS type,
+            '' AS ID,
+            '' AS NAME
+        ,ffa.em_scr_isinbankbook
+        ,fa.AD_CLIENT_ID
+        ,fa.AD_ORG_ID
+        ,fa.datetrx
+        ,ft.em_sco_correlativo
+        ,ft.statementdate
+        ,(select cc.combination from c_validcombination cc where cc.c_validcombination_id=coalesce(ffaa.fin_in_intransit_acct,ffaa.fin_deposit_acct, ffaa.fin_in_clear_acct))
+        as fact_cuenta_fin
+                ,ft.created as fecha_creacion
+        
+        FROM
+            fin_finacc_transaction ft
+        JOIN fin_payment fp ON ft.fin_payment_id = fp.fin_payment_id
+        JOIN fact_acct fa ON fp.fin_payment_id = fa.record_id
+        LEFT JOIN fin_paymentmethod fpm ON fp.fin_paymentmethod_id = fpm.fin_paymentmethod_id
+        LEFT JOIN c_bpartner bp ON bp.c_bpartner_id = ft.c_bpartner_id
+        LEFT JOIN fin_financial_account ffa ON ft.fin_financial_account_id = ffa.fin_financial_account_id
+        LEFT JOIN fin_financial_account_acct ffaa  on ffa.fin_financial_account_id=ffaa.fin_financial_account_id
+        
+        UNION 
+        
+        SELECT
+            ffa.codebank codbanco,
+            ffa.accountno nrocuenta,
+            ft.fin_financial_account_id,
+            fa.fact_acct_id,
+            fa.em_sco_regnumber,
+            ft.dateacct,
+            fpm.em_sco_code mediopago,
+            COALESCE (
+                NULLIF(ft.description,''),
+                fp.description
+            ) AS description,
+                    COALESCE (NULLIF(ft.em_sco_trxnumber,''),NULLIF(fp. referenceno,''),NULLIF(ft.documentno,''), '') AS referenceno,
+            bp.
+        VALUE
+            cliente,
+            fa.acctvalue codcuenta,
+            fa.acctdescription nombrecuenta,
+            fa.amtacctcr,
+            fa.amtacctdr,
+            '' cod_cuenta_rel,
+            '' nombre_cuenta_rel,
+            coalesce(NULLIF(fp.referenceno,''), ft.documentno) ticketno,
+            '' nombrebanco,
+            '' AS padre,
+                        ffa.type AS type,
+            '' AS ID,
+            '' AS NAME
+        
+        ,ffa.em_scr_isinbankbook
+        ,fa.AD_CLIENT_ID
+        ,fa.AD_ORG_ID
+        ,fa.datetrx
+        ,ft.em_sco_correlativo
+        ,ft.statementdate
+                ,(select cc.combination from c_validcombination cc where cc.c_validcombination_id=coalesce(ffaa.fin_in_intransit_acct,ffaa.fin_deposit_acct, ffaa.fin_in_clear_acct))
+        as fact_cuenta_fin
+        ,ft.created as fecha_creacion
+
+
+      FROM fact_acct fa
+      JOIN fin_finacc_transaction ft on fa.record_id=ft.fin_finacc_transaction_id 
+      LEFT JOIN c_bpartner bp on bp.c_bpartner_id=fa.c_bpartner_id
+      LEFT JOIN fin_payment fp on fp.fin_payment_id=ft.fin_payment_id
+      LEFT JOIN fin_paymentmethod fpm on fp.fin_paymentmethod_id=fpm.fin_paymentmethod_id
+      LEFT JOIN fin_financial_account ffa on ffa.fin_financial_account_id=ft.fin_financial_account_id
+            LEFT JOIN fin_financial_account_acct ffaa  on ffa.fin_financial_account_id=ffaa.fin_financial_account_id
+      
+      
+      
+      UNION 
+      
+      SELECT
+            ffa.codebank codbanco,
+            ffa.accountno nrocuenta,
+            ft.fin_financial_account_id,
+            fa.fact_acct_id,
+            fa.em_sco_regnumber,
+            ft.dateacct,
+            fpm.em_sco_code mediopago,
+            COALESCE (
+                NULLIF(ft.description,''),
+                fp.description
+            ) AS description,
+                    COALESCE (NULLIF(ft.em_sco_trxnumber,''),NULLIF(fp. referenceno,''),NULLIF(ft.documentno,''), '') AS referenceno,
+            bp.
+        VALUE
+            cliente,
+            fa.acctvalue codcuenta,
+            fa.acctdescription nombrecuenta,
+            fa.amtacctcr,
+            fa.amtacctdr,
+            '' cod_cuenta_rel,
+            '' nombre_cuenta_rel,
+            coalesce(NULLIF(fp.referenceno,''), NULLIF(ft.documentno,'')) ticketno,
+            '' nombrebanco,
+            '' AS padre,
+            ffa.type AS type,
+            '' AS ID,
+            '' AS NAME,
+            ffa.em_scr_isinbankbook,
+            fa.AD_CLIENT_ID,
+            fa.AD_ORG_ID,
+            fa.datetrx,
+            ft.em_sco_correlativo
+            ,ft.statementdate
+                    ,(select cc.combination from c_validcombination cc where cc.c_validcombination_id=coalesce(ffaa.fin_in_intransit_acct,ffaa.fin_deposit_acct, ffaa.fin_in_clear_acct))
+        as fact_cuenta_fin
+                ,ft.created as fecha_creacion
+        
+        FROM
+
+
+        fin_finacc_transaction ft 
+        INNER JOIN fin_financial_account ffa ON ffa.fin_financial_account_id = ft.fin_financial_account_id
+        LEFT JOIN fin_financial_account_acct ffaa  on ffa.fin_financial_account_id=ffaa.fin_financial_account_id
+        
+        inner JOIN fin_reconciliationline_v frl ON ft.fin_finacc_transaction_id = frl.fin_finacc_transaction_id 
+        inner  join fact_acct fa ON frl.fin_reconciliation_id=fa.record_id 
+        LEFT JOIN c_bpartner bp ON bp.c_bpartner_id = ft.c_bpartner_id
+        LEFT JOIN fin_payment fp ON ft.fin_payment_id = fp.fin_payment_id
+        LEFT JOIN fin_paymentmethod fpm ON fp.fin_paymentmethod_id = fpm.fin_paymentmethod_id
+
+        UNION 
+
+        SELECT
+            ffa.codebank AS codbanco,
+            ffa.accountno AS nrocuenta,
+            ffa.fin_financial_account_id,
+            MGL.fact_acct_id,
+            MGL.em_sco_regnumber,
+            MGL.dateacct,
+                        '' AS mediopago,
+            MGL.description,
+            '' AS referenceno,
+            bp.value AS cliente,
+            MGL.acctvalue AS codcuenta,
+            MGL.acctdescription AS nombrecuenta,
+            MGL.amtacctcr,
+            MGL.amtacctdr,
+            '' AS cod_cuenta_rel,
+            '' AS nombre_cuenta_rel,
+            '' AS ticketno,
+            '' nombrebanco,
+            '' AS padre,
+            ffa.type AS type,
+            '' AS ID,
+            '' AS NAME,
+        
+        ffa.em_scr_isinbankbook,
+        MGL.AD_CLIENT_ID,
+            MGL.AD_ORG_ID,
+        MGL.datetrx,
+        '' AS em_sco_correlativo,
+        MGL.datetrx AS statementdate,
+        MGL.acctvalue AS fact_cuenta_fin,
+        MGL.created AS fecha_creacion
+
+                FROM
+        (SELECT facct.* , (
+                                    SELECT finacc2.fin_financial_account_id 
+                                      FROM fin_financial_account finacc2, fin_financial_account_acct ffaa
+                                   WHERE finacc2.fin_financial_account_id = ffaa.fin_financial_account_id
+                                   AND coalesce(finacc2.em_sco_forapppayment,'N')='N'
+                                   AND (coalesce((SELECT cv1.account_id FROM  c_validcombination cv1 WHERE cv1.c_validcombination_id = ffaa.fin_in_intransit_acct limit 1),'') = facct.account_id
+                                   OR coalesce((SELECT cv2.account_id FROM  c_validcombination cv2 WHERE cv2.c_validcombination_id = ffaa.fin_deposit_acct limit 1),'') = facct.account_id
+                                   OR coalesce((SELECT cv3.account_id FROM  c_validcombination cv3 WHERE cv3.c_validcombination_id = ffaa.fin_in_clear_acct limit 1),'') = facct.account_id)
+                                   LIMIT 1
+                                  ) AS fin_financial_account_id
+                   FROM fact_acct facct
+                 WHERE facct.ad_table_id NOT IN ('4D8C3B3C31D1410DA046140C9F024D17','D1A97202E832470285C9B1EB026D54E2','B1B7075C46934F0A9FD4C4D0F1457B42')
+                 AND facct.acctvalue  ilike '104%'
+                 AND facct.factaccttype='N'
+                ) MGL LEFT JOIN fin_financial_account ffa ON ffa.fin_financial_account_id = MGL.fin_financial_account_id
+                      LEFT JOIN c_bpartner bp on bp.c_bpartner_id=MGL.c_bpartner_id
+
+        ) as t1
+
+      WHERE 
+        codcuenta ilike '104%' AND  type='B' 
+        AND em_scr_isinbankbook='Y'
+        AND AD_CLIENT_ID IN ('1')
+        AND AD_ORG_ID IN('1')
+        AND 1=1
+        AND 2=2
+      ORDER BY fact_cuenta_fin,dateacct,em_sco_correlativo
+  
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND datetrx >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND datetrx < TO_DATE(?)]]></Parameter>
+    <Parameter name="finaccountId" optional="true" after="AND 2=2"><![CDATA[ AND fin_financial_account_id =  ? ]]></Parameter>
+ 
+  </SqlMethod>
+  
+  
+  
+  
+  <SqlMethod name="selectCuentaCorrienteSaldoInicial" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    select
+ coalesce( sum(fa.amtacctdr)- sum(fa.amtacctcr),0) amtacctcr
+ 
+
+	from fact_acct fa
+    
+    where
+    
+        fa.AD_CLIENT_ID IN ('1')
+        AND fa.AD_ORG_ID IN('1')
+        AND ( (0=0 ) OR (1=1) )
+        AND fa.factaccttype in ('O','N')
+        
+        AND 2=2
+      
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="adUserClient" type="replace" optional="true" after="fa.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND fa.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateIniYear1" optional="true" after="0=0"><![CDATA[ and fa.factaccttype = 'O' and  fa.dateacct = TO_DATE(?) ]]></Parameter>
+    
+    <Parameter name="parDateIniYear2" optional="true" after="1=1"><![CDATA[ and fa.dateacct >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND fa.dateacct < TO_DATE(?)  ]]></Parameter>   
+    
+    <Parameter name="acctvalueCuentaFinanciera" optional="true" after="AND 2=2"><![CDATA[ and fa.acctvalue = ?]]></Parameter>
+    
+
+  </SqlMethod>
+  
+  
+  
+  
+  
+  <SqlMethod name="selectMovimientosEfectivo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT ffa.codebank codbanco,ffa.accountno nrocuenta,ft.fin_financial_account_id,
+      fa.fact_acct_id,fa.em_sco_regnumber,fa.dateacct,ft.description, fa.acctvalue codcuenta, 
+      fa.acctdescription nombrecuenta,  fa.amtacctcr,fa.amtacctdr,
+      '' cod_cuenta_rel,'' nombre_cuenta_rel, '' as padre, '' as type, '' as id, '' as name
+        FROM fact_acct fa 
+        JOIN fin_finacc_transaction ft on fa.record_id=ft.fin_finacc_transaction_id
+        LEFT JOIN fin_financial_account ffa on ffa.fin_financial_account_id=ft.fin_financial_account_id 
+        WHERE 
+        fa.acctvalue ilike '101%'
+        AND ffa.em_scr_isinbankbook='Y'
+        AND fa.AD_CLIENT_ID IN ('1')
+        AND fa.AD_ORG_ID IN('1')
+        AND 1=1
+        AND 2=2
+        ORDER BY ft.fin_financial_account_id,fa.em_sco_regnumber
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND fa.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND fa.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND fa.datetrx >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND fa.datetrx < TO_DATE(?)]]></Parameter>
+    <Parameter name="finaccountId" optional="true" after="AND 2=2"><![CDATA[ AND ft .fin_financial_account_id=?]]></Parameter>
+
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+   <SqlMethod name="selectMovimientosEfectivoMejorado" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+         SELECT * FROM 
+        
+        (SELECT
+                    fa.acctvalue AS codcuenta,
+
+                    ffa.name nombrecuenta,
+
+                    '' codbanco,
+                    '' nrocuenta,
+                    ffa.fin_financial_account_id,
+                    '' fact_acct_id,
+                    fa.em_sco_regnumber,
+                    '' dateacct,
+
+
+                    '' AS description,
+
+
+                    0.0 as amtacctcr,
+                    0.0 as amtacctdr,
+                    '-' cod_cuenta_rel,
+                    '' nombre_cuenta_rel,
+                    '' AS padre,
+                    ffa. TYPE AS TYPE,
+                    '' AS ID,
+                    '' AS NAME,
+                    ffa.em_scr_isinbankbook,
+                    fa.AD_CLIENT_ID,
+                    fa.AD_ORG_ID,
+                    fa.datetrx,
+                    '' em_sco_correlativo,
+                    
+                            (select cc.combination from c_validcombination cc where cc.c_validcombination_id=coalesce(ffaa.fin_in_intransit_acct,ffaa.fin_deposit_acct, ffaa.fin_in_clear_acct))
+                    as fact_cuenta_fin
+        
+        FROM
+            fin_finacc_transaction ft
+        JOIN fin_payment fp ON ft.fin_payment_id = fp.fin_payment_id
+        JOIN fact_acct fa ON fp.fin_payment_id = fa.record_id
+        LEFT JOIN fin_paymentmethod fpm ON fp.fin_paymentmethod_id = fpm.fin_paymentmethod_id
+        LEFT JOIN c_bpartner bp ON bp.c_bpartner_id = ft.c_bpartner_id
+        LEFT JOIN fin_financial_account ffa ON ft.fin_financial_account_id = ffa.fin_financial_account_id
+        LEFT JOIN fin_financial_account_acct ffaa  on ffa.fin_financial_account_id=ffaa.fin_financial_account_id
+        
+        UNION 
+        
+        SELECT
+                    fa.acctvalue AS codcuenta,
+
+                    ffa.name nombrecuenta,
+
+                    '' codbanco,
+                    '' nrocuenta,
+                    ffa.fin_financial_account_id,
+                    '' fact_acct_id,
+                    fa.em_sco_regnumber,
+                    '' dateacct,
+
+
+                    '' AS description,
+
+
+                    0.0 as amtacctcr,
+                    0.0 as amtacctdr,
+                    '-' cod_cuenta_rel,
+                    '' nombre_cuenta_rel,
+                    '' AS padre,
+                    ffa. TYPE AS TYPE,
+                    '' AS ID,
+                    '' AS NAME,
+                    ffa.em_scr_isinbankbook,
+                    fa.AD_CLIENT_ID,
+                    fa.AD_ORG_ID,
+                    fa.datetrx,
+                    '' em_sco_correlativo,
+                    
+                            (select cc.combination from c_validcombination cc where cc.c_validcombination_id=coalesce(ffaa.fin_in_intransit_acct,ffaa.fin_deposit_acct, ffaa.fin_in_clear_acct))
+                    as fact_cuenta_fin
+
+
+      FROM fact_acct fa
+      JOIN fin_finacc_transaction ft on fa.record_id=ft.fin_finacc_transaction_id 
+      LEFT JOIN c_bpartner bp on bp.c_bpartner_id=fa.c_bpartner_id
+      LEFT JOIN fin_payment fp on fp.fin_payment_id=ft.fin_payment_id
+      LEFT JOIN fin_paymentmethod fpm on fp.fin_paymentmethod_id=fpm.fin_paymentmethod_id
+      LEFT JOIN fin_financial_account ffa on ffa.fin_financial_account_id=ft.fin_financial_account_id
+            LEFT JOIN fin_financial_account_acct ffaa  on ffa.fin_financial_account_id=ffaa.fin_financial_account_id
+      
+      
+      
+      UNION 
+      
+      SELECT
+                    fa.acctvalue AS codcuenta,
+
+                    ffa.name nombrecuenta,
+
+                    '' codbanco,
+                    '' nrocuenta,
+                    ffa.fin_financial_account_id,
+                    '' fact_acct_id,
+                    fa.em_sco_regnumber,
+                    '' dateacct,
+
+
+                    '' AS description,
+
+
+                    0.0 as amtacctcr,
+                    0.0 as amtacctdr,
+                    '-' cod_cuenta_rel,
+                    '' nombre_cuenta_rel,
+                    '' AS padre,
+                    ffa. TYPE AS TYPE,
+                    '' AS ID,
+                    '' AS NAME,
+                    ffa.em_scr_isinbankbook,
+                    fa.AD_CLIENT_ID,
+                    fa.AD_ORG_ID,
+                    fa.datetrx,
+                    '' em_sco_correlativo,
+                    
+                            (select cc.combination from c_validcombination cc where cc.c_validcombination_id=coalesce(ffaa.fin_in_intransit_acct,ffaa.fin_deposit_acct, ffaa.fin_in_clear_acct))
+                    as fact_cuenta_fin
+        
+        FROM
+
+
+        fin_finacc_transaction ft 
+        INNER JOIN fin_financial_account ffa ON ffa.fin_financial_account_id = ft.fin_financial_account_id
+        LEFT JOIN fin_financial_account_acct ffaa  on ffa.fin_financial_account_id=ffaa.fin_financial_account_id
+        
+        inner JOIN fin_reconciliationline_v frl ON ft.fin_finacc_transaction_id = frl.fin_finacc_transaction_id 
+        inner  join fact_acct fa ON frl.fin_reconciliation_id=fa.record_id 
+        LEFT JOIN c_bpartner bp ON bp.c_bpartner_id = ft.c_bpartner_id
+        LEFT JOIN fin_payment fp ON ft.fin_payment_id = fp.fin_payment_id
+        LEFT JOIN fin_paymentmethod fpm ON fp.fin_paymentmethod_id = fpm.fin_paymentmethod_id
+
+        UNION 
+
+        SELECT
+                    MGL.acctvalue AS codcuenta,
+
+                    ffa.name nombrecuenta,
+
+                    '' codbanco,
+                    '' nrocuenta,
+                    ffa.fin_financial_account_id,
+                    '' fact_acct_id,
+                    MGL.em_sco_regnumber,
+                    '' dateacct,
+
+
+                    '' AS description,
+
+
+                    0.0 as amtacctcr,
+                    0.0 as amtacctdr,
+                    '-' cod_cuenta_rel,
+                    '' nombre_cuenta_rel,
+                    '' AS padre,
+                    ffa. TYPE AS TYPE,
+                    '' AS ID,
+                    '' AS NAME,
+                    ffa.em_scr_isinbankbook,
+                    MGL.AD_CLIENT_ID,
+                    MGL.AD_ORG_ID,
+                    MGL.datetrx,
+                    '' em_sco_correlativo,
+                    MGL.acctvalue AS fact_cuenta_fin
+
+                FROM
+        (SELECT facct.* , (
+                                    SELECT finacc2.fin_financial_account_id 
+                                      FROM fin_financial_account finacc2, fin_financial_account_acct ffaa
+                                   WHERE finacc2.fin_financial_account_id = ffaa.fin_financial_account_id
+                                   AND coalesce(finacc2.em_sco_forapppayment,'N')='N'
+                                   AND (coalesce((SELECT cv1.account_id FROM  c_validcombination cv1 WHERE cv1.c_validcombination_id = ffaa.fin_in_intransit_acct limit 1),'') = facct.account_id
+                                   OR coalesce((SELECT cv2.account_id FROM  c_validcombination cv2 WHERE cv2.c_validcombination_id = ffaa.fin_deposit_acct limit 1),'') = facct.account_id
+                                   OR coalesce((SELECT cv3.account_id FROM  c_validcombination cv3 WHERE cv3.c_validcombination_id = ffaa.fin_in_clear_acct limit 1),'') = facct.account_id)
+                                   LIMIT 1
+                                  ) AS fin_financial_account_id
+                   FROM fact_acct facct
+                 WHERE facct.ad_table_id NOT IN ('4D8C3B3C31D1410DA046140C9F024D17','D1A97202E832470285C9B1EB026D54E2','B1B7075C46934F0A9FD4C4D0F1457B42')
+                 AND facct.acctvalue  ilike '10%'
+                 AND facct.factaccttype='N'
+                ) MGL LEFT JOIN fin_financial_account ffa ON ffa.fin_financial_account_id = MGL.fin_financial_account_id
+                      LEFT JOIN c_bpartner bp on bp.c_bpartner_id=MGL.c_bpartner_id
+
+        ) as t1
+
+      WHERE 
+        codcuenta ilike '10%' AND  TYPE IN ('C', 'SCR_F')
+        AND em_scr_isinbankbook='N'
+        AND AD_CLIENT_ID IN ('1')
+        AND AD_ORG_ID IN('1')
+        AND 1=1
+        AND 2=2
+        ORDER BY 1,2
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND datetrx >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND datetrx < TO_DATE(?)]]></Parameter>
+    <Parameter name="finaccountId" optional="true" after="AND 2=2"><![CDATA[ AND fin_financial_account_id=?]]></Parameter>
+
+  </SqlMethod>
+  
+
+  
+  <SqlMethod name="selectRelatedAccts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT fa.acctvalue codcuenta, fa.acctdescription nombrecuenta 
+        FROM fact_acct fa 
+        JOIN fin_finacc_transaction ft on fa.record_id=ft.fin_finacc_transaction_id 
+        WHERE
+        fa.em_sco_regnumber = ?
+        AND fa.fact_acct_id <> ?
+        AND fa.AD_CLIENT_ID IN ('1')
+        AND fa.AD_ORG_ID IN('1')
+        ORDER BY fa.em_sco_regnumber
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="regNumber" />
+    <Parameter name="acctId" />
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND fa.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND fa.AD_ORG_ID IN(" text="'1'"/>
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="selectRelatedAcctsMejorado" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+            select * from (
+            SELECT
+            fa.dateacct,
+            fa.em_sco_isauto,
+            fa.acctvalue cod_cuenta_rel,
+            fa.acctdescription nombre_cuenta_rel,
+            fa.em_sco_record3_id AS possibleinvoice,
+            fa.em_sco_regnumber,
+            fa.fact_acct_id,
+            fa.AD_CLIENT_ID,
+            fa.AD_ORG_ID,
+            fa.amtacctdr AS amtacctcr,
+            fa.amtacctcr AS amtacctdr,
+                                COALESCE (
+                        (select ft.description from fin_finacc_transaction ft where ft.fin_finacc_transaction_id=fa.line_id),
+                        fa.description
+                    ) AS description,
+                                                    COALESCE (
+                        (select ft.created from fin_finacc_transaction ft where ft.fin_finacc_transaction_id=fa.line_id),
+                        fa.created
+                    ) AS fecha_creacion,
+            CASE
+        WHEN fa.record_id2 IS NOT NULL
+        OR fa.record_id2 <> '' THEN
+            (
+                COALESCE (
+                    (
+                        SELECT
+                            cbp.c_bpartner_id
+                        FROM
+                            fin_payment_detail_v fpd
+                        INNER JOIN c_bpartner cbp ON fpd.em_sco_c_bpartner_id = cbp.c_bpartner_id
+                        WHERE
+                            fpd.em_sco_pd_id = fa.record_id2
+                    ),
+                    ''
+                )
+            )
+        WHEN (
+            fa.em_sco_record3_id IS NOT NULL
+            OR fa.em_sco_record3_id <> ''
+        ) THEN
+            (
+                COALESCE (
+                    (
+                        SELECT
+                            cv.c_bpartner_id
+                        FROM
+                            c_invoice cv
+                        WHERE
+                            cv.c_invoice_id = fa.em_sco_record3_id
+                        LIMIT 1
+                    ),
+                    (
+                        SELECT
+                            cv.c_bpartner_id
+                        FROM
+                            sco_internal_doc cv
+                        WHERE
+                            cv.sco_internal_doc_id = fa.em_sco_record3_id
+                        LIMIT 1
+                    ),
+                    ''
+                )
+            )
+        ELSE
+            ''
+        END AS clienteId,
+        '' AS cliente,
+        CASE
+    WHEN fa.record_id2 IS NOT NULL
+    OR fa.record_id2 <> '' THEN
+        COALESCE (
+            (
+                SELECT
+                    fpd.em_sco_doc_currency_id
+                FROM
+                    fin_payment_detail fpd
+                WHERE
+                    fpd.fin_payment_detail_id = fa.record_id2
+            ),
+            fa.c_currency_id
+        )
+    ELSE
+        fa.c_currency_id
+    END AS currencyid
+    
+    
+    FROM
+        fact_acct fa
+        ) as  t1
+    
+      
+        WHERE
+        em_sco_regnumber = ?
+        AND em_sco_isauto='N'
+        AND cod_cuenta_rel <> ?
+        AND AD_CLIENT_ID IN ('1')
+        AND AD_ORG_ID IN('1')
+        ORDER BY dateacct,fecha_creacion,em_sco_regnumber
+        
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="regNumber" />
+    <Parameter name="acctId" />
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND AD_ORG_ID IN(" text="'1'"/>
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="selectAllRelatedAccts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+            select * from (
+            SELECT
+            fa.dateacct,
+            fa.em_sco_isauto,
+            fa.acctvalue cod_cuenta_rel,
+            fa.acctdescription nombre_cuenta_rel,
+            fa.em_sco_record3_id AS possibleinvoice,
+            fa.em_sco_regnumber,
+            fa.fact_acct_id,
+            fa.AD_CLIENT_ID,
+            fa.AD_ORG_ID,
+            fa.amtacctdr AS amtacctcr,
+            fa.amtacctcr AS amtacctdr,
+                                COALESCE (
+                        (select ft.description from fin_finacc_transaction ft where ft.fin_finacc_transaction_id=fa.line_id),
+                        fa.description
+                    ) AS description,
+                                                    COALESCE (
+                        (select ft.created from fin_finacc_transaction ft where ft.fin_finacc_transaction_id=fa.line_id),
+                        fa.created
+                    ) AS fecha_creacion,
+            CASE
+        WHEN fa.record_id2 IS NOT NULL
+        OR fa.record_id2 <> '' THEN
+            (
+                COALESCE (
+                    (
+                        SELECT
+                            cbp.c_bpartner_id
+                        FROM
+                            fin_payment_detail_v fpd
+                        INNER JOIN c_bpartner cbp ON fpd.em_sco_c_bpartner_id = cbp.c_bpartner_id
+                        WHERE
+                            fpd.em_sco_pd_id = fa.record_id2
+                    ),
+                    ''
+                )
+            )
+        WHEN (
+            fa.em_sco_record3_id IS NOT NULL
+            OR fa.em_sco_record3_id <> ''
+        ) THEN
+            (
+                COALESCE (
+                    (
+                        SELECT
+                            cv.c_bpartner_id
+                        FROM
+                            c_invoice cv
+                        WHERE
+                            cv.c_invoice_id = fa.em_sco_record3_id
+                        LIMIT 1
+                    ),
+                    (
+                        SELECT
+                            cv.c_bpartner_id
+                        FROM
+                            sco_internal_doc cv
+                        WHERE
+                            cv.sco_internal_doc_id = fa.em_sco_record3_id
+                        LIMIT 1
+                    ),
+                    ''
+                )
+            )
+        ELSE
+            ''
+        END AS clienteId,
+        '' AS cliente,
+        CASE
+    WHEN fa.record_id2 IS NOT NULL
+    OR fa.record_id2 <> '' THEN
+        COALESCE (
+            (
+                SELECT
+                    fpd.em_sco_doc_currency_id
+                FROM
+                    fin_payment_detail fpd
+                WHERE
+                    fpd.fin_payment_detail_id = fa.record_id2
+            ),
+            fa.c_currency_id
+        )
+    ELSE
+        fa.c_currency_id
+    END AS currencyid
+    
+    
+    FROM
+        fact_acct fa
+        ) as  t1
+    
+      
+        WHERE
+		 em_sco_isauto='N'
+        AND cod_cuenta_rel NOT IN ('1')        
+        AND AD_CLIENT_ID IN ('1')
+        AND AD_ORG_ID IN('1')
+        ORDER BY dateacct,fecha_creacion,em_sco_regnumber
+        
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="codigoCuenta" type="replace" optional="true" after="AND cod_cuenta_rel NOT IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND AD_ORG_ID IN(" text="'1'"/>
+    
+  </SqlMethod>
+  
+  
+
+  
+   <SqlMethod name="selectAllRelatedAcctsBooster" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+            select * from (
+            SELECT
+            fa.dateacct,
+            fa.em_sco_isauto,
+            fa.acctvalue cod_cuenta_rel,
+            fa.acctdescription nombre_cuenta_rel,
+            fa.em_sco_record3_id AS possibleinvoice,
+            fa.em_sco_regnumber,
+            fa.fact_acct_id,
+            fa.AD_CLIENT_ID,
+            fa.AD_ORG_ID,
+            fa.amtacctdr AS amtacctcr,
+            fa.amtacctcr AS amtacctdr,
+                                COALESCE (
+                        (select ft.description from fin_finacc_transaction ft where ft.fin_finacc_transaction_id=fa.line_id),
+                        fa.description
+                    ) AS description,
+                                                    COALESCE (
+                        (select ft.created from fin_finacc_transaction ft where ft.fin_finacc_transaction_id=fa.line_id),
+                        fa.created
+                    ) AS fecha_creacion,
+            CASE
+        WHEN fa.record_id2 IS NOT NULL
+        OR fa.record_id2 <> '' THEN
+            (
+                COALESCE (
+                    (
+                        SELECT
+                            cbp.c_bpartner_id
+                        FROM
+                            fin_payment_detail_v fpd
+                        INNER JOIN c_bpartner cbp ON fpd.em_sco_c_bpartner_id = cbp.c_bpartner_id
+                        WHERE
+                            fpd.em_sco_pd_id = fa.record_id2
+                    ),
+                    ''
+                )
+            )
+        WHEN (
+            fa.em_sco_record3_id IS NOT NULL
+            OR fa.em_sco_record3_id <> ''
+        ) THEN
+            (
+                COALESCE (
+                    (
+                        SELECT
+                            cv.c_bpartner_id
+                        FROM
+                            c_invoice cv
+                        WHERE
+                            cv.c_invoice_id = fa.em_sco_record3_id
+                        LIMIT 1
+                    ),
+                    (
+                        SELECT
+                            cv.c_bpartner_id
+                        FROM
+                            sco_internal_doc cv
+                        WHERE
+                            cv.sco_internal_doc_id = fa.em_sco_record3_id
+                        LIMIT 1
+                    ),
+                    ''
+                )
+            )
+        ELSE
+            ''
+        END AS clienteId,
+        '' AS cliente,
+        CASE
+    WHEN fa.record_id2 IS NOT NULL
+    OR fa.record_id2 <> '' THEN
+        COALESCE (
+            (
+                SELECT
+                    fpd.em_sco_doc_currency_id
+                FROM
+                    fin_payment_detail fpd
+                WHERE
+                    fpd.fin_payment_detail_id = fa.record_id2
+            ),
+            fa.c_currency_id
+        )
+    ELSE
+        fa.c_currency_id
+    END AS currencyid
+    
+    
+    FROM
+        fact_acct fa
+        ) as  t1
+    
+      
+        WHERE
+		 em_sco_isauto='N'
+        AND cod_cuenta_rel NOT IN ('1')        
+        AND AD_CLIENT_ID IN ('1')
+        AND AD_ORG_ID IN('1')
+        
+        and em_sco_regnumber in (
+
+		SELECT
+			em_sco_regnumber
+		FROM
+		(
+		SELECT
+			ft.fin_financial_account_id,
+			fa.em_sco_regnumber,
+			fa.AD_CLIENT_ID,
+			fa.AD_ORG_ID,
+			fa.datetrx
+		FROM
+			fin_finacc_transaction ft
+		JOIN fin_payment fp ON ft.fin_payment_id = fp.fin_payment_id
+		JOIN fact_acct fa ON fp.fin_payment_id = fa.record_id
+		LEFT JOIN fin_financial_account ffa ON ft.fin_financial_account_id = ffa.fin_financial_account_id
+
+		UNION
+
+			SELECT
+				ft.fin_financial_account_id,
+				fa.em_sco_regnumber,
+				fa.AD_CLIENT_ID,
+				fa.AD_ORG_ID,
+				fa.datetrx
+			FROM
+				fact_acct fa
+			JOIN fin_finacc_transaction ft ON fa.record_id = ft.fin_finacc_transaction_id
+			LEFT JOIN fin_financial_account ffa ON ffa.fin_financial_account_id = ft.fin_financial_account_id
+
+			UNION
+
+				SELECT
+					ft.fin_financial_account_id,
+					fa.em_sco_regnumber,
+					fa.AD_CLIENT_ID,
+					fa.AD_ORG_ID,
+					fa.datetrx
+
+				FROM
+					fin_finacc_transaction ft
+				INNER JOIN fin_financial_account ffa ON ffa.fin_financial_account_id = ft.fin_financial_account_id
+				LEFT JOIN fin_financial_account_acct ffaa ON ffa.fin_financial_account_id = ffaa.fin_financial_account_id
+				INNER JOIN fin_reconciliationline_v frl ON ft.fin_finacc_transaction_id = frl.fin_finacc_transaction_id
+				INNER JOIN fact_acct fa ON frl.fin_reconciliation_id = fa.record_id
+
+				UNION
+
+					SELECT
+						ffa.fin_financial_account_id,
+						MGL.em_sco_regnumber,
+						MGL.AD_CLIENT_ID,
+						MGL.AD_ORG_ID,
+						MGL.datetrx
+					FROM
+						(
+							SELECT
+								facct.*,
+								(
+									SELECT
+										finacc2.fin_financial_account_id
+									FROM
+										fin_financial_account finacc2,
+										fin_financial_account_acct ffaa
+									WHERE
+										finacc2.fin_financial_account_id = ffaa.fin_financial_account_id
+									AND COALESCE (
+										finacc2.em_sco_forapppayment,
+										'N'
+									) = 'N'
+									AND (
+										COALESCE (
+											(
+												SELECT
+													cv1.account_id
+												FROM
+													c_validcombination cv1
+												WHERE
+													cv1.c_validcombination_id = ffaa.fin_in_intransit_acct
+												LIMIT 1
+											),
+											''
+										) = facct.account_id
+										OR COALESCE (
+											(
+												SELECT
+													cv2.account_id
+												FROM
+													c_validcombination cv2
+												WHERE
+													cv2.c_validcombination_id = ffaa.fin_deposit_acct
+												LIMIT 1
+											),
+											''
+										) = facct.account_id
+										OR COALESCE (
+											(
+												SELECT
+													cv3.account_id
+												FROM
+													c_validcombination cv3
+												WHERE
+													cv3.c_validcombination_id = ffaa.fin_in_clear_acct
+												LIMIT 1
+											),
+											''
+										) = facct.account_id
+									)
+									LIMIT 1
+								) AS fin_financial_account_id
+							FROM
+								fact_acct facct
+							WHERE
+								facct.ad_table_id NOT IN (
+									'4D8C3B3C31D1410DA046140C9F024D17',
+									'D1A97202E832470285C9B1EB026D54E2',
+									'B1B7075C46934F0A9FD4C4D0F1457B42'
+								)
+							AND facct.acctvalue ILIKE '104%'
+							AND facct.factaccttype = 'N'
+						) MGL
+					LEFT JOIN fin_financial_account ffa ON ffa.fin_financial_account_id = MGL.fin_financial_account_id
+				) AS t1
+			WHERE
+			
+			 t1.AD_CLIENT_ID IN ('1')
+			AND t1.AD_ORG_ID IN ('1')
+			AND 4=4
+
+        )
+        
+        
+        ORDER BY dateacct,fecha_creacion,em_sco_regnumber
+        
+        
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="codigoCuenta" type="replace" optional="true" after="AND cod_cuenta_rel NOT IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND AD_ORG_ID IN(" text="'1'"/>
+    
+        <Parameter name="adUserClient2" type="replace" optional="true" after="t1.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg2" type="replace" optional="true" after="t1.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 4=4"><![CDATA[ AND t1.datetrx >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 4=4"><![CDATA[ AND t1.datetrx < TO_DATE(?)]]></Parameter>
+    <Parameter name="finaccountId" optional="true" after="AND 4=4"><![CDATA[ AND t1.fin_financial_account_id =  ? ]]></Parameter>
+    
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="selectCodigoCuentasCorrientes" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+        select  distinct cc.combination as codcuenta 
+    from fin_financial_account ffa 
+    INNER JOIN fin_financial_account_acct ffaa  on ffa.fin_financial_account_id=ffaa.fin_financial_account_id
+    inner join c_validcombination cc on cc.c_validcombination_id=coalesce(ffaa.fin_in_intransit_acct,ffaa.fin_deposit_acct, ffaa.fin_in_clear_acct)
+	 where 
+	 ffa.TYPE = 'B'
+	AND ffa.em_scr_isinbankbook = 'Y'
+	AND ffa.AD_CLIENT_ID IN ('1')
+    AND ffa.AD_ORG_ID IN('1')
+    AND 1=1
+	order by 1
+
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after=" ffa.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after=" AND ffa.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="codigoCuenta" optional="true" after="AND 1=1"><![CDATA[ AND cc.combination=? ]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT b.taxid ruc 
+        FROM ad_org a 
+        LEFT JOIN c_bpartner b ON a.em_swa_c_bpartner_id=b.c_bpartner_id
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod> 
+  
+     <SqlMethod name="selectRUC" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TAXID
+        FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectFinFinancialAccountDouble" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT FIN_FINANCIAL_ACCOUNT.AD_ORG_ID AS PADRE, TO_CHAR(FIN_FINANCIAL_ACCOUNT.TYPE) AS TYPE, FIN_FINANCIAL_ACCOUNT.FIN_FINANCIAL_ACCOUNT_ID AS ID, TO_CHAR(FIN_FINANCIAL_ACCOUNT.NAME) AS NAME
+        FROM FIN_FINANCIAL_ACCOUNT
+        WHERE 1=1
+         AND FIN_FINANCIAL_ACCOUNT.AD_Client_ID IN('1')
+         UNION 
+        SELECT null AS PADRE, TO_CHAR(FIN_FINANCIAL_ACCOUNT.TYPE) AS TYPE, FIN_FINANCIAL_ACCOUNT.FIN_FINANCIAL_ACCOUNT_ID AS ID, TO_CHAR(FIN_FINANCIAL_ACCOUNT.NAME) AS NAME
+        FROM FIN_FINANCIAL_ACCOUNT
+        WHERE 2=2 AND FIN_FINANCIAL_ACCOUNT.AD_Client_ID IN('1')    
+        ORDER BY PADRE, NAME
+      ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="FIN_FINANCIAL_ACCOUNT.AD_Client_ID IN(" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after=" 2=2 AND FIN_FINANCIAL_ACCOUNT.AD_Client_ID IN(" text="'1'"/>    
+  </SqlMethod>   
+  
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+     SELECT 
+    ao3.ad_org_id as idorganizacion,
+    cp.c_period_id as idperiodo,
+    cp.name as periodo,
+    to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+    to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+       
+    FROM c_period cp
+    INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+    LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+    on ao.social_name=ao3.social_name
+    
+    where periodtype!='A'
+    ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+        <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+   </SqlMethod>
+  
+    
+</SqlClass>

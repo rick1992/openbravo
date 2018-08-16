@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BOE_MANUALTERM_PURCH_TRG">
+    <trigger name="SCO_BOE_MANUALTERM_PURCH_TRG" table="SCO_BOE_MANUALTERM" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_issotrx CHAR(1);
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+
+  SELECT issotrx INTO v_issotrx FROM SCO_Billofexchange WHERE SCO_Billofexchange_ID=:NEW.SCO_Billofexchange_ID;
+
+  IF (INSERTING) THEN
+    IF (v_issotrx = 'N' AND (:NEW.boe_physical_documentno IS NULL OR trim(:NEW.boe_physical_documentno)='')) THEN 
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_EmptyPhyDocNoForBOE@') ;
+    END IF;
+
+  ELSIF (UPDATING) THEN
+    IF (v_issotrx = 'N' AND (:OLD.boe_physical_documentno<>:NEW.boe_physical_documentno) 
+        AND (:NEW.boe_physical_documentno IS NULL OR trim(:NEW.boe_physical_documentno)='')) THEN
+	  RAISE_APPLICATION_ERROR(-20000, '@SCO_EmptyPhyDocNoForBOE@') ;
+    END IF;
+
+  END IF;
+
+
+  END SCO_BOE_MANUALTERM_PURCH_TRG
+]]></body>
+    </trigger>
+  </database>

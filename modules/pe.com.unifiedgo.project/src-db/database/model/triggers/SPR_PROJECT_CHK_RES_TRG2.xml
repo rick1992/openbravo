@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_PROJECT_CHK_RES_TRG2">
+    <trigger name="SPR_PROJECT_CHK_RES_TRG2" table="C_PROJECT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Count NUMBER:= 0;
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+    IF(:OLD.ProjectStatus='OP') THEN
+       SELECT COUNT(*) INTO v_Count FROM SPR_Budget WHERE C_Project_ID=:OLD.C_Project_ID;       
+       IF(v_Count <> 0 
+	     AND((COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+	       OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	       OR(COALESCE(:old.m_warehouse_id, '0') <> COALESCE(:new.m_warehouse_id, '0'))
+	       OR(COALESCE(:old.em_spr_costcenter_id, '0') <> COALESCE(:new.em_spr_costcenter_id,'0'))
+	       OR(COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:new.C_Currency_ID, '0'))
+	       OR(COALESCE(:old.m_pricelist_id, '0') <> COALESCE(:new.m_pricelist_id, '0'))
+	  )        
+       )THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SPR_CannotEditOpenProject@') ;
+       END IF;
+    END IF;    
+  END IF;
+
+END SPR_PROJECT_CHK_RES_TRG2
+]]></body>
+    </trigger>
+  </database>

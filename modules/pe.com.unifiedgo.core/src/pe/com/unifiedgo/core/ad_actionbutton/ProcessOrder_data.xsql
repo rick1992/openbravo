@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SqlClass id="class" name="ProcessOrderData" package="pe.com.unifiedgo.core.ad_actionbutton">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectempty" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql><![CDATA[
+        SELECT '' as sunatlinescount
+          FROM DUAL;
+        ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+
+  <SqlMethod name="getOrderSunatLinesCount" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT Count(*) AS sunatlinescount
+          FROM (
+          SELECT m_product_id, priceactual FROM C_Orderline
+          WHERE C_Order_ID = ?
+          GROUP BY M_Product_ID,priceactual ) AS A;         
+      ]]></Sql>
+    <Parameter name="cOrderId"/>  
+  </SqlMethod>
+</SqlClass>

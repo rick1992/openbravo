@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_FINACCT_PAYMETHOD_TRG">
+    <trigger name="SCO_FINACCT_PAYMETHOD_TRG" table="FIN_FINANCIAL_ACCOUNT" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2010-2014 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    TYPE RECORD IS REF CURSOR;
+  Cur_Record RECORD;
+  v_AssetAccount character varying(32);
+
+BEGIN
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(INSERTING) THEN
+    FOR Cur_Record IN
+      (
+      SELECT pm.*
+      FROM FIN_Paymentmethod pm
+      WHERE pm.IsActive='Y' 
+        AND pm.AD_Client_ID = :new.AD_Client_ID 
+        AND (case when :new.type in('C','SCR_F') then COALESCE(pm.em_sco_specialmethod,'') in('SCOCASH','SCONOTDEFINED')
+                  else COALESCE(pm.em_sco_specialmethod,'') not in('SCOCASH') end)
+      )
+    LOOP
+	  INSERT INTO fin_finacc_paymentmethod(
+            fin_finacc_paymentmethod_id, ad_client_id, ad_org_id, created, 
+            createdby, updated, updatedby, isactive, fin_paymentmethod_id, 
+            fin_financial_account_id, automatic_receipt, automatic_payment, 
+            automatic_deposit, automatic_withdrawn, payin_allow, payout_allow, 
+            payin_execution_type, payout_execution_type, payin_execution_process_id, 
+            payout_execution_process_id, payin_deferred, payout_deferred, 
+            uponreceiptuse, upondeposituse, inuponclearinguse, uponpaymentuse, 
+            uponwithdrawaluse, outuponclearinguse, payin_ismulticurrency, 
+            payout_ismulticurrency, em_sco_auto_revert_deposit, em_sco_auto_revert_withdrawn)
+      VALUES (get_uuid(), :new.AD_Client_ID, :new.AD_ORG_ID, now(), 
+            :new.CreatedBy, now(), :new.UpdatedBy, 'Y', Cur_Record.fin_paymentmethod_id, 
+            :new.fin_financial_account_id, Cur_Record.automatic_receipt, Cur_Record.automatic_payment, 
+            Cur_Record.automatic_deposit, Cur_Record.automatic_withdrawn, Cur_Record.payin_allow, Cur_Record.payout_allow, 
+            Cur_Record.payin_execution_type, Cur_Record.payout_execution_type, Cur_Record.payin_execution_process_id, 
+            Cur_Record.payout_execution_process_id, Cur_Record.payin_deferred, Cur_Record.payout_deferred, 
+            Cur_Record.uponreceiptuse, Cur_Record.upondeposituse, Cur_Record.inuponclearinguse, Cur_Record.uponpaymentuse, 
+            Cur_Record.uponwithdrawaluse, Cur_Record.outuponclearinguse, Cur_Record.payin_ismulticurrency, 
+            Cur_Record.payout_ismulticurrency, Cur_Record.em_sco_auto_revert_deposit, Cur_Record.em_sco_auto_revert_withdrawn);
+
+    END LOOP;
+
+  END IF;
+END SCO_FINACCT_PAYMETHOD_TRG
+]]></body>
+    </trigger>
+  </database>

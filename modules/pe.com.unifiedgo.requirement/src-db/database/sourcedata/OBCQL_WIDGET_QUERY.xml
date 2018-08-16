@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+<!--A100243AA9354126A333ABF98E2DCF56--><OBCQL_WIDGET_QUERY>
+<!--A100243AA9354126A333ABF98E2DCF56-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[A100243AA9354126A333ABF98E2DCF56]]></OBCQL_WIDGET_QUERY_ID>
+<!--A100243AA9354126A333ABF98E2DCF56-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--A100243AA9354126A333ABF98E2DCF56-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--A100243AA9354126A333ABF98E2DCF56-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--A100243AA9354126A333ABF98E2DCF56-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[D6C8CECED74C47649FFB4DD474BF3CF2]]></OBKMO_WIDGET_CLASS_ID>
+<!--A100243AA9354126A333ABF98E2DCF56-->  <HQL><![CDATA[select e.ordenDeCompra.id as OrderId, 
+            e.organization.name as organizationName, 
+            e.ordenDeCompra.documentNo as documentNo, 
+            e.orderDate as orderDate, 
+            e.businessPartner.name as businessPartnerName,
+            e.currency.iSOCode as currencyName,
+            e.grandTotalAmount as totalAmount
+from sre_purchaseorder_pending e
+where e.client.id = :client
+ and e.organization.id in (:organizationList)
+ and e.organization.name like :organizationName
+ and @optional_filters@
+order by  e.orderDate desc, e.ordenDeCompra.documentNo]]></HQL>
+<!--A100243AA9354126A333ABF98E2DCF56-->  <TYPE><![CDATA[HQL]]></TYPE>
+<!--A100243AA9354126A333ABF98E2DCF56--></OBCQL_WIDGET_QUERY>
+
+</data>

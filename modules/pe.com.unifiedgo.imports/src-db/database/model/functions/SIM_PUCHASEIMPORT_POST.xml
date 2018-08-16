@@ -1,0 +1,162 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_PUCHASEIMPORT_POST">
+    <function name="SIM_PUCHASEIMPORT_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_estado_intermedio VARCHAR2(60);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_CountLines NUMBER:=1; -- Success
+  Cur_OrderImportLine RECORD;
+  v_DocStatus VARCHAR(60) ;
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  v_estado_aprobacion  VARCHAR(60) ;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL AND p_order_id IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    ELSIF(p_order_id IS NOT NULL) THEN
+      v_Record_ID:=p_order_id;
+      SELECT CreatedBy
+        INTO v_User_ID
+        FROM sim_orderimport
+       WHERE sim_orderimport_id=v_Record_ID;
+      IF(v_User_ID IS NULL)THEN
+       RAISE NO_DATA_FOUND ;
+      END IF;
+    ELSIF(p_PInstance_ID IS NOT NULL) THEN
+      SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+    END IF;
+    
+   /**
+    * Approve Sales Orders
+    * Sales Order Column: c_order.em_ssa_disc_evaluation_status
+    * c_order.em_ssa_disc_evaluation_status States:
+    *   - DR: Requirement Book
+    *   - CO: Requirement Completed
+    *   - CL: Requirement Closed
+    */
+
+    SELECT COUNT(sim_orderimportline_id)
+    INTO v_CountLines
+    FROM sim_orderimportline
+    WHERE sim_orderimport_id=v_Record_ID;
+
+    IF(v_CountLines = 0) THEN
+        v_Message := '@sim_import_not_lines@';
+        v_Result := 0; -- Error
+        IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        END IF;
+        RETURN;
+    END IF;
+
+
+    SELECT docstatus,estado_intermedio,estado_aprobacion
+      INTO v_orderApprovedState,v_estado_intermedio,v_estado_aprobacion
+    FROM sim_orderimport
+    WHERE sim_orderimport_id=v_Record_ID;
+
+    IF((v_orderApprovedState = 'DR' AND v_estado_intermedio ='NT')OR (v_estado_aprobacion='NP'))THEN
+       UPDATE sim_orderimport
+          SET estado_intermedio = 'TE',
+              estado_aprobacion = 'PD',
+              send_to_eval_date = now()
+        WHERE sim_orderimport_id = v_Record_ID;
+     v_Message := '@sim_order_notApprove@' || v_Message; 
+     v_Result := 2;
+     IF(p_PInstance_ID IS NOT NULL) THEN
+     AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+     END IF;
+    RETURN;
+    END IF;
+    
+    IF (v_orderApprovedState LIKE 'CO') THEN
+        --v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        END IF;
+        RETURN;
+    END IF; 
+
+    IF (v_orderApprovedState LIKE 'CL') THEN
+        --v_Message := '@swa_requirement_reposition@';
+        v_Result := 2; -- Warning
+        IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+        END IF;
+        RETURN;
+    END IF; 
+    
+
+    /**
+    * Updating Purchase Price List
+    */
+
+    SELECT docstatus
+      INTO v_DocStatus
+    FROM sim_orderimport
+    WHERE sim_orderimport_id=v_Record_ID;
+
+    IF (v_DocStatus='DR') THEN 
+	FOR Cur_OrderImportLine IN (
+	  SELECT * FROM SIM_OrderImportLine where SIM_OrderImport_ID = v_Record_ID
+	)
+	LOOP
+          UPDATE M_Productprice
+	     SET pricelist=COALESCE(Cur_OrderImportLine.pricelist,0),
+		 pricestd=COALESCE(Cur_OrderImportLine.priceactual,0) 
+	   WHERE M_Pricelist_version_ID=(SELECT M_pricelist_version_ID FROM M_Pricelist_Version 
+                                          WHERE M_pricelist_ID = (SELECT M_pricelist_ID 
+								    FROM SIM_OrderImport 
+								   WHERE SIM_OrderImport_ID=Cur_OrderImportLine.SIM_OrderImport_ID) 
+                                            AND validfrom <=now()
+                                          ORDER BY validfrom DESC LIMIT 1)
+	     AND M_Product_ID=Cur_OrderImportLine.M_Product_ID;	
+	END LOOP;
+    END IF;
+
+
+    UPDATE sim_orderimport 
+    SET docstatus='CO',
+        estado_aprobacion='AP',
+        Evaluationby=v_User_ID,
+        Evaluation=now()
+    WHERE sim_orderimport_id=v_Record_ID;
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+     IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+     END IF;
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SIM_PUCHASEIMPORT_POST
+]]></body>
+    </function>
+  </database>

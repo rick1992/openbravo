@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_AA_SPODTCMB_TRG">
+    <trigger name="SCO_INVOICE_AA_SPODTCMB_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_podoc_cmbi_value VARCHAR(40);
+  v_scr_combo_item_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.issotrx = 'Y') THEN
+      SELECT COALESCE(em_sco_specialdoctype,'') INTO v_specialdoctype FROM C_Doctype WHERE C_Doctype_ID = :NEW.c_doctypetarget_id;
+      
+      v_podoc_cmbi_value := 'tabla10_99';
+      IF(v_specialdoctype IN ('SCOARINVOICE')) THEN
+        v_podoc_cmbi_value := 'tabla10_01';
+      ELSIF(v_specialdoctype IN ('SCOARTICKET')) THEN
+        v_podoc_cmbi_value := 'tabla10_03';
+      ELSIF(v_specialdoctype IN ('SCOARCREDITMEMO','SCOARINVOICERETURNMAT')) THEN
+        v_podoc_cmbi_value := 'tabla10_07';
+      ELSIF(v_specialdoctype IN ('SCOARDEBITMEMO')) THEN
+        v_podoc_cmbi_value := 'tabla10_08';
+      END IF;
+
+      SELECT i.scr_combo_item_id 
+        INTO v_scr_combo_item_id
+      FROM SCR_Combo_Item i, SCR_Combo_Category cat
+      WHERE i.scr_combo_category_id = cat.scr_combo_category_id
+      AND i.AD_Client_ID = :NEW.AD_Client_ID
+      AND AD_ISORGINCLUDED(:NEW.ad_org_id, i.ad_org_id, :NEW.ad_client_id) <> -1
+      AND cat.value IN ('tablasunat10','tablasunat10_NotaCredito')
+      AND i.value = v_podoc_cmbi_value LIMIT 1;
+
+      :NEW.em_sco_podoctype_comboitem_id := v_scr_combo_item_id;
+      :NEW.em_sco_podoc_cmbi_value := v_podoc_cmbi_value;
+
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(:OLD.c_doctypetarget_id <> :NEW.c_doctypetarget_id) THEN
+
+      IF(:NEW.issotrx = 'Y') THEN
+        SELECT COALESCE(em_sco_specialdoctype,'') INTO v_specialdoctype FROM C_Doctype WHERE C_Doctype_ID = :NEW.c_doctypetarget_id;
+      
+        v_podoc_cmbi_value := 'tabla10_99';
+        IF(v_specialdoctype IN ('SCOARINVOICE')) THEN
+          v_podoc_cmbi_value := 'tabla10_01';
+        ELSIF(v_specialdoctype IN ('SCOARTICKET')) THEN
+          v_podoc_cmbi_value := 'tabla10_03';
+        ELSIF(v_specialdoctype IN ('SCOARCREDITMEMO','SCOARINVOICERETURNMAT')) THEN
+          v_podoc_cmbi_value := 'tabla10_07';
+        ELSIF(v_specialdoctype IN ('SCOARDEBITMEMO')) THEN
+          v_podoc_cmbi_value := 'tabla10_08';
+        END IF;
+
+        SELECT i.scr_combo_item_id 
+          INTO v_scr_combo_item_id
+        FROM SCR_Combo_Item i, SCR_Combo_Category cat
+        WHERE i.scr_combo_category_id = cat.scr_combo_category_id
+        AND i.AD_Client_ID = :NEW.AD_Client_ID
+        AND AD_ISORGINCLUDED(:NEW.ad_org_id, i.ad_org_id, :NEW.ad_client_id) <> -1
+        AND cat.value IN ('tablasunat10','tablasunat10_NotaCredito')
+        AND i.value = v_podoc_cmbi_value LIMIT 1;
+
+        :NEW.em_sco_podoctype_comboitem_id := v_scr_combo_item_id;
+        :NEW.em_sco_podoc_cmbi_value := v_podoc_cmbi_value;
+  
+      END IF;
+
+    END IF;
+  END IF;
+
+
+  END SCO_INVOICE_AA_SPODTCMB_TRG
+]]></body>
+    </trigger>
+  </database>

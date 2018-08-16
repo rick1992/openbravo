@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_SORDLI_UPDATESP_TRG">
+    <trigger name="SRE_SORDLI_UPDATESP_TRG" table="SRE_SERVICEORDERLINE" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_qty_available NUMBER:=0;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    SELECT em_ssa_specialdoctype INTO v_specialdoctype FROM C_Order WHERE C_Order_ID = :NEW.c_order_id;
+    :NEW.specialdoctype := v_specialdoctype;
+
+
+      IF (:NEW.m_warehouse_id IS NOT NULL) THEN
+       SELECT ppwv.qty_available 
+         INTO v_qty_available
+        FROM m_product_price_warehouse_v ppwv
+         INNER JOIN m_product p ON p.m_product_id=ppwv.m_product_id
+         INNER JOIN m_warehouse w ON w.m_warehouse_id=ppwv.m_warehouse_id
+            WHERE p.ad_client_id= :NEW.AD_CLIENT_ID    
+              AND p.m_product_id= :NEW.M_PRODUCT_ID    
+              AND w.m_warehouse_id=:NEW.m_warehouse_id
+              AND AD_ISORGINCLUDED(:NEW.AD_ORG_ID, p.ad_org_id,:NEW.AD_CLIENT_ID) > -1
+              AND AD_ISORGINCLUDED(:NEW.AD_ORG_ID, ppwv.orgwarehouse,:NEW.AD_CLIENT_ID) > -1 LIMIT 1;
+
+	   IF (v_qty_available IS NOT NULL)THEN
+	     :NEW.qtyavailable:=v_qty_available;
+	   END IF;
+              
+   END IF;
+    
+
+    END SRE_SORDLI_UPDATESP_TRG
+]]></body>
+    </trigger>
+  </database>

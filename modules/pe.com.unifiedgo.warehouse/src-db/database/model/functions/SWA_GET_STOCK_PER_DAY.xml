@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_GET_STOCK_PER_DAY">
+    <function name="SWA_GET_STOCK_PER_DAY" type="NUMERIC">
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_warehouse_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_date" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_client_id VARCHAR(32);
+v_product_id VARCHAR(32);
+v_orgPadre_id VARCHAR(32);
+v_warehouse_id VARCHAR(32);
+v_datequery DATE;
+v_qtyinitial NUMBER:=0;
+BEGIN
+
+--Lo que queremos ver es el stock que queda a la fecha que se està mandando 
+--como parametro, es decir incluir los movimientos de ese mismo dia
+
+v_client_id :=$1;
+v_product_id:= $2;
+v_warehouse_id:= $3;
+v_datequery:=$4;
+v_datequery:=v_datequery + 1; --Le sumo un dia para incluir al mismo dia en la consulta
+
+
+
+
+ SELECT coalesce(trx.QTYPOS-trx.QTYNEG,0) INTO v_qtyinitial
+  FROM m_product mp 
+  LEFT JOIN ( 
+       SELECT mt.m_product_id  AS m_product_id, 
+              coalesce(sum( CASE WHEN (mt.movementqty)>= 0 THEN mt.movementqty ELSE 0 END ),0) AS QTYPOS, 
+              coalesce(sum( CASE WHEN (mt.movementqty)< 0 THEN -mt.movementqty ELSE 0 END ),0) AS QTYNEG
+        FROM  M_Transaction mt 
+        LEFT JOIN m_locator ml ON ml.m_locator_id =  mt.m_locator_id 
+        LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id 
+        WHERE mt.m_product_id = v_product_id 
+          AND mt.movementdate < trunc(v_datequery) 
+          AND mw.m_warehouse_id=v_warehouse_id
+          AND mt.ad_client_id = v_client_id
+       GROUP BY mt.m_product_id
+   ) trx  ON mp.m_product_id = trx.m_product_id
+ WHERE mp.m_product_id = v_product_id;
+
+
+
+   RETURN COALESCE(v_qtyinitial,0);
+END SWA_GET_STOCK_PER_DAY
+]]></body>
+    </function>
+  </database>

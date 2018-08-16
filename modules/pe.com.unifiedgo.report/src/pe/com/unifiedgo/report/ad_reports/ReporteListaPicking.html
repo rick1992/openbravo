@@ -1,0 +1,675 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2007-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Reporte De Lista De Picking</title>
+    <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+     
+    <script language="JavaScript" type="text/javascript" id="paramDirectory">
+      var baseDirectory = "../../../../../web/";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript">
+      </script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" type="text/javascript" id="paramLanguage">
+        var defaultLang = "en_US";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/DecimalFormat.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojoConfig.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojo/dojo.js" type="text/javascript"></script>
+      
+      <script language="JavaScript" type="text/javascript" src="../../../../../web/js/DHTMLgoodies/context-menu.js"></script>
+      <script language="JavaScript" type="text/javascript" src="../../../../../web/js/DHTMLgoodies/drag-drop-folder-tree.js"></script>
+      
+      
+      <script type="text/javascript">
+        dojo.hostenv.writeIncludes(); //makes debugging in Venkman possible
+      </script>
+
+<script language="JavaScript" type="text/javascript">
+
+//prevent refocus after the tab containing this window
+//gets selected, this prevents change of scroll position
+//for that tab
+OB_NoRefocusAfterTabSelection = true;
+
+
+</script>
+
+ <script language="JavaScript" type="text/javascript">
+    function dblClickItem(nodeID) {
+      var layoutMDI = getFrame('LayoutMDI');
+      if (layoutMDI) {
+        layoutMDI.OB.Utilities.openDirectTab(document.frmMain.inpTabId.value, nodeID);
+      } else {
+        top.opener.submitCommandForm("EDIT", false, null, document.forms[0].myAction.value + "?Command=EDIT&" + getKeyField().name + "=" + nodeID, '_self');
+      }
+      return true;
+    }
+  </script>
+
+<script language="javascript">
+    var isScrollable = false;
+    var isScrolling = false;
+    var scrollDir = '';
+    var showingInfoKey = '';
+    function enableScroll(status) {
+      isScrollable = status;
+      if (isScrollable == true) {
+        if (showingInfoKey == true) {
+          showInfo();
+          showingInfoKey = false;
+        }
+      } else {
+        showingInfoKey = true;
+      }
+    }
+    function setScroll(status) {
+      if(isScrollable == true) {
+        isScrolling = status;
+      } else {
+        isScrolling = false;
+      }
+    }
+    function scrollTree(direction) {
+      scrollDir = direction;
+      if(isScrolling == true) {
+        if (scrollDir == 'up') {
+          setTimeout("UpScroll()",5);
+        } else if (scrollDir == 'down') {
+          setTimeout("DownScroll()",5);
+        }
+      }
+    }
+    function UpScroll() {
+      if(document.getElementById('openbravo_tree').scrollTop >= 0) {
+        document.getElementById('openbravo_tree').scrollTop -= 3;
+        scrollTree('up');
+      }
+    }
+    function DownScroll() {
+      if(document.getElementById('openbravo_tree').scrollTop <= document.getElementById('openbravo_tree').scrollHeight) {
+        document.getElementById('openbravo_tree').scrollTop += 3;
+        scrollTree('down');
+      }
+    }
+
+    
+
+  </script>
+
+
+<script language="JavaScript" type="text/javascript">
+function OpenProductTab(tabid, id) {
+    var myframe = getFrame('LayoutMDI') || top.opener;
+    if (myframe) {
+        myframe.OB.Utilities.openDirectTab(tabid, id); //Product
+    }
+}
+
+
+
+
+function validate() {
+    var frm = document.frmMain;
+    if (frm.inpadOrgId.value==null || frm.inpadOrgId.value=="") {
+        setWindowElementFocus(frm.inpadOrgId);
+        showJSMessage(1);
+        return false;
+    }
+    
+    if (frm.inpDocDate.value==null || frm.inpDocDate.value=="") {
+        setWindowElementFocus(frm.inpDocDate);
+        showJSMessage(1);
+        return false;
+    }
+    
+    if (frm.inpDateTo.value==null || frm.inpDateTo.value=="") {
+        setWindowElementFocus(frm.inpDateTo);
+        showJSMessage(1);
+        return false;
+    }
+    
+    return true;
+}
+
+function printPDF()
+{
+    var validacion = false;
+    if(validate()){
+        openPDFFiltered("ReporteListaPicking.html?Command=PDF","PDF");
+        validacion = true;
+    }
+    return validacion;
+}
+
+
+
+function printXLS()
+{
+    var validacion = false;
+    if(validate()){
+        openPDFFiltered("ReporteListaPicking.html?Command=XLS","EXCEL");
+        validacion = true;
+    }
+    return validacion;
+}
+
+function refreshComboUsuario() {
+
+    var cmbOrganization = document.frmMain.inpadOrgId;
+    var cmbUsuario = document.frmMain.inpadUserId;
+  
+    var cmbUsuario = document.frmMain.inpadUserId;
+
+    changeComboData1Filters(cmbUsuario, arrUsuarios,
+            cmbOrganization.options[cmbOrganization.selectedIndex].value,
+            true);
+    return true;
+
+}
+
+function changeComboData1Filters(combo, dataArray, key1, withBlankOption) {
+	
+    var i;
+    var n = 0;
+    if (combo.options.length != null) {
+        for (i = combo.options.length; i >= 0; i--)
+            combo.options[i] = null;
+    }
+    
+    console.log("por aca");
+
+    if (withBlankOption)
+        combo.options[n++] = new Option("", "");
+    if (dataArray == null)
+        return false;
+
+    var total = dataArray.length;
+    for (i = 0; i < total; i++) {
+        if (dataArray[i][2] == key1) {
+            combo.options[n++] = new Option(dataArray[i][1],
+                    dataArray[i][0]);
+        }
+    }
+}
+
+
+function functiontest(tab){
+    document.getElementById('paramOrderToEdit').setAttribute('value', tab);
+    submitCommandForm('GENERATELINES', true, null, null, null, true, true);return false;
+}
+
+function numberInputEventMin(name){
+    console.log(name);
+}
+
+function submitDraggingInfo(strTop, strLink, strChild) {
+    document.frmMain.inpTop.value = idReplace(strTop);
+    document.frmMain.inpLink.value = idReplace(strLink);
+    document.frmMain.inpChild.value = strChild;
+    try {
+      var paramXMLReq = null;
+      return submitXmlHttpRequest(callback, frmMain, "ASSIGN", "WindowTree.html", false, null, paramXMLReq);
+    }
+    catch (e) {
+      initialize_MessageBox('messageBoxID');
+      setValues_MessageBox('messageBoxID','ERROR','ERROR',e);
+    }
+  }
+
+function changeData(key) { 
+    var df = new DecimalFormat("#####0.###");    
+    var id = key.substring(11, 44);
+    //var qtyaverage = document.getElementsByName("inpaverage" + id)[0];inplineqtyxx inpTotalLinexx
+    var qtyorderes = (document.getElementsByName("inplineqty" + id)[0]).innerHTML;
+    var newprice = document.getElementsByName(key)[0];
+    
+   if(isNaN(parseFloat(newprice.value))){
+       newprice.value=0;
+    }
+      
+    var newTotalLine = 0;
+       newTotalLine = parseFloat(qtyorderes)*parseFloat(newprice.value);    
+       //newTotalLine = new BigDecimal(qtyorderes).multiply(new BigDecimal(newprice.value));
+                
+    (document.getElementsByName("inpTotalLine"+id)[0]).innerHTML = df.format(newTotalLine);
+
+    return true;
+}
+
+
+function onloadFunctions() {
+    //keyArray[keyArray.length] = new keyArrayItem("ENTER", "openSearch(null, null, '../info/ProductComplete.html', null, false, 'frmMain', 'inpmProductId', 'inpmProductId_D', inputValue(document.frmMain.inpmProductId_D), 'inpIDValue', inputValue(document.frmMain.inpmProductId), 'Command', 'KEY');", "inpmProductId_D", "null");
+      keyArray[keyArray.length] = new keyArrayItem("ENTER", "openSearch(null, null, '../info/BusinessPartner.html', null, false, 'frmMain', 'inpcBPartnerId', 'inpBpartnerId_DES', inputValue(document.frmMain.inpBpartnerId_DES), 'inpIDValue', inputValue(document.frmMain.inpcBpartnerId), 'Command', 'KEY','RestrictOrgId',document.frmMain.inpadOrgId.value,'bpdefaulttype','vendor');", "inpBpartnerId_DES", "null");
+      keyArray[keyArray.length] = new keyArrayItem("ENTER", "openSearch(null, null, '../info/ProductComplete.html', null, false, 'frmMain', 'inpmProductId', 'inpmProductId_D', inputValue(document.frmMain.inpmProductId_D), 'inpIDValue', inputValue(document.frmMain.inpmProductId), 'Command', 'KEY');", "inpmProductId_D", "null");
+}
+</script>
+    <script language="JavaScript" type="text/javascript">
+    function onLoadDo(){
+        this.windowTables = new Array(
+          new windowTableId('client', 'buttonHTML')
+        );
+        setWindowTableParentElement();
+        this.tabsTables = new Array(
+          new tabTableId('tdtopTabs')
+        );
+        setTabTableParentElement();
+        enableShortcuts('edition');
+        setBrowserAutoComplete(false);
+        try {
+          onloadFunctions();
+        } catch (e) {}
+        resizeArea();
+        updateMenuIcon('buttonMenu');
+        
+        setWindowElementFocus('firstElement');        
+    }
+   
+    
+    function onResizeDo(){
+        resizeArea();
+    }
+</script>
+
+
+
+
+
+    <script language="JavaScript" type="text/javascript"
+	    id="paramUsuariosArray">
+	    var arrUsuarios = null;
+	</script>
+
+</head>
+
+
+
+
+
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form method="post" action="ReporteListaPicking.html" name="frmMain" id="form">
+  <input type="hidden" name="Command"></input>
+  <input type="hidden" name="IsPopUpCall" value="1"></input>
+  <input type="hidden" name="inpKey" value="" id="paramKey"></input>
+  <input type="hidden" name="inpwindowId" value="" id="window"></input>
+  <input type="hidden" name="inpTabId" value="" id="tab"></input>
+  <input type="hidden" name="inpReportData" id="paramReportData"></input>
+  <input type="hidden" name="inpReportHeader" id="paramReportHeader"></input>
+  <input type="hidden" name="inpOrderToEdit" id="paramOrderToEdit"></input>
+
+  
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"></tr>
+          <tr id="paramMainTabContainer"></tr>
+          <tr id="paramChildTabContainer"></tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: auto; display: none; border-bottom: 0px none;" id="client">
+                <table class="dojoTabContainer" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                  <tr>
+                    <td>
+                      <table class="dojoTabPaneWrapper" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                        <tr>
+                          <td>
+                            <!-- MessageBox -->
+
+                            <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+                              <tbody>
+                              <tr class="MessageBox_TopMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr>
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td>
+
+                                  <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                                    <tbody>
+                                    <tr>
+                                      <td class="MessageBox_LeftTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopLeft"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Left"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                      <td class="MessageBox_bg">
+
+                                        <table class="MessageBox_Top">
+                                        <tbody>
+                                          <tr>
+                                            <td>
+                                              <span>
+                                              <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                                <tbody>
+                                                <tr>
+                                                  <td class="MessageBox_Icon_ContentCell">
+                                                    <div class="MessageBox_Icon"></div>
+                                                  </td>
+                                                  <td style="vertical-align: top;" id="messageBoxIDContent">
+                                                    <span>
+                                                      <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                                        xxInfo: AccessTableWithNoView
+                                                      </div>
+                                                      <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                                        xxThe current information is empty.
+                                                      </div>
+                                                      <div class="MessageBox_TextSeparator"></div>
+                                                    </span>
+                                                  </td>
+                                                </tr>
+                                                </tbody>
+                                              </table>
+                                              </span>
+                                            </td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+
+                                      </td>
+                                      <td class="MessageBox_RightTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopRight"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Right"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td rowspan="2" class="MessageBox_BottomLeft">
+                                      </td>
+                                      <td class="MessageBox_BottomTrans MessageBox_bg">
+                                      </td>
+                                      <td rowspan="2" class="MessageBox_BottomRight">
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="MessageBox_Bottom">
+                                      </td>
+                                    </tr>
+                                    </tbody>
+                                  </table>
+
+                                </td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr class="MessageBox_BottomMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            <!-- USER CONTROLS -->
+              <table class="Main_Client_TableEdition">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+                <tr>
+                <td colspan="6">
+                  <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                  <tbody>
+                    <tr class="FieldGroup_TopMargin"/>
+                    <tr>
+                      <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                      <td class="FieldGroupTitle">Filtro</td>
+                      <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                      <td class="FieldGroupContent"/>
+                    </tr>
+                    <tr class="FieldGroup_BottomMargin"/>
+                  </tbody>
+                  </table>
+                </td>
+                </tr>
+                
+                
+                
+                
+                
+                
+                
+                 <tr>
+                     <td class="TitleCell"><span class="LabelText">Organización</span></td>      
+                     <td class="Combo_ContentCell" colspan="2"> 
+                      <select name="inpadOrgId"  id="inpadOrgId" onchange="refreshComboUsuario();return true;" class="ComboKey Combo_TwoCells_width required Combo_focus"  required="true">
+                        <option value=""><div id="reportAD_Org_ID"></div></option>
+                      </select>
+                     </td>
+                     <td class="TitleCell"><span class="LabelText">Nro. Guía </span></td>
+                            <td class="TextBox_ContentCell" width="5">
+                                <input  class="dojoValidateValid TextBox_OneCell_width" type="text" name="inpPhysicalNumber" size="10" id="paramPhysicalNumber" value="">
+                            </td>
+                </tr>
+                
+                
+                
+                <tr>
+                    <td class="TitleCell"><span class="LabelText">Desde</span></td>
+                    <td class="TextBox_btn_ContentCell" colspan="2">
+                        <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                          <tr>
+                            <td class="TextBox_ContentCell">
+                              <input dojoType="openbravo:DateTextbox" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width required" 
+                              type="text" name="inpDocDate" id="paramDocDate" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;" 
+                              onchange="setAvgMonhtlySalesFields();return true;" required="true"></input><script>djConfig.searchIds.push("paramDocDate");</script>
+                            </td>
+                            <td class="FieldButton_bg">
+                              <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDocDate', document.frmMain.inpDocDate.value, false);return false;">
+                              <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                                <tr>
+                                  <td class="FieldButton_bg">
+                                    <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                                  </td>
+                                </tr>
+                              </table>
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                     </td> 
+                     
+                     
+                     
+                     <td class="TitleCell"><span class="LabelText">Hasta</span></td>
+                      <td class="TextBox_btn_ContentCell" colspan="2">
+                        <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                          <tr>
+                            <td class="TextBox_ContentCell">
+                              <input dojoType="openbravo:DateTextbox" reaterThan="paramDocDate" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width required" 
+                              type="text" name="inpDateTo" id="paramDateTo" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;" 
+                              onchange="setAvgMonhtlySalesFields();return true;" required="true"></input><script>djConfig.searchIds.push("paramDateTo");</script>
+                            </td>
+                            <td class="FieldButton_bg">
+                              <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDateTo', document.frmMain.inpDateTo.value, false);return false;">
+                              <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                                <tr>
+                                  <td class="FieldButton_bg">
+                                    <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                                  </td>
+                                </tr>
+                              </table>
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                     </td>
+                </tr>
+                
+                
+                
+                
+                
+                
+                <tr>
+                <td class="TitleCell"><span class="LabelText">Encargado de Picking</span></td>
+                  <!-- combo para los usuarios -->
+                  <td class="Combo_ContentCell" colspan="2"> 
+                      <select name="inpadUserId"  id="inpadUserId" class="Combo Combo_TwoCells_width Combo_focus" required="true">
+                        <option value=""><div id="reportUsers"></div></option>
+                      </select>
+                     </td>
+                </tr>
+                
+                
+                
+                <tr>
+                    <td class="TitleCell"></td>
+                    <td class="Radio_Check_ContentCell" colspan="2">
+                        <span class="Checkbox_container_NOT_Focused">
+                            <input type="checkbox" name="inpAgrupadoPorPickero" id="paramAgrupadoPorPickero" value="Y"></input>
+                                </span><span class="LabelText">Agrupado por Encargado de Picking</span>
+                    </td>
+                    <td class="ContentCell"></td>
+                    <td class="ContentCell"></td>
+                </tr>
+                
+                
+                
+                
+                
+                <tr>
+                    <td class="TitleCell"></td>
+                    <td class="Radio_Check_ContentCell" colspan="2">
+                        <span class="Checkbox_container_NOT_Focused">
+                            <input type="checkbox" name="inpMostrarDetalles" id="paramMostrarDetalles" value="Y"></input>
+                        </span><span class="LabelText">Mostrar Detalles</span>
+                    </td>
+                    <td class="ContentCell"></td>
+                    <td class="ContentCell"></td>
+                </tr>
+                
+                
+                <tr>
+                    <td class="ContentCell"></td>
+                    <td class="ContentCell"></td>                    
+                </tr>
+
+                
+                <tr>
+                    <td class="Button_RightAlign_ContentCell" colspan="2">
+                      
+                    </td>
+
+                    <td class="ContentCell"></td>
+                    <td class="ContentCell"></td>
+                    <td class="ContentCell"></input>
+                    </td>
+                    <td class="ContentCell"></td>
+                  </tr>
+            
+                <tr>
+                    <td colspan="6">
+                      
+                    </td>
+                  </tr>
+       <tr>           
+        </table>
+        <tr>
+          
+         </tr> 
+          
+
+          
+
+          <div id="sectionOrg5"></div>  
+        <div id="sectionOrg6"></div>
+                </td>
+              </tr>                                                      
+              </table>                       
+              </td>
+            </tr>               
+          </table>  
+        </div>   
+        
+          <div class="Main_ContentPane_Client" style="overflow: auto; border-top: 0px none;" id="tdbottomButtons">
+              <table class="Main_Client_TableEdition" cellspacing="0" cellpadding="0" style="width: 435px">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+
+                </tr>
+
+           
+              </table>
+            </div>          
+        
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

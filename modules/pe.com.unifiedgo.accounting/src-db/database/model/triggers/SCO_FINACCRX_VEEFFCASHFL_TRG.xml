@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_FINACCRX_VEEFFCASHFL_TRG">
+    <trigger name="SCO_FINACCRX_VEEFFCASHFL_TRG" table="FIN_FINACC_TRANSACTION" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_sco_eeff_cashflow_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF(:NEW.em_sco_eeff_cashflow_id IS NULL) THEN
+        IF(:NEW.fin_payment_id IS NOT NULL) THEN
+          SELECT em_sco_eeff_cashflow_id
+            INTO v_sco_eeff_cashflow_id
+            FROM FIN_Payment
+          WHERE FIN_Payment_ID = :NEW.fin_payment_id;
+
+          IF(v_sco_eeff_cashflow_id IS NULL) THEN
+            --Put defaults
+            IF(:NEW.depositamt > :NEW.paymentamt) THEN
+              SELECT sco_eeff_cashflow_id
+                INTO v_sco_eeff_cashflow_id
+                FROM sco_eeff_cashflow
+              WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+              AND ispayindefault = 'Y' LIMIT 1;
+            ELSE
+              SELECT sco_eeff_cashflow_id
+                INTO v_sco_eeff_cashflow_id
+                FROM sco_eeff_cashflow
+              WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+              AND ispayoutdefault = 'Y' LIMIT 1;
+            END IF;
+          END IF;
+
+          :NEW.em_sco_eeff_cashflow_id = v_sco_eeff_cashflow_id;
+
+        ELSE
+          --Put defaults
+          IF(:NEW.depositamt > :NEW.paymentamt) THEN
+            SELECT sco_eeff_cashflow_id
+              INTO v_sco_eeff_cashflow_id
+              FROM sco_eeff_cashflow
+            WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+            AND ispayindefault = 'Y' LIMIT 1;
+          ELSE
+            SELECT sco_eeff_cashflow_id
+              INTO v_sco_eeff_cashflow_id
+              FROM sco_eeff_cashflow
+            WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+            AND ispayoutdefault = 'Y' LIMIT 1;
+          END IF;
+          :NEW.em_sco_eeff_cashflow_id = v_sco_eeff_cashflow_id;
+        END IF;
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.em_sco_eeff_cashflow_id,'')<>COALESCE(:NEW.em_sco_eeff_cashflow_id,'')) THEN
+        IF(:NEW.em_sco_eeff_cashflow_id IS NULL) THEN
+          IF(:NEW.fin_payment_id IS NOT NULL) THEN
+            SELECT em_sco_eeff_cashflow_id
+              INTO v_sco_eeff_cashflow_id
+              FROM FIN_Payment
+            WHERE FIN_Payment_ID = :NEW.fin_payment_id;
+
+            IF(v_sco_eeff_cashflow_id IS NULL) THEN
+              --Put defaults
+              IF(:NEW.depositamt > :NEW.paymentamt) THEN
+                SELECT sco_eeff_cashflow_id
+                  INTO v_sco_eeff_cashflow_id
+                  FROM sco_eeff_cashflow
+                WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+                AND ispayindefault = 'Y' LIMIT 1;
+              ELSE
+                SELECT sco_eeff_cashflow_id
+                  INTO v_sco_eeff_cashflow_id
+                  FROM sco_eeff_cashflow
+                WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+                AND ispayoutdefault = 'Y' LIMIT 1;
+              END IF;
+            END IF;
+
+            :NEW.em_sco_eeff_cashflow_id = v_sco_eeff_cashflow_id;
+
+          ELSE
+            --Put defaults
+            IF(:NEW.depositamt > :NEW.paymentamt) THEN
+              SELECT sco_eeff_cashflow_id
+                INTO v_sco_eeff_cashflow_id
+                FROM sco_eeff_cashflow
+              WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+              AND ispayindefault = 'Y' LIMIT 1;
+            ELSE
+              SELECT sco_eeff_cashflow_id
+                INTO v_sco_eeff_cashflow_id
+                FROM sco_eeff_cashflow
+              WHERE AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+              AND ispayoutdefault = 'Y' LIMIT 1;
+            END IF;
+            :NEW.em_sco_eeff_cashflow_id = v_sco_eeff_cashflow_id;
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+
+    END SCO_FINACCRX_VEEFFCASHFL_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_REQUIRED_CREDIT_APPROV">
+    <function name="SWA_REQUIRED_CREDIT_APPROV" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_fromrequerimiento_id VARCHAR2(32);
+  v_swa_requirement_request_id VARCHAR2(32);
+  is_requirement_trx char(1);
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+       
+        
+    UPDATE swa_requerimientoreposicion 
+       SET request_status='CO_PD',
+           required_approved_by = v_User_ID,
+           required_approved = now()
+     WHERE swa_requerimientoreposicion_id=v_Record_ID;
+
+     
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    SWA_REQUIREMENT_REQUEST(p_PInstance_ID) ;
+ 
+        
+    /*v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;*/
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_REQUIRED_CREDIT_APPROV
+]]></body>
+    </function>
+  </database>

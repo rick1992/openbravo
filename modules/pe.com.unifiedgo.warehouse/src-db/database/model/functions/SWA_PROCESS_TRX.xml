@@ -1,0 +1,396 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_PROCESS_TRX">
+    <function name="SWA_PROCESS_TRX" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_LineSeqNo NUMBER:=0;
+  v_DocumentNo VARCHAR(30);
+  v_inout_documentno VARCHAR(30);
+  v_Result NUMBER:=1; -- Success
+  v_qtyonhand_transit NUMBER:=0;
+-- Record Info
+  Cur_Parameter RECORD;
+  Cur_parameter2 RECORD;
+  CUR_locator_transito RECORD;
+  v_swa_goodshipment_id VARCHAR2(32);
+  v_swa_goodshipment_reference_id VARCHAR2(32);
+  v_Client_id VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+  v_createdby VARCHAR2(32);
+  v_c_bpartner_id VARCHAR2(32);
+  v_from_m_warehouse VARCHAR2(32);
+  v_from_tmp_m_warehouse VARCHAR2(32);
+  v_to_warehouse VARCHAR2(32);
+  v_swa_m_inoutline_id VARCHAR2(32);
+  v_CDocTypeID varchar2(32);
+  v_c_bpartner_location_id varchar2(32);
+  v_c_uom_id varchar2(32);
+  v_scro_comboitem_id varchar2(32);
+  v_locator_intransit_id varchar2(32);
+  v_towarehousetype varchar2(60);
+  v_fromwarehousetype varchar2(60);
+  v_warehouse_intransit_id varchar2(60);
+  v_em_swa_receipt_locator_id varchar2(32);
+  v_from_physical_number varchar2(30);
+  v_swa_fromrequerimiento_id varchar2(32);
+  v_receipt_locator varchar2(32);
+  v_movementdate M_Inout.MovementDate%TYPE;
+  v_istocomplete CHAR(1);  
+  Cur_parameter_get RECORD;
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    FOR Cur_parameter_get IN (
+    SELECT i.AD_Client_ID, p.ParameterName, p.p_number, p.P_Date,  p.P_String
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo
+   )LOOP
+        IF (Cur_parameter_get.ParameterName = 'swa_movementdate') THEN
+           v_movementdate := Cur_parameter_get.P_Date;
+        END IF;
+        IF (Cur_parameter_get.ParameterName = 'swa_chk_tocomplete') THEN
+            v_istocomplete:=Cur_parameter_get.P_String;
+        END IF;      
+   END LOOP;
+    
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+--Validation if Exist goods Receipt with this reposition Receipt
+ 
+  SELECT documentno 
+    INTO v_inout_documentno 
+    FROM m_inout 
+  WHERE em_swa_requireposicion_id = v_Record_ID AND docstatus IN ('DR','CO') AND issotrx='N';
+  IF (v_inout_documentno IS NOT NULL) THEN
+   RAISE_APPLICATION_ERROR(-20000,'@swa_already_exist_receipt@' || v_inout_documentno);
+  END IF;
+--
+
+  SELECT ad_client_id,ad_org_id,createdby,c_bpartner_id,c_bpartner_location_id, from_m_warehouse_id , to_m_warehouse_id, swa_fromrequerimiento_id
+         INTO v_Client_id,v_ad_org_id,v_createdby ,v_c_bpartner_id,v_c_bpartner_location_id, v_from_m_warehouse, v_to_warehouse, v_swa_fromrequerimiento_id
+       FROM swa_requerimientoreposicion 
+       WHERE swa_requerimientoreposicion_id = v_Record_ID;
+
+
+
+
+SELECT from_m_warehouse_id INTO v_from_tmp_m_warehouse FROM swa_requerimientoreposicion WHERE swa_requerimientoreposicion_id = v_swa_fromrequerimiento_id;
+
+v_from_m_warehouse:=v_to_warehouse;  --- Originalmente la recepcion se hacia con el almacen desde en la ventana recepcion de transferencias
+--Esto debe quedar asi siempre.
+
+--RAISE v_to_warehouse;
+
+SELECT em_swa_warehousetype INTO v_towarehousetype FROM m_warehouse WHERE m_warehouse_id = v_to_warehouse;
+SELECT em_swa_warehousetype,em_swa_receipt_locator_id INTO v_fromwarehousetype,v_em_swa_receipt_locator_id FROM m_warehouse WHERE m_warehouse_id = v_from_m_warehouse;
+SELECT em_swa_warehousetype INTO v_fromwarehousetype FROM m_warehouse WHERE m_warehouse_id = v_from_tmp_m_warehouse;
+
+v_scro_comboitem_id = NULL;
+
+--Combo item para salida de el almacen de Tránsito
+SELECT scr_combo_item_id
+         INTO v_scro_comboitem_id
+         FROM scr_combo_item WHERE  VALUE = 'SalidaProductosTransito' 
+                               AND ad_client_id = v_Client_id;
+
+/*IF (v_towarehousetype = 'CO')THEN
+       SELECT scr_combo_item_id
+         INTO v_scro_comboitem_id
+         FROM scr_combo_item WHERE  VALUE = 'ReposicionPorConsignacion' 
+                               AND ad_client_id = v_Client_id;
+ELSE
+       SELECT scr_combo_item_id 
+         INTO v_scro_comboitem_id 
+         FROM scr_combo_item WHERE  VALUE = 'ReposicionEntreAlmacenesOut' 
+                               AND ad_client_id = v_Client_id;
+
+END IF;*/
+
+
+
+
+ -- SELECT ad_org_id INTO v_ad_org_id FROM m_warehouse WHERE m_warehouse_id=v_to_warehouse;
+ IF(v_c_bpartner_location_id IS NULL) THEN
+ FOR Cur_parameter2 IN 
+ (SELECT c_bpartner_location_id 
+  FROM c_bpartner_location 
+  WHERE c_bpartner_id = v_c_bpartner_id
+ )
+ LOOP
+    v_c_bpartner_location_id = Cur_parameter2.c_bpartner_location_id;
+ END LOOP;
+   IF(v_c_bpartner_location_id is null)THEN
+      RAISE NO_DATA_FOUND;
+   END IF;
+END IF;
+
+
+ 
+  --BLOQUE A : PRIMERO VAMOS A CREAR EL INOUT DE LA SALIDA EN EL WAREHOUSE EN TRANSITO
+    FOR CUR_locator_transito IN (
+     SELECT m_locator_id, m_warehouse.m_warehouse_id FROM m_locator 
+        inner join m_warehouse on m_warehouse.m_warehouse_id = m_locator.m_warehouse_id
+        WHERE m_warehouse.em_swa_warehousetype='TR'
+         --AND m_warehouse.ad_org_id=v_ad_org_id
+          AND AD_ISORGINCLUDED(v_ad_org_id,m_warehouse.ad_org_id, v_Client_id) <> -1
+         AND m_warehouse.ad_client_id = v_Client_id
+    )LOOP
+       v_locator_intransit_id = CUR_locator_transito.m_locator_id;
+       v_warehouse_intransit_id = CUR_locator_transito.m_warehouse_id;
+       EXIT;
+    END LOOP;
+  
+    SELECT C_DocType_ID INTO v_CDocTypeID
+		FROM C_DOCTYPE
+		WHERE em_sco_specialdoctype='SWAMMDISPATCH'
+		AND ISACTIVE='Y' 
+		AND AD_Client_Id= v_Client_id
+		AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id) <> -1
+		AND COALESCE(isreturn, 'N') = 'N'
+		ORDER BY AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id),
+		IsDefault DESC,
+		C_DocType_ID;
+
+   IF (v_CDocTypeID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_Internal_Receipt_doctype_nofound@');
+   END IF;
+   
+   AD_Sequence_DocType(v_CDocTypeID, v_Client_id, 'Y', v_DocumentNo);
+   
+   v_swa_goodshipment_reference_id:=get_uuid();
+
+   
+   INSERT INTO m_inout
+    (m_inout_id,ad_client_id,ad_org_id,isactive,created,createdby,
+     updated,updatedby,issotrx,documentno,docaction,docstatus,processing,c_doctype_id,movementtype,movementdate,
+     dateacct,c_bpartner_id,c_bpartner_location_id,m_warehouse_id, deliveryrule,freightcostrule,
+     freightamt,deliveryviarule,chargeamt,priorityrule,createfrom,generateto,calculate_freight,em_swa_isfromreposition,
+     em_swa_requireposicion_id,em_swa_combo_item_id,Process_Goods_Java,EM_Swa_Tramitedoc
+    )
+   VALUES 
+    (v_swa_goodshipment_reference_id,v_Client_id,v_ad_org_id,'Y',now(),v_createdby,
+     now(),v_createdby, 'Y',v_DocumentNo,'CO','DR','N',v_CDocTypeID,'M-',COALESCE(v_movementdate,TO_DATE(trunc(now()))),
+     COALESCE(v_movementdate,TO_DATE(trunc(now()))),v_c_bpartner_id,v_c_bpartner_location_id,v_warehouse_intransit_id,'A','I',
+     0,'P',0,'5','N','N','N','Y',
+     v_Record_ID,v_scro_comboitem_id,'CO','Y'
+    );
+  
+    --Insert Lines
+   FOR Cur_Parameter IN 
+   (SELECT m_product_id,qtyordered
+    FROM swa_requerepo_detail where swa_requerimientoreposicion_id = v_Record_ID
+   )
+   LOOP     
+      v_LineSeqNo:= 10 + v_LineSeqNo;
+      v_swa_m_inoutline_id:=get_uuid();
+       
+       SELECT c_uom_id INTO v_c_uom_id 
+        FROM m_product 
+       WHERE m_product_id = Cur_Parameter.m_product_id;
+
+	INSERT INTO m_inoutline
+        (m_inoutline_id,ad_client_id,ad_org_id,isactive,created,createdby,
+	 updated,updatedby,line,m_inout_id,m_product_id,c_uom_id,movementqty,isinvoiced,
+	 isdescription,c_bpartner_id,m_locator_id
+	)
+	VALUES 
+	(v_swa_m_inoutline_id,v_Client_id,v_ad_org_id,'Y',now(),v_createdby,
+         now(),v_createdby,v_LineSeqNo,v_swa_goodshipment_reference_id,Cur_Parameter.m_product_id,v_c_uom_id,Cur_Parameter.qtyordered,'N',
+         'N',v_c_bpartner_id,v_locator_intransit_id
+	); 
+  END LOOP;
+  --FIN BLOQUE A
+  --BLOQUE B: CREANDO LA ENTRADA EN INOUT GOOD RECEIPT
+	IF (v_towarehousetype = 'CO' AND v_fromwarehousetype = 'NO')THEN
+	       SELECT scr_combo_item_id
+		 INTO v_scro_comboitem_id
+		 FROM scr_combo_item WHERE  VALUE = 'IngresoDevolucionConsignacion' 
+				       AND ad_client_id = v_Client_id;
+	ELSIF( v_towarehousetype = 'NO' AND v_fromwarehousetype = 'CO') THEN
+	       SELECT scr_combo_item_id 
+		 INTO v_scro_comboitem_id 
+		 FROM scr_combo_item WHERE  VALUE = 'ReposicionPorConsignacion' 
+				       AND ad_client_id = v_Client_id;
+	ELSIF( v_towarehousetype = 'NO' AND v_fromwarehousetype = 'VS') THEN
+	       SELECT scr_combo_item_id 
+		 INTO v_scro_comboitem_id 
+		 FROM scr_combo_item WHERE  VALUE = 'IngresoxDevolucionVentaSujeta' 
+				       AND ad_client_id = v_Client_id;
+	ELSIF(v_fromwarehousetype = 'MI') THEN
+	       SELECT scr_combo_item_id 
+		 INTO v_scro_comboitem_id 
+		 FROM scr_combo_item WHERE  VALUE = 'ReposicionPorMina' 
+				       AND ad_client_id = v_Client_id;		       
+        ELSIF(v_fromwarehousetype = 'CO') THEN     
+	       SELECT scr_combo_item_id 
+		 INTO v_scro_comboitem_id 
+		 FROM scr_combo_item WHERE  VALUE = 'ReposicionPorConsignacion' 
+				       AND ad_client_id = v_Client_id;	
+	 ELSIF(v_towarehousetype = 'VS') THEN     
+	       SELECT scr_combo_item_id 
+		 INTO v_scro_comboitem_id 
+		 FROM scr_combo_item WHERE  VALUE = 'IngresoVentaSujeta' 
+				       AND ad_client_id = v_Client_id;		       				       
+	ELSE
+	     SELECT scr_combo_item_id 
+		 INTO v_scro_comboitem_id 
+		 FROM scr_combo_item WHERE  VALUE = 'ReposicionEntreAlmacenes' 
+				       AND ad_client_id = v_Client_id;
+	END IF;
+
+   SELECT C_DocType_ID INTO v_CDocTypeID
+		FROM C_DOCTYPE
+		WHERE em_sco_specialdoctype='SWAINTERNALRECEIPT'
+		AND ISACTIVE='Y' 
+		AND AD_Client_Id= v_Client_id
+		--AND em_sco_m_warehouse_id = v_from_m_warehouse
+		AND AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id) <> -1
+		AND COALESCE(isreturn, 'N') = 'N'
+		ORDER BY AD_ISORGINCLUDED(v_ad_org_id, AD_Org_ID, v_Client_id),
+		IsDefault DESC,
+		C_DocType_ID;
+
+   IF (v_CDocTypeID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_Internal_Receipt_doctype_nofound@') ;
+   END IF;
+-- END DOCTYPE
+   AD_Sequence_DocType(v_CDocTypeID, v_Client_id, 'Y', v_DocumentNo) ;
+
+   --Determinando el Número Físico de la Guía asociada a la Orden de Transferencia la cual vamos a hacer el ingreso
+     SELECT em_scr_physical_documentno 
+       INTO v_from_physical_number
+       FROM m_inout io
+     INNER JOIN swa_requerimientoreposicion sre on io.em_swa_requireposicion_id = sre.swa_requerimientoreposicion_id
+       WHERE io.docstatus='CO'
+         AND issotrx='Y'
+         AND sre.swa_requerimientoreposicion_id = v_swa_fromrequerimiento_id LIMIT 1;
+   --------
+
+   v_swa_goodshipment_id:=get_uuid();
+   v_LineSeqNo:= 0;
+   INSERT INTO m_inout
+    (m_inout_id,ad_client_id,ad_org_id,isactive,created,createdby,
+     updated,updatedby,issotrx,documentno,docaction,docstatus,processing,c_doctype_id,movementtype,movementdate,
+     dateacct,c_bpartner_id,c_bpartner_location_id,m_warehouse_id, deliveryrule,freightcostrule,
+     freightamt,deliveryviarule,chargeamt,priorityrule,createfrom,generateto,calculate_freight,em_swa_isfromreposition,
+     em_swa_requireposicion_id,em_swa_combo_item_id,em_swa_asociate_inout_id,Process_Goods_Java, em_scr_physical_documentno
+    )
+   VALUES 
+    (v_swa_goodshipment_id,v_Client_id,v_ad_org_id,'Y',now(),v_createdby,
+     now(),v_createdby, 'N',v_DocumentNo,'CO','DR','N',v_CDocTypeID,'V+',COALESCE(v_movementdate,TO_DATE(trunc(now()))),
+     COALESCE(v_movementdate,TO_DATE(trunc(now()))),v_c_bpartner_id,v_c_bpartner_location_id,v_from_m_warehouse,'A','I',
+     0,'P',0,'5','N','N','N','Y',
+     v_Record_ID,v_scro_comboitem_id,v_swa_goodshipment_reference_id,'CO', COALESCE(v_from_physical_number,'000-0000000')
+    );
+
+
+
+    v_receipt_locator:=NULL;
+    IF(v_em_swa_receipt_locator_id IS NOT NULL)THEN
+      v_receipt_locator:=v_em_swa_receipt_locator_id;
+    END IF;
+
+   IF(v_receipt_locator IS NOT NULL)THEN
+           --Insert Lines with Locator Receipt Default Setting
+	   FOR Cur_Parameter IN 
+	   (SELECT swa_requerepo_detail_id, m_product_id,qtyordered
+	    FROM swa_requerepo_detail where swa_requerimientoreposicion_id = v_Record_ID
+	   )
+	   LOOP     
+	       v_LineSeqNo:= 10 + v_LineSeqNo;
+	       v_swa_m_inoutline_id:=get_uuid();
+	       
+	       SELECT c_uom_id INTO v_c_uom_id 
+		FROM m_product 
+	       WHERE m_product_id = Cur_Parameter.m_product_id;
+	       
+		    INSERT INTO m_inoutline
+		    (m_inoutline_id,ad_client_id,ad_org_id,isactive,created,createdby,
+		     updated,updatedby,line,m_inout_id,m_product_id,c_uom_id,movementqty,isinvoiced,
+		     isdescription,c_bpartner_id,m_locator_id, em_swa_requerepo_detail_id
+		    )
+		   VALUES 
+		    (v_swa_m_inoutline_id,v_Client_id,v_ad_org_id,'Y',now(),v_createdby,
+		     now(),v_createdby,v_LineSeqNo,v_swa_goodshipment_id,Cur_Parameter.m_product_id,v_c_uom_id,Cur_Parameter.qtyordered,'N',
+		     'N',v_c_bpartner_id,v_receipt_locator , Cur_Parameter.swa_requerepo_detail_id
+		    ); 
+	  END LOOP;
+
+         
+          IF(v_istocomplete='Y')THEN
+                M_INOUT_POST(NULL, v_swa_goodshipment_id) ;----avalos
+          END IF;
+	  
+     
+   ELSE
+        --Insert Lines without Locator Receipt,  Default not Setting
+		   FOR Cur_Parameter IN 
+		   (SELECT swa_requerepo_detail_id, m_product_id,qtyordered
+		    FROM swa_requerepo_detail where swa_requerimientoreposicion_id = v_Record_ID
+		   )
+		   LOOP     
+		       v_LineSeqNo:= 10 + v_LineSeqNo;
+		       v_swa_m_inoutline_id:=get_uuid();
+		       
+		       SELECT c_uom_id INTO v_c_uom_id 
+			FROM m_product 
+		       WHERE m_product_id = Cur_Parameter.m_product_id;
+		       
+			    INSERT INTO m_inoutline
+			    (m_inoutline_id,ad_client_id,ad_org_id,isactive,created,createdby,
+			     updated,updatedby,line,m_inout_id,m_product_id,c_uom_id,movementqty,isinvoiced,
+			     isdescription,c_bpartner_id, em_swa_requerepo_detail_id
+			    )
+			   VALUES 
+			    (v_swa_m_inoutline_id,v_Client_id,v_ad_org_id,'Y',now(),v_createdby,
+			     now(),v_createdby,v_LineSeqNo,v_swa_goodshipment_id,Cur_Parameter.m_product_id,v_c_uom_id,Cur_Parameter.qtyordered,'N',
+			     'N',v_c_bpartner_id, Cur_Parameter.swa_requerepo_detail_id
+			    ); 
+		  END LOOP;
+
+		  IF(v_istocomplete='Y')THEN
+                         v_Message:='@swa_inout_nocompleted_locator@' || v_DocumentNo;
+		         v_Result := 2; -- Warning
+		         AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+		         RETURN;
+		  END IF;
+
+		  RAISE v_istocomplete;
+   END IF;
+ -- FIN BLOQUE B
+
+    v_Message:='@swa_created_goodsreceipt@' || v_DocumentNo;
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    v_Result := 1; -- Warning
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_PROCESS_TRX
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_UPDATEMCURR_TRG">
+    <trigger name="SCO_PAYMENT_UPDATEMCURR_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      IF(COALESCE(:NEW.em_sco_multicurrencypayment,'.') = 'Y') THEN
+        IF(:NEW.em_sco_mcurrbrigdeglitem_id IS NULL OR :NEW.em_sco_mcurrbrigdeglitem_id='') THEN
+          --RAISE_APPLICATION_ERROR(-20000, '@SCO_PaymentMultiCurrWithoutGL@');
+        END IF;
+      ELSE
+        :NEW.em_sco_multicurrencypayment := 'N';
+        :NEW.em_sco_mcurrbrigdeglitem_id := NULL;
+      END IF;
+    ELSE
+      IF(COALESCE(:OLD.em_sco_multicurrencypayment,'.')<>COALESCE(:NEW.em_sco_multicurrencypayment,'.') OR
+         COALESCE(:OLD.em_sco_mcurrbrigdeglitem_id,'.')<>COALESCE(:NEW.em_sco_mcurrbrigdeglitem_id,'.')
+        ) THEN
+        IF(COALESCE(:NEW.em_sco_multicurrencypayment,'.') = 'Y') THEN
+          IF(:NEW.em_sco_mcurrbrigdeglitem_id IS NULL OR :NEW.em_sco_mcurrbrigdeglitem_id='') THEN
+            --RAISE_APPLICATION_ERROR(-20000, '@SCO_PaymentMultiCurrWithoutGL@');
+          END IF;
+        ELSE
+          :NEW.em_sco_multicurrencypayment := 'N';
+          :NEW.em_sco_mcurrbrigdeglitem_id := NULL;
+        END IF;
+      END IF;
+    END IF;
+
+    END SCO_PAYMENT_UPDATEMCURR_TRG
+]]></body>
+    </trigger>
+  </database>

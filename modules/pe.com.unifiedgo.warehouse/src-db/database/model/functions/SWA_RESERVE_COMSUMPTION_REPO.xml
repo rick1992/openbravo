@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_RESERVE_COMSUMPTION_REPO">
+    <function name="SWA_RESERVE_COMSUMPTION_REPO" type="NULL">
+      <parameter name="p_reservation_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_locator_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qty" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_result" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <parameter name="p_message" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+  v_pendingtorelease    NUMBER;
+  v_warehouse_id        VARCHAR2(32);
+  v_product_id          VARCHAR2(32);
+  v_uom_id              VARCHAR2(32);
+  v_dim_warehouse_id    VARCHAR2(32);
+  v_dim_locator_id      VARCHAR2(32);
+  v_dim_asi_id          VARCHAR2(32);
+  v_res_status          M_RESERVATION.RES_STATUS%TYPE;
+  v_this_pendingqty     NUMBER;
+  v_this_sd_reserved    NUMBER;
+  v_qtytorelease        NUMBER;
+  v_attr_description    VARCHAR2(255);
+  v_product_value       VARCHAR2(40);
+  v_locator_value       VARCHAR2(40);
+  v_uom_value           VARCHAR2(3);
+
+  TYPE RECORD IS REF CURSOR;
+  cur_reserved_stock    RECORD;
+
+
+BEGIN
+
+  SELECT r.m_product_id, r.c_uom_id, COALESCE(r.quantity, 0) - COALESCE(r.releasedqty, 0),
+           r.m_warehouse_id, r.m_locator_id, r.res_status
+    INTO   v_product_id, v_uom_id, v_this_pendingqty, 
+           v_dim_warehouse_id, v_dim_locator_id, v_res_status
+    FROM m_reservation r
+         LEFT JOIN m_reservation_stock noalloc ON r.m_reservation_id = noalloc.m_reservation_id AND noalloc.isallocated = 'N'
+   WHERE r.m_reservation_id = p_reservation_id
+ GROUP BY r.m_product_id, r.c_uom_id, r.reservedqty, COALESCE(r.releasedqty,0), r.quantity,
+      r.m_warehouse_id, r.m_locator_id, r.res_status;
+
+
+  SELECT value
+    INTO v_product_value
+  FROM M_Product
+  WHERE M_Product_ID = v_product_id;
+
+  IF (p_locator_id IS NOT NULL) THEN
+    SELECT value, m_warehouse_id 
+      INTO v_locator_value, v_warehouse_id
+    FROM M_Locator
+    WHERE M_Locator_ID = p_locator_id;
+  END IF;
+
+  IF (v_res_status = 'HO') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@CannotConsumeHoldReservation@'||' @of@'||' @Product@: '||v_product_value||', @AttributeSetInstance@: '||COALESCE(v_attr_description, '-')||', @UOM@: '||v_uom_value||' @And@'||' @StorageBin@: '||COALESCE(v_locator_value, '-'));
+  END IF;
+
+   IF (COALESCE(v_dim_warehouse_id, v_warehouse_id) != v_warehouse_id
+      OR COALESCE(v_dim_locator_id, p_locator_id) != p_locator_id
+      ) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@WrongStockDimensionMismatch@'||' @of@'||' @Product@: '||v_product_value||', @AttributeSetInstance@: '||COALESCE(v_attr_description, '-')||', @UOM@: '||v_uom_value||' @And@'||' @StorageBin@: '||COALESCE(v_locator_value, '-'));
+  END IF;
+
+  v_pendingtorelease := p_qty;
+  IF (v_pendingtorelease >v_this_pendingqty) THEN
+    v_pendingtorelease := v_this_pendingqty;
+    p_result := 2;
+    p_message := '@MoreQuantityToReleaseThanPending@'||' @of@'||' @Product@: '||v_product_value||', @AttributeSetInstance@: '||COALESCE(v_attr_description, '-')|| ', @UOM@: '||v_uom_value||' @And@'||' @StorageBin@: '||COALESCE(v_locator_value, '-');
+  END IF;
+
+  SELECT COALESCE(SUM(rs.quantity - COALESCE(rs.releasedqty,0)),0)
+    INTO v_this_sd_reserved
+  FROM m_reservation_stock rs
+  WHERE rs.m_locator_id = p_locator_id
+    AND rs.m_reservation_id = p_reservation_id;
+
+  -- Release stock reserved in the reservation.
+  v_ResultStr := 'Release reserved stock';
+  FOR cur_reserved_stock IN (
+      SELECT quantity - COALESCE(releasedqty,0) AS reservedqty, m_reservation_stock_id
+      FROM m_reservation_stock
+      WHERE m_locator_id = p_locator_id
+        AND m_reservation_id = p_reservation_id
+      ORDER BY CASE isallocated WHEN 'Y' THEN 0 ELSE 1 END
+  ) LOOP
+    v_qtytorelease := LEAST(cur_reserved_stock.reservedqty, v_pendingtorelease);
+
+    --RAISE v_qtytorelease;
+    UPDATE m_reservation_stock
+    SET releasedqty = COALESCE(releasedqty,0) + v_qtytorelease,
+        updated = now(),
+        updatedby = p_user_id
+    WHERE m_reservation_stock_id = cur_reserved_stock.m_reservation_stock_id;
+
+    v_pendingtorelease := v_pendingtorelease - v_qtytorelease;
+    IF (v_pendingtorelease = 0) THEN
+      -- Stock completely released from the reservation
+      EXIT;
+    END IF;
+  END LOOP;
+
+   
+  IF (v_pendingtorelease > 0) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@CannotConsumeAllStock@'||' @of@'||' @Product@: '||v_product_value||', @AttributeSetInstance@: '||COALESCE(v_attr_description, '-')||', @UOM@: '||v_uom_value||' @And@'||' @StorageBin@: '||COALESCE(v_locator_value, '-'));
+  END IF;
+
+    -- RAISE NO_DATA_FOUND;
+
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  RAISE;
+END SWA_RESERVE_COMSUMPTION_REPO
+]]></body>
+    </function>
+  </database>

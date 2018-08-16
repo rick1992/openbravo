@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_ORDERIMPORT_UPDATESP_TRG">
+    <trigger name="SIM_ORDERIMPORT_UPDATESP_TRG" table="SIM_ORDERIMPORT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialmethod VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+
+      IF(:NEW.fin_paymentmethod_id IS NOT NULL) THEN
+        SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+        :NEW.specialmethod := v_specialmethod;
+      END IF;
+
+    ELSE
+
+      IF(COALESCE(:OLD.fin_paymentmethod_id,'')<>COALESCE(:NEW.fin_paymentmethod_id,'')) THEN
+        IF(:NEW.fin_paymentmethod_id IS NOT NULL) THEN
+          SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+          :NEW.specialmethod := v_specialmethod;
+        END IF;
+      END IF;
+
+      IF(:NEW.discount_report IS NULL)THEN
+       :NEW.discount_report:=0;
+      END IF;
+      IF((:OLD.grandtotal <> :NEW.grandtotal) OR (:NEW.em_scr_discount <> :OLD.em_scr_discount)) THEN
+         IF(:NEW.em_scr_discount IS NOT NULL) THEN
+
+            
+            :NEW.grandtotal_aplic_discount:= ROUND(:NEW.grandtotal - (:NEW.grandtotal*:NEW.em_scr_discount)/100,2);
+            :NEW.discount_report:= ROUND((:NEW.grandtotal*:NEW.em_scr_discount)/100,2);
+         ELSE
+           IF(:NEW.discount_report IS NOT NULL) THEN
+            :NEW.grandtotal_aplic_discount:= ROUND (:NEW.grandtotal - :NEW.discount_report,2);  
+            :NEW.em_scr_discount:= ROUND(:NEW.discount_report*100/:NEW.grandtotal,2);
+           END IF;
+         END IF;
+      END IF;
+
+    END IF;
+
+    END SIM_ORDERIMPORT_UPDATESP_TRG
+]]></body>
+    </trigger>
+  </database>

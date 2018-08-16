@@ -1,0 +1,230 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_BUTTON_REVERT_LDM">
+    <function name="SWA_BUTTON_REVERT_LDM" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  countLines NUMBER:=0; -- Success
+  v_partner_id VARCHAR2(32);
+  v_from_warehouse VARCHAR2(32);
+  v_to_warehouse VARCHAR2(32);
+  v_iscreated CHAR; --OBTG:VARCHAR2--
+  v_to_check CHAR; --OBTG:VARCHAR2--
+  v_em_swa_desarmado CHAR; --OBTG:VARCHAR2--
+  v_em_swa_state_tmp_bom VARCHAR2(60);
+  v_ad_client_id VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+  v_em_swa_m_warehouse_id VARCHAR2(32);
+  v_production_name VARCHAR2(50); 
+  v_production_description VARCHAR2(50); 
+-- Record Info
+  Cur_Parameter VARCHAR%ROWTYPE; --OBTG:VARCHAR2--
+  v_orderApprovedState VARCHAR2(32);
+  v_comboitem_id VARCHAR2(32);
+  v_m_production_id  VARCHAR2(32);
+  v_m_productionplan_id  VARCHAR2(32);
+  v_productionline_ID VARCHAR2(32);
+  v_em_swa_doctype VARCHAR2(32);
+  v_lines NUMBER:=0;
+  v_Plines NUMBER:=0;
+  v_qtylocator NUMBER:=0;
+  v_qty_total NUMBER:=0;
+  v_qtyonhand_locator NUMBER:=0;
+  v_qtyreserved_locator NUMBER:=0;
+  CUR_ProductPlan RECORD;
+  Cur_parameter_get RECORD;
+  CUR_ProductionLine RECORD;
+  v_createRegister CHAR;
+  v_locator_toshow VARCHAR2(200);
+  v_product_toshow VARCHAR2(100);
+  v_DocumentNo VARCHAR(30);
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+    FOR Cur_parameter_get IN (
+    SELECT i.AD_Client_ID, p.ParameterName, p.p_string, p.P_Date 
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo
+   )LOOP
+
+      IF (Cur_parameter_get.ParameterName = 'em_swa_create_register') THEN
+             v_createRegister:=Cur_parameter_get.p_string;
+      END IF;
+   
+   END LOOP;
+
+
+    SELECT ad_client_id,ad_org_id,em_swa_m_warehouse_id,em_swa_desarmado,em_swa_doctype
+      INTO v_ad_client_id,v_ad_org_id,v_em_swa_m_warehouse_id,v_em_swa_desarmado,v_em_swa_doctype
+    FROM m_production
+    WHERE m_production_id=v_Record_ID;
+    
+
+  --------------------------------------------------INSERTANDO M_PRODUCTION HEADER
+   v_m_production_id=get_uuid();
+   v_production_name = 'Armado/Desarmado';
+   v_production_description = 'Armado/Desarmado';
+   v_DocumentNo:='000000';
+   IF(v_em_swa_doctype IS NOT NULL)THEN
+    AD_Sequence_DocType(v_em_swa_doctype, v_ad_client_id, 'Y', v_DocumentNo) ;
+   END IF;
+
+    v_iscreated:='N';
+   IF(v_createRegister='Y')THEN
+    v_iscreated:='Y';
+   END IF;
+   
+   IF(v_em_swa_desarmado='Y')THEN
+      v_to_check='N';
+      v_production_name:='Armado R* ';
+      SELECT scr_combo_item_id INTO v_comboitem_id FROM scr_combo_item WHERE value = 'Armado' 
+      AND ad_client_id=v_ad_client_id LIMIT 1;
+      
+   ELSE
+      v_to_check='Y';
+      v_production_name:='Desarmado R* ';
+      SELECT scr_combo_item_id INTO v_comboitem_id FROM scr_combo_item WHERE value = 'Desarmado' 
+      AND ad_client_id=v_ad_client_id LIMIT 1;
+   END IF;
+
+   INSERT INTO M_PRODUCTION (m_production_id, ad_client_id, ad_org_id, isactive,
+                 created,createdby, updated, updatedby, name,
+                 description,movementdate, iscreated,issotrx, 
+                 em_swa_combo_item_id, em_swa_m_warehouse_id, em_swa_desarmado, em_swa_state_tmp_bom,
+                 em_swa_doctype,documentno)
+          VALUES (v_m_production_id,v_ad_client_id,v_ad_org_id,'Y',
+                  now(), v_User_ID, now(),v_User_ID,v_production_name,
+                  v_production_description, TRUNC(now()),v_iscreated,'Y',
+                  v_comboitem_id,v_em_swa_m_warehouse_id,v_to_check,'DR',v_em_swa_doctype,v_DocumentNo
+          );
+  
+
+  -------------------------------------------------INSERTANDO M_PRODUCTIONPLAN
+
+  FOR CUR_ProductPlan IN 
+  (  SELECT * 
+       FROM M_PRODUCTIONPLAN 
+      WHERE M_PRODUCTION_ID=v_Record_ID
+  )
+  LOOP
+     v_m_productionplan_id:=get_uuid();
+     v_lines:=v_lines + 10;
+     INSERT INTO M_PRODUCTIONPLAN (m_productionplan_id, ad_client_id, ad_org_id, isactive,
+                                   created,createdby, updated, updatedby,m_production_id,
+                                   line,m_product_id, productionqty, m_locator_id)
+      VALUES (v_m_productionplan_id,v_ad_client_id,v_ad_org_id,'Y',
+              now(), v_User_ID, now(),v_User_ID,v_m_production_id,
+              v_lines,CUR_ProductPlan.m_product_id,CUR_ProductPlan.productionqty,CUR_ProductPlan.m_locator_id 
+             );
+
+       ---APROVECHO ESTE LOOP PARA INSERTAR LAS LINEAS ---INSERTANDO M_PRODUCTIONLINES  REGISTROS CREADOS
+        IF(v_createRegister='Y')THEN --Si en el pop up del botòn indicamos que queremos crear las lineas de producciòn
+              FOR CUR_ProductionLine IN (
+                    SELECT * 
+                      FROM M_PRODUCTIONLINE 
+                     WHERE m_productionplan_id = CUR_ProductPlan.M_PRODUCTIONPLAN_ID
+                   )
+              LOOP
+                
+                IF(CUR_ProductionLine.movementqty > 0)THEN --Se convertirá en Negativo, quiere decir que
+                                                           --necesita descargarse de Stock, hay validación
+
+                 SELECT value || ' - ' ||NAME  INTO v_product_toshow FROM M_PRODUCT WHERE M_PRODUCT_ID = CUR_ProductionLine.m_product_id;
+                 SELECT value INTO v_locator_toshow FROM M_LOCATOR WHERE M_LOCATOR_ID = CUR_ProductionLine.m_locator_id;
+                                                                            
+                 --1era Validación: QTY total en el Warehouse
+                   SELECT sum(totalqty) INTO v_qty_total 
+                     FROM swa_product_warehouse_v  WHERE m_product_id = CUR_ProductionLine.m_product_id
+                      AND m_warehouse_id = v_em_swa_m_warehouse_id;
+
+                   IF(v_qty_total< CUR_ProductionLine.movementqty)THEN
+                      v_Message := '@NotEnoughStocked@: ' || v_product_toshow;
+		      RAISE_APPLICATION_ERROR(-20000, v_Message);
+                   END IF;
+
+                 --2da Validación: QTY Total en la Ubicación
+                   SELECT sum(mrs.quantity) - sum(mrs.releasedqty) 
+                     INTO v_qtyreserved_locator --Total reservada por la ubicaciòn
+                     FROM m_reservation_stock mrs 
+                    INNER JOIN m_reservation mr on mrs.m_reservation_id  = mr.m_reservation_id
+                    WHERE mr.m_product_id=CUR_ProductionLine.m_product_id
+                     AND mr.m_locator_id=CUR_ProductionLine.m_locator_id;
+
+                    IF(v_qtyreserved_locator IS NULL)THEN
+                     v_qtyreserved_locator:=0;
+                    END IF;
+                    
+                     SELECT sum(qtyonhand)
+                       INTO v_qtyonhand_locator --Total fìsica en la Ubicaciòn
+                       FROM M_STORAGE_DETAIL 
+                      WHERE M_PRODUCT_ID = CUR_ProductionLine.m_product_id
+                      AND M_LOCATOR_ID = CUR_ProductionLine.m_locator_id
+                    GROUP BY m_locator_id;
+
+                   IF(v_qtyonhand_locator IS NULL)THEN
+                    v_qtyonhand_locator:=0;
+                   END IF;
+                 
+                   IF((v_qtyonhand_locator -v_qtyreserved_locator)< CUR_ProductionLine.movementqty)THEN
+                      v_Message := '@em_swa_NotEnoughStockedbyLocator@: ' || v_product_toshow || ' @em_swa_Locator@ ' ||  v_locator_toshow;
+		      RAISE_APPLICATION_ERROR(-20000, v_Message);
+                   END IF;
+                END IF;
+
+                  v_Plines:=v_Plines + 10;
+                  v_productionline_ID:=get_uuid();
+                  INSERT INTO M_PRODUCTIONLINE ( m_productionline_id, ad_client_id, ad_org_id, isactive,
+                                                 created,createdby, updated, updatedby,m_productionplan_id,
+						  line, m_product_id, movementqty, m_locator_id, c_uom_id
+                  )
+                  VALUES (v_productionline_ID,v_ad_client_id,v_ad_org_id,'Y',
+                          now(), v_User_ID, now(),v_User_ID,v_m_productionplan_id, 
+                          v_Plines,CUR_ProductionLine.m_product_id , CUR_ProductionLine.movementqty*-1, CUR_ProductionLine.m_locator_id,CUR_ProductionLine.c_uom_id 
+                  );
+       
+              END LOOP;
+        END IF;
+       ------------------------------------------------------------------------------------
+             
+  END LOOP;
+
+
+   
+        
+    v_Message:='@em_swa_created_BOM@' || ' ' || v_DocumentNo;
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_BUTTON_REVERT_LDM
+]]></body>
+    </function>
+  </database>

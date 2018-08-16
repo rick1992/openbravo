@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+  <database name="TABLE SCR_USERWAREHOUSE_DOCSERIE">
+    <table name="SCR_USERWAREHOUSE_DOCSERIE" primaryKey="SCR_USERWARE_DOCSERIE_KEY">
+      <column name="SCR_USERWAREHOUSE_DOCSERIE_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_CLIENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_ORG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ISACTIVE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_USER_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="SWA_PERMISSIONS_WAREHOUSE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ORGWAREHOUSE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="M_WAREHOUSE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="BILL_PHYDOC_SEQUENCE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="M_WAREHOUSE" name="SCR_USERMWAREHOUSE_FK">
+        <reference local="M_WAREHOUSE_ID" foreign="M_WAREHOUSE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_CLIENT" name="SCR_USERWARE_ADCLIENT">
+        <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="SCR_USERWARE_ADORG">
+        <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="BILL_PHYDOC_SEQUENCE" name="SCR_USERWARE_BILLSEQ">
+        <reference local="BILL_PHYDOC_SEQUENCE_ID" foreign="BILL_PHYDOC_SEQUENCE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SWA_PERMISSIONS_WAREHOUSE" name="SCR_USERWARE_PERMISSIONS">
+        <reference local="SWA_PERMISSIONS_WAREHOUSE_ID" foreign="SWA_PERMISSIONS_WAREHOUSE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_USER" name="SCR_USERWARE_USER">
+        <reference local="AD_USER_ID" foreign="AD_USER_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="SCR_USERWAREHOUSE_DOCSERIE">
+        <reference local="ORGWAREHOUSE_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <unique name="SCR_USERWARE_DOCSERIE_UQ">
+        <unique-column name="AD_CLIENT_ID"/>
+        <unique-column name="AD_USER_ID"/>
+        <unique-column name="ORGWAREHOUSE_ID"/>
+        <unique-column name="M_WAREHOUSE_ID"/>
+        <unique-column name="BILL_PHYDOC_SEQUENCE_ID"/>
+      </unique>
+    </table>
+  </database>

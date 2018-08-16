@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="ProcessTeleCreditData" package="pe.com.unifiedgo.accounting.process">
+  <SqlMethod name="checkDocType" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(*)
+          FROM SCO_TELECREDIT C, C_DOCTYPE
+        WHERE C_DocType.DocBaseType IN ('APP')
+          AND C_DocType.IsSOTrx='N'
+          AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+          AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+      AND C_DocType.em_sco_specialdoctype='SCOAPTELECREDIT'
+          AND C.SCO_TELECREDIT_ID = ?;
+      ]]>
+    </Sql>
+    <Parameter name="scoTelecreditId"/>
+  </SqlMethod>
+  <SqlMethod name="checkDocTypeLines" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(*)
+        FROM SCO_TELECREDIT C, SCO_Telecredit_Line OL
+        WHERE C.SCO_TELECREDIT_ID = OL.SCO_TELECREDIT_id
+          AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+          AND C.SCO_TELECREDIT_ID = ?;
+      ]]>
+    </Sql>
+    <Parameter name="scoTelecreditId"/>
+  </SqlMethod>
+</SqlClass>

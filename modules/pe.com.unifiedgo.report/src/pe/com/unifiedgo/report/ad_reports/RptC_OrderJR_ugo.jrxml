@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="RptC_OrderJR_ugo" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="28" bottomMargin="28">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.2"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="240"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18">
+		<box leftPadding="5"/>
+	</style>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14">
+		<box leftPadding="5"/>
+	</style>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle">
+		<box leftPadding="5"/>
+	</style>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle">
+		<box leftPadding="5">
+			<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+			<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+		</box>
+	</style>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="14">
+		<box leftPadding="5"/>
+	</style>
+	<style name="GroupHeader_Gray" mode="Opaque" backcolor="#999999"/>
+	<style name="Detail_Line">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/opt/AppsOpenbravo/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN} + "/org/openbravo/erpReports"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="SUBREP_RptC_OrderJRlines_COAM_ugo" class="net.sf.jasperreports.engine.JasperReport" isForPrompting="false"/>
+	<queryString>
+		<![CDATA[-- ORDEN DE COMPRA
+
+select ord.c_order_id as "ORDER_ID",
+org.ad_org_id as "ORG_ID",
+org.name as "EMPRESA",
+inf.taxid as "RUC",
+
+(select coalesce(case trim(l.address1) when '' then null else l.address1 end||' ','')||
+coalesce(case trim(l.address2) when '' then null else l.address2 end,'')||
+coalesce(' - '||case trim(l.city) when '' then null else l.city end,'')||
+coalesce(' - '||case trim(r.description) when '' then null else r.description end,'')||
+coalesce(' - '||case trim(c.description) when '' then null else c.description end,'') from c_location l
+left join c_region r on l.c_region_id = r.c_region_id
+left join c_country c on l.c_country_id = c.c_country_id
+where l.c_location_id = inf.c_location_id ) as "DIR",
+
+coalesce(ord.documentno,'') as "NRO_ORDEN",
+(coalesce(bp.taxid||' - ','')||coalesce(bp.name,'')) as "SR",
+
+(select coalesce(case trim(lbp.address1) when '' then null else lbp.address1 end||' ','')||
+coalesce(case trim(lbp.address2) when '' then null else lbp.address2 end,'')||
+coalesce(' - '||case trim(lbp.city) when '' then null else lbp.city end,'')||
+coalesce(' - '||case trim(rbp.description) when '' then null else rbp.description end,'')||
+coalesce(' - '||case trim(cbp.description) when '' then null else cbp.description end,'')
+from c_location lbp left join c_region rbp on lbp.c_region_id = rbp.c_region_id
+left join c_country cbp on lbp.c_country_id = cbp.c_country_id
+where lbp.c_location_id = bpl.c_location_id) as "DIR_BP",
+
+ord.dateordered as "FEC_EMISION",
+ord.updated as "FEC_UCAMBIO",
+coalesce(bpl.phone,coalesce(bpl.phone2,'')) as "TELEF",
+bpl.fax as "FAX",
+coalesce((select usr.name from ad_user usr
+where usr.c_bpartner_id = bp.c_bpartner_id and em_sco_attcontact = 'Y'
+limit 1),'')as "ATENCION",
+
+coalesce(cur.description,'') as "MONEDA",
+coalesce(cur.cursymbol,'') as "SIMBOLO",
+
+coalesce(ptr.name,'') as "FOR_PAGO",
+ord.datepromised as "FEC_ENTREGA",
+
+(select coalesce(case trim(lwh.address1) when '' then null else lwh.address1 end||' ','')||
+coalesce(case trim(lwh.address2) when '' then null else lwh.address2 end,'')||
+coalesce(' - '||case trim(lwh.city) when '' then null else lwh.city end,'')||
+coalesce(' - '||case trim(rwh.description) when '' then null else rwh.description end,'')||
+coalesce(' - '||case trim(cwh.description) when '' then null else cwh.description end,'')
+from c_location lwh left join c_region rwh on lwh.c_region_id = rwh.c_region_id
+left join c_country cwh on lwh.c_country_id  = cwh.c_country_id
+where lwh.c_location_id = wh.c_location_id ) as "DIR_WH",
+
+ord.delivery_location_id as "DELIVERY_ID",
+
+(select coalesce(case trim(ldv.address1) when '' then null else ldv.address1 end||' ','')||
+coalesce(case trim(ldv.address2) when '' then null else ldv.address2 end,'')||
+coalesce(' - '||case trim(ldv.city) when '' then null else ldv.city end,'')||
+coalesce(' - '||case trim(rdv.description) when '' then null else rdv.description end,'')||
+coalesce(' - '||case trim(cdv.description) when '' then null else cdv.description end,'')
+from c_location ldv left join c_region rdv on ldv.c_region_id = rdv.c_region_id
+left join c_country cdv on ldv.c_country_id = cdv.c_country_id
+where ldv.c_location_id = bpd.c_location_id) as "DIR_DELIVERY",
+
+coalesce(vnd.name,'') as "VENDEDOR",
+coalesce(ord.deliverynotes,'') as "NOTA_ADIC",
+(select current_date) as "FEC_IMP",
+
+(select name from ad_user where ad_user_id  = ord.createdby) as "PREP",
+(select name from ad_user where ad_user_id = ord.updatedby) as "APROB",
+
+coalesce(igv.taxamt,0.00) as "IGV",
+
+coalesce(igv.rate,0.00) as "POR_IGV"
+
+,coalesce(org.social_name,'') as "SOCIAL_NAME"
+
+,case when ord.docstatus not in ( 'CO','CL') THEN 'Esta es una Orden en Borrador' ELSE NULL END as "ESTADO_ORDEN"
+
+,(to_char(ord.created,'dd/MM/yyyy HH12:MI A.M.')) as "FECHA_PREPARADO"
+
+,(to_char(ord.updated,'dd/MM/yyyy HH12:MI A.M.')) as "FECHA_EVALUACION"
+,inf.Your_Company_Document_Image as "ORG_IMAGE_ID"
+
+from c_order ord
+join c_bpartner bp on ord.c_bpartner_id = bp.c_bpartner_id
+left join c_bpartner_location bpl on ord.c_bpartner_location_id = bpl.c_bpartner_location_id
+
+-- usar left o right join, en caso no tenga estos impuestos la factura se mostrara de todas formas
+left join (select o.c_order_id,o.taxamt,t.rate from c_ordertax o
+left join c_tax t on o.c_tax_id = t.c_tax_id
+where t.em_sco_specialtax = 'SCOIGV') igv on igv.c_order_id = ord.c_order_id
+
+left join c_paymentterm ptr on ord.c_paymentterm_id = ptr.c_paymentterm_id
+
+left join (select c.c_currency_id, coalesce(t.description,c.description) as description,
+coalesce(t.cursymbol,c.cursymbol) as cursymbol from c_currency c
+left join c_currency_trl t on c.c_currency_id = t.c_currency_id
+and t.ad_language = $P{LANGUAGE}) cur on ord.c_currency_id = cur.c_currency_id
+
+join m_warehouse wh on ord.m_warehouse_id = wh.m_warehouse_id
+
+--direccion de delivery
+left join c_bpartner_location bpd on ord.delivery_location_id = bpd.c_bpartner_location_id
+
+left join ad_user vnd on ord.salesrep_id = vnd.ad_user_id
+
+,ad_org org join ad_orgtype typ using (ad_orgtype_id)
+left join ad_orginfo inf on org.ad_org_id = inf.ad_org_id
+
+where AD_ISORGINCLUDED(ord.ad_org_id, org.ad_org_id, ord.ad_client_id)<>-1
+and(typ.IsLegalEntity='Y' or typ.IsAcctLegalEntity='Y')
+and ord.isactive = 'Y'
+and ord.c_order_id in ($P{DOCUMENT_ID})
+
+--]]>
+	</queryString>
+	<field name="ORDER_ID" class="java.lang.String"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="EMPRESA" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<field name="DIR" class="java.lang.String"/>
+	<field name="NRO_ORDEN" class="java.lang.String"/>
+	<field name="SR" class="java.lang.String"/>
+	<field name="DIR_BP" class="java.lang.String"/>
+	<field name="FEC_EMISION" class="java.sql.Timestamp"/>
+	<field name="FEC_UCAMBIO" class="java.sql.Timestamp"/>
+	<field name="TELEF" class="java.lang.String"/>
+	<field name="FAX" class="java.lang.String"/>
+	<field name="ATENCION" class="java.lang.String"/>
+	<field name="MONEDA" class="java.lang.String"/>
+	<field name="SIMBOLO" class="java.lang.String"/>
+	<field name="FOR_PAGO" class="java.lang.String"/>
+	<field name="FEC_ENTREGA" class="java.sql.Timestamp"/>
+	<field name="DIR_WH" class="java.lang.String"/>
+	<field name="DELIVERY_ID" class="java.lang.String"/>
+	<field name="DIR_DELIVERY" class="java.lang.String"/>
+	<field name="VENDEDOR" class="java.lang.String"/>
+	<field name="NOTA_ADIC" class="java.lang.String"/>
+	<field name="FEC_IMP" class="java.sql.Date"/>
+	<field name="PREP" class="java.lang.String"/>
+	<field name="APROB" class="java.lang.String"/>
+	<field name="IGV" class="java.math.BigDecimal"/>
+	<field name="POR_IGV" class="java.math.BigDecimal"/>
+	<field name="SOCIAL_NAME" class="java.lang.String"/>
+	<field name="ESTADO_ORDEN" class="java.lang.String"/>
+	<field name="FECHA_PREPARADO" class="java.lang.String"/>
+	<field name="FECHA_EVALUACION" class="java.lang.String"/>
+	<field name="ORG_IMAGE_ID" class="java.lang.String"/>
+	<group name="ORDER_ID" isResetPageNumber="true">
+		<groupExpression><![CDATA[$F{ORDER_ID}]]></groupExpression>
+	</group>
+	<pageHeader>
+		<band height="179" splitType="Stretch">
+			<textField isBlankWhenNull="true">
+				<reportElement x="20" y="42" width="554" height="18">
+					<printWhenExpression><![CDATA[($F{SOCIAL_NAME}.equalsIgnoreCase("GABUTEAU BARBA GEORG ROGER"))]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{SOCIAL_NAME}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="20" y="62" width="70" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle" markup="none">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[RUC: ]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="90" y="77" width="484" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DIR}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="20" y="77" width="70" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Dirección:]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement positionType="FixRelativeToBottom" x="80" y="140" width="300" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DIR_BP}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement positionType="FixRelativeToBottom" x="80" y="153" width="300" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ATENCION}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="470" y="127" width="65" height="13">
+					<printWhenExpression><![CDATA[$F{FEC_EMISION}!=null]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_EMISION}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="470" y="140" width="65" height="13">
+					<printWhenExpression><![CDATA[$F{FEC_UCAMBIO}!=null]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_UCAMBIO}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="162" y="124" width="270" height="1"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="30" y="127" width="50" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Señor(es):]]></text>
+			</staticText>
+			<staticText>
+				<reportElement positionType="FixRelativeToBottom" x="30" y="140" width="50" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Direccion:]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="80" y="127" width="300" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{SR}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement positionType="FixRelativeToBottom" x="30" y="153" width="50" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Atención:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="380" y="127" width="90" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Emisión:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="380" y="140" width="90" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fecha Ult. Cambio:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="380" y="153" width="90" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Teléfono:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="380" y="166" width="90" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Fax:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="20" y="108" width="554" height="16"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["ORDEN DE COMPRA NRO. "+$F{NRO_ORDEN}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="470" y="153" width="104" height="13"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement verticalAlignment="Bottom">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TELEF}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="470" y="166" width="104" height="13"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement verticalAlignment="Bottom">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{FAX}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="90" y="62" width="100" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{RUC}]]></textFieldExpression>
+			</textField>
+			<image hAlign="Center" isUsingCache="true">
+				<reportElement positionType="Float" x="20" y="0" width="180" height="60"/>
+				<imageExpression class="java.awt.Image"><![CDATA[org.openbravo.erpCommon.utility.Utility.showImage($F{ORG_IMAGE_ID})]]></imageExpression>
+			</image>
+			<textField isBlankWhenNull="true">
+				<reportElement x="345" y="0" width="229" height="15"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{ESTADO_ORDEN}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<subreport isUsingCache="false">
+				<reportElement x="0" y="0" width="595" height="14"/>
+				<subreportParameter name="IGV">
+					<subreportParameterExpression><![CDATA[$F{IGV}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="NUMBERFORMAT">
+					<subreportParameterExpression><![CDATA[org.openbravo.erpCommon.utility.Utility.getCountryNumberFormat($F{ORG_ID},$P{NUMBERFORMAT})]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="POR_IGV">
+					<subreportParameterExpression><![CDATA[$F{POR_IGV}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="C_ORDER_ID">
+					<subreportParameterExpression><![CDATA[$F{ORDER_ID}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="SIMBOLO">
+					<subreportParameterExpression><![CDATA[$F{SIMBOLO}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="MONEDA">
+					<subreportParameterExpression><![CDATA[$F{MONEDA}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="net.sf.jasperreports.engine.JasperReport"><![CDATA[$P{SUBREP_RptC_OrderJRlines_COAM_ugo}]]></subreportExpression>
+			</subreport>
+		</band>
+	</detail>
+	<summary>
+		<band height="192" splitType="Stretch">
+			<rectangle radius="8">
+				<reportElement x="369" y="129" width="130" height="39"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<textField isBlankWhenNull="true">
+				<reportElement x="130" y="18" width="434" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["FACTURA " + $F{FOR_PAGO}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="130" y="44" width="434" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{MONEDA} + " NO INCLUYEN EL I.G.V."]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="130" y="31" width="80" height="13">
+					<printWhenExpression><![CDATA[$F{FEC_ENTREGA}!=null]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_ENTREGA}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="30" y="5" width="100" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true" isUnderline="true"/>
+				</textElement>
+				<text><![CDATA[CONDICIONES:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="18" width="100" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Forma de pago]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="31" width="100" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Fecha de Entrega]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="44" width="100" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Los precios estan en]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="63" width="120" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true" isUnderline="true"/>
+				</textElement>
+				<text><![CDATA[DESTINO DE LA COMPRA:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="76" width="90" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Enviar mercaderia a:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="30" y="108" width="100" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8" isBold="true" isUnderline="true"/>
+				</textElement>
+				<text><![CDATA[NOTA ADICIONAL:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="210" y="89" width="44" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[N° pedido:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="332" y="89" width="52" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Vendedor:]]></text>
+			</staticText>
+			<rectangle radius="8">
+				<reportElement x="80" y="129" width="130" height="39" backcolor="#FFFFFF"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<rectangle radius="8">
+				<reportElement x="223" y="129" width="130" height="39"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement mode="Opaque" x="230" y="123" width="115" height="12" forecolor="#000000" backcolor="#FFFFFF"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Aprobacion Solicitud:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="377" y="123" width="115" height="12" backcolor="#FFFFFF"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Aprobacion de Orden:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="88" y="123" width="115" height="12" backcolor="#FFFFFF"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Preparado por:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="369" y="136" width="130" height="44">
+					<printWhenExpression><![CDATA[$F{APROB}!=null && $F{ESTADO_ORDEN}==null]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{APROB}+ "\n" +$F{FECHA_EVALUACION}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="80" y="136" width="130" height="44"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{PREP}+ "\n" +$F{FECHA_PREPARADO}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="58" y="180" width="89" height="12" forecolor="#000000" backcolor="#FFFFFF"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<text><![CDATA[Fecha de Impresion:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="120" y="76" width="444" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DELIVERY_ID}==null?$F{DIR_WH}:$F{DIR_DELIVERY}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="168" y="180" width="100" height="12">
+					<printWhenExpression><![CDATA[$F{FEC_IMP}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{FEC_IMP}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="130" y="108" width="434" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NOTA_ADIC}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="384" y="89" width="180" height="13"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{VENDEDOR}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

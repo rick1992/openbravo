@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_UIDENDEP_CHK_TRG">
+    <trigger name="SCO_PAYMENT_UIDENDEP_CHK_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_alt_convrate NUMBER;
+  v_finacc_Currency_ID VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      IF(:NEW.isreceipt = 'Y' AND :NEW.em_sco_recvapplicationtype = 'SSA_UNIDENT_DEPOSIT') THEN
+        IF(:NEW.c_bpartner_id IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_UidentDepNoBpartner@');
+        END IF;
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.isreceipt, '.')<>COALESCE(:NEW.isreceipt,'.')
+      OR COALESCE(:OLD.em_sco_recvapplicationtype,'.')<>COALESCE(:NEW.em_sco_recvapplicationtype,'.')
+      OR COALESCE(:OLD.c_bpartner_id,'.')<>COALESCE(:NEW.c_bpartner_id,'.')
+      ) THEN
+        IF(:NEW.isreceipt = 'Y' AND :NEW.em_sco_recvapplicationtype = 'SSA_UNIDENT_DEPOSIT') THEN
+          IF(:NEW.c_bpartner_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_UidentDepNoBpartner@');
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+    END SCO_PAYMENT_UIDENDEP_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE M_PRODUCT">
+    <table name="M_PRODUCT" primaryKey="M_PRODUCT_KEY">
+      <column name="EM_SCO_PERCEPTIONTAXED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DETRACTIONTAXED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISCONSIGNMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_GENERICWITHOUTCODE" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PRODUCTFAMILY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_PRODUCTFAMILY" name="EM_SCO_PROD_PRODUCTFAMILY">
+        <reference local="EM_SCO_PRODUCTFAMILY_ID" foreign="SCO_PRODUCTFAMILY_ID"/>
+      </foreign-key>
+      <index name="EM_SCO_PRODUCTFAMILY" unique="false">
+        <index-column name="EM_SCO_PRODUCTFAMILY_ID"/>
+      </index>
+      <index name="EM_SCO_PRODUCTGROUP" unique="false">
+        <index-column name="EM_PRDC_PRODUCTGROUP_ID"/>
+      </index>
+      <check name="EM_SCO_PRODUCT_DETTAXED_CHK"><![CDATA[EM_SCO_DETRACTIONTAXED IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PRODUCT_GENNOCODE_CHK"><![CDATA[EM_SCO_GENERICWITHOUTCODE IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PRODUCT_ISCONSIG_CHK"><![CDATA[EM_SCO_ISCONSIGNMENT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PRODUCT_PERTAXED_CHK"><![CDATA[EM_SCO_PERCEPTIONTAXED IN ('Y', 'N')]]></check>
+    </table>
+  </database>

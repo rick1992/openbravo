@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_CALCULATE_DIFFERENCES">
+    <function name="SWA_CALCULATE_DIFFERENCES" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_fromrequerimiento_id VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_totallines NUMBER;
+  v_qtysurplus NUMBER;
+  v_qtydiff NUMBER;
+  v_qtymatch_percent NUMBER;
+  v_qtysurplus_percent NUMBER;
+  v_qtydiff_percent NUMBER;
+  v_qtymatch NUMBER;
+  
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+   /**
+    * Approve Sales Orders
+    * Sales Order Column: c_order.em_ssa_disc_evaluation_status
+    * c_order.em_ssa_disc_evaluation_status States:
+    *   - DR: Requirement Book
+    *   - CO: Requirement Completed
+    *   - CL: Requirement Closed
+    */
+   
+
+
+ SELECT COALESCE(COUNT(M_INVENTORYLINE),0) 
+   INTO v_totallines
+   FROM M_INVENTORYLINE 
+  WHERE M_INVENTORY_ID = v_Record_ID
+    AND (em_swa_qtysurplus <>0
+     OR qtybook <> 0 OR qtycount<>0);
+
+
+  SELECT COALESCE(COUNT(M_INVENTORYLINE),0)
+    INTO v_qtysurplus
+    FROM M_INVENTORYLINE 
+   WHERE M_INVENTORY_ID = v_Record_ID
+     AND (em_swa_qtysurplus <>0);
+     
+
+  SELECT COALESCE(COUNT(M_INVENTORYLINE),0)
+    INTO v_qtydiff
+    FROM M_INVENTORYLINE 
+   WHERE M_INVENTORY_ID = v_Record_ID
+     AND (qtycount < qtybook);
+          
+
+  SELECT COALESCE(COUNT(M_INVENTORYLINE),0) 
+    INTO v_qtymatch
+   FROM M_INVENTORYLINE 
+  WHERE M_INVENTORY_ID = v_Record_ID
+    AND (qtycount = qtybook)
+    AND em_swa_qtysurplus = 0
+    AND qtycount <>0;
+
+   IF(v_totallines > 0)THEN
+   v_qtymatch_percent:=100*v_qtymatch/v_totallines;
+   v_qtysurplus_percent:=100*v_qtysurplus/v_totallines;
+   v_qtydiff_percent:=100*v_qtydiff/v_totallines;
+   END IF;
+    
+
+    UPDATE M_INVENTORY
+    SET em_swa_qty_match = v_qtymatch ,
+        em_swa_qty_match_percent = v_qtymatch_percent ,
+        em_swa_qty_diff =  v_qtydiff ,
+	em_swa_qty_diff_percent = v_qtydiff_percent ,
+	em_swa_qty_surpl = v_qtysurplus ,
+	em_swa_qty_surpl_percent =  v_qtysurplus_percent ,
+	em_swa_qty_totalitems = v_totallines
+    WHERE M_INVENTORY_ID=v_Record_ID;
+
+
+    
+   
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_CALCULATE_DIFFERENCES
+]]></body>
+    </function>
+  </database>

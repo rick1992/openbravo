@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_INOUT_UPCMBVALUE_TRG">
+    <trigger name="SSA_INOUT_UPCMBVALUE_TRG" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  -- USED IN MIGRATION
+  
+  v_Aux NUMBER;
+  v_cmbitem_value VARCHAR(40);
+  v_specialdoctype VARCHAR(60);
+  v_so_docstatus VARCHAR(60);
+  v_so_isserviceorder VARCHAR(1);
+  v_so_c_bpartner_id VARCHAR(32);
+  v_so_m_warehouse_id VARCHAR(32);
+BEGIN
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+
+      IF(:NEW.em_swa_combo_item_id IS NOT NULL AND :NEW.em_swa_combo_item_id<>'') THEN      
+        SELECT value INTO v_cmbitem_value FROM SCR_Combo_Item WHERE SCR_Combo_Item_ID = :NEW.em_swa_combo_item_id ;
+        :NEW.em_ssa_cmbitem_value := v_cmbitem_value;
+      END IF;
+
+    ELSE
+      IF(COALESCE(:OLD.em_swa_combo_item_id,'.')<>COALESCE(:NEW.em_swa_combo_item_id,'.')) THEN
+        IF(:NEW.em_swa_combo_item_id IS NOT NULL AND :NEW.em_swa_combo_item_id<>'') THEN      
+          SELECT value INTO v_cmbitem_value FROM SCR_Combo_Item WHERE SCR_Combo_Item_ID = :NEW.em_swa_combo_item_id ;
+          :NEW.em_ssa_cmbitem_value := v_cmbitem_value;
+        ELSE
+          :NEW.em_ssa_cmbitem_value := NULL;
+        END IF;
+      END IF;
+    END IF;
+
+    SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_Doctype WHERE c_doctype_id = :NEW.c_doctype_id;
+    IF(INSERTING) THEN
+      IF(v_specialdoctype='SCOMMSHIPMENT') THEN
+        IF(:NEW.em_ssa_cmbitem_value = 'Salida por Servicio') THEN
+	  IF(:NEW.em_ssa_serviceorder_id IS NULL OR :NEW.em_ssa_serviceorder_id='') THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_OutServiceWithoutServiceOrder@');
+          END IF;
+
+          SELECT docstatus,em_ssa_isserviceorder,c_bpartner_id, m_warehouse_id
+            INTO v_so_docstatus, v_so_isserviceorder, v_so_c_bpartner_id, v_so_m_warehouse_id
+            FROM C_Order
+          WHERE C_Order_ID = :NEW.em_ssa_serviceorder_id;
+
+          IF(v_so_docstatus<>'CO' OR v_so_isserviceorder IS NULL OR v_so_isserviceorder<>'Y' OR v_so_c_bpartner_id<>:NEW.c_bpartner_id OR v_so_m_warehouse_id<>:NEW.m_warehouse_id) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_OutServiceInvalidServiceOrder@');
+          END IF;
+
+        ELSE
+          :NEW.em_ssa_serviceorder_id := NULL;
+        END IF;
+      ELSIF(v_specialdoctype='SCOMMRECEIPT') THEN
+        IF(:NEW.em_ssa_cmbitem_value = 'IngresoporServicio') THEN
+	  IF(:NEW.em_ssa_serviceorder_id IS NULL OR :NEW.em_ssa_serviceorder_id='') THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_InServiceWithoutServiceOrder@');
+          END IF;
+
+          SELECT docstatus,em_ssa_isserviceorder,c_bpartner_id, m_warehouse_id
+            INTO v_so_docstatus, v_so_isserviceorder, v_so_c_bpartner_id, v_so_m_warehouse_id
+            FROM C_Order
+          WHERE C_Order_ID = :NEW.em_ssa_serviceorder_id;
+
+          IF(v_so_docstatus<>'CO' OR v_so_isserviceorder IS NULL OR v_so_isserviceorder<>'Y' OR v_so_c_bpartner_id<>:NEW.c_bpartner_id) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_InServiceInvalidServiceOrder@');
+          END IF;
+
+        ELSE
+          :NEW.em_ssa_serviceorder_id := NULL;
+        END IF;
+      END IF;
+    ELSE
+
+      IF(COALESCE(:OLD.C_Bpartner_ID,'.')<>COALESCE(:NEW.C_Bpartner_ID,'.') OR
+         COALESCE(:OLD.em_ssa_cmbitem_value,'.')<>COALESCE(:NEW.em_ssa_cmbitem_value,'.') OR 
+         COALESCE(:OLD.em_ssa_serviceorder_id,'.')<>COALESCE(:NEW.em_ssa_serviceorder_id,'.')) THEN
+
+        IF(v_specialdoctype='SCOMMSHIPMENT') THEN
+          IF(:NEW.em_ssa_cmbitem_value = 'Salida por Servicio') THEN
+	    IF(:NEW.em_ssa_serviceorder_id IS NULL OR :NEW.em_ssa_serviceorder_id='') THEN
+               RAISE_APPLICATION_ERROR(-20000, '@SSA_OutServiceWithoutServiceOrder@');
+            END IF;
+
+            SELECT docstatus,em_ssa_isserviceorder,c_bpartner_id, m_warehouse_id
+              INTO v_so_docstatus, v_so_isserviceorder, v_so_c_bpartner_id, v_so_m_warehouse_id
+              FROM C_Order
+            WHERE C_Order_ID = :NEW.em_ssa_serviceorder_id;
+
+            IF(v_so_docstatus<>'CO' OR v_so_isserviceorder IS NULL OR v_so_isserviceorder<>'Y' OR v_so_c_bpartner_id<>:NEW.c_bpartner_id OR v_so_m_warehouse_id<>:NEW.m_warehouse_id) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_OutServiceInvalidServiceOrder@');
+            END IF;
+
+          ELSE
+            :NEW.em_ssa_serviceorder_id := NULL;
+          END IF;
+        ELSIF(v_specialdoctype='SCOMMRECEIPT') THEN
+          IF(:NEW.em_ssa_cmbitem_value = 'IngresoporServicio') THEN
+	    IF(:NEW.em_ssa_serviceorder_id IS NULL OR :NEW.em_ssa_serviceorder_id='') THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_InServiceWithoutServiceOrder@');
+            END IF;
+
+            SELECT docstatus,em_ssa_isserviceorder,c_bpartner_id, m_warehouse_id
+              INTO v_so_docstatus, v_so_isserviceorder, v_so_c_bpartner_id, v_so_m_warehouse_id
+              FROM C_Order
+            WHERE C_Order_ID = :NEW.em_ssa_serviceorder_id;
+  
+            IF(v_so_docstatus<>'CO' OR v_so_isserviceorder IS NULL OR v_so_isserviceorder<>'Y' OR v_so_c_bpartner_id<>:NEW.c_bpartner_id OR v_so_m_warehouse_id<>:NEW.m_warehouse_id) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_InServiceInvalidServiceOrder@');
+            END IF;
+
+          ELSE
+            :NEW.em_ssa_serviceorder_id := NULL;
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+
+
+    IF(INSERTING) THEN
+      IF(v_specialdoctype='SCOMMSHIPMENT') THEN
+        IF(:NEW.em_ssa_cmbitem_value = 'ConsumoInterno') THEN
+	  IF(:NEW.em_sco_area_id IS NULL OR :NEW.em_sco_area_id='' OR :NEW.c_costcenter_id IS NULL OR :NEW.c_costcenter_id='' ) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_ConsumoInternoWithoutOrgAreaCostCenter@');
+          END IF;
+        ELSE
+          :NEW.em_sco_area_id := NULL;
+        END IF;
+      END IF;
+    ELSE
+      IF(COALESCE(:OLD.em_ssa_cmbitem_value,'.')<>COALESCE(:NEW.em_ssa_cmbitem_value,'.') OR 
+         COALESCE(:OLD.em_sco_area_id,'.')<>COALESCE(:NEW.em_sco_area_id,'.')OR
+         COALESCE(:OLD.c_costcenter_id,'.')<>COALESCE(:NEW.c_costcenter_id,'.')) THEN
+
+        IF(v_specialdoctype='SCOMMSHIPMENT') THEN
+          IF(:NEW.em_ssa_cmbitem_value = 'ConsumoInterno') THEN
+	    IF(:NEW.em_sco_area_id IS NULL OR :NEW.em_sco_area_id='' OR :NEW.c_costcenter_id IS NULL OR :NEW.c_costcenter_id='') THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_ConsumoInternoWithoutOrgAreaCostCenter@');
+            END IF;
+          ELSE
+            :NEW.em_sco_area_id := NULL;
+          END IF;
+        END IF;
+
+      END IF;
+    END IF;
+
+    END SSA_INOUT_UPCMBVALUE_TRG
+]]></body>
+    </trigger>
+  </database>

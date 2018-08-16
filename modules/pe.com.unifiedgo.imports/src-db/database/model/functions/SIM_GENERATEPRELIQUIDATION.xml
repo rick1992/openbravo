@@ -1,0 +1,692 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SIM_GENERATEPRELIQUIDATION">
+    <function name="SIM_GENERATEPRELIQUIDATION" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Message_tmp VARCHAR(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_totalinvoice NUMBER:=1;
+  v_Result NUMBER:=1; -- Success
+  v_CountLines NUMBER:=1; -- Success
+  v_totalinvoice_others NUMBER:=0;
+  v_totalinvoice_fordam NUMBER:=0;
+  v_foliodua_id VARCHAR2(32);
+  v_var_2 NUMBER:=0; 
+  v_var_1 NUMBER:=0; 
+  v_LineSeqNo NUMBER:=0;
+  v_totalPartial NUMBER:=0;
+  v_invoice_id VARCHAR2(32);
+  v_CDocTypeID varchar2(32);
+  v_DocumentNo VARCHAR(30);
+  v_Client_ID VARCHAR(32);
+  v_Org_ID VARCHAR(32);
+  v_Created_by VARCHAR(32);
+  v_canal_id VARCHAR(60);
+  v_sim_imp_settlement_id VARCHAR(32);
+  v_Currency_id VARCHAR(32);
+  v_Country_id VARCHAR(32);
+  v_Dua_id VARCHAR(32);
+  v_sim_imp_settlementlines_id VARCHAR(32);
+  v_orderApprovedState VARCHAR(32);
+  v_name_incoterms  VARCHAR(60);
+  v_totalFob NUMBER:=0;
+  v_totalFlete NUMBER:=0;
+  v_TotalSeguro NUMBER:=0;
+  v_totalCif NUMBER:=0;
+  v_percentbyline NUMBER:=0;
+  v_preliquitacion_factura NUMBER;
+  v_preliquidacion_FOB  NUMBER;
+  v_preliquidacion_Flete NUMBER; 
+  v_preliquidacion_Seguro NUMBER;
+  v_preliquidacion_CIF  NUMBER;
+  v_preliquidacinon_ADV  NUMBER;
+  v_total_percepcion NUMBER;
+  v_header_fob NUMBER:=0;
+  v_header_cif NUMBER:=0;
+  v_header_flete NUMBER:=0;
+  v_header_seguro NUMBER:=0;
+  v_header_advalorem NUMBER:=0;
+  
+  v_header_advalorem_percepcion NUMBER:=0;
+  v_igv_percent NUMBER:=0;
+  v_perception_percent NUMBER:=0;
+  v_total_isc NUMBER:=0;
+  v_derechos_srv_despacho NUMBER:=0;
+  v_derechos_total_dollar NUMBER:=0;
+  v_tipo_cambio NUMBER:=0;
+  v_percepcion_igv_total NUMBER:=0;
+  v_percepcion_total NUMBER:=0;
+  v_subtotal NUMBER:=0;
+  v_cif_exonerado NUMBER:=0;
+  v_count_folio_in_preli VARCHAR(32);
+  p_Exhange NUMBER:=0;
+  v_total_invoice_porPartial NUMBER:=0;
+  v_total_invoiceline_porPartial NUMBER:=0;
+  v_convertToSOLES_total_derechos NUMBER:=0;
+  v_convertToSOLES_total_Perception NUMBER:=0;
+  v_From_Currency_ID VARCHAR(32);
+  v_newCurrency_ID VARCHAR(32);
+  v_ConvertedAmount NUMBER:=0;
+  v_invoiceToLine NUMBER:=0;
+  v_tmp NUMBER:=0;
+  
+  v_igv_derechos_redondeado_segun_aduana NUMBER:=0;
+  v_inland NUMBER:=0;
+  v_more_expenses NUMBER:=0;
+  v_factor_invoice NUMBER:=0;
+  v_factor NUMBER:=0;
+  v_factor2 NUMBER:=0;
+  v_totalinvoice_alldam NUMBER:=0;
+
+--RECORD
+
+  Cur_Parameter RECORD;
+  Cur_Parameter_Lines RECORD;
+  Cur_record_inFolio RECORD;
+  Cur_parameter_get RECORD;
+  CUR_Parameter_Partial RECORD;
+
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+--GET PARAMETERS
+   FOR Cur_parameter_get IN (
+    SELECT i.AD_Client_ID, p.ParameterName, p.p_number, p.P_Date 
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo
+   )LOOP
+      IF (Cur_parameter_get.ParameterName = 'sim_rate_preliquidation') THEN
+             p_Exhange := Cur_parameter_get.p_number;
+	     DBMS_OUTPUT.PUT_LINE('  sim_rate_preliquidation=' || p_Exhange) ;
+	     EXIT;
+      ELSE
+         p_Exhange := 0;
+         DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_parameter_get.ParameterName) ;
+      END IF;
+   END LOOP;
+
+   IF (p_Exhange <= 0)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@sim_exchangerate_invalid@');
+   END IF;
+
+------------------
+
+  FOR Cur_record_inFolio  IN
+   (SELECT sim_imp_settlement_id,documentno
+     FROM sim_imp_settlement 
+     WHERE sim_folioimport_id = v_Record_ID AND (docstatus='DR' or docstatus='CO')
+   )
+  LOOP
+     IF (Cur_record_inFolio.sim_imp_settlement_id IS NOT NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000,'@sim_folioinsettlement@'  || Cur_record_inFolio.documentno) ;
+     END IF;
+    
+  END LOOP;
+
+--END VALIDATION
+
+SELECT ad_client_id, ad_org_id, createdby, canal, c_country_id , sco_dua_id 
+  INTO v_Client_ID, v_Org_ID, v_Created_by , v_canal_id , v_Country_id, v_Dua_id
+     FROM sim_folioimport WHERE sim_folioimport_id = v_Record_ID;
+
+--Validation DUA - DAM
+ IF(v_Dua_id IS NULL)THEN
+  RAISE_APPLICATION_ERROR(-20000,'@sim_therearentdua@') ;
+ END IF;
+--
+  
+
+-- GET DOCTYPE
+   SELECT C_DocType_ID 
+     INTO v_CDocTypeID
+     FROM C_DOCTYPE
+    WHERE em_sco_specialdoctype='SIMPRELIQUIDATION'
+      AND ISACTIVE='Y' 
+      AND AD_Client_Id= v_Client_ID
+      AND AD_ISORGINCLUDED(v_Org_ID, AD_Org_ID, v_Client_ID) <> -1
+      AND COALESCE(isreturn, 'N') = 'N'
+ ORDER BY AD_ISORGINCLUDED(v_Org_ID, AD_Org_ID, v_Client_ID),
+  	  IsDefault DESC,
+	  C_DocType_ID;
+
+   IF (v_CDocTypeID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000,'@sim_settlementdoctype@') ;
+   END IF;
+-- END DOCTYPE
+
+--GET Tipo de Cambio
+  v_From_Currency_ID = '100'; -- DOLLAR USD
+  v_newCurrency_ID = '308'; -- NUEVO SOL  PEN
+  SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert('1', v_From_Currency_ID, v_newCurrency_ID, now(), NULL,v_Client_ID,v_Org_ID), v_newCurrency_ID, NULL)), 0)
+  INTO v_tipo_cambio;
+--RAISE v_tipo_cambio || ' -';
+
+
+   
+   v_sim_imp_settlement_id:=get_uuid();
+   AD_Sequence_DocType(v_CDocTypeID, v_Client_ID, 'Y', v_DocumentNo) ;
+--Create new Header sim_imp_settlement 
+   INSERT INTO sim_imp_settlement 
+     (sim_imp_settlement_id,ad_client_id,ad_org_id,isactive,created,
+      createdby,updated,updatedby,c_doctype_id,documentno,docstatus,dateordered,
+      canal,c_currency_id,c_country_id, sco_dua_id, sim_folioimport_id,exchange_rate,tipo_cambio
+     )
+   VALUES 
+    (v_sim_imp_settlement_id,v_Client_ID,v_Org_ID,'Y',now(),
+     v_Created_by, now(), v_Created_by, v_CDocTypeID,v_DocumentNo, 'DR', now(),
+     v_canal_id, '100', v_Country_id, v_Dua_id, v_Record_ID,p_Exhange,v_tipo_cambio
+    );
+
+ v_cif_exonerado:=0;
+
+--Hay ver ver que cosa se ejecutar
+v_tmp:=0; 
+--tmp=0 indica que las lineas no estàn asociadas a la orden de compra por tal ejecuto el codigo original para calcular lineas
+--tmp=1 indica que las lineas si estàn enlazadas a la orden de compra por tal ejecutar el codigo nuevo por lineas DAM de invoiceline
+FOR Cur_Parameter IN 
+( 
+  SELECT  distinct a.c_orderline_id FROM (SELECT cil.c_orderline_id FROM c_invoiceline cil
+  INNER JOIN c_invoice ci on cil.c_invoice_id = ci.c_invoice_id
+ WHERE ci.em_sco_duatype = 'SO'
+   AND ci.docstatus='CO'
+   AND cil.em_sim_dua_id = v_Dua_id
+  UNION ALL
+   SELECT cil.c_orderline_id FROM c_invoiceline cil
+   INNER JOIN c_invoice ci on cil.c_invoice_id = ci.c_invoice_id
+    WHERE ci.em_sco_duatype = 'SO'
+     AND ci.docstatus='CO'
+     AND ci.em_sco_dua_id = v_Dua_id
+ ) a 
+)
+LOOP
+  IF(Cur_Parameter.c_orderline_id is not null)THEN
+    v_tmp:=1;--suficiente es encontrar una linea de la factura enlazada a la Orden de compra para saber que debo ejecutar el codigo nuevo
+  ELSE
+     v_tmp:=0;
+    EXIT;
+  END IF; 
+END LOOP;
+
+IF(v_tmp=1)THEN
+   --OBTENIENDO LAS FACTURAS ASOCIADAS AL FOLIO A TRAVÈS DE TODOS LOS PARCIALES
+--OBTENIENDO LAS FACTURAS DE TIPO ORIGEN ASOCIADOS CON LA MISMA DUA DEL FOLIO
+--LA BUSQUEDA SERA POR LA DAM QUE TENGAN LAS LINEAS DE LAS FACTURAS
+FOR Cur_Parameter IN 
+( 
+  SELECT distinct cil.c_invoice_id FROM c_invoiceline cil
+  INNER JOIN c_invoice ci on cil.c_invoice_id = ci.c_invoice_id
+ WHERE ci.docstatus='CO'
+   AND ci.em_sco_duatype = 'SO'
+   AND ci.docstatus='CO'
+   AND cil.em_sim_dua_id = v_Dua_id
+)
+LOOP --first
+
+     --Para saber el Total de la Factura Hay dos Pasos
+     --1. De la Factura Debemos saber cuanto es el monto que corresponde por DUA, Smo todas las lineas que tienen asociada
+     --la misma DUA del Folio.
+     SELECT COALESCE(sum(linenetamt),0) INTO v_totalinvoice_fordam
+       FROM C_INVOICELINE CIL
+      WHERE em_sim_dua_id=v_Dua_id
+        AND c_invoice_id= Cur_Parameter.c_invoice_id;
+        
+     --2. Luego hay que ver cual de las lineas adicionales a la factura (Que no tenga C_orderline corresponde como mi total de factura)
+     -- Aca entran las lineas que fueron ingresadas como descuentos u otros
+     -- debemos prorratear para ver cuanto nos toca
+     
+      SELECT COALESCE(sum(linenetamt),0) INTO v_totalinvoice_alldam --Esto es para prorrateo
+        FROM C_INVOICELINE CIL
+       WHERE c_invoice_id= Cur_Parameter.c_invoice_id
+         AND c_orderline_id is not null
+         AND em_sim_dua_id is not null;
+
+     v_factor_invoice:=0;
+     IF(v_totalinvoice_alldam > 0)THEN 
+        v_factor_invoice = v_totalinvoice_fordam/v_totalinvoice_alldam;
+     END IF;
+
+    
+     
+      SELECT COALESCE(sum(linenetamt),0) INTO v_totalinvoice_others
+        FROM C_INVOICELINE CIL
+       WHERE c_invoice_id= Cur_Parameter.c_invoice_id
+         AND c_orderline_id is null;
+
+     v_totalinvoice_others:=v_totalinvoice_others*v_factor_invoice;
+     v_totalinvoice:=  v_totalinvoice_others + v_totalinvoice_fordam;--Representa el total de la factura para mi DAM
+     --End Total de Factura
+                  
+     --Antes tomaba el total de mi factura y PUNTO. ahora ya no es así snifff :(
+     --v_totalinvoice:= Cur_Parameter.totallines; --TOTAL DE LA FACTURA PARA UN PARCIAL O GRUPO DE PARCIALES --Comentado Original.
+
+     --OBTENIENDO CUANTO ES LA SUMA DEL PARCIAL O TODOS LOS PARCIALES, ESTO SE HACE PARA PODER PRORRATEAR 
+     --EN CASO DE QUE A LA FACTURA SE AGREGEN LINEAS MANUALES (DESCUENTOS O ADICIONES)
+     --AQUI UN PARCIAL PUEDE ESTAR EN UNA FACTURA. EN SU TOTALIDAD O JUNTO CON OTROS PARCIALES.
+     SELECT sum(COL.linenetamt) INTO v_totalPartial 
+       FROM C_ORDERLINE COL 
+      WHERE C_ORDER_ID IN (
+	   SELECT distinct a.C_ORDER_ID FROM (
+	           SELECT  o.C_ORDER_ID 
+	             FROM C_ORDER o
+	             INNER JOIN C_INVOICE i ON i.c_order_id = o.c_order_id
+	             WHERE i.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+	      UNION ALL
+	           SELECT o.C_ORDER_ID
+	             FROM C_ORDER o 
+	                  INNER JOIN C_ORDERLINE ol ON ol.c_order_id = o.c_order_id
+	                  INNER JOIN C_INVOICELINE IL ON ol.C_ORDERLINE_ID = IL.C_ORDERLINE_ID
+	            WHERE IL.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+	              AND IL.em_sim_dua_id=v_Dua_id
+	   ) a
+      );
+     
+
+   
+     --RECORRIENDO LOS PARCIALES QUE ESTÀN ASOCIADOS A LA FACTURA
+     FOR CUR_Parameter_Partial IN 
+     (SELECT DISTINCT (a.C_ORDER_ID), 
+             a.TOTALLINES,
+             a.C_INCOTERMS_ID,
+             a.em_sim_freight,
+             a.em_sim_insurance,
+             a.em_sim_orderimport_id,
+             a.c_bpartner_id
+       FROM (
+
+         SELECT  o.C_ORDER_ID ,
+                 o.TOTALLINES,
+                 o.C_INCOTERMS_ID,
+                 o.em_sim_freight,
+                 o.em_sim_insurance,
+                 o.em_sim_orderimport_id,
+                 o.c_bpartner_id
+           FROM C_ORDER o
+               INNER JOIN C_INVOICE i ON i.c_order_id = o.c_order_id
+          WHERE i.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+      UNION ALL
+         SELECT o.C_ORDER_ID,
+                o.TOTALLINES,
+                o.C_INCOTERMS_ID,
+                o.em_sim_freight,
+                o.em_sim_insurance,
+                o.em_sim_orderimport_id,
+                o.c_bpartner_id
+           FROM C_ORDER o
+               INNER JOIN C_ORDERLINE ol ON ol.c_order_id = o.c_order_id
+               INNER JOIN C_INVOICELINE IL ON ol.C_ORDERLINE_ID = IL.C_ORDERLINE_ID
+          WHERE IL.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+            AND IL.em_sim_dua_id=v_Dua_id
+       ) a
+     )
+     LOOP
+
+       
+     
+      --POR CADA PARCIAL SE DEBEN DE SACAR LOS PRODUCTOS AGRUPADOS POR %ADV y %DESCUENTO
+      --SUMAOUT NOS SIRVE PARA SACAR EL PRCENTAJE CON v_totalPartial Y A SU VEZ APLICARLO
+      --AL TOTAL DEL INVOICE v_totalinvoice, SI LA FACTURA ES IGUAL AL PARCIAL, NO AFECTA EN NADA
+      --PERO PUEDE SER QUE LA FACTURA TENGA MAS LINEAS QUE NO SON PRODUCTOS, ENTONCES EL VALOR DE LA FACTURA 
+      --DEBE SER UN PRORRATEO :)
+        FOR CUR_Parameter_Lines IN 
+        ( SELECT sum(linenetamt) sumaout,
+                 ROUND (em_sim_advalorem*(1-em_sim_tlc_disc_advalorem/100),12) AS totaladv,
+                 em_sim_percetion
+            FROM C_ORDERLINE WHERE C_ORDER_ID = CUR_Parameter_Partial.C_ORDER_ID
+          GROUP BY totaladv,em_sim_percetion
+        )
+        LOOP
+
+           --DETERMINANDO EL VALOR REAL DE LA FACTURA EN PRORRATEO
+           --SI NO SE MODIFICO LA FACTURA LOS VALORES SON LOS MISMO EL PRORRATEO NO AFECTA
+	     --v_factor Factor de la suma con respecto a la factura
+             v_factor:=CUR_Parameter_Lines.sumaout/v_totalPartial;
+             v_invoiceToLine:=v_totalinvoice*v_factor;
+             --v_factor2 Factor de la suma de lineas con respecto al parcial
+             v_factor2:=CUR_Parameter_Lines.sumaout/CUR_Parameter_Partial.totallines; 
+             v_totalFlete:= CUR_Parameter_Partial.em_sim_freight*v_factor2;
+             v_totalSeguro:= CUR_Parameter_Partial.em_sim_insurance*v_factor2;
+           
+
+           ---DETERMINANDO CUANTO LE CORRESPONDE DE VALOR A CADA LINEA DE CONSULTA SEGUN SU INCOTERM
+           SELECT c_incoterms.name INTO v_name_incoterms 
+             FROM c_incoterms WHERE c_incoterms_id=CUR_Parameter_Partial.c_incoterms_id ;
+       	     IF(v_name_incoterms = 'FOB' OR v_name_incoterms = 'CPT' OR v_name_incoterms = 'CFR' OR v_name_incoterms = 'FCA' OR v_name_incoterms = 'EXW') THEN
+		--v_totalFob = v_totalinvoice + v_inland + v_more_expenses;
+		v_totalFob:=v_invoiceToLine;
+		v_totalCif = v_totalFob + v_totalFlete + v_totalSeguro;
+	     ELSIF(v_name_incoterms = 'CIF' OR v_name_incoterms = 'CIP')THEN
+		v_totalCif:= v_invoiceToLine;
+		v_totalFob:= v_totalCif - v_totalFlete - v_totalSeguro;
+		--v_totalFob:= v_totalCif - v_totalFlete - v_totalSeguro - v_inland - v_more_expenses;
+	     ELSIF(v_name_incoterms IS NULL) THEN
+		    v_Message := 'NO INCOTERMS';
+		    RAISE v_Message;
+	     ELSE --Create new, Work it who FOB
+		v_totalFob:= v_invoiceToLine; 
+                --v_totalFob = v_totalinvoice + v_inland + v_more_expenses ;
+		v_totalCif:= v_totalFoB + v_totalFlete + v_totalSeguro;
+	     END IF;
+	   ---------------------------             
+
+
+            --INSERTANDO CADA LINEA AGRUPADA A PRELIQUIDACION
+	    v_percentbyline:= TRUNC(v_factor,2);
+	    
+	    v_preliquitacion_factura:= v_totalinvoice;
+	    --  RAISE Cur_Parameter_Lines.invoice_grandtotal;
+	    v_preliquidacion_FOB:= v_totalFob;
+	    v_preliquidacion_Flete:= v_totalFlete;
+	    v_preliquidacion_Seguro:= v_totalSeguro;
+	    v_preliquidacion_CIF:=  v_totalCif;
+	    v_preliquidacinon_ADV:= v_preliquidacion_CIF*(CUR_Parameter_Lines.totaladv/100.00);
+			   
+	    --Insert lines preliquidation
+	    v_LineSeqNo:= 10 + v_LineSeqNo;
+	    v_sim_imp_settlementlines_id:=get_uuid();
+	    INSERT INTO sim_imp_settlementlines
+	    (sim_imp_settlementlines_id, sim_imp_settlement_id,ad_client_id, ad_org_id,isactive,
+	     created, createdby, updated, updatedby, c_bpartner_id, 
+	     c_invoice_id, sim_orderimport_id, c_order_id, total_invoice, total_fob, total_cif,
+	     total_flete,total_seguro,advalorem,total_advalorem,perception,c_currency_id,line
+	    )
+	    VALUES
+	    ( v_sim_imp_settlementlines_id,v_sim_imp_settlement_id,v_Client_ID,v_Org_ID,'Y',
+   	      now(),v_Created_by, now(), v_Created_by,cur_parameter_partial.c_bpartner_id,
+	      Cur_Parameter.c_invoice_id , CUR_Parameter_Partial.em_sim_orderimport_id,CUR_Parameter_Partial.c_order_id,v_invoiceToLine,v_preliquidacion_FOB,v_preliquidacion_CIF,
+	      v_preliquidacion_Flete,v_preliquidacion_Seguro,Cur_Parameter_Lines.totaladv,v_preliquidacinon_ADV,Cur_Parameter_Lines.em_sim_percetion,'100',v_LineSeqNo
+	    );
+			  
+	    IF(CUR_Parameter_Lines.em_sim_percetion = 'Y')THEN
+	      v_cif_exonerado = v_cif_exonerado + v_preliquidacion_CIF ;
+	   END IF;
+	 --END insert
+        END LOOP;
+
+       
+         
+     END LOOP;
+       
+  END LOOP; --END first
+ELSE --v_tmp=0
+ 
+  --OBTENIENDO LAS FACTURAS ASOCIADAS AL FOLIO A TRAVÈS DE TODOS LOS PARCIALES
+--OBTENIENDO LAS FACTURAS DE TIPO ORIGEN ASOCIADOS CON LA MISMA DUA DEL FOLIO
+FOR Cur_Parameter IN 
+( select distinct(i.c_invoice_id),i.totallines from c_invoice i
+       where i.em_sco_dua_id = v_Dua_id
+        and i.em_sco_duatype = 'SO'
+        and i.docstatus='CO'
+       group by i.c_invoice_id , i.totallines
+)
+LOOP
+ /***
+  EL FOR DEBE SER DE TODOS LAS FACTURAS DE ORIGEN ASOCIADAS A MI FOLIO POR DUA.
+ */
+
+     v_totalinvoice:= Cur_Parameter.totallines; --TOTAL DE LA FACTURA PARA UN PARCIAL O GRUPO DE PARCIALES
+
+     --OBTENIENDO CUANTO ES LA SUMA DEL PARCIAL O TODOS LOS PARCIALES, ESTO SE HACE PARA PODER PRORRATEAR 
+     --EN CASO DE QUE A LA FACTURA SE AGREGEN LINEAS MANUALES (DESCUENTOS O ADICIONES)
+     
+    /* SELECT sum(COL.linenetamt) INTO v_totalPartial FROM C_ORDERLINE COL
+      INNER JOIN C_INVOICELINE IL ON COL.C_ORDERLINE_ID = IL.C_ORDERLINE_ID
+           WHERE IL.C_INVOICE_ID = Cur_Parameter.c_invoice_id;*/
+   /**REPLACE TO**/
+
+     SELECT sum(COL.linenetamt) INTO v_totalPartial 
+       FROM C_ORDERLINE COL 
+      WHERE C_ORDER_ID IN (
+	   SELECT distinct a.C_ORDER_ID FROM (
+	           SELECT  o.C_ORDER_ID 
+	             FROM C_ORDER o
+	             INNER JOIN C_INVOICE i ON i.c_order_id = o.c_order_id
+	             WHERE i.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+	      UNION ALL
+	           SELECT o.C_ORDER_ID
+	             FROM C_ORDER o 
+	                  INNER JOIN C_ORDERLINE ol ON ol.c_order_id = o.c_order_id
+	                  INNER JOIN C_INVOICELINE IL ON ol.C_ORDERLINE_ID = IL.C_ORDERLINE_ID
+	            WHERE IL.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+	   ) a
+      );
+           /**Ver lo anterior que me salga un UNION*/
+
+     
+
+   
+     --RECORRIENDO LOS PARCIALES QUE ESTÀN ASOCIADOS A LA FACTURA
+     FOR CUR_Parameter_Partial IN 
+     (SELECT DISTINCT (a.C_ORDER_ID), 
+             a.TOTALLINES,
+             a.C_INCOTERMS_ID,
+             a.em_sim_freight,
+             a.em_sim_insurance,
+             a.em_sim_orderimport_id,
+             a.c_bpartner_id
+       FROM (
+
+         SELECT  o.C_ORDER_ID ,
+                 o.TOTALLINES,
+                 o.C_INCOTERMS_ID,
+                 o.em_sim_freight,
+                 o.em_sim_insurance,
+                 o.em_sim_orderimport_id,
+                 o.c_bpartner_id
+           FROM C_ORDER o
+               INNER JOIN C_INVOICE i ON i.c_order_id = o.c_order_id
+          WHERE i.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+      UNION ALL
+         SELECT o.C_ORDER_ID,
+                o.TOTALLINES,
+                o.C_INCOTERMS_ID,
+                o.em_sim_freight,
+                o.em_sim_insurance,
+                o.em_sim_orderimport_id,
+                o.c_bpartner_id
+           FROM C_ORDER o
+               INNER JOIN C_ORDERLINE ol ON ol.c_order_id = o.c_order_id
+               INNER JOIN C_INVOICELINE IL ON ol.C_ORDERLINE_ID = IL.C_ORDERLINE_ID
+          WHERE IL.C_INVOICE_ID = Cur_Parameter.c_invoice_id
+       ) a
+     )
+     LOOP
+
+     
+     
+      --POR CADA PARCIAL SE DEBEN DE SACAR LOS PRODUCTOS AGRUPADOS POR %ADV y %DESCUENTO
+      --SUMAOUT NOS SIRVE PARA SACAR EL PRCENTAJE CON v_totalPartial Y A SU VEZ APLICARLO
+      --AL TOTAL DEL INVOICE v_totalinvoice, SI LA FACTURA ES IGUAL AL PARCIAL, NO AFECTA EN NADA
+      --PERO PUEDE SER QUE LA FACTURA TENGA MAS LINEAS QUE NO SON PRODUCTOS, ENTONCES EL VALOR DE LA FACTURA 
+      --DEBE SER UN PRORRATEO :)
+        FOR CUR_Parameter_Lines IN 
+        ( SELECT sum(linenetamt) sumaout,
+                 ROUND (em_sim_advalorem*(1-em_sim_tlc_disc_advalorem/100),12) AS totaladv,
+                 em_sim_percetion
+            FROM C_ORDERLINE WHERE C_ORDER_ID = CUR_Parameter_Partial.C_ORDER_ID
+          GROUP BY totaladv,em_sim_percetion
+        )
+        LOOP
+
+           --DETERMINANDO EL VALOR REAL DE LA FACTURA EN PRORRATEO
+           --SI NO SE MODIFICO LA FACTURA LOS VALORES SON LOS MISMO EL PRORRATEO NO AFECTA
+	     --v_factor Factor de la suma con respecto a la factura
+             v_factor:=CUR_Parameter_Lines.sumaout/v_totalPartial;
+             v_invoiceToLine:=v_totalinvoice*v_factor;
+             --v_factor2 Factor de la suma de lineas con respecto al parcial
+             v_factor2:=CUR_Parameter_Lines.sumaout/CUR_Parameter_Partial.totallines; 
+             v_totalFlete:= CUR_Parameter_Partial.em_sim_freight*v_factor2;
+             v_totalSeguro:= CUR_Parameter_Partial.em_sim_insurance*v_factor2;
+           
+
+           ---DETERMINANDO CUANTO LE CORRESPONDE DE VALOR A CADA LINEA DE CONSULTA SEGUN SU INCOTERM
+           SELECT c_incoterms.name INTO v_name_incoterms 
+             FROM c_incoterms WHERE c_incoterms_id=CUR_Parameter_Partial.c_incoterms_id ;
+       	     IF(v_name_incoterms = 'FOB' OR v_name_incoterms = 'CPT' OR v_name_incoterms = 'CFR' OR v_name_incoterms = 'FCA' OR v_name_incoterms = 'EXW') THEN
+		--v_totalFob = v_totalinvoice + v_inland + v_more_expenses;
+		v_totalFob:=v_invoiceToLine;
+		v_totalCif = v_totalFob + v_totalFlete + v_totalSeguro;
+	     ELSIF(v_name_incoterms = 'CIF' OR v_name_incoterms = 'CIP')THEN
+		v_totalCif:= v_invoiceToLine;
+		v_totalFob:= v_totalCif - v_totalFlete - v_totalSeguro;
+		--v_totalFob:= v_totalCif - v_totalFlete - v_totalSeguro - v_inland - v_more_expenses;
+	     ELSIF(v_name_incoterms IS NULL) THEN
+		    v_Message := 'NO INCOTERMS';
+		    RAISE v_Message;
+	     ELSE --Create new, Work it who FOB
+		v_totalFob:= v_invoiceToLine; 
+                --v_totalFob = v_totalinvoice + v_inland + v_more_expenses ;
+		v_totalCif:= v_totalFoB + v_totalFlete + v_totalSeguro;
+	     END IF;
+	   ---------------------------             
+
+
+            --INSERTANDO CADA LINEA AGRUPADA A PRELIQUIDACION
+	    v_percentbyline:= TRUNC(v_factor,2);
+	    
+	    v_preliquitacion_factura:= v_totalinvoice;
+	    --  RAISE Cur_Parameter_Lines.invoice_grandtotal;
+	    v_preliquidacion_FOB:= v_totalFob;
+	    v_preliquidacion_Flete:= v_totalFlete;
+	    v_preliquidacion_Seguro:= v_totalSeguro;
+	    v_preliquidacion_CIF:=  v_totalCif;
+	    v_preliquidacinon_ADV:= v_preliquidacion_CIF*(CUR_Parameter_Lines.totaladv/100.00);
+			   
+	    --Insert lines preliquidation
+	    v_LineSeqNo:= 10 + v_LineSeqNo;
+	    v_sim_imp_settlementlines_id:=get_uuid();
+	    INSERT INTO sim_imp_settlementlines
+	    (sim_imp_settlementlines_id, sim_imp_settlement_id,ad_client_id, ad_org_id,isactive,
+	     created, createdby, updated, updatedby, c_bpartner_id, 
+	     c_invoice_id, sim_orderimport_id, c_order_id, total_invoice, total_fob, total_cif,
+	     total_flete,total_seguro,advalorem,total_advalorem,perception,c_currency_id,line
+	    )
+	    VALUES
+	    ( v_sim_imp_settlementlines_id,v_sim_imp_settlement_id,v_Client_ID,v_Org_ID,'Y',
+   	      now(),v_Created_by, now(), v_Created_by,cur_parameter_partial.c_bpartner_id,
+	      Cur_Parameter.c_invoice_id , CUR_Parameter_Partial.em_sim_orderimport_id,CUR_Parameter_Partial.c_order_id,v_invoiceToLine,v_preliquidacion_FOB,v_preliquidacion_CIF,
+	      v_preliquidacion_Flete,v_preliquidacion_Seguro,Cur_Parameter_Lines.totaladv,v_preliquidacinon_ADV,Cur_Parameter_Lines.em_sim_percetion,'100',v_LineSeqNo
+	    );
+			  
+	    IF(CUR_Parameter_Lines.em_sim_percetion = 'Y')THEN
+	      v_cif_exonerado = v_cif_exonerado + v_preliquidacion_CIF ;
+	   END IF;
+	 --END insert
+        END LOOP;
+     END LOOP;
+  END LOOP;
+
+END IF; --End TMP
+
+ 
+
+
+--Recalculado HEADER de PRELIQUIDACION despuès de haber insertado las líneas
+v_header_fob:= 0;
+v_header_cif:= 0;
+v_header_flete:=0;
+v_header_seguro:=0;
+v_header_advalorem:=0;
+v_header_advalorem_percepcion:=0;
+
+    --Calculating all
+     SELECT sum(total_fob),sum(total_cif),sum(total_flete),sum(total_seguro), ceiling(sum(total_advalorem)) 
+       INTO  v_header_fob, v_header_cif, v_header_flete, v_header_seguro , v_header_advalorem
+      FROM sim_imp_settlementlines WHERE sim_imp_settlement_id = v_sim_imp_settlement_id;
+
+     SELECT ceiling(sum(total_advalorem)) 
+       INTO v_header_advalorem_percepcion
+       FROM sim_imp_settlementlines 
+      WHERE sim_imp_settlement_id = v_sim_imp_settlement_id
+        AND perception='N';
+
+
+ --QUERY FOR IGV% AND PERCEPCION % BY DEFAULT
+ SELECT total_isc, impuesto, derechos_srv_despacho ,percepction_percent,tipo_cambio 
+   INTO v_total_isc, v_igv_percent,v_derechos_srv_despacho ,v_perception_percent, v_tipo_cambio
+    FROM sim_imp_settlement WHERE sim_imp_settlement_id = v_sim_imp_settlement_id;
+ --v_cif_exonerado = 
+ v_subtotal = v_header_cif+v_header_advalorem + v_total_isc;
+
+  
+ --v_igv_percent = 0.16 + 0.02 = 0.18 
+--v_igv_derechos_redondeado_segun_aduana = ROUND((ROUND((v_subtotal),2)*0.16)) + ROUND((ROUND((v_subtotal),2)*0.02));
+  v_igv_derechos_redondeado_segun_aduana = CEIL(v_subtotal*0.16) + ROUND((ROUND((v_subtotal),2)*0.02));
+ --RAISE v_igv_redondeado_segun_aduana ;
+ v_derechos_total_dollar = v_header_advalorem + v_igv_derechos_redondeado_segun_aduana +  v_derechos_srv_despacho;
+
+ --v_percepcion_percent = 0.18 
+ v_percepcion_igv_total = ROUND((v_header_cif-v_cif_exonerado + v_header_advalorem_percepcion)*0.18);
+ v_percepcion_total = v_header_cif-v_cif_exonerado + v_header_advalorem_percepcion + v_percepcion_igv_total;
+ v_total_percepcion = v_percepcion_total * v_perception_percent/100;
+
+
+ -- TIPO DE CAMBIO DEL SISTEMA PARA DERECHOS
+SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(v_derechos_total_dollar, v_From_Currency_ID, v_newCurrency_ID, now(), NULL,v_Client_ID,v_Org_ID), v_newCurrency_ID, NULL)), 0)
+INTO v_convertToSOLES_total_derechos;
+
+SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(v_total_percepcion, v_From_Currency_ID, v_newCurrency_ID, now(), NULL,v_Client_ID,v_Org_ID), v_newCurrency_ID, NULL)), 0)
+INTO v_convertToSOLES_total_Perception;
+
+--Update Header values
+ UPDATE sim_imp_settlement
+  SET valor_fob = v_header_fob,
+      valor_freight = v_header_flete, 
+      valor_insurance = v_header_seguro,
+      valor_cif = v_header_cif,
+      total_cif = v_header_cif,
+      total_adv = v_header_advalorem,
+      subtotal = v_subtotal,
+      total = v_igv_derechos_redondeado_segun_aduana,
+      derechos_total_dollar = v_derechos_total_dollar,
+      --total_derechos = v_derechos_total_dollar*v_tipo_cambio,
+      total_derechos = ROUND(v_convertToSOLES_total_derechos,0),
+      percepcion_cif = v_header_cif,
+      percepcion_cif_exonerado = v_cif_exonerado,
+      percepcion_base_cif =  v_header_cif-v_cif_exonerado,
+      percepcion_adv = v_header_advalorem_percepcion,
+      percepcion_igv_total = v_percepcion_igv_total,
+      percepcion_total = v_header_cif-v_cif_exonerado + v_header_advalorem_percepcion + v_percepcion_igv_total,
+      total_percepcion = v_total_percepcion,
+      --percepcion_total_soles =  v_perception_percent*v_percepcion_total*v_tipo_cambio
+      percepcion_total_soles =  ROUND(v_convertToSOLES_total_Perception,0)
+   WHERE sim_imp_settlement_id = v_sim_imp_settlement_id;
+
+
+    v_Message := '@sim_generatepreliqui@' || v_DocumentNo;
+    v_Result := 1; -- Warning
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+    
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SIM_GENERATEPRELIQUIDATION
+]]></body>
+    </function>
+  </database>

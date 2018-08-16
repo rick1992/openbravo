@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_BP_LOC_UPDATESP_TRG">
+    <trigger name="SSA_BP_LOC_UPDATESP_TRG" table="C_BPARTNER_LOCATION" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialbptype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    SELECT em_ssa_specialbptype
+      INTO v_specialbptype
+      FROM C_Bpartner
+     WHERE C_Bpartner_ID = :NEW.c_bpartner_id;
+     
+    :NEW.em_ssa_specialbptype = v_specialbptype;
+
+    END SSA_BP_LOC_UPDATESP_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_UPDATE_COSTING_TRG">
+    <trigger name="SIM_UPDATE_COSTING_TRG" table="SIM_IMP_COSTINGLINES" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[   v_ResultStr VARCHAR2(2000):='';
+  v_ID VARCHAR2(32);
+  v_amount NUMBER:=0;
+  v_qtyordered NUMBER:=0;
+  v_qtypending NUMBER:=0;
+  v_qtyinpartial NUMBER:=0;
+  v_percentinpartial NUMBER:=0;
+  v_tipodeCambio NUMBER:=0;
+  v_tipo_cambio NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  Cur_Parameter RECORD;
+  v_costline NUMBER:=0;
+  v_adv_total_currency_local NUMBER:=0;
+  v_cost_line_currency_local NUMBER:=0;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.sim_imp_costing_id;
+ELSE
+  v_ID:=:NEW.sim_imp_costing_id;
+END IF;
+
+
+IF(UPDATING) THEN
+ SELECT tipo_cambio INTO v_tipo_cambio FROM sim_imp_costing WHERE sim_imp_costing_id = v_ID;
+  v_tipodeCambio:=v_tipo_cambio;
+  IF(v_tipo_cambio IS NULL ) THEN
+     :NEW.tipo_cambio = 0;
+  ELSIF(v_tipodeCambio<0) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@sim_tipocambio@') ;
+  END IF;
+
+  --RAISE NO_DATA_FOUND;
+
+  IF(:OLD.advtotal <> :NEW.advtotal)THEN
+
+
+       v_costline:= :NEW.linenetamt + :NEW.advtotal + :NEW.expenses_currencydollar;
+       :NEW.cost_line:=v_costline;
+       :NEW.cost_unit:=v_costline/:NEW.Qtyinvoiced;
+
+       v_adv_total_currency_local:= (:NEW.advtotal)*v_tipodeCambio;
+       :NEW.advtotal_currencylocal:= v_adv_total_currency_local;
+       v_cost_line_currency_local:= :NEW.Linenetamt_Currencylocal + v_adv_total_currency_local + :NEW.expenses_currencylocal;
+       :NEW.cost_line_currencylocal = v_cost_line_currency_local;
+       :NEW.cost_unit_currencylocal = v_cost_line_currency_local/:NEW.Qtyinvoiced;
+  END IF;
+
+  
+
+ 
+END IF;
+
+END SIM_UPDATE_COSTING_TRG
+]]></body>
+    </trigger>
+  </database>

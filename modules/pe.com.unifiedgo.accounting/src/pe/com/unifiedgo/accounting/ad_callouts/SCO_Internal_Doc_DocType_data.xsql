@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="SCOInternalDocDocTypeData" package="pe.com.unifiedgo.accounting.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(d.DocSubTypeSO, '--') as DocSubTypeSO,
+        d.IsDocNoControlled, s.CurrentNext, s.CurrentNextSys, 
+        s.AD_Sequence_ID, d.IsSOTrx, 
+        '' as PaymentRule, '' as C_PaymentTerm_ID,
+        '' as InvoiceRule, '' as DeliveryRule,
+        '' as DeliveryViaRule,
+        '' as PaymentRulePO, '' as PO_PaymentTerm_ID
+        FROM C_DocType d left join AD_Sequence s on d.DocNoSequence_ID=s.AD_Sequence_ID
+        WHERE C_DocType_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="cDoctypeId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOldDocSubType" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT DOCSUBTYPESO FROM C_DOCTYPE
+      WHERE C_DOCTYPE_ID IN (SELECT C_DOCTYPETARGET_ID FROM SCO_INTERNAL_DOC WHERE SCO_INTERNAL_DOC_ID = ?)
+      ]]>
+    </Sql>
+    <Parameter name="scoInternalDocId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOldDocNo" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT DocumentNo FROM SCO_INTERNAL_DOC WHERE SCO_INTERNAL_DOC_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="scoInternalDocId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOldDocTypeTargetId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT c_doctypetarget_id FROM SCO_INTERNAL_DOC WHERE SCO_INTERNAL_DOC_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="scoInternalDocId"/>
+  </SqlMethod>
+</SqlClass>

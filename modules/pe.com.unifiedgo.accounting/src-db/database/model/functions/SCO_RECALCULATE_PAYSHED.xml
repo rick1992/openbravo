@@ -1,0 +1,202 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_RECALCULATE_PAYSHED">
+    <function name="SCO_RECALCULATE_PAYSHED" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32):='0';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+  -- Parameter Variables
+
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60) ;
+  v_DocStatus VARCHAR(60) ;  
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_DocType_ID VARCHAR2(32);
+  
+
+  v_Aux NUMBER;
+
+  v_MultiplierARC NUMBER:=1;
+v_TargetDocBaseType C_DOCTYPE.DocBaseType%TYPE;
+v_isReversal  C_DOCTYPE.IsReversal%TYPE;
+ v_IsSOTrx C_INVOICE.IsSOTrx%TYPE;
+      v_GrandTotal NUMBER:=0;
+      v_Currency_ID VARCHAR(32);
+      v_DocTypeTarget_ID VARCHAR(32);
+      v_BPartner_ID VARCHAR(32);
+      v_DateInvoiced DATE; 
+      v_totallines NUMBER;
+v_plannedDate DATE;
+v_paymentAmount NUMBER;
+v_scheduledamount NUMBER;
+v_pendingamount NUMBER;
+cur_payments RECORD;
+v_PaymentTerm C_INVOICE.C_PaymentTerm_ID%TYPE;
+
+  p_receiptdate DATE;
+
+  v_invdocstatus VARCHAR(60);
+  v_invdateinvoiced DATE; 
+
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+         FROM AD_PInstance i
+           LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+         WHERE i.AD_PInstance_ID=p_PInstance_ID
+         ORDER BY p.SeqNo) 
+      LOOP
+         IF (Cur_Parameter.ParameterName = 'receiptdate') THEN
+             p_receiptdate := Cur_Parameter.P_Date;
+	     DBMS_OUTPUT.PUT_LINE(' p_receiptdate=' || p_receiptdate) ;
+         ELSE
+             DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+         END IF;
+
+	  v_Record_ID:=Cur_Parameter.Record_ID;
+          v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+          v_Client_ID:=Cur_Parameter.AD_Client_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      RAISE NO_DATA_FOUND;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+
+  BEGIN --BODY 
+
+
+    --LOCK THE INVOICE
+    SELECT docstatus,dateinvoiced 
+      INTO v_invdocstatus, v_invdateinvoiced
+      FROM C_Invoice 
+    WHERE C_Invoice_ID = v_Record_ID FOR UPDATE;
+
+    IF(v_invdocstatus<>'CO') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@');
+    END IF;
+
+    UPDATE C_Invoice SET em_scr_isreceived = 'Y' WHERE C_Invoice_ID = v_Record_ID;
+
+    IF(v_invdateinvoiced<>p_receiptdate) THEN
+      UPDATE C_Invoice SET Processed = 'N' WHERE C_Invoice_ID = v_Record_ID;
+      UPDATE C_Invoice SET dateinvoiced = p_receiptdate WHERE C_Invoice_ID = v_Record_ID;
+      UPDATE C_Invoice SET Processed = 'Y' WHERE C_Invoice_ID = v_Record_ID;
+
+	UPDATE fin_payment_schedule SET UPDATE_PAYMENT_PLAN='N' WHERE c_invoice_id=v_Record_ID;
+
+         SELECT IsSOTrx,
+      grandtotal, C_Currency_ID, c_doctypetarget_id,
+      C_BPartner_ID, DateInvoiced, totallines, C_PaymentTerm_ID 
+  INTO v_IsSOTrx,
+      v_GrandTotal, v_Currency_ID, v_DocTypeTarget_ID,
+      v_BPartner_ID, v_DateInvoiced, v_totallines, v_paymentterm  
+  FROM c_invoice
+  WHERE c_invoice_id=v_Record_ID;
+   
+   -- Is it a Credit Memo
+      SELECT docbasetype, isreversal
+        INTO v_TargetDocBaseType, v_isReversal
+      FROM c_doctype
+      WHERE c_doctype_id=v_DocTypeTarget_ID;
+      IF (v_TargetDocBaseType in ('ARC','APC') or v_isReversal='Y') THEN
+        v_MultiplierARC:=-1;
+      END IF;
+
+v_pendingAmount := v_GrandTotal;
+
+	FOR cur_payments IN (
+            SELECT line, percentage, onremainder, excludetax,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday END) AS fixmonthday,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday2 END) AS Fixmonthday2,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday3 END) AS fixmonthday3,
+                   netdays, fixmonthoffset, netday, isnextbusinessday,
+                   COALESCE(cptl.fin_paymentmethod_id,c.fin_paymentmethod_id) as fin_paymentmethod_id
+            FROM c_paymenttermline cptl,c_invoice c
+            WHERE cptl.c_paymentterm_id=v_paymentterm
+              AND cptl.isactive = 'Y'
+              AND c_invoice_id = v_Record_ID
+            UNION
+            -- Header of paymentTerm is processed at last
+            SELECT 9999 AS line, 100 AS percentage, 'Y' AS onremainder, 'N' AS excludetax,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday END) AS fixmonthday,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday2 END) AS Fixmonthday2,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday3 END) AS fixmonthday3,
+                   netdays, fixmonthoffset, netday, isnextbusinessday,
+                   c.fin_paymentmethod_id
+            FROM c_paymentterm cpt ,c_invoice c
+            WHERE cpt.c_paymentterm_id=v_paymentterm
+              AND c_invoice_id = v_Record_ID
+            ORDER BY line
+          )
+        LOOP
+
+          v_plannedDate:=C_Paymentduedate(v_bpartner_id, v_issotrx, cur_payments.fixmonthday, cur_payments.fixmonthday2, cur_payments.fixmonthday3, cur_payments.netdays, cur_payments.fixmonthoffset, cur_payments.netday, cur_payments.isnextbusinessday, v_dateinvoiced);
+
+
+	  IF(cur_payments.excludetax='Y') THEN
+            -- if excludeTax = 'Y', percentage is aplied on the TotalLines
+            v_paymentAmount:=C_Currency_Round(v_totallines * cur_payments.percentage/100, v_currency_id, NULL);
+          ELSIF(cur_payments.onremainder='N') THEN
+            -- if onRemainder = 'N', percentage is aplied on the GrandTotal
+            v_paymentAmount:=C_Currency_Round(v_grandtotal * cur_payments.percentage/100, v_currency_id, NULL);
+          ELSE
+            v_paymentAmount:=C_Currency_Round(v_pendingamount * cur_payments.percentage/100, v_currency_id, NULL);
+          END IF;
+
+          v_pendingamount := v_pendingamount - v_paymentamount;
+          v_scheduledamount := C_Currency_Round((v_paymentamount * v_multiplierarc), v_currency_id, NULL);
+          
+	  UPDATE fin_payment_schedule SET duedate=v_plannedDate, expecteddate=v_plannedDate, UPDATE_PAYMENT_PLAN='Y' WHERE 
+		fin_payment_schedule_id = (SELECT fin_payment_schedule_id FROM fin_payment_schedule
+		WHERE c_invoice_id=v_Record_ID AND UPDATE_PAYMENT_PLAN='N' AND amount=v_scheduledamount limit 1);
+          --RAISE EXCEPTION '% % %',v_scheduledamount, v_plannedDate, v_Record_ID;
+
+	
+	END LOOP;
+	
+      --PERFORM SCO_GEN_PAYSHE_INV_RECEPTION(v_Record_ID, v_AD_User_ID);
+    END IF;
+
+    v_Message:= '@SCO_RecalPayShedSuccess@';
+
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Finished ' || v_Message) ;
+    END IF;
+    RETURN;
+    
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  END IF;
+--  RETURN;
+END SCO_RECALCULATE_PAYSHED
+]]></body>
+    </function>
+  </database>

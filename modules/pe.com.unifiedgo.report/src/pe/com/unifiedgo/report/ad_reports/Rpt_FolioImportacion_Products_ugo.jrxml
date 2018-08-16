@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_FolioImportacion_Products_ugo" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="842" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="ISTAXINCLUDED" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="FOLIOIMPORT_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<queryString>
+		<![CDATA[select q.*,
+((q.stockactual+q.porllegar)/q."CONS_MES") meses_abast,
+(((q.stockactual+q.porllegar)/q."CONS_MES")-0.7) stock21,
+((q."CANT_SHIP"+q.stockactual+q.porllegar)/q."CONS_MES") ingreso_stock
+from (select coalesce(fol.numeromr,'') as "NRO_MR",
+ord.documentno as "O/C",
+coalesce(pro.value,'') as "COD_ALMACEN",
+coalesce(pro.em_scr_internalcode,'') as "COD_PROVEEDOR",
+coalesce(lin.qtyordered,0.00) as "CANT_SHIP",
+coalesce(pro.em_scr_real_avg_monthly_sales,0.00) as "CONS_MES",
+
+(select sum(qtyonhand)
+from m_product_stock_v stock
+WHERE m_product_id =pro.m_product_id
+AND AD_ISORGINCLUDED(ad_org_id, fol.ad_org_id, fol.ad_client_id) > -1) stockactual,
+
+(SELECT sum(poqty)
+FROM sre_product_pending_orders_v vista
+WHERE m_product_id = pro.m_product_id
+AND COALESCE(datepromised, line_dateordered, dateordered) <= COALESCE(fol.dateaproxwarehouse,now())
+AND AD_ISORGINCLUDED(order_org_id, fol.ad_org_id, fol.ad_client_id) > -1
+GROUP BY order_org_id ,m_product_id
+ORDER BY order_org_id ,m_product_id) porllegar,
+
+coalesce(fol.flete_percent_to_fob,0.00) porc_flete,
+coalesce(fol.aduana_percent_to_fob,0.00) porc_aduana
+
+from sim_folioimport fol
+left join c_order ord on fol.sim_folioimport_id = ord.em_sim_folioimport_id
+join c_orderline lin on ord.c_order_id = lin.c_order_id
+left join m_product pro on lin.m_product_id = pro.m_product_id
+join m_warehouse wrh on lin.m_warehouse_id = wrh.m_warehouse_id
+
+where ord.em_sim_folioimport_id in ($P{FOLIOIMPORT_ID})) q]]>
+	</queryString>
+	<field name="NRO_MR" class="java.lang.String"/>
+	<field name="O/C" class="java.lang.String"/>
+	<field name="COD_ALMACEN" class="java.lang.String"/>
+	<field name="COD_PROVEEDOR" class="java.lang.String"/>
+	<field name="CANT_SHIP" class="java.math.BigDecimal"/>
+	<field name="CONS_MES" class="java.math.BigDecimal"/>
+	<field name="stockactual" class="java.math.BigDecimal"/>
+	<field name="porllegar" class="java.math.BigDecimal"/>
+	<field name="porc_flete" class="java.math.BigDecimal"/>
+	<field name="porc_aduana" class="java.math.BigDecimal"/>
+	<field name="meses_abast" class="java.math.BigDecimal"/>
+	<field name="stock21" class="java.math.BigDecimal"/>
+	<field name="ingreso_stock" class="java.math.BigDecimal"/>
+	<pageHeader>
+		<band height="29" splitType="Stretch">
+			<rectangle radius="0">
+				<reportElement mode="Transparent" x="14" y="3" width="814" height="25"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="13" y="8" width="64" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[NRO. MR]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="81" y="8" width="55" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[O/C]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="154" y="3" width="65" height="25"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[CODIGO
+ALMACEN]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="228" y="3" width="70" height="25"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[CODIGO
+PROVEEDOR]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="322" y="3" width="60" height="25"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[CANTIDAD
+SHIPMENT]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="391" y="3" width="65" height="25"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[STOCK
+ACTUAL]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="465" y="8" width="65" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[POR LLEGAR]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="544" y="8" width="60" height="15"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[CONS. MES]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="613" y="3" width="65" height="24"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[MESES
+ABAST.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="687" y="3" width="65" height="24"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[STOCK
+21 DIAS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="761" y="3" width="65" height="24"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[INGRESANDO
+STOCK]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="15" splitType="Stretch">
+			<textField>
+				<reportElement x="154" y="0" width="75" height="14"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{COD_ALMACEN}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="233" y="0" width="75" height="14"/>
+				<textElement textAlignment="Left">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{COD_PROVEEDOR}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="309" y="0" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{CANT_SHIP}==null)?"":$P{NUMBERFORMAT}.format($F{CANT_SHIP})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="78" y="0" width="70" height="14"/>
+				<textElement textAlignment="Left">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{O/C}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="14" y="0" width="64" height="14"/>
+				<textElement textAlignment="Left">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_MR}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="531" y="0" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{CONS_MES}==null)?"":$P{NUMBERFORMAT}.format($F{CONS_MES})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="383" y="0" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{stockactual}==null)?"":$P{NUMBERFORMAT}.format($F{stockactual})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="457" y="0" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{porllegar}==null)?"":$P{NUMBERFORMAT}.format($F{porllegar})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="605" y="0" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{meses_abast}==null)?"":$P{NUMBERFORMAT}.format($F{meses_abast})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="679" y="0" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{stock21}==null)?"":$P{NUMBERFORMAT}.format($F{stock21})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="753" y="0" width="70" height="14"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{ingreso_stock}==null)?"":$P{NUMBERFORMAT}.format($F{ingreso_stock})]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="10" splitType="Stretch"/>
+	</summary>
+</jasperReport>

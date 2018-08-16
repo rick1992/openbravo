@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_M_PRODUCT_UPATEDESC_TRG">
+    <trigger name="SCO_M_PRODUCT_UPATEDESC_TRG" table="M_PRODUCT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.description IS NULL OR :NEW.description='') THEN
+      :NEW.description := UPPER(:NEW.name);
+    END IF;
+
+    --autotrim product value
+    :NEW.name := UPPER(:NEW.name);
+    :NEW.value := UPPER(trim(:NEW.value));
+  ELSE
+    IF(:OLD.name<>:NEW.name) THEN
+      IF(:NEW.description IS NULL OR :NEW.description='') THEN
+        :NEW.description := UPPER(:NEW.name);
+      END IF;
+       :NEW.name := UPPER(:NEW.name);
+    END IF;
+
+    IF(:OLD.value<>:NEW.value) THEN
+      --autotrim product value
+      :NEW.value := UPPER(trim(:NEW.value));
+    END IF;
+  END IF;
+
+  END SCO_M_PRODUCT_UPATEDESC_TRG
+]]></body>
+    </trigger>
+  </database>

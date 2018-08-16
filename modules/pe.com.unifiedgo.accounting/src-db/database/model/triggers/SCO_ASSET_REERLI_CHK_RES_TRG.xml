@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_ASSET_REERLI_CHK_RES_TRG">
+    <trigger name="SCO_ASSET_REERLI_CHK_RES_TRG" table="SCO_ASSETREEV_AMORTLI" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed varchar2(60) ;
+  v_Posted varchar2(60) ;
+  v_AmortizationID varchar2(32);
+  v_diffAmortizationAmt A_AmortizationLine.AmortizationAmt%TYPE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- ReadOnly Check
+  IF (UPDATING OR INSERTING) THEN
+    SELECT al.a_amortization_id
+      INTO v_AmortizationID
+      FROM A_Amortizationline al
+    WHERE al.A_Amortizationline_ID = :NEW.A_Amortizationline_ID;
+  ELSE
+    SELECT al.a_amortization_id
+      INTO v_AmortizationID
+      FROM A_Amortizationline al
+    WHERE al.A_Amortizationline_ID = :OLD.A_Amortizationline_ID;
+  END IF;
+
+    begin
+      SELECT processed,
+             POSTED
+      INTO v_Processed,
+        v_Posted
+      FROM A_Amortization
+      WHERE A_Amortization.A_Amortization_ID=v_AmortizationID;
+    exception
+    when others then
+      v_processed:=null;
+    end;
+
+  if(UPDATING) THEN
+    IF coalesce(v_Processed, 'N')='Y'
+   and(  COALESCE(:old.A_AMORTIZATIONLINE_ID, '0') <> COALESCE(:new.A_AMORTIZATIONLINE_ID, '0')
+       or COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0')
+       or COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0')
+       or COALESCE(:old.ISACTIVE, '') <> COALESCE(:new.ISACTIVE, '')
+       or COALESCE(:old.SCO_ASSET_REEVAL_ID, '0') <> COALESCE(:new.SCO_ASSET_REEVAL_ID, '0')
+       or COALESCE(:old.LINE, 0) <> COALESCE(:new.LINE, 0)
+       or COALESCE(:old.AMORTIZATION_PERCENTAGE, 0) <> COALESCE(:new.AMORTIZATION_PERCENTAGE, 0)
+       or COALESCE(:old.AMORTIZATIONAMT, 0) <> COALESCE(:new.AMORTIZATIONAMT, 0))
+  then
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    end if;
+  end if;
+
+  if (INSERTING OR DELETING) THEN
+    IF(coalesce(v_Processed, 'N')='Y'
+   or coalesce(v_posted, 'N')='Y')
+  then
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    end if;
+  end if;
+END SCO_ASSET_REERLI_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

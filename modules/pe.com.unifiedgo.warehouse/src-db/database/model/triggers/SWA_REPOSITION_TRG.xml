@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_REPOSITION_TRG">
+    <trigger name="SWA_REPOSITION_TRG" table="SWA_REQUEREPO_DETAIL" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_fromrequerimiento_id VARCHAR2(32);
+  v_doctype_id VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_docStatus  VARCHAR2(60);
+  v_isrequest char(1);
+  v_requestStatus VARCHAR2(60);
+  v_newStatus VARCHAR2(60);
+  v_count_confirm NUMBER;
+  v_count_pending NUMBER;
+  v_count_void NUMBER;
+  v_qtyreceipt NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.swa_requerimientoreposicion_id;
+ELSE
+  v_ID:=:NEW.swa_requerimientoreposicion_id;
+END IF;
+
+
+SELECT swa_fromrequerimiento_id,repositiontrx 
+  INTO v_fromrequerimiento_id, is_requirement_trx
+FROM swa_requerimientoreposicion 
+WHERE swa_requerimientoreposicion_id = v_ID;
+
+
+IF (DELETING) THEN
+  SELECT status INTO v_docStatus from swa_requerimientoreposicion where swa_requerimientoreposicion_id = v_ID;
+  IF (v_docStatus <> 'DR') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@sim_state_nopermit_delete@');
+  END IF;
+END IF;
+
+IF(v_fromrequerimiento_id IS NOT NULL AND is_requirement_trx='Y') THEN
+ UPDATE swa_requerimientoreposicion 
+    SET generatetrx = 'N' 
+  WHERE swa_requerimientoreposicion_id=v_fromrequerimiento_id;
+END IF;
+
+IF (UPDATING) THEN
+    --cuando se trata de una solicitud, y esta esta en estado compeltada CO_PD entonces se debera actualizar conforme al estado de las lineas
+    --Actualizar Estado de Solicitud cuando las lineas terminan de Actualizarse 
+    SELECT isrequest , request_status,c_doctype_id INTO v_isrequest , v_requestStatus, v_doctype_id from swa_requerimientoreposicion where swa_requerimientoreposicion_id = v_ID;
+    IF (v_isrequest = 'Y')THEN    --Solo cuando es Solicitud (Transferencia)
+      IF(v_requestStatus = 'CO_PD' OR v_requestStatus = 'CO_CO')THEN --Estado Actual CO_PD
+         v_newStatus:=v_requestStatus;
+
+     SELECT sum(s.pending) , sum(s.confirm) , sum(s.voided)
+       INTO v_count_pending, v_count_confirm ,v_count_void
+       FROM (SELECT swa_requerepo_detail_id,
+                    CASE WHEN status='PD' THEN 1 ELSE 0 END AS pending ,
+                    CASE WHEN status='CO' THEN 1 ELSE 0 END AS confirm ,
+                    CASE WHEN status='VO' THEN 1 ELSE 0 END AS voided
+          FROM swa_requerepo_detail) s
+    INNER JOIN swa_requerepo_detail d ON d.swa_requerepo_detail_id = s.swa_requerepo_detail_id
+         WHERE  d.swa_requerimientoreposicion_id = v_ID;
+
+
+        IF(v_count_confirm >= 1)THEN --Si hay por lo menos una confirmada, entonces confirmar
+	   v_newStatus:='CO_CO'; 
+	ELSIF(v_count_confirm = 0 AND v_count_pending >= 1)THEN --Si hay por lo menos un pendiente y cero Confirmadas entoncs cambiar a pendiente
+           v_newStatus:='CO_PD'; 
+	ELSIF(v_count_confirm =0 AND v_count_pending=0 AND v_count_void >= 1)THEN  --Si hay anuladas y cero pendientes y cero confirmadas entonces anular
+           v_newStatus:='CO_VO';
+	END IF;   
+	 UPDATE swa_requerimientoreposicion 
+	    SET request_status = v_newStatus
+	  WHERE swa_requerimientoreposicion_id=v_ID; 
+      END IF;
+    END IF;
+
+
+   --Si se actualizan estos campos en la tabla, entonces deberàn actualizarse en el registo que dio origen
+   --es por ello que NEW.requerepo_from_line_id IS NOT NULL
+   IF(:OLD.qtyshipped <> :NEW.qtyshipped)THEN
+      IF(:NEW.requerepo_from_line_id IS NOT NULL)THEN
+             UPDATE swa_requerepo_detail
+                SET qtyshipped = COALESCE(:NEW.qtyshipped,0)
+              WHERE swa_requerepo_detail_id = :NEW.requerepo_from_line_id;
+      END IF;
+   END IF; 
+   
+   --Actualizar cantidades Recibidas.
+   IF(:OLD.qtyreceipt <> :NEW.qtyreceipt)THEN
+      IF(:NEW.requerepo_from_line_id IS NOT NULL)THEN
+
+          SELECT SUM(l.qtyreceipt) INTO v_qtyreceipt
+            FROM swa_requerepo_detail l
+              INNER JOIN swa_requerimientoreposicion w ON w.swa_requerimientoreposicion_id = l.swa_requerimientoreposicion_id
+           WHERE  w.status='CO'
+             AND l.requerepo_from_line_id = :NEW.requerepo_from_line_id;
+        
+             UPDATE swa_requerepo_detail
+                SET qtyreceipt = COALESCE(v_qtyreceipt,0)
+              WHERE swa_requerepo_detail_id = :NEW.requerepo_from_line_id;
+      END IF;
+    
+   END IF; 
+   
+END IF;
+
+END SWA_REPOSITION_TRG
+]]></body>
+    </trigger>
+  </database>

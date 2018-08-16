@@ -1,0 +1,1212 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_PRODUCTION_RUN">
+    <function name="M_PRODUCTION_RUN" type="NULL">
+      <parameter name="pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/************************************************************prio*************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2013 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_Production_Run.sql,v 1.4 2003/09/05 04:58:06 jjanke Exp $
+  ***
+  * Title: Production of BOMs
+  * Description:
+  *  1) Creating ProductionLines when IsCreated = 'N'
+  *  2) Posting the Lines (optionally only when fully stocked)
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  
+  v_Record_ID VARCHAR2(32);
+  v_Result NUMBER:=1;
+  v_is_included NUMBER:=0;
+  v_MovementDate DATE;
+  v_available_period NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+
+  v_IsStocked VARCHAR(5):='';
+	v_ProductType VARCHAR(5):='';
+	v_IsBOM VARCHAR(5):='';
+	
+  -- Parameterv
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    CUR_ProductionPlan RECORD;
+    CUR_PP RECORD;
+    CUR_PLineBOM RECORD;
+    CUR_BOM_PRODUCT RECORD;
+    CUR_PL_Post RECORD;
+    CUR_PRODUCTBYANAQUEL RECORD;
+  -- Parameter Variables
+  MustBeStocked CHAR(1) ;
+  v_IsCreated CHAR(1) ;
+  v_em_swa_desarmado  CHAR(1) ; --vafaster
+  v_storageDetailToDesarmado VARCHAR2(32);
+  v_Processed VARCHAR2(60) ;
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_item_combo_category_id VARCHAR2(32);
+  v_item_ad_client_id VARCHAR2(32);
+  tmp_value_combo_item_id VARCHAR2(32); 
+  v_comboitem_value  VARCHAR2(40) ;
+  v_em_swa_state_tmp_bom  VARCHAR2(60) ;
+  --
+  v_Line NUMBER;
+  v_Count NUMBER;
+  p_User VARCHAR2(32);
+  v_ordertype_comboItem VARCHAR2(32);
+  v_product_info VARCHAR2(200);
+  v_Product_Name m_product.name%TYPE;
+
+  v_pinstance_id VARCHAR2(32);
+  v_warehouse_id VARCHAR2(32);
+  v_productionline_id VARCHAR2(32);
+  v_locator VARCHAR(32);
+  v_m_reservation_id VARCHAR(32);
+  v_swa_serviceorder_id VARCHAR(32);
+  v_QtyStorage NUMBER:=0;
+  v_qty_total NUMBER:=0;
+  qtytoInsert NUMBER:=0;
+  qtyavailable NUMBER:=0;
+  v_totalqty NUMBER:=0;
+  v_qty_tmp_insert NUMBER:=0;
+  v_qty_tmp NUMBER:=0;
+  v_count_productionplan_id NUMBER:=0;
+  v_count_productionline_id NUMBER:=0;
+
+  v_movementqty NUMBER:=0;
+  v_undoqty NUMBER:=0;
+  qtyPendingtoInsert NUMBER:=0;
+
+  CUR_reser_stock RECORD;
+  CUR_stockCheck RECORD;
+  CUR_picklist RECORD;
+
+  
+
+  -- Stocked BOMs
+  -- Proposed stock from given warehouse is priorized.
+  CURSOR CUR_STOCK (v_ad_pinstance_id VARCHAR) IS
+      SELECT sd.m_product_id, sd.m_locator_id, sd.m_attributesetinstance_id,
+          sd.c_uom_id, sd.m_product_uom_id, u.stdprecision,
+          ms.quantity AS qty, ms.qtyorder AS qtyorder,
+          ms.priority
+      FROM m_stock_proposed ms 
+            LEFT JOIN m_storage_detail sd ON ms.m_storage_detail_id = sd.m_storage_detail_id
+            LEFT JOIN m_product_uom pu ON sd.m_product_uom_id = pu.m_product_uom_id
+            LEFT JOIN c_uom u ON pu.c_uom_id = u.c_uom_id
+            LEFT JOIN m_locator l ON sd.m_locator_id = l.m_locator_id
+      WHERE ms.ad_pinstance_id = v_ad_pinstance_id
+      ORDER BY ms.priority;
+  v_storage CUR_STOCK%ROWTYPE;
+  NEXT_PRODUCT BOOLEAN:=false;
+  CUR_STOCK_ISOPEN BOOLEAN:=false;
+BEGIN
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || PInstance_ID) ;
+  v_ResultStr:='PInstanceNotFound';
+  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'Y', NULL, NULL) ;
+BEGIN --BODY
+  -- Get Parameters
+  v_ResultStr:='ReadingParameters';
+  FOR Cur_Parameter IN (
+      SELECT i.Record_ID, i.AD_User_ID, p.ParameterName,
+          p.P_String, p.P_Number, p.P_Date
+      FROM AD_PInstance i
+            LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=PInstance_ID
+      ORDER BY p.SeqNo
+  ) LOOP
+    v_Record_ID := Cur_Parameter.Record_ID;
+    p_User := Cur_Parameter.AD_User_ID;
+    IF (Cur_Parameter.ParameterName = 'MustBeStocked') THEN
+      MustBeStocked:=Cur_Parameter.P_String;
+      DBMS_OUTPUT.PUT_LINE('  MustBeStocked=' || MustBeStocked) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+    END IF;
+  END LOOP; -- Get Parameter
+  DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  -- Processing:1:2:3 Lock :4:5:6:7
+  -- TODO
+  /**
+  * Get Info + Lock
+  */
+  v_ResultStr:='ReadingRecord';
+  SELECT IsCreated, Processed, AD_Client_ID, AD_Org_ID, MovementDate,em_swa_combo_item_id, em_swa_desarmado, em_swa_m_warehouse_id,em_swa_serviceorder_id
+    INTO v_IsCreated, v_Processed, v_Client_ID, v_Org_ID, v_MovementDate,v_ordertype_comboItem, v_em_swa_desarmado,v_warehouse_id, v_swa_serviceorder_id
+  FROM M_PRODUCTION
+  WHERE M_Production_ID=v_Record_ID  FOR UPDATE;
+  /**
+  * No Action
+  */
+
+
+  IF (v_Processed <> 'N') THEN
+    v_Message:='@AlreadyPosted@';
+    RAISE_APPLICATION_ERROR(-20000, v_Message);
+  END IF;
+  /**************************************************************************
+  * Create Lines
+  */
+  /***************************************************************************/
+  -- Check the header belongs to a organization where transactions are posible and ready to use
+  SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+    INTO v_is_ready, v_is_tr_allow
+  FROM M_PRODUCTION, AD_Org, AD_OrgType
+  WHERE AD_Org.AD_Org_ID=M_PRODUCTION.AD_Org_ID
+    AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+    AND M_PRODUCTION.M_PRODUCTION_ID=v_Record_ID;
+  IF (v_is_ready='N') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+  END IF;
+  IF (v_is_tr_allow='N') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+  END IF;
+  
+  -- Check the lines belong to the same business unit or legal entity as the header    
+  SELECT AD_ORG_CHK_DOCUMENTS('M_PRODUCTION', 'M_PRODUCTIONPLAN', v_Record_ID, 'M_PRODUCTION_ID', 'M_PRODUCTION_ID') INTO v_is_included FROM dual;
+  IF (v_is_included = -1) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+  END IF;
+  FOR CUR_PP IN (
+      SELECT M_PRODUCTIONPLAN_ID
+      FROM M_PRODUCTIONPLAN
+      WHERE M_PRODUCTION_ID = v_Record_ID
+  ) LOOP
+    SELECT AD_ORG_CHK_DOCUMENTS('M_PRODUCTIONPLAN', 'M_PRODUCTIONLINE', CUR_PP.M_PRODUCTIONPLAN_ID, 'M_PRODUCTIONPLAN_ID', 'M_PRODUCTIONPLAN_ID') INTO v_is_included FROM dual;
+    IF (v_is_included = -1) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+    END IF;
+  END LOOP;
+  
+  -- Check the period control is opened (only if it is legal entity with accounting)
+  -- Gets the BU or LE of the document
+  SELECT AD_OrgType.IsAcctLegalEntity INTO v_isacctle
+  FROM AD_OrgType, AD_Org
+  WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+    AND AD_Org.AD_Org_ID = AD_GET_DOC_LE_BU('M_PRODUCTION', v_Record_ID, 'M_PRODUCTION_ID', 'LE');
+
+  IF (v_isacctle='Y') THEN
+    SELECT C_CHK_OPEN_PERIOD(v_Org_ID, v_MovementDate, 'MMP', NULL)  INTO v_available_period FROM DUAL;
+
+    IF (v_available_period<>1) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+    END IF;
+  END IF;
+
+
+  IF (v_IsCreated <> 'Y') THEN
+    -- For every Production Plan
+
+
+
+    FOR CUR_PP IN (
+        SELECT M_PRODUCTIONPLAN.*, l.m_warehouse_id, M_PRODUCT.C_UOM_ID, M_PRODUCT.name as pname, M_PRODUCT.value as pvalue,
+            (CASE WHEN M_PRODUCT.ATTRSETVALUETYPE='D' THEN M_PRODUCT.M_AttributeSetInstance_ID ELSE NULL END) AS M_AttributeSetInstance_ID
+        FROM M_PRODUCTIONPLAN
+        LEFT JOIN M_LOCATOR l ON M_PRODUCTIONPLAN.m_locator_id = l.m_locator_id
+        JOIN M_PRODUCT ON M_PRODUCTIONPLAN.M_Product_ID=M_PRODUCT.M_Product_ID 
+          AND M_PRODUCTIONPLAN.M_Production_ID=v_Record_ID
+        ORDER BY M_PRODUCTIONPLAN.Line, M_PRODUCTIONPLAN.M_Product_ID
+    ) LOOP
+
+      IF (CUR_PP.M_Locator_ID IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ProductionPlanLocatorNeeded@');
+      END IF;
+      -- Delete prior lines
+      DELETE
+      FROM M_PRODUCTIONLINE
+      WHERE M_ProductionPlan_ID=CUR_PP.M_ProductionPlan_ID;
+      -- Create BOM Line
+
+     IF (CUR_PP.ProductionQty <= 0) THEN
+          v_Message := '@NegativeBOMProductionQty@';
+          RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END IF;
+
+      IF(v_em_swa_desarmado <> 'Y') THEN -- ARMADO
+          v_ResultStr:='CreatingLine BOM';
+          v_Line:=10; -- OriginLine
+
+          v_locator:=COALESCE(swa_getLocatorForProduct(CUR_PP.M_Product_ID,CUR_PP.m_warehouse_id),CUR_PP.M_Locator_ID);
+
+          INSERT INTO M_PRODUCTIONLINE (
+              M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+              AD_Org_ID, IsActive, Created, CreatedBy,
+              Updated, UpdatedBy, M_Product_ID, MovementQty,
+              M_Locator_ID, Description, C_UOM_ID,
+              M_AttributeSetInstance_ID
+          ) VALUES (
+              get_uuid(), CUR_PP.M_ProductionPlan_ID, v_Line, CUR_PP.AD_Client_ID,
+              CUR_PP.AD_Org_ID, 'Y', now(), p_User,
+              now(), p_User, CUR_PP.M_Product_ID, CUR_PP.ProductionQty,
+              v_locator, CUR_PP.Description, CUR_PP.C_UOM_ID,
+              CUR_PP.M_AttributeSetInstance_ID
+          );
+      ELSE  --DESARMADO           
+         --Verificar stock por desarmado
+            IF (CUR_STOCK_ISOPEN) THEN
+              CLOSE CUR_STOCK;
+              CUR_STOCK_ISOPEN:=false;
+            END IF;
+
+         -- Call M_GET_STOCK
+            DECLARE
+              v_pinstance_result AD_PInstance.result%TYPE;
+              v_pinstance_msg AD_PInstance.errormsg%TYPE;
+            BEGIN
+              v_pinstance_id := get_uuid();
+              INSERT INTO ad_pinstance (
+                  ad_pinstance_id, ad_process_id, record_id, isactive, 
+                  ad_user_id, ad_client_id, ad_org_id, created, createdby,
+                  updated, updatedby
+              ) VALUES (
+                  v_pinstance_id, 'FF80818132C964E30132C9747257002E', v_record_id, 'Y',
+                  p_user, v_client_id, v_org_id, now(), p_user,
+                  now(), p_user
+              );
+
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '10', 'AD_Client_ID', v_client_id, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '20', 'AD_Org_ID', CUR_PP.ad_org_id, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '30', 'M_Product_ID', CUR_PP.M_Product_ID, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '40', 'C_Uom_ID', CUR_PP.C_UOM_ID, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '50', 'M_Product_Uom_ID', null, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '60', 'Priority_Warehouse_ID', CUR_PP.m_warehouse_id, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '80', 'LineNo', null, null, 10, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '90', 'ProcessID', '137', null, null, null, null, null);
+
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '95', 'M_Locator_ID', CUR_PP.M_Locator_ID ,null , null, null, null, null);
+	      AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '100', 'M_Warehouse_ID', CUR_PP.m_warehouse_id, null, null, null, null, null);
+	      
+              M_GET_STOCK(v_pinstance_ID, 'N');
+              -- Check result
+              SELECT result, errormsg
+                INTO v_pinstance_result, v_pinstance_msg
+              FROM ad_pinstance
+              WHERE ad_pinstance_id = v_pinstance_id;
+              IF (v_pinstance_result = 0) THEN
+                -- Error on m_get_stock
+                RAISE_APPLICATION_ERROR(-20000, v_pinstance_msg);
+              END IF;
+            END; -- End Call M_GET_STOCK
+
+            OPEN CUR_STOCK(v_pinstance_id);
+            CUR_STOCK_ISOPEN:=true;
+            FETCH CUR_STOCK INTO v_storage;
+            --IF ( NOT FOUND ) THEN --OBTG:CUR_STOCK--
+              --NEXT_PRODUCT:=true;
+            --END IF;
+            v_qtystorage:=v_storage.qty;
+           IF (v_qtystorage < CUR_PP.ProductionQty) AND MustBeStocked='Y' THEN
+		v_Message := '@NotEnoughStocked@: ' || CUR_PP.pname || ' ' || v_qtystorage || ' / '|| CUR_PP.ProductionQty;
+             RAISE_APPLICATION_ERROR(-20000, v_Message);
+          END IF;
+ 
+         --1. Ver si hay Stock Disponible para el Desarmado en General.
+          SELECT totalqty INTO v_totalqty FROM swa_product_warehouse_v
+           WHERE M_product_id = CUR_PP.M_Product_ID 
+             AND m_warehouse_id = v_warehouse_id Limit 1;
+             IF(v_totalqty < CUR_PP.ProductionQty )THEN
+               RAISE_APPLICATION_ERROR(-20000, '@NotEnoughAvailableStock@' || ' ' || CUR_PP.pvalue);
+             END IF;
+         --2. Calcular el Desarmado en las Ubicaciones correspondientes
+         --Si la Ubicacion del plan de produccion cumple con el stock entonces serà la misma, en caso contrario se harà un recalculo
+         --para saber de donde se saca la ubicacion.
+          
+         
+        IF(CUR_PP.M_Locator_ID IS NOT NULL)THEN --si hay configurada una ubicacion de desarmado, revisar si cumple su Stock
+ 
+            SELECT qtyonhand INTO qtyavailable 
+              FROM swa_product_by_anaquel_v
+             WHERE m_product_id = CUR_PP.M_Product_ID
+               AND m_locator_id = CUR_PP.M_Locator_ID limit 1;
+             
+             v_storageDetailToDesarmado:=NULL;
+             IF( qtyavailable >= CUR_PP.ProductionQty)THEN
+               v_storageDetailToDesarmado:= CUR_PP.M_Locator_ID;
+             END IF;
+          END IF;
+
+          v_Line:=10;
+        
+          IF(v_storageDetailToDesarmado IS NULL)THEN
+          
+           --Insertaremos productionlines en las ubicaciones que hagan falta 
+            qtyPendingtoInsert:= CUR_PP.ProductionQty;
+            qtytoInsert:=0;
+            FOR CUR_stockCheck IN (
+              SELECT * FROM swa_product_by_anaquel_v WHERE m_product_id = CUR_PP.M_Product_ID
+               AND m_warehouse_id = v_warehouse_id
+               AND qtyonhand > 0 order by priorityno asc
+             )
+             LOOP
+
+               IF(qtyPendingtoInsert>CUR_stockCheck.qtyonhand)THEN
+                qtytoInsert:=CUR_stockCheck.qtyonhand;
+               ELSE
+                qtytoInsert:=qtyPendingtoInsert;
+               END IF;
+               
+               
+               INSERT INTO M_PRODUCTIONLINE (
+                M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+                AD_Org_ID, IsActive, Created, CreatedBy,
+                Updated, UpdatedBy, M_Product_ID, MovementQty,
+                M_Locator_ID, Description, C_UOM_ID,
+                M_AttributeSetInstance_ID
+		) VALUES (
+                get_uuid(), CUR_PP.M_ProductionPlan_ID, v_Line, CUR_PP.AD_Client_ID,--
+                CUR_PP.AD_Org_ID, 'Y', now(), p_User,
+                now(), p_User, CUR_PP.M_Product_ID, qtytoInsert*-1,---
+                CUR_stockCheck.M_Locator_ID, CUR_PP.Description, CUR_PP.C_UOM_ID,
+                CUR_PP.M_AttributeSetInstance_ID
+		);
+                
+		v_Line:=10 + v_Line;
+		qtyPendingtoInsert:= qtyPendingtoInsert-qtytoInsert;
+		IF(qtyPendingtoInsert=0)THEN
+		 EXIT;
+		END IF;
+             END LOOP;
+             IF(qtyPendingtoInsert>0)THEN
+              RAISE_APPLICATION_ERROR(-20000, '@swa_NotEnoughLocatorAvailaleforPicking@');
+             END IF;
+          ELSE
+           --Insertaremos productionline en la ubicacion donde cumple su Stock
+                INSERT INTO M_PRODUCTIONLINE (
+                M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+                AD_Org_ID, IsActive, Created, CreatedBy,
+                Updated, UpdatedBy, M_Product_ID, MovementQty,
+                M_Locator_ID, Description, C_UOM_ID,
+                M_AttributeSetInstance_ID
+		) VALUES (
+                get_uuid(), CUR_PP.M_ProductionPlan_ID, v_Line, CUR_PP.AD_Client_ID,
+                CUR_PP.AD_Org_ID, 'Y', now(), p_User,
+                now(), p_User, CUR_PP.M_Product_ID, CUR_PP.ProductionQty*-1,
+                v_storageDetailToDesarmado, CUR_PP.Description, CUR_PP.C_UOM_ID,
+                CUR_PP.M_AttributeSetInstance_ID
+		);
+          END IF;
+
+	  
+          v_ResultStr:='CreatingLine BOM';
+          v_Line:=10; -- OriginLine
+          v_storageDetailToDesarmado:=CUR_PP.M_Locator_ID;
+         -- v_qtyNegative = CUR_PP.ProductionQty*-1;
+        
+      END IF;
+    END LOOP;
+    --END: INSERTAR PRODUCTIONLINE FROM PRODUCTIONPLAN
+    
+    --Creating BOM Lines
+    DECLARE
+      v_Product_old VARCHAR2(32);
+      v_Warehouse_old VARCHAR2(32);
+      v_UOM_old VARCHAR2(32);
+      v_Qty NUMBER;
+      v_QtyStorage NUMBER:=0;
+      v_QtyAcumulated NUMBER;
+      v_QtyOrder NUMBER;
+      v_pinstance_id VARCHAR2(32);
+      CUR_BOM RECORD;
+    BEGIN
+
+   --BEGIN VALIDACION PRODUCTOS DE ARMADO
+   --Solo cuando sea Armado, vamos a ver si hay stock en general, para todas las lineas que se van a utilizar en el Armado
+   --a veces queremos armar dos o màs productos que contienen el mismo product bom entonces en el siguiente IF se va a agrupar 
+   --a todos los productos y ver si en general hay Stock por Almacèn.
+    IF (v_em_swa_desarmado <> 'Y') THEN  
+      FOR CUR_BOM IN (
+           SELECT pb.m_productbom_id ,pb.bomtype, sum(pb.bomqty*pp.ProductionQty) as qtyneed,
+                  p.IsStocked, prd.em_swa_m_warehouse_id as m_warehouse_id
+             FROM M_PRODUCT_BOM pb
+              JOIN M_PRODUCT p ON pb.M_ProductBOM_ID=p.M_Product_ID
+              JOIN M_PRODUCTIONPLAN pp ON pb.M_Product_ID=pp.M_PRODUCT_ID
+              JOIN M_PRODUCTION PRD ON pp.m_production_id=prd.m_production_id
+              JOIN M_LOCATOR l ON pp.m_locator_id = l.m_locator_id
+           WHERE pp.M_PRODUCTION_ID=v_Record_ID
+             AND pb.isactive='Y'
+             AND p.IsStocked = 'Y'
+          GROUP BY pb.M_PRODUCTBOM_ID, pb.bomtype, p.IsStocked, prd.em_swa_m_warehouse_id
+       )LOOP
+      
+          v_qty_total:= swa_product_getstock(CUR_BOM.m_productbom_id ,CUR_BOM.m_warehouse_id ,'',3); 
+          
+       	  IF(v_qty_total<CUR_BOM.qtyneed)THEN
+
+               SELECT  value || ' - ' || name INTO v_product_info 
+                     FROM m_product where m_product_id = CUR_BOM.m_productbom_id;
+		   
+		  v_Message:= '@NotEnoughStocked@:' || v_product_info || '--'  || CUR_BOM.qtyneed ||'/' || v_qty_total;
+		  RAISE_APPLICATION_ERROR(-20000, v_Message);
+	  END IF;
+
+       END LOOP;
+    END IF;
+   --END  VALIDACION PRODUCTOS DE ARMADO
+    
+    
+      FOR CUR_BOM IN (
+          SELECT pb.*,
+              p.C_UOM_ID, p.IsStocked, pp.M_LOCATOR_ID, pp.AD_Org_ID AS ORG_ID,
+              pp.ProductionQty, pp.M_ProductionPlan_ID, pp.AD_Client_ID AS Client_ID, p.name as pname,
+              l.m_warehouse_id
+          FROM M_PRODUCT_BOM pb
+              JOIN M_PRODUCT p ON pb.M_ProductBOM_ID=p.M_Product_ID
+              JOIN M_PRODUCTIONPLAN pp ON pb.M_Product_ID=pp.M_PRODUCT_ID
+              JOIN M_LOCATOR l ON pp.m_locator_id = l.m_locator_id
+        WHERE pp.M_PRODUCTION_ID=v_Record_ID
+          AND pb.isactive='Y'
+          AND p.IsStocked = 'Y'
+        ORDER BY pb.M_PRODUCTBOM_ID, pb.Line
+      ) LOOP
+
+          v_ResultStr:='CreatingLine Products';
+        
+        IF (CUR_BOM.IsStocked = 'Y') THEN
+          v_QtyAcumulated:=0;
+
+            
+          IF ((NOT CUR_STOCK_ISOPEN) 
+              OR (v_Product_old <> CUR_BOM.M_ProductBOM_ID OR v_Warehouse_old <> cur_bom.m_warehouse_id OR v_UOM_old <> CUR_BOM.C_UOM_ID)) THEN
+
+        
+
+            NEXT_PRODUCT:=false;
+            v_product_old := cur_bom.m_productbom_id;
+            v_warehouse_old := cur_bom.m_warehouse_id;
+            v_uom_old := cur_bom.c_uom_id;
+            IF (CUR_STOCK_ISOPEN) THEN
+              CLOSE CUR_STOCK;
+              CUR_STOCK_ISOPEN:=false;
+            END IF;
+
+          
+   
+          IF (v_em_swa_desarmado <> 'Y') THEN   
+		-- VAFASTER VALIDACION DE STOCK   
+
+            -- Call M_GET_STOCK
+            DECLARE
+              v_pinstance_result AD_PInstance.result%TYPE;
+              v_pinstance_msg AD_PInstance.errormsg%TYPE;
+            BEGIN
+              v_pinstance_id := get_uuid();
+              INSERT INTO ad_pinstance (
+                  ad_pinstance_id, ad_process_id, record_id, isactive, 
+                  ad_user_id, ad_client_id, ad_org_id, created, createdby,
+                  updated, updatedby
+              ) VALUES (
+                  v_pinstance_id, 'FF80818132C964E30132C9747257002E', v_record_id, 'Y',
+                  p_user, v_client_id, v_org_id, now(), p_user,
+                  now(), p_user
+              );
+
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '10', 'AD_Client_ID', v_client_id, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '20', 'AD_Org_ID', cur_bom.org_id, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '30', 'M_Product_ID', v_Product_old, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '40', 'C_Uom_ID', v_UOM_old, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '50', 'M_Product_Uom_ID', null, null, null, null, null, null);
+              -- Records in m_aux_stock are not considered in BOM production.
+              --AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '60', 'AuxID', v_record_id, null, null, null, null, null);
+              --AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '70', 'TableId', '325', null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '60', 'Priority_Warehouse_ID', v_Warehouse_old, null, null, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '80', 'LineNo', null, null, 10, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '90', 'ProcessID', '137', null, null, null, null, null);
+
+	      AD_PINSTANCE_PARA_INSERT(v_pinstance_id, '100', 'M_Warehouse_ID', v_Warehouse_old, null, null, null, null, null);
+	      
+              M_GET_STOCK(v_pinstance_ID, 'N');
+              -- Check result
+              SELECT result, errormsg
+                INTO v_pinstance_result, v_pinstance_msg
+              FROM ad_pinstance
+              WHERE ad_pinstance_id = v_pinstance_id;
+              IF (v_pinstance_result = 0) THEN
+                -- Error on m_get_stock
+                RAISE_APPLICATION_ERROR(-20000, v_pinstance_msg);
+              END IF;
+              
+            END; -- End Call M_GET_STOCK
+            
+            OPEN CUR_STOCK(v_pinstance_id);
+            CUR_STOCK_ISOPEN:=true;
+            FETCH CUR_STOCK INTO v_storage;
+            
+           
+           IF (CUR_STOCK%NOTFOUND) THEN
+             NEXT_PRODUCT:=true;
+		 IF (CUR_BOM.IsStocked = 'Y') AND MustBeStocked='Y' THEN
+		  v_Message := '@NotEnoughStocked@: ' || CUR_BOM.pname;
+		  RAISE_APPLICATION_ERROR(-20000, v_Message);
+		END IF;
+       
+           END IF;
+            v_qtystorage:=v_storage.qty;
+           END IF;
+	  ELSE
+		v_qtystorage:=1000;
+          END IF;
+
+
+         IF (NOT NEXT_PRODUCT) THEN
+              
+		IF (v_em_swa_desarmado <> 'Y') THEN --ARMADOS
+		     v_qty_tmp:= CUR_BOM.ProductionQty * CUR_BOM.BOMQty;
+                     v_Qty:= CUR_BOM.ProductionQty * CUR_BOM.BOMQty;
+
+                     
+
+                     FOR CUR_PRODUCTBYANAQUEL IN (
+                           SELECT *
+	                     FROM swa_product_by_anaquel_v 
+	                    WHERE M_PRODUCT_ID = CUR_BOM.M_ProductBOM_ID
+	                      AND M_WAREHOUSE_ID = cur_bom.m_warehouse_id 
+	                      AND qtyonhand > 0 
+	                 ORDER BY priorityno ASC
+	             )LOOP
+
+                      
+                          
+                        SELECT COALESCE(MAX(Line), 0) + 10 INTO v_Line
+                          FROM M_PRODUCTIONLINE
+                         WHERE M_ProductionPlan_ID=CUR_BOM.M_ProductionPlan_ID;
+
+			IF( v_qty_tmp <= CUR_PRODUCTBYANAQUEL.qtyonhand)THEN
+                           v_qty_tmp_insert := v_qty_tmp;	
+	                ELSE
+	                   v_qty_tmp_insert:=CUR_PRODUCTBYANAQUEL.qtyonhand;
+	                END IF;
+	                   v_qty_tmp:= v_qty_tmp - v_qty_tmp_insert;
+
+
+                        v_productionline_id:=get_uuid();
+                        INSERT INTO M_PRODUCTIONLINE (
+				  M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+				  AD_Org_ID, IsActive, Created, CreatedBy,
+				  Updated, UpdatedBy, M_Product_ID, C_UOM_ID,
+				  MovementQty, M_Locator_ID, 
+				  M_AttributeSetInstance_ID, 
+				  M_Product_UOM_ID
+				  
+			 ) VALUES (
+				  v_productionline_id, CUR_BOM.M_ProductionPlan_ID, v_Line, CUR_BOM.Client_ID,
+				  CUR_BOM.Org_ID, 'Y', now(), p_User,
+				  now(), p_User, CUR_BOM.M_ProductBOM_ID, CUR_BOM.C_UOM_ID,
+				  -v_qty_tmp_insert, CUR_PRODUCTBYANAQUEL.M_Locator_ID, 
+				  (CASE WHEN (SELECT ATTRSETVALUETYPE FROM M_PRODUCT WHERE M_PRODUCT_ID=CUR_BOM.M_ProductBOM_ID)='F' THEN NULL ELSE v_storage.M_AttributeSetInstance_ID END), 
+				  v_storage.M_Product_UOM_ID
+                	);
+
+
+                        --RESERVA
+                                 v_m_reservation_id:=get_uuid();
+          
+				 INSERT INTO M_RESERVATION(
+				  m_reservation_id, ad_client_id,ad_org_id,isactive,
+				  created,createdby,updated,updatedby,
+				  m_product_id,quantity,c_uom_id,em_swa_m_productionline_id,
+				  res_status,res_process,m_warehouse_id, em_obwpl_generatedbypicking
+				  )
+				 VALUES ( 
+				  v_m_reservation_id,CUR_BOM.Client_ID, CUR_BOM.Org_ID,'Y',
+				  now(),p_User, now(), p_User,
+				  CUR_BOM.M_ProductBOM_ID, v_qty_tmp_insert , CUR_BOM.C_UOM_ID, v_productionline_id,
+				  'DR','PR',v_warehouse_id,'N'
+				  );
+
+				  --Reservando la cantidad de cada linea
+
+				  INSERT INTO M_RESERVATION_STOCK(
+				   M_RESERVATION_STOCK_ID, AD_CLIENT_ID,AD_ORG_ID,ISACTIVE,
+				   created,createdby,updated,updatedby,
+				   m_reservation_id, c_orderline_id, quantity,M_LOCATOR_ID
+				  )
+				   VALUES(
+				   get_uuid(), CUR_BOM.Client_ID, CUR_BOM.Org_ID, 'Y',
+				   now(),p_User, now(), p_User,
+				   v_m_reservation_id, null, v_qty_tmp_insert, CUR_PRODUCTBYANAQUEL.M_Locator_ID
+				  );	
+				  --Con este PERFORM se procesa la reserva para que quede separada.  
+				   M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',p_User) ;
+				  
+                        --END RESERVA
+
+
+	                
+	              EXIT WHEN v_qty_tmp=0;
+	             END LOOP;
+                       --Si no hubo Stock suficiente en las ubicaciones.
+	                IF(v_qty_tmp>0)THEN
+                          SELECT  value || ' - ' || name INTO v_product_info 
+                          FROM m_product where m_product_id = CUR_BOM.M_ProductBOM_ID;
+
+                	  v_Message:= '@NotEnoughStocked@:' || v_product_info;
+		          RAISE_APPLICATION_ERROR(-20000, v_Message);
+	               END IF;
+                    
+		    
+		ELSE --DESARMADOS
+		    INSERT INTO M_PRODUCTIONLINE (
+			M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+			AD_Org_ID, IsActive, Created, CreatedBy,
+			Updated, UpdatedBy, M_Product_ID, C_UOM_ID,
+			MovementQty, M_Locator_ID, 
+			M_AttributeSetInstance_ID, 
+			M_Product_UOM_ID
+			
+		   ) VALUES (
+		        get_uuid(), CUR_BOM.M_ProductionPlan_ID, v_Line, CUR_BOM.Client_ID,
+			CUR_BOM.Org_ID, 'Y', now(), p_User,
+			now(), p_User, CUR_BOM.M_ProductBOM_ID, CUR_BOM.C_UOM_ID,
+			CUR_BOM.ProductionQty * CUR_BOM.BOMQty, v_storageDetailToDesarmado, 
+			(CASE WHEN (SELECT ATTRSETVALUETYPE FROM M_PRODUCT WHERE M_PRODUCT_ID=CUR_BOM.M_ProductBOM_ID)='F' THEN NULL ELSE v_storage.M_AttributeSetInstance_ID END), 
+			v_storage.M_Product_UOM_ID
+	            );
+		END IF;
+
+
+           /*
+            LOOP
+              v_Qty := LEAST(v_QtyStorage, CUR_BOM.ProductionQty * CUR_BOM.BOMQty - v_QtyAcumulated) ;
+              v_QtyAcumulated := v_QtyAcumulated + v_Qty;
+              v_QtyOrder := ROUND(v_storage.QtyOrder*(v_Qty/v_storage.Qty), v_storage.stdprecision);
+              SELECT COALESCE(MAX(Line), 0) + 10 INTO v_Line
+              FROM M_PRODUCTIONLINE
+              WHERE M_ProductionPlan_ID=CUR_BOM.M_ProductionPlan_ID;
+
+
+
+
+			IF (v_em_swa_desarmado <> 'Y') THEN
+			      INSERT INTO M_PRODUCTIONLINE (
+				  M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+				  AD_Org_ID, IsActive, Created, CreatedBy,
+				  Updated, UpdatedBy, M_Product_ID, C_UOM_ID,
+				  MovementQty, M_Locator_ID, 
+				  M_AttributeSetInstance_ID, 
+				  M_Product_UOM_ID,
+				  QuantityOrder
+			      ) VALUES (
+				  get_uuid(), CUR_BOM.M_ProductionPlan_ID, v_Line, CUR_BOM.Client_ID,
+				  CUR_BOM.Org_ID, 'Y', now(), p_User,
+				  now(), p_User, CUR_BOM.M_ProductBOM_ID, CUR_BOM.C_UOM_ID,
+				  -v_Qty, v_storage.M_Locator_ID, 
+				  (CASE WHEN (SELECT ATTRSETVALUETYPE FROM M_PRODUCT WHERE M_PRODUCT_ID=CUR_BOM.M_ProductBOM_ID)='F' THEN NULL ELSE v_storage.M_AttributeSetInstance_ID END), 
+				  v_storage.M_Product_UOM_ID,
+				  -v_QtyOrder
+			      );
+
+
+
+			     IF (CUR_BOM.IsStocked = 'Y' AND v_QtyStorage < v_Qty) AND MustBeStocked='Y' THEN
+				 v_Message := '@NotEnoughStocked@: ' || CUR_BOM.pname || ' ' || v_QtyStorage || ' / '|| v_Qty;
+				 RAISE_APPLICATION_ERROR(-20000, v_Message);
+			     END IF;
+			     IF (CUR_BOM.IsStocked = 'Y' AND CUR_BOM.ProductionQty <= 0) THEN
+			       v_Message := '@NegativeBOMProductionQty@';
+			       RAISE_APPLICATION_ERROR(-20000, v_Message);
+			     END IF;
+
+              
+			ELSE --Desarmado Cantidades Positivas
+			  INSERT INTO M_PRODUCTIONLINE (
+			  M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+			  AD_Org_ID, IsActive, Created, CreatedBy,
+			  Updated, UpdatedBy, M_Product_ID, C_UOM_ID,
+			  MovementQty, M_Locator_ID, 
+			  M_AttributeSetInstance_ID, 
+			  M_Product_UOM_ID,
+			  QuantityOrder
+			  ) VALUES (
+			  get_uuid(), CUR_BOM.M_ProductionPlan_ID, v_Line, CUR_BOM.Client_ID,
+			  CUR_BOM.Org_ID, 'Y', now(), p_User,
+			  now(), p_User, CUR_BOM.M_ProductBOM_ID, CUR_BOM.C_UOM_ID,
+			  v_Qty, v_storageDetailToDesarmado, 
+			  (CASE WHEN (SELECT ATTRSETVALUETYPE FROM M_PRODUCT WHERE M_PRODUCT_ID=CUR_BOM.M_ProductBOM_ID)='F' THEN NULL ELSE v_storage.M_AttributeSetInstance_ID END), 
+			  v_storage.M_Product_UOM_ID,
+			  v_QtyOrder
+			  );
+			  END IF;
+			  IF (v_QtyAcumulated >= CUR_BOM.ProductionQty*CUR_BOM.BOMQty) THEN
+			   EXIT;
+			  END IF;
+			  v_QtyStorage:=0;
+			  v_ResultStr:='FetchingData';
+			  FETCH CUR_STOCK INTO v_storage;
+			  IF (CUR_STOCK%NOTFOUND) THEN
+			  CLOSE CUR_STOCK;
+			  CUR_STOCK_ISOPEN:=false;
+			  EXIT;
+			  END IF;
+			  EXIT WHEN CUR_STOCK%NOTFOUND;
+              
+              v_QtyStorage:=v_storage.Qty;
+            END LOOP;
+           */ 
+
+          END IF; --NEXT_PRODUCT
+        ELSE
+          SELECT COALESCE(MAX(Line), 0) + 10
+          INTO v_Line
+          FROM M_PRODUCTIONLINE
+          WHERE M_ProductionPlan_ID=CUR_BOM.M_ProductionPlan_ID;
+           
+          IF (v_em_swa_desarmado <> 'Y') THEN   
+			  INSERT INTO M_PRODUCTIONLINE (
+			      M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+			      AD_Org_ID, IsActive, Created, CreatedBy,
+			      Updated, UpdatedBy, M_Product_ID, MovementQty,
+			      M_Locator_ID, C_UOM_ID
+			  ) VALUES (
+			      get_uuid(), CUR_BOM.M_ProductionPlan_ID, v_Line, CUR_BOM.Client_ID,
+			      CUR_BOM.Org_ID, 'Y', now(), p_User,
+			      now(), p_User, CUR_BOM.M_ProductBOM_ID, -CUR_BOM.ProductionQty*CUR_BOM.BOMQty,
+			      CUR_BOM.M_Locator_ID, CUR_BOM.C_UOM_ID
+			  );
+          ELSE --Desarmado
+                      
+                      
+                      
+			   INSERT INTO M_PRODUCTIONLINE (
+			      M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+			      AD_Org_ID, IsActive, Created, CreatedBy,
+			      Updated, UpdatedBy, M_Product_ID, MovementQty,
+			      M_Locator_ID, C_UOM_ID
+			  ) VALUES (
+			      get_uuid(), CUR_BOM.M_ProductionPlan_ID, v_Line, CUR_BOM.Client_ID,
+			      CUR_BOM.Org_ID, 'Y', now(), p_User,
+			      now(), p_User, CUR_BOM.M_ProductBOM_ID, CUR_BOM.ProductionQty*CUR_BOM.BOMQty,
+			      v_storageDetailToDesarmado, CUR_BOM.C_UOM_ID
+			  );
+         END IF;
+        END IF;
+        v_Line:=v_Line;
+        
+      END LOOP;
+
+ --RAISE NO_DATA_FOUND;
+
+      
+      IF (CUR_STOCK_ISOPEN) THEN
+        CLOSE CUR_STOCK;
+        CUR_STOCK_ISOPEN := false;
+      END IF;
+    END; --END OF DECLARE FOR BOM PRODUCTS INSERTION
+    -- While we have BOMs
+    LOOP
+      -- Are there non-stored BOMs to list details:8
+      v_ResultStr:='CreatingLine CheckBOM';
+      SELECT COUNT(*) INTO v_count
+      FROM M_PRODUCTIONLINE pl,
+        M_PRODUCT p,
+        M_PRODUCTIONPLAN pp
+      WHERE pl.M_Product_ID=p.M_Product_ID
+        AND pl.M_ProductionPlan_ID=pp.M_ProductionPlan_ID
+        AND pp.M_PRODUCTION_ID=v_Record_ID
+        AND pl.Line<>10 -- Origin Line
+        AND p.IsBOM='Y'
+        AND p.IsStocked='N';
+      -- Nothing to do
+      EXIT WHEN(v_count=0) ;
+      --
+      -- Resolve BOMs in ProductLine which are not stocked
+      FOR CUR_PLineBOM IN (
+          SELECT pl.M_ProductionLine_ID, pl.Line, pl.M_Product_ID, pl.MovementQty,
+              pp.M_LOCATOR_ID, pp.AD_Org_ID AS ORG_ID, pp.ProductionQty, pp.M_ProductionPlan_ID,
+              pp.AD_Client_ID AS Client_ID
+          FROM M_PRODUCTIONLINE pl, M_PRODUCT p, M_PRODUCTIONPLAN pp
+        WHERE pl.M_ProductionPlan_ID=pp.M_ProductionPlan_ID
+          AND pp.M_Production_ID=v_Record_ID
+          AND pl.M_Product_ID=p.M_Product_ID
+          AND pl.Line<>10 -- Origin Line
+          AND p.IsBOM='Y'
+          AND p.IsStocked='N'
+      ) LOOP
+        v_ResultStr:='CreatingLineBOM Resolution';
+        v_Line:=CUR_PLineBOM.Line;
+        -- Resolve BOM Line in product line
+        FOR CUR_BOM_PRODUCT IN (
+            SELECT pb.*, p.C_UOM_ID, p.IsStocked
+            FROM M_PRODUCT_BOM pb, M_PRODUCT p
+            WHERE pb.M_ProductBOM_ID=p.M_Product_ID
+              AND pb.M_Product_ID=CUR_PLineBOM.M_Product_ID
+              AND pb.isactive='Y'
+            ORDER BY pb.M_PRODUCTBOM_ID, pb.Line
+        ) LOOP
+          v_ResultStr:='CreatingLine Products2';
+          SELECT COALESCE(MAX(Line), 0) + 10 INTO v_Line
+          FROM M_PRODUCTIONLINE
+          WHERE M_ProductionPlan_ID=CUR_PLineBOM.M_ProductionPlan_ID;
+         -- RAISE v_em_swa_desarmado;
+           
+          IF (v_em_swa_desarmado <> 'Y') THEN 
+           
+            INSERT INTO M_PRODUCTIONLINE (
+                M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+                AD_Org_ID, IsActive, Created, CreatedBy,
+                Updated, UpdatedBy, M_Product_ID, MovementQty,
+                M_Locator_ID, C_UOM_ID
+            ) VALUES (
+                get_uuid(), CUR_PLineBOM.M_ProductionPlan_ID, v_Line, CUR_PLineBOM.Client_ID,
+                CUR_PLineBOM.Org_ID, 'Y', now(), p_User,
+                now(), p_User, CUR_BOM_PRODUCT.M_ProductBOM_ID, CUR_PLineBOM.MovementQty*CUR_BOM_PRODUCT.BOMQty,
+                CUR_PLineBOM.M_Locator_ID, CUR_BOM_PRODUCT.C_UOM_ID
+            );
+          ELSE --Desarmado
+            INSERT INTO M_PRODUCTIONLINE (
+                M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
+                AD_Org_ID, IsActive, Created, CreatedBy,
+                Updated, UpdatedBy, M_Product_ID, MovementQty,
+                M_Locator_ID, C_UOM_ID
+            ) VALUES (
+                get_uuid(), CUR_PLineBOM.M_ProductionPlan_ID, v_Line, CUR_PLineBOM.Client_ID,
+                CUR_PLineBOM.Org_ID, 'Y', now(), p_User,
+                now(), p_User, CUR_BOM_PRODUCT.M_ProductBOM_ID, -CUR_PLineBOM.MovementQty*CUR_BOM_PRODUCT.BOMQty,
+                v_storageDetailToDesarmado, CUR_BOM_PRODUCT.C_UOM_ID
+            );
+          END IF;
+
+        END LOOP;
+        -- Delete BOM line
+        DELETE
+        FROM M_PRODUCTIONLINE
+        WHERE M_ProductionLine_ID=CUR_PLineBOM.M_ProductionLine_ID;
+      END LOOP;
+    END LOOP; -- While we have BOMs
+    -- Modifying locator to have sufficient stock
+    -- Indicate that it is Created
+    
+    UPDATE M_PRODUCTION  SET IsCreated='Y',Updated=now(),UpdatedBy=p_User  WHERE M_Production_ID=v_Record_ID;
+  /**************************************************************************
+  * Post Lines
+  */
+  ELSE
+
+    SELECT count(*) INTO v_count FROM obwpl_pickinglist where em_swa_m_production_id =v_Record_ID and pickliststatus <> 'CA';
+
+    IF(v_count = 0 AND v_swa_serviceorder_id IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000,'@swa_production_whitoutpicking@');
+    ELSE
+     FOR cur_picklist IN ( 
+            SELECT * 
+              FROM obwpl_pickinglist 
+             WHERE em_swa_m_production_id =v_Record_ID)
+      LOOP
+        IF(cur_picklist.pickliststatus = 'DR') THEN
+             RAISE_APPLICATION_ERROR(-20000,'@swa_production_pickinginDraft@' || ' - ' || COALESCE(cur_picklist.documentno,'--'));
+        END IF;
+      END LOOP;
+    END IF;
+    
+
+
+
+   --Vafaster v_IsCreated = Y
+   SELECT em_swa_desarmado,em_swa_state_tmp_bom 
+     INTO v_em_swa_desarmado,v_em_swa_state_tmp_bom
+     FROM m_production 
+    WHERE m_production_id = v_Record_ID;
+   --
+
+      SELECT COUNT(M_PRODUCTIONPLAN_ID)
+       INTO v_count_productionplan_id FROM M_PRODUCTIONPLAN WHERE M_PRODUCTION_ID= v_Record_ID;
+
+       SELECT COUNT(M_PRODUCTIONLINE_ID)
+       INTO v_count_productionline_id FROM M_PRODUCTIONLINE pli 
+        INNER JOIN M_PRODUCTIONPLAN pp ON pli.m_productionplan_id = pp.m_productionplan_id 
+         WHERE pp.M_PRODUCTION_ID= v_Record_ID;
+
+      IF(v_count_productionplan_id IS NULL OR v_count_productionplan_id=0) THEN
+         RAISE_APPLICATION_ERROR(-20000,'@swa_bom_need_pplan@');
+      END IF;
+
+      IF(v_count_productionline_id IS NULL OR v_count_productionline_id=0) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@swa_bom_need_pline@');
+      END IF;
+ 
+  
+    v_ResultStr:='CheckingRestrictions';
+    SELECT COUNT(*) INTO v_Count
+    FROM M_PRODUCTIONPLAN PP, M_PRODUCTIONLINE PL, M_PRODUCT P
+    WHERE PL.M_PRODUCT_ID=P.M_PRODUCT_ID
+      AND P.M_ATTRIBUTESET_ID IS NOT NULL
+      AND (P.ATTRSETVALUETYPE IS NULL OR P.ATTRSETVALUETYPE <> 'F')
+      AND (SELECT ISONEATTRSETVALREQUIRED FROM M_ATTRIBUTESET WHERE M_ATTRIBUTESET_ID = P.M_ATTRIBUTESET_ID) = 'Y'
+      AND COALESCE(PL.M_ATTRIBUTESETINSTANCE_ID, '0') = '0'
+      AND PL.M_ProductionPlan_ID=pp.M_ProductionPlan_ID
+      AND pp.M_Production_ID=v_Record_ID;
+    IF (v_Count <> 0) THEN
+      SELECT max(P.name) INTO v_Product_Name
+      FROM M_PRODUCTIONPLAN PP, M_PRODUCTIONLINE PL, M_PRODUCT P
+      WHERE PL.M_PRODUCT_ID=P.M_PRODUCT_ID
+        AND P.M_ATTRIBUTESET_ID IS NOT NULL
+        AND (P.ATTRSETVALUETYPE IS NULL OR P.ATTRSETVALUETYPE <> 'F')
+        AND (SELECT ISONEATTRSETVALREQUIRED FROM M_ATTRIBUTESET WHERE M_ATTRIBUTESET_ID = P.M_ATTRIBUTESET_ID) = 'Y'
+        AND COALESCE(PL.M_ATTRIBUTESETINSTANCE_ID, '0') = '0'
+        AND PL.M_ProductionPlan_ID=pp.M_ProductionPlan_ID
+        AND pp.M_Production_ID=v_Record_ID;
+      v_Message:='@Product@'||' "' ||v_Product_Name ||'" ' || '@ProductWithoutAttributeSet@';
+      RAISE_APPLICATION_ERROR(-20000, v_Message);
+    END IF;
+
+    SELECT COUNT(M_ProductionPlan_ID)
+    INTO v_count
+    FROM M_ProductionPlan pp
+    WHERE pp.M_Production_ID = v_Record_ID
+    AND NOT EXISTS (SELECT 1 FROM M_ProductionLine WHERE M_ProductionPlan_ID = pp.M_ProductionPlan_ID AND MovementQty > 0);
+       
+    v_Message := NULL;  
+
+    
+    IF(v_count <> 0) THEN
+      FOR CUR_ProductionPlan IN (
+	SELECT DISTINCT(pp.line)
+	FROM M_ProductionPlan pp
+	WHERE pp.M_Production_ID = v_Record_ID
+	AND NOT EXISTS (SELECT 1 FROM M_ProductionLine WHERE M_ProductionPlan_ID = pp.M_ProductionPlan_ID AND MovementQty > 0)
+	ORDER BY Line
+        )
+      LOOP
+        IF v_Message IS NULL THEN
+          v_Message := CUR_ProductionPlan.line;
+        ELSE
+	  v_Message := v_Message || ', ' || CUR_ProductionPlan.line;
+	END IF;
+      END LOOP;
+      v_Message := '@ProducedProductWithNegativeQty@' || ' @ReferProductionPlanLines@' || ': ' || v_Message;
+      RAISE_APPLICATION_ERROR(-20000, v_Message);
+    END IF;   
+
+    SELECT COUNT(M_ProductionPlan_ID)
+    INTO v_count
+    FROM M_ProductionPlan pp
+    WHERE pp.M_Production_ID = v_Record_ID
+    AND (SELECT COUNT(M_ProductionLine_ID) FROM M_ProductionLine WHERE M_ProductionPlan_ID = pp.M_ProductionPlan_ID AND movementQty > 0) > 1;
+      
+
+    IF(v_em_swa_desarmado <> 'Y')   THEN
+        IF (v_count <> 0) THEN
+          FOR CUR_ProductionPlan IN (
+            	SELECT DISTINCT(pp.line)
+            	FROM M_ProductionPlan pp
+            	WHERE pp.M_Production_ID = v_Record_ID
+            	AND (SELECT COUNT(M_ProductionLine_ID) FROM M_ProductionLine WHERE M_ProductionPlan_ID = pp.M_ProductionPlan_ID AND movementQty > 0) > 1
+            	ORDER BY Line
+          )
+          LOOP
+            IF v_Message IS NULL THEN
+               v_Message := CUR_ProductionPlan.line;
+            ELSE
+    	         v_Message := v_Message || ', ' || CUR_ProductionPlan.line;
+    	      END IF;
+          END LOOP;
+          v_Message:= '@ConsumedProductWithPostiveQty@' || ' @ReferProductionPlanLines@' || ': ' || v_Message;
+          RAISE_APPLICATION_ERROR(-20000, v_Message);
+        END IF;
+    END IF;
+    
+    SELECT count(*) INTO v_count
+    FROM dual
+    WHERE EXISTS (
+        SELECT 1
+        FROM m_productionplan pp
+            JOIN m_productionline pl ON pp.m_productionplan_id = pl.m_productionplan_id
+            JOIN m_product p ON pl.m_product_id = p.m_product_id
+        WHERE pp.m_production_id = v_record_id
+          AND p.isgeneric = 'Y');
+    IF (v_count > 0) THEN
+      SELECT max(p.name) INTO v_product_name
+      FROM m_productionplan pp
+          JOIN m_productionline pl ON pp.m_productionplan_id = pl.m_productionplan_id
+          JOIN m_product p ON pl.m_product_id = p.m_product_id
+      WHERE pp.m_production_id = v_record_id
+        AND p.isgeneric = 'Y';
+      RAISE_APPLICATION_ERROR(-20000, '@CannotUseGenericProduct@ ' || v_product_Name);
+    END IF;
+
+
+  
+    -- All Production Lines
+    FOR CUR_PL_Post IN (
+        SELECT pl.M_ProductionLine_ID, pl.AD_Client_ID, pl.AD_Org_ID, p.MovementDate,
+            pl.M_Product_ID, pl.M_AttributeSetInstance_ID, pl.MovementQty, pl.M_Locator_ID,
+            pl.M_Product_UOM_ID, pl.QuantityOrder, pl.C_UOM_ID, pl.LINE, pp.em_swa_serviceorderline_id
+        FROM M_PRODUCTION p, M_PRODUCTIONLINE pl, M_PRODUCTIONPLAN pp
+        WHERE p.M_Production_ID=pp.M_Production_ID
+          AND pp.M_ProductionPlan_ID=pl.M_ProductionPlan_ID
+          AND pp.M_Production_ID=v_Record_ID
+        ORDER BY pp.Line, pl.Line
+    ) LOOP
+      -- M_ProductionLine_ID, AD_Client_ID, AD_Org_ID, MovementDate, M_Product_ID, MovementQty, M_Locator_ID
+      -- DBMS_OUTPUT.PUT_LINE('ProductionLine=' || pl.M_ProductionLine_ID);
+      -- DBMS_OUTPUT.PUT_LINE('  Qty=' || pl.MovementQty || ', OnHand=' || M_BOM_Qty_OnHand(pl.M_Product_ID, NULL, pl.M_Locator_ID));
+      -- Check Stock levels for reductions
+
+	
+	
+	SELECT p.IsStocked, p.ProductType, p.IsBOM INTO v_IsStocked, v_ProductType, v_IsBOM 
+          FROM M_PRODUCT p
+        WHERE p.M_PRODUCT_ID=CUR_PL_Post.M_Product_ID;
+
+      IF (CUR_PL_Post.MovementQty<0 AND MustBeStocked<>'N' AND M_BOM_Qty_OnHand(CUR_PL_Post.M_Product_ID, NULL, CUR_PL_Post.M_Locator_ID) +CUR_PL_Post.MovementQty<0) THEN
+         SELECT v_IsStocked ||' @NotEnoughStocked@: ' || Name INTO v_Message
+        FROM M_PRODUCT
+        WHERE M_Product_ID=CUR_PL_Post.M_Product_ID;
+
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END IF;
+      SELECT value, ad_client_id , scr_combo_category_id
+        INTO v_comboitem_value, v_item_ad_client_id , v_item_combo_category_id
+        FROM scr_combo_item 
+       WHERE scr_combo_item_id= v_ordertype_comboItem;
+
+
+
+  IF(CUR_PL_Post.em_swa_serviceorderline_id IS NULL) THEN
+       IF(CUR_PL_Post.MovementQty < 0 AND v_comboitem_value='Armado') THEN
+        SELECT scr_combo_item_id 
+          INTO tmp_value_combo_item_id
+          FROM scr_combo_item 
+         WHERE scr_combo_category_id = v_item_combo_category_id
+           AND ad_client_id = v_item_ad_client_id
+           AND value='ArmadoOut' limit 1;
+         IF(tmp_value_combo_item_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@swa_nocomboitemforArmadoOut@');
+         END IF;
+       ELSIF(CUR_PL_Post.MovementQty < 0 AND v_comboitem_value='Desarmado')THEN
+         SELECT scr_combo_item_id 
+          INTO tmp_value_combo_item_id
+          FROM scr_combo_item 
+         WHERE scr_combo_category_id = v_item_combo_category_id
+           AND ad_client_id = v_item_ad_client_id
+           AND value='DesarmadoOut' limit 1;
+         IF(tmp_value_combo_item_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@swa_nocomboitemforDesarmadoOut@');
+         END IF;
+       ELSE
+          tmp_value_combo_item_id = v_ordertype_comboItem;
+       END IF;
+   ELSE --CUR_PL_Post.em_swa_serviceorderline_id  IS NOT NULL
+       IF(CUR_PL_Post.MovementQty < 0) THEN
+        SELECT scr_combo_item_id 
+          INTO tmp_value_combo_item_id
+          FROM scr_combo_item 
+         WHERE ad_client_id = v_item_ad_client_id
+           AND value='Salida por Servicio' limit 1;  --SalidaporServicio
+         IF(tmp_value_combo_item_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@swa_nocomboitemforArmadoOut@');
+         END IF;
+       ELSIF(CUR_PL_Post.MovementQty > 0 )THEN
+         SELECT scr_combo_item_id 
+          INTO tmp_value_combo_item_id
+          FROM scr_combo_item 
+         WHERE ad_client_id = v_item_ad_client_id
+           AND value='IngresoporServicio' limit 1; --Ingreso por Servicio
+         IF(tmp_value_combo_item_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@swa_nocomboitemforDesarmadoOut@');
+         END IF;
+       ELSE
+          tmp_value_combo_item_id = v_ordertype_comboItem;
+       END IF;
+
+   
+   END IF;                         
+  
+
+    
+      -- Create Transaction Entry
+      v_ResultStr:='CreateTransaction';
+
+      /*ADD BY VAFASTER*/
+      --Vamos a distribuir las reservas antes de insertar en m_transaction.*/
+      --Si la cantidad es negativa es porque va a salir mercaderìa, por tal debio tener una reserva **/
+
+      IF(CUR_PL_Post.MovementQty < 0)THEN 
+        v_movementqty:=CUR_PL_Post.MovementQty*-1;
+        FOR CUR_reser_stock IN(
+         SELECT mrs.m_reservation_stock_id, mrs.quantity FROM m_reservation_stock mrs
+          INNER JOIN m_reservation mr on mrs.m_reservation_id = mr.m_reservation_id
+          WHERE mr.em_swa_m_productionline_id = CUR_PL_Post.M_ProductionLine_ID
+        )
+        LOOP
+           v_undoqty:= LEAST(CUR_reser_stock.quantity, v_movementqty);
+           UPDATE m_reservation_stock
+              SET releasedqty = v_undoqty
+            WHERE m_reservation_stock_id = CUR_reser_stock.m_reservation_stock_id;
+        END LOOP;
+      END IF;
+
+      INSERT INTO M_TRANSACTION (
+          M_Transaction_ID, M_ProductionLine_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, MovementType, M_Locator_ID, M_Product_ID,
+          M_AttributeSetInstance_ID,
+          MovementDate, MovementQty, M_Product_UOM_ID, QuantityOrder,
+          C_UOM_ID,em_ssa_combo_item_id
+      ) VALUES (
+          get_uuid(), CUR_PL_Post.M_ProductionLine_ID, CUR_PL_Post.AD_Client_ID, CUR_PL_Post.AD_Org_ID,
+           'Y', now(), p_User, now(),
+          p_User, 'P+', CUR_PL_Post.M_Locator_ID, CUR_PL_Post.M_Product_ID,
+          COALESCE(CUR_PL_Post.M_AttributeSetInstance_ID, '0'), -- not distinguishing between assemby/disassembly
+          CUR_PL_Post.MovementDate, CUR_PL_Post.MovementQty, CUR_PL_Post.M_Product_UOM_ID, CUR_PL_Post.QuantityOrder,
+          CUR_PL_Post.C_UOM_ID,tmp_value_combo_item_id
+      );
+
+      
+      
+    
+      
+      M_Check_Stock(CUR_PL_Post.M_Product_ID, v_Client_ID, v_Org_ID, v_Result, v_Message) ;
+      IF ((v_ProductType='I' AND (v_IsStocked='Y' OR (v_IsBOM='Y'))) AND v_Result = 0) THEN
+        v_Message:=v_Message || ' @Inline@ ' || CUR_PL_Post.line;
+         
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END IF;
+    END LOOP;
+    -- Indicate that we are done
+    UPDATE M_PRODUCTION
+    SET Processed='Y',
+        updated=now(),
+        updatedby=p_User
+    WHERE M_Production_ID=v_Record_ID;
+  END IF;
+  --<<FINISH_PROCESS>>
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+  RETURN;
+END; --BODY
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    v_ResultStr:= SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+    RETURN;
+END M_PRODUCTION_RUN
+]]></body>
+    </function>
+  </database>

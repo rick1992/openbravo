@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_GETLOCATORFORPRODUCT">
+    <function name="SWA_GETLOCATORFORPRODUCT" type="NULL">
+      <parameter name="p_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_warehouse_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_result" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+  v_pendingtorelease    NUMBER;
+  v_warehouse_id        VARCHAR2(32);
+  v_product_id          VARCHAR2(32);
+  v_uom_id              VARCHAR2(32);
+  v_dim_warehouse_id    VARCHAR2(32);
+  v_dim_locator_id      VARCHAR2(32);
+  v_dim_asi_id          VARCHAR2(32);
+  v_locator_id          VARCHAR2(32);
+  v_res_status          M_RESERVATION.RES_STATUS%TYPE;
+  v_this_pendingqty     NUMBER;
+  v_this_sd_reserved    NUMBER;
+  v_qtytorelease        NUMBER;
+  v_attr_description    VARCHAR2(255);
+  v_product_value       VARCHAR2(40);
+  v_locator_value       VARCHAR2(40);
+  v_uom_value           VARCHAR2(3);
+
+  TYPE RECORD IS REF CURSOR;
+  cur_reserved_stock    RECORD;
+
+
+BEGIN
+
+  p_result:=NULL;
+
+ --Obteniendo una Ubicación donde ya exista el producto
+  SELECT m_locator_id 
+    INTO p_result 
+    FROM swa_product_by_anaquel_v 
+   WHERE m_product_id = p_product_id 
+     AND m_warehouse_id = p_warehouse_id 
+     order by priorityno asc;
+
+    IF(v_locator_id IS NOT NULL)THEN
+      RETURN;
+    END IF;
+
+ --Obteniendo la primera Ubicación vacia
+    SELECT m_locator_id 
+      INTO p_result 
+      FROM M_locator 
+     WHERE m_warehouse_id = p_warehouse_id 
+      AND em_swa_is_empty='Y'
+      AND isactive='Y'
+    ORDER BY priorityno ASC;
+
+    IF(v_locator_id IS NOT NULL)THEN
+      RETURN;
+    END IF;
+
+--Obteniendo la primera Ubicación mas baja no importa que tenga otros productos
+   SELECT m_locator_id 
+      INTO p_result 
+      FROM M_locator 
+     WHERE m_warehouse_id = p_warehouse_id 
+       AND isactive='Y'
+    ORDER BY priorityno ASC;
+
+    RETURN;
+END SWA_GETLOCATORFORPRODUCT
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_GEN_YEAROP_STOCKBAL">
+    <function name="SCO_GEN_YEAROP_STOCKBAL" type="NULL">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_dateacct" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+BEGIN
+  --Delete sco_yearop_stock_balance entries for the year
+  DELETE FROM sco_yearop_stock_balance
+  WHERE AD_Client_ID = p_ad_client_id
+  AND AD_ISORGINCLUDED(AD_ORG_ID, p_ad_org_id, p_ad_client_id)<>-1
+  AND TRUNC(dateacct) = TRUNC(p_dateacct);
+
+  --Create sco_yearop_stock_balance entries for the new year
+  INSERT INTO sco_yearop_stock_balance(
+        sco_yearop_stock_balance_id, ad_client_id, ad_org_id, isactive, 
+        created, createdby, updated, updatedby, dateacct, m_warehouse_id, 
+        m_product_id, initqty)
+        SELECT 
+        get_UUID(), p_ad_client_id, p_ad_org_id, 'Y',
+        now(), '100', now(), '100', TRUNC(p_dateacct), T.m_warehouse_id,
+        T.m_product_id, SUM(T.initqty)
+        FROM
+         (SELECT mt.m_product_id, mw.m_warehouse_id,SUM (mt.movementqty) AS initqty
+          FROM m_transaction mt
+          INNER JOIN m_locator lo ON mt.m_locator_id = lo.m_locator_id
+          INNER JOIN m_warehouse mw ON lo.m_warehouse_id = mw.m_warehouse_id
+          WHERE mt.AD_Client_ID = p_ad_client_id
+          AND AD_ISORGINCLUDED(mt.AD_ORG_ID, p_ad_org_id, p_ad_client_id)<>-1
+          AND Trunc(mt.movementdate) < TRUNC(p_dateacct)
+          GROUP BY mt.m_product_id, mw.m_warehouse_id) T
+        GROUP BY T.m_product_id, T.m_warehouse_id;
+  
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_GEN_YEAROP_STOCKBAL
+]]></body>
+    </function>
+  </database>

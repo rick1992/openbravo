@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_INOUT_VALIDATION_TRG">
+    <trigger name="SWA_INOUT_VALIDATION_TRG" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+V_COUNT NUMBER:=0;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN    
+     IF (trunc(:NEW.movementdate) >= trunc(now() + interval '5 day') 
+      OR trunc(:NEW.dateacct) >= trunc(now() + interval '5 day')) THEN
+         RAISE NO_DATA_FOUND;
+     END IF;
+  END IF;
+
+  IF(UPDATING) THEN       
+       IF( :NEW.docstatus='DR' AND ((COALESCE(:OLD.C_BPARTNER_ID, '0') <> COALESCE(:NEW.C_BPARTNER_ID, '0')) OR  
+           (COALESCE(:OLD.M_WAREHOUSE_ID, '0') <> COALESCE(:NEW.M_WAREHOUSE_ID, '0')) OR
+           (COALESCE(:OLD.em_swa_combo_item_id, '0') <> COALESCE(:NEW.em_swa_combo_item_id, '0')))
+       ) THEN
+            SELECT COUNT(*) 
+              INTO V_COUNT 
+              FROM M_INOUTLINE  
+             WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
+            IF(V_COUNT <> 0)THEN
+		 IF(COALESCE(:OLD.M_WAREHOUSE_ID, '0') <> COALESCE(:NEW.M_WAREHOUSE_ID, '0'))THEN
+		       RAISE_APPLICATION_ERROR(-20000, '@SCR_CannotModifyWarehouse@') ;
+		 ELSE
+		       RAISE_APPLICATION_ERROR(-20000, '@swa_cannotEdit_Inout_field@') ;
+		 END IF;
+            END IF;
+       END IF; 
+
+       IF((COALESCE(:OLD.movementdate,v_DateNull)<>COALESCE(:NEW.movementdate,v_DateNull)) 
+        OR(COALESCE(:OLD.dateacct,v_DateNull)<>COALESCE(:NEW.dateacct,v_DateNull))) THEN
+          IF (trunc(:NEW.movementdate) >= trunc(now() + interval '5 day') 
+           OR trunc(:NEW.dateacct) >= trunc(now() + interval '5 day')) THEN
+              RAISE NO_DATA_FOUND;
+          END IF;   
+       END IF;
+  END IF;
+
+
+  END SWA_INOUT_VALIDATION_TRG
+]]></body>
+    </trigger>
+  </database>

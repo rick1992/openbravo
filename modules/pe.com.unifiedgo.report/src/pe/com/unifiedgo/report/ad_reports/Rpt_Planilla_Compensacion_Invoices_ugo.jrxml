@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_Planilla_Compensacion_Invoices_ugo" pageWidth="595" pageHeight="842" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.5937424601000076"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="COMPENSACION_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="ISTAXINCLUDED" class="java.lang.String" isForPrompting="false"/>
+	<queryString>
+		<![CDATA[select lin.sco_compensationpmt_id as "COMP_ID",
+'CLIENTE'  as "TIPO_BP",
+'COBRADO' as "TIPO",
+coalesce(inv.grandtotal,0.00) as "IMPORTE",
+coalesce((select name from c_bpartner where c_bpartner_id = inv.c_bpartner_id),'') as "BP",
+inv.em_sco_newdateinvoiced as "FECHA",
+coalesce(inv.em_scr_physical_documentno,'') as "NRO_INV",
+
+case when (select iso_code from c_currency where c_currency_id = inv.c_currency_id and isactive = 'Y') = 'PEN' then null else
+sim_currency_convert_table(1,inv.c_currency_id,(select c_currency_id from c_currency where iso_code = 'PEN'),
+inv.em_sco_newdateinvoiced,dt.ad_table_id,inv.c_invoice_id,inv.ad_client_id,inv.ad_org_id) end as "TC"
+
+from sco_compensationpmt_linec lin
+join c_invoice inv on lin.invoiceref_id = inv.c_invoice_id
+
+left join c_doctype dt on  inv.c_doctypetarget_id = dt.c_doctype_id
+where lin.isactive = 'Y'
+and lin.sco_compensationpmt_id in ($P{COMPENSACION_ID})
+
+union all
+
+select lin.sco_compensationpmt_id,
+'PROVEEDOR',
+'PAGADO',
+coalesce(inv.grandtotal,0.00),
+coalesce((select name from c_bpartner where c_bpartner_id = inv.c_bpartner_id),''),
+inv.em_sco_newdateinvoiced,
+coalesce(inv.em_scr_physical_documentno,''),
+
+case when (select iso_code from c_currency where c_currency_id = inv.c_currency_id and isactive = 'Y') = 'PEN' then null else
+sim_currency_convert_table(1,inv.c_currency_id,(select c_currency_id from c_currency where iso_code = 'PEN'),
+inv.em_sco_newdateinvoiced,dt.ad_table_id,inv.c_invoice_id,inv.ad_client_id,inv.ad_org_id) end
+
+from sco_compensationpmt_linev lin
+join c_invoice inv on lin.invoiceref_id = inv.c_invoice_id
+left join c_doctype dt on  inv.c_doctypetarget_id = dt.c_doctype_id
+
+where lin.isactive = 'Y'
+and sco_compensationpmt_id in ($P{COMPENSACION_ID})]]>
+	</queryString>
+	<field name="COMP_ID" class="java.lang.String"/>
+	<field name="TIPO_BP" class="java.lang.String"/>
+	<field name="TIPO" class="java.lang.String"/>
+	<field name="IMPORTE" class="java.math.BigDecimal"/>
+	<field name="BP" class="java.lang.String"/>
+	<field name="FECHA" class="java.sql.Timestamp"/>
+	<field name="NRO_INV" class="java.lang.String"/>
+	<field name="TC" class="java.math.BigDecimal"/>
+	<variable name="ITEM" class="java.math.BigDecimal" resetType="Group" resetGroup="COMPENSACION_ID" calculation="Count">
+		<variableExpression><![CDATA[$F{COMP_ID}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL" class="java.math.BigDecimal" resetType="Group" resetGroup="COMPENSACION_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{IMPORTE}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<group name="COMPENSACION_ID">
+		<groupExpression><![CDATA[$F{TIPO}]]></groupExpression>
+		<groupHeader>
+			<band height="15" splitType="Stretch">
+				<line>
+					<reportElement x="17" y="13" width="560" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement x="17" y="0" width="30" height="13"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[ITEM]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="443" y="0" width="70" height="13"/>
+					<textElement textAlignment="Center" markup="none">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="241" y="0" width="80" height="13"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[NUMERO DOC]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="88" y="0" width="100" height="13"/>
+					<textElement textAlignment="Center" markup="none">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO_BP}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="351" y="0" width="55" height="13"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[FEC. DOC.]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="519" y="0" width="50" height="13"/>
+					<textElement textAlignment="Center">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[T/CAMBIO]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="15" splitType="Stretch">
+				<line>
+					<reportElement x="17" y="0" width="560" height="1"/>
+					<graphicElement>
+						<pen lineWidth="0.5"/>
+					</graphicElement>
+				</line>
+				<staticText>
+					<reportElement x="365" y="2" width="60" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[TOTAL]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="434" y="2" width="70" height="12"/>
+					<textElement textAlignment="Right">
+						<font fontName="SansSerif" size="8"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($V{TOTAL})]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="57" y="0" width="185" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{BP}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="352" y="0" width="70" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FECHA}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="249" y="0" width="100" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_INV}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="434" y="0" width="70" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{IMPORTE})]]></textFieldExpression>
+			</textField>
+			<textField pattern="000">
+				<reportElement x="17" y="0" width="40" height="12"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{ITEM}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="518" y="0" width="50" height="12"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{TC}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

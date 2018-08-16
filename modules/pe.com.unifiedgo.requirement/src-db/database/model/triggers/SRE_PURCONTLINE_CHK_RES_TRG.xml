@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_PURCONTLINE_CHK_RES_TRG">
+    <trigger name="SRE_PURCONTLINE_CHK_RES_TRG" table="SRE_PURCHASE_CONTRACT_LINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Count NUMBER:= 0;
+v_docstatus  VARCHAR(60);
+V_ID VARCHAR(32);
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  
+
+
+  IF DELETING THEN
+
+    V_ID = :old.sre_purchase_contract_id;
+
+    SELECT docstatus INTO v_docstatus FROM sre_purchase_contract WHERE sre_purchase_contract_id = V_ID;
+  
+    IF(v_docstatus <> 'DR')THEN
+	RAISE_APPLICATION_ERROR(-20000, '@sre_purchcont_invalid_delete@');
+    END IF;
+  END IF;
+
+ 
+
+END SRE_PURCONTLINE_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

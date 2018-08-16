@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INOUT_PHYDOCTVAL_TRG">
+    <trigger name="SCO_INOUT_PHYDOCTVAL_TRG" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+  v_doctype_AD_Org_ID VARCHAR(32);
+  v_specialdoctype VARCHAR(32);
+  v_physicalDocNo_def VARCHAR(60):='000-0000000';
+  v_cmbitemvalue VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT ad_org_id, em_sco_specialdoctype INTO v_doctype_AD_Org_ID, v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctype_id;
+
+    SELECT value INTO v_cmbitemvalue FROM scr_combo_item WHERE scr_combo_item_id=:NEW.em_swa_combo_item_id;
+
+
+    IF(:NEW.issotrx = 'Y') THEN
+      IF(INSERTING) THEN
+        IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+           :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+        END IF;
+
+      ELSIF(UPDATING) THEN  
+        IF(COALESCE(:OLD.docstatus,'.')<>COALESCE(:NEW.docstatus,'.') OR
+           COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.')) THEN
+           IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+              :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+           END IF;
+        END IF;
+               
+        IF(v_cmbitemvalue NOT IN ('AnulacionGuiaCliente','anulacion_consumomatprimainmueble') AND 
+          (COALESCE(:OLD.docstatus,'.')<>COALESCE(:NEW.docstatus,'.') OR
+           COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.'))) THEN
+           
+           IF(:NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+              --Validacion de Notas de Salida
+              IF(COALESCE(:NEW.docstatus,'.') IN ('DR','CO') AND v_specialdoctype IN ('SWAMMDISPATCH')) THEN                 
+                 SELECT Count(io.*) INTO v_Aux 
+                   FROM M_Inout io, scr_combo_item cmb
+                  WHERE cmb.scr_combo_item_id=io.em_swa_combo_item_id AND
+                        io.M_Inout_ID <> :NEW.M_Inout_ID AND                           
+                        io.AD_Client_ID = :NEW.AD_Client_ID AND
+                        io.issotrx = 'Y' AND (io.docstatus IN ('CO')) AND                     
+                        cmb.value NOT IN ('AnulacionGuiaCliente','anulacion_consumomatprimainmueble') AND
+                        io.em_sco_specialdoctype IN ('SWAMMDISPATCH') AND
+                        AD_ISORGINCLUDED(io.ad_org_id, v_doctype_AD_Org_ID, :NEW.AD_Client_ID) > -1 AND
+                        (io.em_scr_physical_documentno IS NOT NULL AND io.em_scr_physical_documentno = :NEW.em_scr_physical_documentno) LIMIT 1;
+                 IF(v_Aux>=1) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@SCO_InoutSalesInvUniqPhysicalNumber@');
+                 END IF;                  
+              ELSIF(COALESCE(:NEW.docstatus,'.')='VO' AND v_specialdoctype IN ('SWAMMDISPATCH')) THEN
+                 --Validacion de Notas de Salida
+                 SELECT Count(io.*) INTO v_Aux 
+                   FROM M_Inout io, scr_combo_item cmb
+                  WHERE cmb.scr_combo_item_id=io.em_swa_combo_item_id AND
+                        io.M_Inout_ID <> :NEW.M_Inout_ID AND                           
+                        io.AD_Client_ID = :NEW.AD_Client_ID AND
+                        io.issotrx = 'Y' AND io.docstatus='VO' AND                     
+                        cmb.value NOT IN ('AnulacionGuiaCliente','anulacion_consumomatprimainmueble') AND
+                        io.em_sco_specialdoctype IN ('SWAMMDISPATCH') AND
+                        AD_ISORGINCLUDED(io.ad_org_id, v_doctype_AD_Org_ID, :NEW.AD_Client_ID) > -1 AND
+                        (io.em_scr_physical_documentno IS NOT NULL AND io.em_scr_physical_documentno = :NEW.em_scr_physical_documentno) LIMIT 1;
+                 IF(v_Aux>=1) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@SCO_InoutSalesInvUniqPhysicalNumber@');
+                 END IF;                   
+              END IF;    
+
+	      --Validacion de Guias de Salida y Guias de Traslado	
+	      IF(COALESCE(:NEW.docstatus,'.') IN ('DR','CO','VO') AND v_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT','SWARTVRECEIPT')) THEN	
+                 --Validacion de Guias de Salida
+                 SELECT Count(*) INTO v_Aux 
+                   FROM M_Inout io, scr_combo_item cmb
+                  WHERE cmb.scr_combo_item_id=io.em_swa_combo_item_id AND
+                        io.M_Inout_ID <> :NEW.M_Inout_ID AND                           
+                        io.AD_Client_ID = :NEW.AD_Client_ID AND
+                        io.issotrx = 'Y' AND (io.docstatus IN ('CO','VO')) AND                     
+                        cmb.value NOT IN ('AnulacionGuiaCliente','anulacion_consumomatprimainmueble') AND
+                        io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT','SWARTVRECEIPT') AND
+                        AD_ISORGINCLUDED(io.ad_org_id, v_doctype_AD_Org_ID, :NEW.AD_Client_ID) > -1 AND
+                        (io.em_scr_physical_documentno IS NOT NULL AND io.em_scr_physical_documentno = :NEW.em_scr_physical_documentno) LIMIT 1;
+                 IF(v_Aux>=1) THEN
+                   RAISE_APPLICATION_ERROR(-20000, '@SCO_InoutSalesInvUniqPhysicalNumber@');
+                 END IF;   
+
+                 --Check in sco_transferinout 
+                 SELECT Count(*) INTO v_Aux 
+                   FROM SCO_Transferinout io
+                  WHERE io.AD_Client_ID = :NEW.AD_Client_ID AND
+                        io.issotrx = 'Y' AND io.docstatus IN ('CO','VO') AND
+                        AD_ISORGINCLUDED(io.ad_org_id, v_doctype_AD_Org_ID, :NEW.AD_Client_ID) > -1 AND
+                        (io.physical_documentno IS NOT NULL AND io.physical_documentno = :NEW.em_scr_physical_documentno) LIMIT 1;
+                 IF(v_Aux>=1) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@SCO_InoutSalesInvUniqPhysicalNumber@');
+                 END IF;     
+              END IF;
+                                                     
+           END IF;
+                                                   
+        END IF;        
+      END IF;
+
+
+
+      
+    ELSE --issotrx = 'N'
+      IF(INSERTING) THEN
+        IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+           :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+        END IF;
+
+      ELSIF(UPDATING) THEN
+	IF(COALESCE(:OLD.docstatus,'.')<>COALESCE(:NEW.docstatus,'.') OR
+           COALESCE(:OLD.C_Bpartner_ID,'.')<>COALESCE(:NEW.C_Bpartner_ID,'.') OR 
+           COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.')) THEN
+          IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+             :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+          END IF;
+        END IF;
+                
+        IF(v_cmbitemvalue<>'AnulacionGuiaProveedor' AND 
+          (COALESCE(:OLD.docstatus,'.')<>COALESCE(:NEW.docstatus,'.') OR
+           COALESCE(:OLD.C_Bpartner_ID,'.')<>COALESCE(:NEW.C_Bpartner_ID,'.') OR 
+           COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.'))) THEN
+          IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+             :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+          END IF;
+
+	  IF(:NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+             IF(COALESCE(:NEW.docstatus,'.') IN ('DR','CO')) THEN
+                --Check for physical number and cbpartner uniqueness in m_inout 
+                SELECT Count(*) INTO v_Aux 
+                  FROM M_Inout io, scr_combo_item cmb
+                 WHERE cmb.scr_combo_item_id=io.em_swa_combo_item_id AND
+                       io.M_Inout_ID <> :NEW.M_Inout_ID AND
+                       io.C_Doctype_ID = :NEW.C_Doctype_ID AND                       
+                       io.AD_Client_ID = :NEW.AD_Client_ID AND
+                       io.issotrx = 'N' AND io.docstatus='CO' AND 
+                       cmb.value<>'AnulacionGuiaProveedor' AND
+                       io.em_sco_specialdoctype = v_specialdoctype AND
+                       io.C_Bpartner_ID = :NEW.C_Bpartner_ID AND
+                       (io.em_scr_physical_documentno IS NOT NULL AND io.em_scr_physical_documentno = :NEW.em_scr_physical_documentno) LIMIT 1;
+                IF(v_Aux>=1) THEN
+                   RAISE_APPLICATION_ERROR(-20000, '@SCO_InoutPurchaseInvUniqPhysicalNumber@');
+                END IF;                          
+             END IF;             
+	  END IF;
+	  	  
+        END IF;
+        
+      END IF;
+    END IF;
+
+
+    END SCO_INOUT_PHYDOCTVAL_TRG
+]]></body>
+    </trigger>
+  </database>

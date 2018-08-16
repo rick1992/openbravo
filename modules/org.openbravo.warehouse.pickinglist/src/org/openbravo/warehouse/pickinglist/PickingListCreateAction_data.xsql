@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="PickingListCreateActionData" package="org.openbravo.warehouse.pickinglist">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS CLIENTID
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+   <SqlMethod name="updateProductionLines" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE m_productionline 
+           SET em_swa_pickinglist_id = ?
+         WHERE m_productionplan_id IN (SELECT M_PRODUCTIONPLAN_ID FROM M_PRODUCTIONPLAN WHERE M_PRODUCTION_ID = ?)
+           AND movementqty < 0
+    ]]></Sql>
+    <Parameter name="obwPickingListId"/>
+    <Parameter name="mProductionId"/>
+   </SqlMethod>
+    <SqlMethod name="updateProduction" type="preparedStatement" return="rowCount">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql><![CDATA[
+        UPDATE m_production 
+           SET em_swa_pickinglist_generate = 'Y'
+         WHERE m_production_id = ?
+    ]]></Sql>
+    <Parameter name="mProductionId"/>
+   </SqlMethod>
+</SqlClass>

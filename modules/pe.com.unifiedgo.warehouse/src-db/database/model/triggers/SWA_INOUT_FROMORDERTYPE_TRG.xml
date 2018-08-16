@@ -1,0 +1,111 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_INOUT_FROMORDERTYPE_TRG">
+    <trigger name="SWA_INOUT_FROMORDERTYPE_TRG" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_order_specialdoctype VARCHAR(60);
+  v_order_deliverymethod VARCHAR(60);
+  v_combo_item_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+	IF(:NEW.em_swa_requireposicion_id IS NOT NULL AND :NEW.em_swa_requireposicion_id<>'') THEN
+	    :NEW.em_swa_inoutfromorder_type = 'REP';
+	ELSIF(:NEW.c_order_id IS NOT NULL AND :NEW.c_order_id<>'') THEN
+	  SELECT em_ssa_specialdoctype, DeliveryViaRule
+	    INTO v_order_specialdoctype, v_order_deliverymethod
+	    FROM C_Order
+	  WHERE C_Order_ID = :NEW.c_order_id;
+
+	  IF(v_order_specialdoctype = 'SSASTANDARDORDER') THEN
+	    IF(v_order_deliverymethod = 'P') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'STA_PICK';  
+	    ELSIF(v_order_deliverymethod = 'D') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'STA_DEL'; 
+	    ELSIF(v_order_deliverymethod = 'S') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'STA'; 
+	    ELSE
+	      :NEW.em_swa_inoutfromorder_type = 'STA'; 
+	    END IF;
+	  ELSIF(v_order_specialdoctype = 'SSAPOSORDER') THEN
+	    :NEW.em_swa_inoutfromorder_type = 'POS';
+	  ELSIF(v_order_specialdoctype = 'SSAWAREHOUSEORDER') THEN
+	    :NEW.em_swa_inoutfromorder_type = 'WAR';
+	  ELSIF(v_order_specialdoctype = 'SSASAMPLEORDER') THEN
+	    IF(v_order_deliverymethod = 'P') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'SAM_PICK';  
+	    ELSIF(v_order_deliverymethod = 'D') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'SAM_DEL'; 
+	    ELSIF(v_order_deliverymethod = 'S') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'SAM'; 
+	    ELSE
+	      :NEW.em_swa_inoutfromorder_type = 'SAM'; 
+	    END IF;
+	  END IF;
+
+	ELSE
+	  :NEW.em_swa_inoutfromorder_type = 'STA';
+
+	END IF;
+    ELSE
+
+	IF(COALESCE(:OLD.c_order_id,'.') <> COALESCE(:NEW.c_order_id,'.')) THEN
+	  IF(:NEW.c_order_id IS NOT NULL AND :NEW.c_order_id<>'') THEN
+	    SELECT em_ssa_specialdoctype, DeliveryViaRule
+	      INTO v_order_specialdoctype, v_order_deliverymethod
+	      FROM C_Order
+	    WHERE C_Order_ID = :NEW.c_order_id;
+
+	    IF(v_order_specialdoctype = 'SSASTANDARDORDER') THEN
+	      IF(v_order_deliverymethod = 'P') THEN
+	        :NEW.em_swa_inoutfromorder_type = 'STA_PICK';  
+	      ELSIF(v_order_deliverymethod = 'D') THEN
+	        :NEW.em_swa_inoutfromorder_type = 'STA_DEL'; 
+	      ELSIF(v_order_deliverymethod = 'S') THEN
+	        :NEW.em_swa_inoutfromorder_type = 'STA'; 
+	      ELSE
+	        :NEW.em_swa_inoutfromorder_type = 'STA'; 
+	      END IF;
+	    ELSIF(v_order_specialdoctype = 'SSAPOSORDER') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'POS';
+	    ELSIF(v_order_specialdoctype = 'SSAWAREHOUSEORDER') THEN
+	      :NEW.em_swa_inoutfromorder_type = 'WAR';
+	    ELSIF(v_order_specialdoctype = 'SSASAMPLEORDER') THEN
+	      IF(v_order_deliverymethod = 'P') THEN
+	        :NEW.em_swa_inoutfromorder_type = 'SAM_PICK';  
+	      ELSIF(v_order_deliverymethod = 'D') THEN
+	        :NEW.em_swa_inoutfromorder_type = 'SAM_DEL'; 
+	      ELSIF(v_order_deliverymethod = 'S') THEN
+	        :NEW.em_swa_inoutfromorder_type = 'SAM'; 
+	      ELSE
+	        :NEW.em_swa_inoutfromorder_type = 'SAM'; 
+	      END IF;
+	    END IF;
+	  ELSE
+	    :NEW.em_swa_inoutfromorder_type = 'STA';
+	  END IF;
+	END IF;
+
+	IF(COALESCE(:OLD.em_swa_requireposicion_id,'.') <> COALESCE(:NEW.em_swa_requireposicion_id,'.')) THEN
+	  IF(:NEW.em_swa_requireposicion_id IS NOT NULL AND :NEW.em_swa_requireposicion_id<>'') THEN
+	    :NEW.em_swa_inoutfromorder_type = 'REP';
+	  END IF;
+	END IF;
+
+    END IF;
+     
+    IF(INSERTING) THEN
+     IF(:NEW.issotrx='Y' AND :NEW.em_swa_combo_item_id IS NULL) THEN
+       SELECT em_ssa_combo_item_id
+         INTO v_combo_item_id
+         FROM C_ORDER
+        WHERE C_ORDER_ID = :NEW.C_ORDER_ID;
+        :NEW.em_swa_combo_item_id:=v_combo_item_id;
+     END IF;
+    END IF;
+
+    END SWA_INOUT_FROMORDERTYPE_TRG
+]]></body>
+    </trigger>
+  </database>

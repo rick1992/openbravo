@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_CAL_PLBASEDVERSION">
+    <function name="SCR_CAL_PLBASEDVERSION" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- Success
+--Parameter
+  Cur_Parameter RECORD;
+  p_Client_ID VARCHAR(32); 
+  p_Org_ID VARCHAR(50);
+
+  v_Record_ID VARCHAR(32);
+  v_User_ID VARCHAR(32);
+
+  v_isbasedonversion VARCHAR(1);
+  v_prilversion_id VARCHAR(32);
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCR_ErrorInProcessCall@') ;
+    END IF;
+
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.AD_User_ID;
+    END LOOP; -- Get Parameter
+    
+    SELECT em_scr_isbasedonversion, em_scr_prilversion_id
+      INTO v_isbasedonversion, v_prilversion_id
+    FROM m_pricelist_version WHERE m_pricelist_version_id = v_Record_ID;
+
+    IF(v_isbasedonversion<>'Y' OR v_prilversion_id IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCR_CalPLBasedVersionNotBasedVersion@') ;
+    END IF;
+
+    SCR_COPY_BASEDVERSION(v_prilversion_id,v_Record_ID, v_User_ID);
+
+    v_Message:='@SCR_CalPLBasedVersionCompleted@'; --OBTG:-20000--
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SCR_CAL_PLBASEDVERSION
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_CNTCT_DEBITMEMO_LI_TRG">
+    <trigger name="SSA_CNTCT_DEBITMEMO_LI_TRG" table="SSA_CONTRACT_DEBITMEMO" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_projprop_contract_ID  VARCHAR2(32);
+  v_old_debitmemo_amt NUMBER;
+  v_new_debitmemo_amt NUMBER;
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_projprop_contract_ID:=:NEW.ssa_projprop_contract_ID;
+  ELSE
+    v_projprop_contract_ID:=:OLD.ssa_projprop_contract_ID;
+  END IF;
+
+  --Update Header Totalamount Value
+  IF(INSERTING) THEN
+    v_new_debitmemo_amt:=(select sum(i.grandtotal) from c_invoice i where i.c_invoice_id=:NEW.c_invoice_id);
+
+    UPDATE ssa_projprop_contract SET totalvoided = totalvoided + v_new_debitmemo_amt
+     WHERE ssa_projprop_contract_ID = v_projprop_contract_ID;
+
+  ELSIF (UPDATING) THEN
+    v_new_debitmemo_amt:=(select sum(i.grandtotal) from c_invoice i where i.c_invoice_id=:NEW.c_invoice_id);
+    v_old_debitmemo_amt:=(select sum(i.grandtotal) from c_invoice i where i.c_invoice_id=:OLD.c_invoice_id);
+
+    UPDATE ssa_projprop_contract SET totalvoided = (totalvoided + v_new_debitmemo_amt - v_old_debitmemo_amt)
+     WHERE ssa_projprop_contract_ID = v_projprop_contract_ID;
+  END IF;
+
+
+  IF(DELETING) THEN
+    v_old_debitmemo_amt:=(select sum(i.grandtotal) from c_invoice i where i.c_invoice_id=:OLD.c_invoice_id);
+
+    UPDATE ssa_projprop_contract SET totalvoided = totalvoided - v_old_debitmemo_amt
+     WHERE ssa_projprop_contract_ID = v_projprop_contract_ID;
+  END IF;
+
+
+  END SSA_CNTCT_DEBITMEMO_LI_TRG
+]]></body>
+    </trigger>
+  </database>

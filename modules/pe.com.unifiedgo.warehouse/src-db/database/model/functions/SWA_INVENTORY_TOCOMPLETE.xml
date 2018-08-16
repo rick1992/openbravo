@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_INVENTORY_TOCOMPLETE">
+    <function name="SWA_INVENTORY_TOCOMPLETE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics 
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- Success
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Client_ID VARCHAR(32); 
+  v_Org_ID VARCHAR(32);
+  v_docstatus VARCHAR(60); 
+  v_action_missing VARCHAR(60); 
+  v_Warehouse_ID  VARCHAR(32);
+  v_swa_isadjustment CHAR:='N';
+  
+ 
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL);
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SWA_ErrorInProcessCall@') ;
+    END IF;
+
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+     SELECT ad_client_id, ad_org_id, em_swa_docstatus, m_warehouse_id, em_swa_isadjustment
+      INTO v_Client_ID, v_Org_ID, v_docstatus, v_Warehouse_ID, v_swa_isadjustment
+      FROM m_inventory where m_inventory_id = v_Record_ID;
+
+    IF(v_docstatus = 'DR' AND v_swa_isadjustment='N')THEN
+        UPDATE m_inventory
+           SET em_swa_docstatus='CO'
+         WHERE m_inventory_id = v_Record_ID;
+    ELSIF(v_docstatus = 'DR' AND v_swa_isadjustment='Y')THEN
+
+         UPDATE m_inventory
+           SET em_swa_docstatus='PD'
+         WHERE m_inventory_id = v_Record_ID;
+    
+         v_Message := '@swa_inventoryadjustment_needapproval@' || v_Message;       
+         v_Result := 2;
+         AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+         RETURN;
+    ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@swa_inventory_nocompleted@') ;
+    END IF;
+     
+
+  
+
+
+    v_Message:='@swa_successful@'; --OBTG:-20000--
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_INVENTORY_TOCOMPLETE
+]]></body>
+    </function>
+  </database>

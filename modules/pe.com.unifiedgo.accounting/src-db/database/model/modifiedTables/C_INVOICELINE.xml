@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE C_INVOICELINE">
+    <table name="C_INVOICELINE" primaryKey="C_INVOICELINE_KEY">
+      <column name="EM_SCO_PRORRATEO" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_PERCEPTIONTAXED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_DETRACTIONTAXED" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISDEFERREDONRECEIPT" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CREDITUSED" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_INVOICELINE_PREPAY_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_SPECIALDOCTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_AUTO_ACC_GLITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_IMPORT_EXPENSES_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_UNISSUEDLINENETAMT" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_QTYVOIDINVOICED" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_LINEDIV_ACC_GLITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_IMPORT_LINE_EXPENSES" name="EM_SCO_INV_IMPORT_EXP_FK">
+        <reference local="EM_SCO_IMPORT_EXPENSES_ID" foreign="SCO_IMPORT_LINE_EXPENSES_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_GLITEM" name="EM_SCO_INVLINE_DIVACGL_FK">
+        <reference local="EM_SCO_LINEDIV_ACC_GLITEM_ID" foreign="C_GLITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_INVOICELINE" name="EM_SCO_INVLINE_PREPAY_FK">
+        <reference local="EM_SCO_INVOICELINE_PREPAY_ID" foreign="C_INVOICELINE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_GLITEM" name="EM_SCO_INVOICE_AUTACGL_FK">
+        <reference local="EM_SCO_AUTO_ACC_GLITEM_ID" foreign="C_GLITEM_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_INVLINE_DEFF_CHK"><![CDATA[((ISDEFERRED = 'Y') AND (C_PERIOD_ID IS NOT NULL) AND (DEFPLANTYPE IS NOT NULL) AND (PERIODNUMBER IS NOT NULL)) OR (ISDEFERRED = 'N') OR ((ISDEFERRED = 'Y') AND (EM_SCO_ISDEFERREDONRECEIPT = 'Y'))]]></check>
+      <check name="EM_SCO_INVLINE_DEFREC_CHK"><![CDATA[EM_SCO_ISDEFERREDONRECEIPT IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_INVLINE_DETTAXED_CHK"><![CDATA[EM_SCO_PERCEPTIONTAXED IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_INVLINE_PERTAXED_CHK"><![CDATA[EM_SCO_PERCEPTIONTAXED IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_PRORRATEO_CHK"><![CDATA[EM_SCO_PRORRATEO IN ('Y', 'N')]]></check>
+    </table>
+  </database>

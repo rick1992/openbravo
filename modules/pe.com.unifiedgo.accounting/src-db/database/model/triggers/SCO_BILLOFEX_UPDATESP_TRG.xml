@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_BILLOFEX_UPDATESP_TRG">
+    <trigger name="SCO_BILLOFEX_UPDATESP_TRG" table="SCO_BILLOFEXCHANGE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialmethod VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+      SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+      :NEW.specialdoctype := v_specialdoctype;
+      
+      IF(:NEW.fin_paymentmethod_id IS NOT NULL) THEN
+        SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+        :NEW.specialmethod := v_specialmethod;
+      END IF;
+
+
+    ELSE
+      IF(COALESCE(:OLD.c_doctypetarget_id,'')<>COALESCE(:NEW.c_doctypetarget_id,'')) THEN
+        SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+        :NEW.specialdoctype := v_specialdoctype;
+       
+        UPDATE SCO_BOE_From SET specialdoctype=v_specialdoctype WHERE SCO_BILLOFEXCHANGE_ID = :NEW.sco_billofexchange_id;
+        UPDATE SCO_BOE_To SET specialdoctype=v_specialdoctype WHERE SCO_BILLOFEXCHANGE_ID = :NEW.sco_billofexchange_id;
+      END IF;
+      
+      IF(COALESCE(:OLD.fin_paymentmethod_id,'')<>COALESCE(:NEW.fin_paymentmethod_id,'')) THEN
+        IF(:NEW.fin_paymentmethod_id IS NOT NULL) THEN
+          SELECT em_sco_specialmethod INTO v_specialmethod FROM FIN_Paymentmethod WHERE FIN_Paymentmethod_ID = :NEW.FIN_Paymentmethod_id;
+          :NEW.specialmethod := v_specialmethod;
+        END IF;
+      END IF;
+
+    END IF;
+
+    END SCO_BILLOFEX_UPDATESP_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_INSERTNEWDOCCAT">
+    <function name="SCO_INSERTNEWDOCCAT" type="NULL">
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    CUR_DocType RECORD;
+    CUR_OpenPeriod RECORD;
+BEGIN
+
+  FOR CUR_OpenPeriod IN
+    (SELECT * FROM C_Period
+     WHERE AD_Client_ID='21F51EBB12D5496BAA99D41B1D9B244F'
+           AND OpenClose = 'C')
+  LOOP
+
+    FOR CUR_DocType IN
+      (SELECT Value , a.AD_Org_ID AS Organization
+       FROM AD_Ref_List , (SELECT o.AD_Org_ID 
+                           FROM AD_Org o
+                           WHERE o.ISREADY='Y'
+                           AND o.ISPERIODCONTROLALLOWED='Y'
+                           and exists (SELECT 1
+                                                  FROM C_Year, c_calendar, ad_org
+                                                  WHERE C_Year.c_calendar_id = c_calendar.c_calendar_id
+                                                  and c_calendar.c_calendar_id = ad_org.c_calendar_id
+                                                  and C_Year.C_Year_ID=CUR_OpenPeriod.C_Year_ID
+                                                  and ad_org.ad_org_id = ad_org_getcalendarowner(o.AD_ORG_ID))
+                          ) a
+       WHERE AD_Reference_ID='183'
+       AND VALUE IN ('SCO_WL')
+       AND VALUE = (CASE WHEN CUR_OpenPeriod.PeriodType = 'S' THEN VALUE ELSE 'GLJ' END)
+       ORDER BY 1)
+    LOOP
+      AD_Sequence_Next('C_PeriodControl', CUR_OpenPeriod.AD_Client_ID, v_NextNo) ;
+      INSERT
+      INTO C_PeriodControl
+        (
+          C_PeriodControl_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy,
+          Updated, UpdatedBy, C_Period_ID,
+          DocBaseType, PeriodStatus, PeriodAction,
+          Processing,OpenClose
+        )
+        VALUES
+        (
+          v_NextNo, CUR_OpenPeriod.AD_Client_ID, CUR_DocType.Organization,
+           'Y', now(),  '0',
+          now(), '0', CUR_OpenPeriod.C_Period_ID,
+          CUR_DocType.Value, 'O', 'N',
+          NULL,'C'
+        )
+        ;
+      -- NeverOpened, NoAction
+    END LOOP;
+
+  END LOOP;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_INSERTNEWDOCCAT
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYSCHED_UPINVDATE_TRG">
+    <trigger name="SCO_PAYSCHED_UPINVDATE_TRG" table="FIN_PAYMENT_SCHEDULE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[  v_firstduedate DATE;
+  v_Invoice_ID VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF (DELETING) THEN
+      v_Invoice_ID:=:OLD.C_Invoice_ID;
+    ELSE
+      v_Invoice_ID:=:NEW.C_Invoice_ID;
+    END IF;
+
+    IF(v_Invoice_ID IS NOT NULL AND v_Invoice_ID<>'') THEN
+
+      IF(INSERTING) THEN
+        SELECT min(duedate)
+          INTO v_firstduedate
+          FROM fin_payment_schedule
+        WHERE outstandingamt <> 0 AND
+              C_Invoice_ID = :NEW.C_Invoice_ID;
+
+        UPDATE C_Invoice SET em_sco_firstduedate = v_firstduedate WHERE C_Invoice_ID = :NEW.C_Invoice_ID;
+
+      ELSIF(UPDATING) THEN
+        IF(:OLD.duedate<>:NEW.duedate OR :OLD.outstandingamt<>:NEW.outstandingamt) THEN
+          SELECT min(duedate)
+            INTO v_firstduedate
+            FROM fin_payment_schedule
+          WHERE outstandingamt <> 0 AND
+                C_Invoice_ID = :NEW.C_Invoice_ID;
+
+          UPDATE C_Invoice SET em_sco_firstduedate = v_firstduedate WHERE C_Invoice_ID = :NEW.C_Invoice_ID;
+
+        END IF;
+      ELSE
+        SELECT min(duedate)
+          INTO v_firstduedate
+          FROM fin_payment_schedule
+        WHERE outstandingamt <> 0 AND
+              C_Invoice_ID = :OLD.C_Invoice_ID;
+
+        UPDATE C_Invoice SET em_sco_firstduedate = v_firstduedate WHERE C_Invoice_ID = :OLD.C_Invoice_ID;
+      END IF;
+
+    END IF;
+
+    END SCO_PAYSCHED_UPINVDATE_TRG
+]]></body>
+    </trigger>
+  </database>

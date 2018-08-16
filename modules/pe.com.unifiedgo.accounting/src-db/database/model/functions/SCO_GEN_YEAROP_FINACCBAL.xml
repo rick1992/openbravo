@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_GEN_YEAROP_FINACCBAL">
+    <function name="SCO_GEN_YEAROP_FINACCBAL" type="NULL">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_dateacct" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_NextNo VARCHAR2(32);
+BEGIN
+  --Delete sco_yearop_finacc_balance entries for the year
+  DELETE FROM sco_yearop_finacc_balance
+  WHERE AD_Client_ID = p_ad_client_id
+  AND AD_ISORGINCLUDED(AD_ORG_ID, p_ad_org_id, p_ad_client_id)<>-1
+  AND TRUNC(dateacct) = TRUNC(p_dateacct);
+
+  --Create sco_yearop_finacc_balance entries for the new year
+  INSERT INTO sco_yearop_finacc_balance(
+      sco_yearop_finacc_balance_id, ad_client_id, ad_org_id, isactive, 
+      created, createdby, updated, updatedby, dateacct, fin_financial_account_id, 
+      initbalance)
+      SELECT 
+      get_UUID(), p_ad_client_id, p_ad_org_id, 'Y',
+      now(), '100', now(), '100', TRUNC(TO_DATE(p_dateacct)), T.fin_financial_account_id,
+      SUM(T.initbalance)
+      FROM
+       (SELECT ft.fin_financial_account_id ,SUM (ft.depositamt - ft.paymentamt) AS initbalance
+        FROM fin_finacc_transaction ft
+        WHERE ft.AD_Client_ID = p_ad_client_id
+        AND AD_ISORGINCLUDED(ft.AD_ORG_ID, p_ad_org_id, p_ad_client_id)<>-1
+        AND Trunc(ft.statementdate) < TRUNC(TO_DATE(p_dateacct))
+        GROUP BY ft.fin_financial_account_id
+        UNION ALL
+        SELECT finacc.fin_financial_account_id, finacc.initialbalance AS initbalance
+        FROM fin_financial_account finacc
+        WHERE finacc.AD_Client_ID = p_ad_client_id
+        AND AD_ISORGINCLUDED(finacc.AD_ORG_ID, p_ad_org_id, p_ad_client_id)<>-1) T
+      GROUP BY T.fin_financial_account_id;
+  
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SCO_GEN_YEAROP_FINACCBAL
+]]></body>
+    </function>
+  </database>

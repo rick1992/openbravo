@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_BOM_REACTIVATE">
+    <function name="SWA_BOM_REACTIVATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  countLines NUMBER:=0; -- Success
+  v_partner_id VARCHAR2(32);
+  v_from_warehouse VARCHAR2(32);
+  v_to_warehouse VARCHAR2(32);
+  v_iscreated CHAR; --OBTG:VARCHAR2--
+  v_em_swa_state_tmp_bom VARCHAR2(60);
+
+  v_ReservationStatus VARCHAR(32);
+  v_processed CHAR; --OBTG:VARCHAR2--
+  v_count NUMBER;
+
+-- Record Info
+  Cur_Parameter VARCHAR%ROWTYPE; --OBTG:VARCHAR2--
+  CUR_M_Reservation VARCHAR%ROWTYPE; --OBTG:VARCHAR2--
+  v_orderApprovedState VARCHAR2(32);
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+    SELECT iscreated,em_swa_state_tmp_bom, processed
+      INTO v_iscreated,v_em_swa_state_tmp_bom, v_processed
+    FROM m_production
+    WHERE m_production_id=v_Record_ID;
+    
+   IF (v_processed = 'Y') THEN
+        RAISE_APPLICATION_ERROR(-20000,'@swa_productionposted@');
+   END IF;
+
+    IF(v_iscreated='N')THEN --Registros Creados NO
+      UPDATE m_production
+          SET em_swa_state_tmp_bom='DR'
+	WHERE m_production_id=v_Record_ID;
+    ELSE  --Registros Creados SI
+
+      SELECT count(*)
+        INTO v_count
+        FROM obwpl_pickinglist 
+       WHERE em_swa_m_production_id=v_Record_ID
+        AND pickliststatus IN ('CO','DR');
+
+        IF(v_count > 0)THEN
+          RAISE_APPLICATION_ERROR(-20000, '@swa_productionwithpicking@') ;
+        END IF;
+
+    
+      UPDATE m_production
+         SET iscreated='N',
+             em_swa_state_tmp_bom='DR'
+       WHERE m_production_id=v_Record_ID;
+
+        --Si Reactivamos tenemos que liberar la reserva
+	     FOR Cur_Parameter IN(
+	      SELECT *
+	       FROM m_productionline pl
+	       INNER JOIN m_productionplan pp on pl.m_productionplan_id = pp.m_productionplan_id 
+	      WHERE pp.m_production_id = v_Record_ID
+	     )LOOP
+
+	      FOR CUR_M_Reservation IN(
+	       SELECT * 
+		 FROM M_RESERVATION 
+		WHERE em_swa_m_productionline_id= Cur_Parameter.m_productionline_id
+	      )LOOP
+		IF(CUR_M_Reservation.res_status IN ('CO','CL')) THEN
+		  M_RESERVATION_POST(NULL, CUR_M_Reservation.M_RESERVATION_ID ,'RE',CUR_M_Reservation.createdby) ;
+		  SELECT res_status INTO v_ReservationStatus FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		  IF(v_ReservationStatus<>'DR') THEN
+		    RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationREError@') ;
+		  END IF;
+		ELSIF (CUR_M_Reservation.res_status IN ('HO')) THEN
+		 RAISE_APPLICATION_ERROR(-20000, '@SCO_OrderREReservationStockinHOStatus@') ;
+		END IF; 
+
+		DELETE FROM M_Reservation_Stock WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		DELETE FROM M_Reservation WHERE M_Reservation_ID = CUR_M_Reservation.M_Reservation_ID;
+		
+	      END LOOP;
+	    END LOOP;
+	--Fin REACTIVAR LA RESERVA
+    END IF;
+    
+    
+        
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_BOM_REACTIVATE
+]]></body>
+    </function>
+  </database>

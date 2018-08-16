@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_GLJOURNALLINE_CHK_BL_TRG">
+    <trigger name="SCO_GLJOURNALLINE_CHK_BL_TRG" table="GL_JOURNALLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+  v_Posted        VARCHAR(60) ;
+  v_GL_JOURNAL_ID VARCHAR2(32) ;
+  v_DateNull DATE :=TO_DATE('01-01-1900','DD-MM-YYYY');
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_GL_JOURNAL_ID:=:new.GL_JOURNAL_ID;
+  ELSE
+    v_GL_JOURNAL_ID:=:old.GL_JOURNAL_ID;
+  END IF;
+
+  IF(UPDATING) THEN
+    SELECT PROCESSED, POSTED
+    INTO v_Processed, v_Posted
+    FROM GL_JOURNAL
+    WHERE GL_JOURNAL_ID=v_GL_JOURNAL_ID;
+    
+    IF(COALESCE(:NEW.em_sco_locked,'N')='Y' AND ((COALESCE(:old.LINE, 0) <> COALESCE(:new.LINE, 0))
+      OR (COALESCE(:old.C_DEBT_PAYMENT_ID, '0') <> COALESCE(:new.C_DEBT_PAYMENT_ID, '0'))
+      OR(COALESCE(:old.AMTSOURCEDR, 0) <> COALESCE(:new.AMTSOURCEDR, 0))
+      OR(COALESCE(:old.AMTSOURCECR, 0) <> COALESCE(:new.AMTSOURCECR, 0))
+      OR(COALESCE(:old.C_CURRENCY_ID, '0') <> COALESCE(:new.C_CURRENCY_ID, '0'))
+      OR(COALESCE(:old.C_UOM_ID, '0') <> COALESCE(:new.C_UOM_ID, '0'))
+      OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+      OR(COALESCE(:old.C_VALIDCOMBINATION_ID, '0') <> COALESCE(:new.C_VALIDCOMBINATION_ID, '0'))
+      OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+      OR(COALESCE(:old.AMTACCTDR, 0) <> COALESCE(:new.AMTACCTDR, 0))
+      OR(COALESCE(:old.AMTACCTCR, 0) <> COALESCE(:new.AMTACCTCR, 0))
+      OR(COALESCE(:OLD.User1_ID, '0') <> COALESCE(:NEW.User1_ID, '0'))
+      OR(COALESCE(:OLD.User2_ID, '0') <> COALESCE(:NEW.User2_ID, '0'))
+      OR(COALESCE(:OLD.C_Project_ID, '0') <> COALESCE(:NEW.C_Project_ID, '0'))
+      OR(COALESCE(:OLD.A_Asset_ID, '0') <> COALESCE(:NEW.A_Asset_ID, '0'))
+      OR(COALESCE(:OLD.C_Costcenter_ID, '0') <> COALESCE(:NEW.C_Costcenter_ID, '0'))
+      OR(COALESCE(:OLD.em_sco_c_invoice_id, '0') <> COALESCE(:NEW.em_sco_c_invoice_id, '0'))
+      OR(COALESCE(:OLD.em_sco_internal_doc_id, '0') <> COALESCE(:NEW.em_sco_internal_doc_id, '0'))
+      OR(COALESCE(:OLD.em_sco_rendcuentas_id, '0') <> COALESCE(:NEW.em_sco_rendcuentas_id, '0'))
+      OR(COALESCE(:OLD.em_sco_prepayment_id, '0') <> COALESCE(:NEW.em_sco_prepayment_id, '0'))
+      OR(COALESCE(:OLD.em_sco_createprep, '0') <> COALESCE(:NEW.em_sco_createprep, '0'))
+      OR(COALESCE(:OLD.em_sco_prep_documentno, '0') <> COALESCE(:NEW.em_sco_prep_documentno, '0'))
+      OR(COALESCE(:OLD.em_sco_prep_issotrx, '0') <> COALESCE(:NEW.em_sco_prep_issotrx, '0'))
+      OR(COALESCE(:OLD.em_sco_prep_dategen, v_DateNull) <> COALESCE(:NEW.em_sco_prep_dategen, v_DateNull))
+      OR(COALESCE(:OLD.em_sco_prep_duedate, v_DateNull) <> COALESCE(:NEW.em_sco_prep_duedate, v_DateNull))
+      OR(COALESCE(:OLD.em_sco_other_currency_id, '0') <> COALESCE(:NEW.em_sco_other_currency_id, '0'))
+      OR(COALESCE(:OLD.em_sco_reeval_currency_id, '0') <> COALESCE(:NEW.em_sco_reeval_currency_id, '0'))
+    )) 
+    THEN
+      RAISE_APPLICATION_ERROR(-20000, '@2050122@') ;
+    END IF;
+  END IF;
+  IF(DELETING) THEN
+    SELECT PROCESSED,
+      POSTED
+    INTO v_Processed,
+      v_Posted
+    FROM GL_JOURNAL
+    WHERE GL_JOURNAL_ID=v_GL_JOURNAL_ID;
+    IF (COALESCE(:OLD.em_sco_locked,'N')='Y') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+END SCO_GLJOURNALLINE_CHK_BL_TRG
+]]></body>
+    </trigger>
+  </database>

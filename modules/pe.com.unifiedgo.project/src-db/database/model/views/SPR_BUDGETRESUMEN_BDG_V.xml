@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SPR_BUDGETRESUMEN_BDG_V">
+    <view name="SPR_BUDGETRESUMEN_BDG_V"><![CDATA[SELECT bdl.m_product_id || bd.spr_budget_id AS spr_budgetresumen_bdg_v_id, bd.ad_client_id, bd.ad_org_id, bd.isactive, bd.created, bd.createdby, bd.updated, bd.updatedby, bd.spr_budget_id, bd.c_project_id, bdl.m_product_id, sum(bdl.qtyordered) AS qtyordered, sum(bdl.qtyinrequisition) AS qtyinrequisition FROM spr_budgetline bdl, spr_budget bd WHERE bdl.spr_budget_id = bd.spr_budget_id AND bdl.isbudgetitem = 'N' AND bd.docstatus = 'CO' AND bd.type = 'BDG' GROUP BY bd.ad_client_id, bd.ad_org_id, bd.isactive, bd.created, bd.createdby, bd.updated, bd.updatedby, bd.spr_budget_id, bd.c_project_id, bdl.m_product_id]]></view>
+  </database>

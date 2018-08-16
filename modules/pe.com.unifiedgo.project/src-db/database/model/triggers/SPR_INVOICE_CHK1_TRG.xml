@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_INVOICE_CHK1_TRG">
+    <trigger name="SPR_INVOICE_CHK1_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF UPDATING THEN
+      IF ((COALESCE(:OLD.C_Project_ID,'0') != COALESCE(:NEW.C_Project_ID,'0'))) THEN
+         SELECT COUNT(*) INTO v_n FROM C_INVOICELINE WHERE C_INVOICE_ID = :NEW.C_INVOICE_ID;
+         IF v_n>0 THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotChange@') ;
+         END IF;
+      END IF;
+  END IF;
+
+END SPR_INVOICE_CHK1_TRG
+]]></body>
+    </trigger>
+  </database>

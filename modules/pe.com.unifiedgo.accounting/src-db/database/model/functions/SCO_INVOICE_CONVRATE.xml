@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_INVOICE_CONVRATE">
+    <function name="SCO_INVOICE_CONVRATE" type="NULL">
+      <parameter name="p_c_invoice_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convrate" type="NUMERIC" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_convratedate DATE;
+  v_ad_client_id VARCHAR(32);
+  v_ad_org_id VARCHAR(32);
+  v_c_currency_id VARCHAR(32);
+  v_issotrx VARCHAR(1);
+  v_isUseSalesTCOnly VARCHAR(1);
+BEGIN
+
+  sco_datefortc(p_c_invoice_id, v_convratedate);
+  IF(v_convratedate IS NULL) THEN
+    p_convrate := NULL;
+    RETURN;
+  END IF;
+
+  SELECT AD_Client_ID, AD_Org_ID, C_Currency_ID, issotrx
+    INTO v_ad_client_id, v_ad_org_id, v_c_currency_id, v_issotrx
+    FROM C_Invoice
+  WHERE C_Invoice_ID = p_c_invoice_id;
+
+  SELECT sco_isUseSalesTCOnly(v_ad_client_id) INTO v_isUseSalesTCOnly;
+
+  IF(v_c_currency_id = '308') THEN
+    p_convrate := 1;
+  ELSIF(v_c_currency_id = '100' AND (v_issotrx='N' OR v_isUseSalesTCOnly='Y')) THEN
+    sco_getExchangeRateUSDSales(v_ad_client_id, v_ad_org_id, v_convratedate, p_convrate);
+  ELSIF(v_c_currency_id = '100' AND v_issotrx='Y') THEN
+    sco_getExchangeRateUSDPurch(v_ad_client_id, v_ad_org_id, v_convratedate, p_convrate);
+  ELSIF(v_c_currency_id = '102' AND (v_issotrx='N' OR v_isUseSalesTCOnly='Y')) THEN
+    sco_getExchangeRateEURSales(v_ad_client_id, v_ad_org_id, v_convratedate, p_convrate);
+  ELSIF(v_c_currency_id = '102' AND v_issotrx='Y') THEN
+    sco_getExchangeRateEURPurch(v_ad_client_id, v_ad_org_id, v_convratedate, p_convrate);
+  ELSE
+    p_convrate := NULL;
+  END IF;
+END SCO_INVOICE_CONVRATE
+]]></body>
+    </function>
+  </database>

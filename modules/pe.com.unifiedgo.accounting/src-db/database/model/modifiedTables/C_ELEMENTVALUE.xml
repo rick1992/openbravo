@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE C_ELEMENTVALUE">
+    <table name="C_ELEMENTVALUE" primaryKey="C_ELEMENTVALUE_KEY">
+      <column name="EM_SCO_AUTODEBIT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_AUTOCREDIT_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_ISCOSTCENTER" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REQUIRESANALYTICS" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REQUIRES_EEFFPATRCH" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_REQUIRES_EEFFCASHFLOW" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="C_ELEMENTVALUE" name="EM_SCO_ELEMENTV_ACREDIT_FK">
+        <reference local="EM_SCO_AUTOCREDIT_ID" foreign="C_ELEMENTVALUE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_ELEMENTVALUE" name="EM_SCO_ELEMENTV_ADEBIT_FK">
+        <reference local="EM_SCO_AUTODEBIT_ID" foreign="C_ELEMENTVALUE_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_ELEMENTVALUE_COCE_CHK"><![CDATA[EM_SCO_ISCOSTCENTER IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_ELEMENTVALUE_EFCF_CHK"><![CDATA[EM_SCO_REQUIRES_EEFFCASHFLOW IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_ELEMENTVALUE_EFPH_CHK"><![CDATA[EM_SCO_REQUIRES_EEFFPATRCH IN ('Y', 'N')]]></check>
+      <check name="EM_SCO_ELEMENTVALUE_REQA_CHK"><![CDATA[EM_SCO_REQUIRESANALYTICS IN ('Y', 'N')]]></check>
+    </table>
+  </database>

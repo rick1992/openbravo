@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_REQUIRED_REPOSITION_TRG">
+    <trigger name="SWA_REQUIRED_REPOSITION_TRG" table="SWA_REQUEREPO_DETAIL" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_from_m_warehouse_id VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_isrequest char(1);
+  v_docStatus  VARCHAR2(60);
+  v_qty_available NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+IF(TG_OP='INSERT' OR  TG_OP='UPDATE') THEN
+   SELECT isrequest INTO v_isrequest FROM swa_requerimientoreposicion WHERE swa_requerimientoreposicion_id = :NEW.swa_requerimientoreposicion_id; 
+   IF(v_isrequest = 'Y')THEN--Esta validacion es cuando la ventana es solicitud de transferencia, entonces las lineas actualizan los campos de qtyrequired a qtyordered
+     :NEW.qtyordered:=:NEW.qtyrequired;
+   END IF;
+END IF;
+
+
+
+
+END SWA_REQUIRED_REPOSITION_TRG
+]]></body>
+    </trigger>
+  </database>

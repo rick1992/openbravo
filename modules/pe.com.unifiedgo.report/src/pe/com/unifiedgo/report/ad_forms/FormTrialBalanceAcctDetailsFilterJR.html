@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2007-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Balance General - Detalle de Cuentas</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico"
+	type="image/x-icon" />
+<link rel="stylesheet" type="text/css"
+	href="../../../../../web/skins/Default/Openbravo_ERP_250.css"
+	id="paramCSS" />
+
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+	var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../../../../../web/js/messages.js"
+	type="text/javascript">
+	
+</script>
+<script language="JavaScript" src="../utility/DynamicJS.js"
+	type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+	var defaultLang = "en_US";
+</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js"
+	type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js"
+	type="text/javascript"></script>
+<script language="JavaScript"
+	src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js"
+	type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js"
+	type="text/javascript"></script>
+<script language="JavaScript"
+	src="../../../../../web/js/default/MessageBox.js"
+	type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js"
+	type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js"
+	type="text/javascript"></script>
+<script language="JavaScript"
+	src="../../../../../web/js/default/DateTextBox.js"
+	type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/dojoConfig.js"
+	type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/dojo/dojo.js"
+	type="text/javascript"></script>
+<script language="JavaScript"
+	src="../../../../../web/js/DecimalFormat.js" type="text/javascript"></script>
+<script language="JavaScript"
+	src="../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources"
+	type="text/javascript"></script>
+<script language="JavaScript"
+	src="../../../../../web/js/jscalendar/calendar.js"
+	type="text/javascript"></script>
+<script language="JavaScript"
+	src="../../../../../web/js/jscalendar/lang/calendar-es.js"
+	type="text/javascript" id="fieldCalendar"></script>
+<script type="text/javascript">
+	dojo.hostenv.writeIncludes(); //makes debugging in Venkman possible
+</script>
+
+<script language="JavaScript" type="text/javascript">
+	//prevent refocus after the tab containing this window
+	//gets selected, this prevents change of scroll position
+	//for that tab
+	OB_NoRefocusAfterTabSelection = true;
+</script>
+
+<script language="JavaScript" type="text/javascript">
+	function closeThisPage() {
+		closePage();
+		return true;
+	}
+
+	function validate() {
+		return true;
+	}
+
+	function imprimirDetalleXLS() {
+		openPDFFiltered("FormTrialBalanceAcctDetailsFilterJR.html?Command=XLS",
+				"EXCEL");
+		return true;
+	}
+
+	function imprimirDetallePDF() {
+		openPDFFiltered("FormTrialBalanceAcctDetailsFilterJR.html?Command=PDF",
+				"PDF");
+		return true;
+	}
+
+	function onloadFunctions() {
+	}
+
+	function myResizeArea(isOnResize) {
+		var mnu = document.getElementById("client");
+		var linestable = document.getElementById("linestable");
+
+		linestable.style.height = mnu.clientHeight - 3;
+		linestable.style.width = mnu.clientWidth - 5;
+	}
+</script>
+
+<script language="JavaScript" type="text/javascript">
+	function onLoadDo() {
+		this.windowTables = new Array(new windowTableId('client', 'buttonHTML'));
+		setWindowTableParentElement();
+		this.tabsTables = new Array(new tabTableId('tdtopTabs'));
+		setTabTableParentElement();
+		enableShortcuts('edition');
+		setBrowserAutoComplete(false);
+		try {
+			onloadFunctions();
+		} catch (e) {
+		}
+		resizeArea();
+		myResizeArea();
+		updateMenuIcon('buttonMenu');
+
+		setWindowElementFocus('firstElement');
+
+	}
+
+	function onResizeDo() {
+		resizeArea();
+	}
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0"
+	onload="onLoadDo();" onresize="onResizeDo();">
+	<form method="post" action="FormTrialBalanceAcctDetailsFilterJR.html"
+		name="frmMain" id="form">
+		<input type="hidden" name="Command"></input>
+		<div style="display: none">
+			<input type="hidden" name="inpStrOrg" id="inpStrOrg" value=""></input>
+			<input type="hidden" name="inpStrClient" id="inpStrClient" value="" />
+			<input type="hidden" name="inpCuentaDesdeId" id="inpCuentaDesdeId"
+				value=""></input> <input type="hidden" name="inpCuentaHastaId"
+				id="inpCuentaHastaId" value=""></input> <input type="hidden"
+				name="inpDateFrom" id="inpDateFrom" value=""></input> <input
+				type="hidden" name="inpDateTo" id="inpDateTo" value=""></input> <input
+				type="hidden" name="inpTituloCuenta" id="inpTituloCuenta" value=""></input>
+			<input type="hidden" name="inpCuentaSeleccionada"
+				id="inpCuentaSeleccionada" value=""></input>
+		</div>
+		<table height="100%" border="0" cellpadding="0" cellspacing="0"
+			id="main">
+			<tr>
+				<td valign="top">
+					<table width="100%" border="0" cellspacing="0" cellpadding="0"
+						class="Main_ContentPane_Left">
+						<tr>
+							<td class="Main_NavBar_bg_left" id="tdleftSeparator"></td>
+						</tr>
+						<tr>
+							<td class="Main_ToolBar_bg_left" valign="top"></td>
+						</tr>
+						<tr>
+							<td class="Main_Client_bg_left"></td>
+						</tr>
+						<tr>
+							<td class="Main_Bottom_bg_left"></td>
+						</tr>
+					</table>
+				</td>
+				<td valign="top">
+					<div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+					<table width="100%" border="0" cellspacing="0" cellpadding="0"
+						class="Main_ContentPane_TabPane" id="tdtopTabs">
+						<tr id="paramParentTabContainer"></tr>
+						<tr id="paramMainTabContainer"></tr>
+						<tr id="paramChildTabContainer"></tr>
+					</table>
+					<div class="Main_ContentPane_Client"
+						style="display: none; border-bottom: 0px none;" id="client">
+						<table class="dojoTabContainer" border="0" cellpadding="0"
+							cellspacing="0" width="100%" summary="">
+							<tr>
+								<td>
+
+									<div id="linestable" style="overflow: auto;">
+										<table>
+											<tr>
+												<td>
+													<div style="height: 5px;" />
+													<table cellspacing="0" cellpadding="1" width="100%"
+														class="DataGrid_Header_Table DataGrid_Body_Table"
+														id="selEliminar">
+														<tr class="DataGrid_Body_Row">
+															<th colspan="12" class="DataGrid_Header_Cell">
+																<table border="0" width="100%" cellspacing="0"
+																	cellpadding="0"
+																	style="background: none; border: 0px none">
+																	<tr class="DataGrid_Header_Cell">
+																		<th colspan="12" class="DataGrid_Header_Cell"
+																			width="100%"
+																			style="background: none; border: 0px none"
+																			id="fieldParamCuenta">xxY
+																		</td>
+																	</tr>
+
+																	<div id="mySection">
+																		<tr class="Popup_Client_Selector_DataGrid_HeaderRow">
+																			<th class="DataGrid_Header_Cell" width="5%">Código</th>
+																			<th class="DataGrid_Header_Cell" width="20%">Cuenta
+																				Denominación</th>
+																			<th class="DataGrid_Header_Cell" width="5%">Fecha</th>
+																			<th class="DataGrid_Header_Cell" width="5%">Area</th>
+																			<th class="DataGrid_Header_Cell" width="5%">Asiento</th>
+																			<th class="DataGrid_Header_Cell" width="5%">Debe</th>
+																			<th class="DataGrid_Header_Cell" width="5%">Haber</th>
+																			<th class="DataGrid_Header_Cell" width="5%">Documento</th>
+																			<th class="DataGrid_Header_Cell" width="5%">RUC</th>
+																			<th class="DataGrid_Header_Cell" width="20%">Descripción</th>
+																		</tr>
+																	</div>
+
+
+																	<div id="sectionSelectedDetail">
+																		<tr class="DataGrid_Body_Row DataGrid_Body_Row_yy"
+																			id="funcEvenOddRow1xx">
+																			<td class="DataGrid_Body_Cell" id="fieldCuentaCod"></td>
+																			<td class="DataGrid_Body_Cell" id="fieldCuentaDenom"></td>
+																			<td class="DataGrid_Body_Cell" id="fieldFecha"
+																				style="text-align: center;"></td>
+																			<td class="DataGrid_Body_Cell" id="fieldArea"
+																				style="text-align: center;"></td>
+																			<td class="DataGrid_Body_Cell" id="fieldAsiento"
+																				style="text-align: center;"></td>
+																			<td class="DataGrid_Body_Cell" id="fieldDebe"
+																				style="text-align: right; padding-right: 5px;">xxY</td>
+																			<td class="DataGrid_Body_Cell" id="fieldHaber"
+																				style="text-align: right; padding-right: 5px;">xxY</td>
+																			<td class="DataGrid_Body_Cell" id="fieldDocumento"
+																				style="text-align: left;"></td>
+																			<td class="DataGrid_Body_Cell" id="fieldRuc"
+																				style="text-align: right;"></td>
+																			<td class="DataGrid_Body_Cell" id="fieldDescription"></td>
+																			<!-- 				                          <td class="DataGrid_Body_Cell" id="fieldSaldoFinalesHaber" style="text-align: right; padding-right: 5px;">xxY</td> -->
+																			<!-- 				                          <td class="DataGrid_Body_Cell" id="fieldInventariosActivo" style="text-align: right; padding-right: 5px;">xxY</td> -->
+																			<!-- 				                          <td class="DataGrid_Body_Cell" id="fieldInventariosPasivo" style="text-align: right; padding-right: 5px;">xxY</td> -->
+																		</tr>
+																	</div>
+
+																</table>
+															</th>
+														</tr>
+													</table>
+												</td>
+											</tr>
+										</table>
+									</div>
+
+
+								</td>
+							</tr>
+						</table>
+					</div>
+
+					<table width="100%" border="0" cellspacing="0" cellpadding="0"
+						class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+						<tr>
+							<td class="Main_Bottom_bg"><img
+								src="../../../../../web/images/blank.gif" border="0"></td>
+						</tr>
+					</table>
+				</td>
+				<td valign="top">
+					<table width="100%" border="0" cellspacing="0" cellpadding="0"
+						class="Main_ContentPane_Right" id="tdrightSeparator">
+						<tr>
+							<td class="Main_NavBar_bg_right"></td>
+						</tr>
+						<tr>
+							<td class="Main_ToolBar_bg_right" valign="top"></td>
+						</tr>
+						<tr>
+							<td class="Main_Client_bg_right"></td>
+						</tr>
+						<tr>
+							<td class="Main_Bottom_bg_right"></td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+	</form>
+</body>
+</html>

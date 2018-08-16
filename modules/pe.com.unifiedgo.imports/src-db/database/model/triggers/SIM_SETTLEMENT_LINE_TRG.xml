@@ -1,0 +1,140 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_SETTLEMENT_LINE_TRG">
+    <trigger name="SIM_SETTLEMENT_LINE_TRG" table="SIM_IMP_SETTLEMENTLINES" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[  v_Client_ID VARCHAR(32);
+  v_Org_ID VARCHAR(32);
+  v_ID VARCHAR2(32);
+  v_docStatus  VARCHAR(60);
+  v_fob NUMBER;
+  v_flete NUMBER;
+  v_seguro NUMBER;
+  v_cif NUMBER;
+  v_advalorem NUMBER;
+  v_exonerate_perception NUMBER;
+  v_percepcion_base_cif NUMBER;
+  v_percepcion_igv_total NUMBER;
+  v_impuesto_IGV NUMBER;
+  v_total_adv NUMBER;
+  v_percepcion_total NUMBER;
+  v_total_perception NUMBER;
+  v_Percepction_Percent NUMBER;
+  v_Tipo_Cambio NUMBER;
+  v_percepcion_total_soles NUMBER;
+  v_Derechos_Srv_Despacho NUMBER;
+  v_Antidumping NUMBER;
+  v_Subtotal NUMBER;
+  v_Total NUMBER;
+  v_total_isc NUMBER;
+  v_derechos_total_dollar NUMBER;
+  v_total_derechos NUMBER;
+  v_inc_serv_despacho BOOLEAN;
+  v_inc_antidumping BOOLEAN;
+  v_derechos_dateforpay DATE;
+  v_perception_dateforpay DATE;
+  v_ConvertedAmount NUMBER;
+  v_advalorem_percepcion  NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.sim_imp_settlement_id;
+ELSE
+  v_ID:=:NEW.sim_imp_settlement_id;
+END IF;
+
+IF (DELETING) THEN
+  SELECT docstatus INTO v_docStatus from sim_imp_settlement where sim_imp_settlement_id = v_ID;
+  IF (v_docStatus <> 'DR') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@sim_state_nopermit_delete@');
+  END IF;
+END IF;
+
+IF(UPDATING OR INSERTING)THEN
+    
+   SELECT total_isc, Derechos_Srv_Despacho,antidumping, impuesto, total_adv, Percepction_Percent, Tipo_Cambio ,inc_serv_despacho,inc_antidumping,date_for_pay, percepction_date_to_pay,ad_client_id,ad_org_id
+     INTO v_total_isc,v_Derechos_Srv_Despacho,v_Antidumping, v_impuesto_IGV, v_total_adv, v_Percepction_Percent, v_Tipo_Cambio, v_inc_serv_despacho,v_inc_antidumping,v_derechos_dateforpay,v_perception_dateforpay,v_Client_ID,v_Org_ID
+     FROM sim_imp_settlement
+    WHERE sim_imp_settlement_id= v_ID;
+
+
+    SELECT   sum(total_fob),sum(total_cif),sum(total_flete),sum(total_seguro), ceiling(sum(total_advalorem))
+        INTO      v_fob, v_cif, v_flete, v_seguro , v_advalorem
+    FROM sim_imp_settlementlines 
+       WHERE sim_imp_settlement_id = v_ID;
+
+    SELECT   ceiling(sum(total_advalorem))
+        INTO  v_advalorem_percepcion
+    FROM sim_imp_settlementlines 
+       WHERE sim_imp_settlement_id = v_ID
+          AND perception='N';
+
+  
+
+    SELECT sum(total_cif)
+       INTO v_exonerate_perception
+    FROM sim_imp_settlementlines
+       WHERE sim_imp_settlement_id = v_ID AND perception='Y';
+
+    IF (v_exonerate_perception IS NULL) THEN
+     v_exonerate_perception = 0;
+    END IF;
+   
+    v_Subtotal = v_cif + v_advalorem;
+    --v_Total = v_Subtotal*v_impuesto_IGV/100;
+    v_Total = CEIL(v_Subtotal*0.16)+ROUND(v_Subtotal*0.02);
+    IF (v_total_isc IS NULL) THEN
+     v_total_isc = 0;
+    END IF;
+    v_derechos_total_dollar = v_advalorem + v_Total + v_Derechos_Srv_Despacho + v_total_isc;
+
+    SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(v_derechos_total_dollar, '100', '308', v_derechos_dateforpay, NULL,v_Client_ID, v_Org_ID), '308', NULL)), 0)
+    INTO v_ConvertedAmount;
+    v_total_derechos = v_ConvertedAmount;
+
+    v_percepcion_base_cif = v_cif - v_exonerate_perception;
+    --v_percepcion_igv_total = (v_percepcion_base_cif+v_advalorem_percepcion)*v_impuesto_IGV/100;
+    v_percepcion_igv_total = ROUND((v_percepcion_base_cif+v_advalorem_percepcion)*0.16)+ROUND((v_percepcion_base_cif+v_advalorem_percepcion)*0.02);
+    v_percepcion_total = v_percepcion_base_cif + v_advalorem_percepcion + v_percepcion_igv_total;
+    IF (v_inc_serv_despacho IS TRUE) THEN
+      v_percepcion_total = v_percepcion_total + v_Derechos_Srv_Despacho;
+    END IF;
+    IF (v_inc_antidumping IS TRUE) THEN
+       v_total_perception = (v_percepcion_total + v_Antidumping)*v_Percepction_Percent/100;
+    ELSE
+       v_total_perception =  v_percepcion_total*v_Percepction_Percent/100;
+    END IF;
+
+
+    SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(v_total_perception, '100', '308', v_perception_dateforpay, NULL,v_Client_ID, v_Org_ID), '308', NULL)), 0)
+    INTO v_ConvertedAmount;
+    v_percepcion_total_soles =  v_ConvertedAmount;
+    
+    UPDATE sim_imp_settlement
+      SET valor_fob = v_fob,
+          valor_freight = v_flete, 
+          valor_insurance = v_seguro,
+          valor_cif = v_cif,
+          total_cif = v_cif,
+          total_adv = v_advalorem,
+          subtotal = v_Subtotal,
+          total = v_Total,
+          derechos_total_dollar = v_derechos_total_dollar,
+          total_derechos = v_total_derechos,
+          percepcion_cif = v_cif,
+          percepcion_adv = v_advalorem_percepcion,
+          percepcion_cif_exonerado = v_exonerate_perception,
+          percepcion_base_cif = v_percepcion_base_cif,
+          percepcion_igv_total = v_percepcion_igv_total,
+          percepcion_total = v_percepcion_total,
+          total_percepcion = v_total_perception,
+          percepcion_total_soles = v_percepcion_total_soles
+      WHERE sim_imp_settlement_id= v_ID;
+      
+END IF;
+
+END SIM_SETTLEMENT_LINE_TRG
+]]></body>
+    </trigger>
+  </database>

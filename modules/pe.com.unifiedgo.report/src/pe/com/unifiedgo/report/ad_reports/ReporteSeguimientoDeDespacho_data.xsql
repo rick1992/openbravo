@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteSeguimientoDeDespachoData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_seguimiento_despacho" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+		SELECT 
+		
+		'' as en_picking,'' as en_embalaje,'' as en_despacho,'' as en_envio,
+
+		to_char(mio.EM_Swa_Printpickdatetime, 'DD/MM/YYYY HH12:MI:SS AM') as fecha_picking 
+		
+		,to_char(mio.EM_Swa_Todispatchzonedatetime, 'DD/MM/YYYY HH12:MI:SS AM') as fecha_packing 
+		
+		,to_char(mio.movementdate, 'DD/MM/YYYY HH12:MI:SS AM') as fecha_emision 
+		
+		,to_char(mio.EM_Swa_Packdatetime, 'DD/MM/YYYY HH12:MI:SS AM') as  fecha_recoge
+		
+		,to_char(mio.EM_Swa_Uwaydatetime, 'DD/MM/YYYY HH12:MI:SS AM') as  fecha_despacho
+
+		,to_char(mio.EM_Swa_Delidatetime, 'DD/MM/YYYY HH12:MI:SS AM') as  fecha_entrega
+				
+		,CASE WHEN mio.em_sco_specialdoctype = 'SWAMMDISPATCH' THEN mio.documentno ELSE mio.em_scr_physical_documentno END as numero_guia		
+		,  rel.pickingdocumentno  as numero_picking
+		, to_char(rel.pickingcreateddate, 'DD/MM/YYYY HH12:MI:SS AM')   as fecha_documento_picking
+		,  to_char(rel.dateDocumentSource, 'DD/MM/YYYY HH12:MI:SS AM')  as fecha_documento_origen
+		
+		,(select cbp.name from c_bpartner cbp where cbp.c_bpartner_id=mio.c_bpartner_id) as cliente
+		
+		,coalesce((select ci.em_scr_physical_documentno from c_invoice ci where mio.em_scr_c_invoice_id=ci.c_invoice_id),'') as numero_factura
+		
+		,(SELECT arlt.name from ad_ref_list arl 
+		inner join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+		where arl.value=mio.em_swa_shipstatus) as  estado_guia
+		
+		,'' as ruta 
+
+		from m_inout mio 
+		left join swa_relation_inout_picking rel ON mio.m_inout_id = rel.m_inout_id
+		where 
+		
+		mio.issotrx='Y' AND mio.docstatus!='VO' AND 
+
+		 mio.ad_client_id IN ('1') 
+		 
+		and mio.ad_org_id in ('1') 
+		
+		and mio.m_warehouse_id like '%'||coalesce(?,'') ||'%' 
+		
+		and 1=1 
+		
+		ORDER BY mio.movementdate 
+       
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mio.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and mio.ad_org_id in (" text="'1'"/>      
+     <Parameter name="warehouseid" />       
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND mio.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND mio.movementdate < TO_DATE(?)]]></Parameter>
+  </SqlMethod>
+  
+  
+
+  
+  
+   <SqlMethod name="select_seguimiento_despacho_dif_tiempo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+
+		  
+		  SELECT 
+		
+		(
+		COALESCE(text(extract(DAY from (mio.EM_Swa_Printpickdatetime - 
+		mio.EM_Swa_Packdatetime))),'-')
+		|| 'd ' ||
+		COALESCE(text(extract(HOUR from (mio.EM_Swa_Printpickdatetime - 
+		mio.EM_Swa_Packdatetime))),'-')
+		|| 'h ' ||
+		COALESCE(text(extract(MINUTE from (mio.EM_Swa_Printpickdatetime - 
+		mio.EM_Swa_Packdatetime))),'-')
+		|| 'm :' ||
+		COALESCE(text(round(extract(SECOND from (mio.EM_Swa_Printpickdatetime - 
+		mio.EM_Swa_Packdatetime)))),'-')
+		|| 's.' 
+		) as en_picking 
+		
+		,(
+		COALESCE(text(extract(DAY from (mio.EM_Swa_Todispatchzonedatetime - mio.EM_Swa_Packdatetime 
+		))),'-')
+		|| 'd ' ||
+		COALESCE(text(extract(HOUR from (mio.EM_Swa_Todispatchzonedatetime - mio.EM_Swa_Packdatetime 
+		))),'-')
+		|| 'h ' ||
+		COALESCE(text(extract(MINUTE from (mio.EM_Swa_Todispatchzonedatetime - mio.EM_Swa_Packdatetime 
+		))),'-')
+		|| 'm :' ||
+		COALESCE(text(round(extract(SECOND from (mio.EM_Swa_Todispatchzonedatetime - mio.EM_Swa_Packdatetime 
+		)))),'-')
+		|| 's.' 
+		) as en_embalaje 
+		
+		,(
+		COALESCE(text(extract(DAY from (mio.EM_Swa_Todispatchzonedatetime - 
+		mio.EM_Swa_Uwaydatetime))),'-')
+		|| 'd ' ||
+		COALESCE(text(extract(HOUR from (mio.EM_Swa_Todispatchzonedatetime - 
+		mio.EM_Swa_Uwaydatetime))),'-')
+		|| 'h ' ||
+		COALESCE(text(extract(MINUTE from (mio.EM_Swa_Todispatchzonedatetime - 
+		mio.EM_Swa_Uwaydatetime))),'-')
+		|| 'm :' ||
+		COALESCE(text(round(extract(SECOND from (mio.EM_Swa_Todispatchzonedatetime - 
+		mio.EM_Swa_Uwaydatetime)))),'-')
+		|| 's.' 
+		) as en_despacho
+		
+		,(
+		COALESCE(text(extract(DAY from (mio.EM_Swa_Uwaydatetime - 
+		mio.EM_Swa_Delidatetime))),'-')
+		|| 'd ' ||
+		COALESCE(text(extract(HOUR from (mio.EM_Swa_Uwaydatetime - 
+		mio.EM_Swa_Delidatetime))),'-')
+		|| 'h ' ||
+		COALESCE(text(extract(MINUTE from (mio.EM_Swa_Uwaydatetime - 
+		mio.EM_Swa_Delidatetime))),'-')
+		|| 'm :' ||
+		COALESCE(text(round(extract(SECOND from (mio.EM_Swa_Uwaydatetime - 
+		mio.EM_Swa_Delidatetime)))),'-')
+		|| 's.' 
+		) as en_envio
+
+		
+		,CASE WHEN mio.em_sco_specialdoctype = 'SWAMMDISPATCH' THEN mio.documentno ELSE mio.em_scr_physical_documentno END as numero_guia		
+		,   rel.pickingdocumentno  as numero_picking
+		, to_char(rel.pickingcreateddate, 'DD/MM/YYYY HH12:MI:SS AM')   as fecha_documento_picking
+		,  to_char(rel.dateDocumentSource, 'DD/MM/YYYY HH12:MI:SS AM')  as fecha_documento_origen
+		
+		,(select cbp.name from c_bpartner cbp where cbp.c_bpartner_id=mio.c_bpartner_id) as cliente
+		
+		,coalesce((select ci.em_scr_physical_documentno from c_invoice ci where mio.em_scr_c_invoice_id=ci.c_invoice_id),'') as numero_factura
+		
+		,(SELECT arlt.name from ad_ref_list arl 
+		inner join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+		where arl.value=mio.em_swa_shipstatus) as  estado_guia
+		
+		,'' as ruta
+
+		from m_inout mio
+        left join swa_relation_inout_picking rel ON mio.m_inout_id = rel.m_inout_id
+		
+		where 
+		
+		mio.issotrx='Y' AND mio.docstatus!='VO' AND
+
+		 mio.ad_client_id IN ('1') 
+		and mio.ad_org_id in ('1') 
+		and mio.m_warehouse_id like '%'||coalesce(?,'') ||'%'
+		and 1=1   
+		ORDER BY mio.movementdate
+       
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mio.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and mio.ad_org_id in (" text="'1'"/>      
+     <Parameter name="warehouseid" />       
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND mio.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND mio.movementdate < TO_DATE(?)]]></Parameter>
+  </SqlMethod>
+
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+  
+    <SqlMethod name="selectMWarehouse" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+          SELECT M_WAREHOUSE.VALUE || ' - ' || M_WAREHOUSE.NAME AS NAME  FROM M_WAREHOUSE  WHERE M_WAREHOUSE.M_WAREHOUSE_ID = ?
+      ]]></Sql>
+    <Parameter name="idWareHouse"/>
+  </SqlMethod>   
+</SqlClass>

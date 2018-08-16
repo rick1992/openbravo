@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SPR_BUDGETLINE_V">
+    <view name="SPR_BUDGETLINE_V"><![CDATA[SELECT bdl.spr_budgetline_id AS spr_budgetline_v_id, bdl.ad_client_id, bdl.ad_org_id, bdl.isactive, bdl.created, bdl.createdby, bdl.updated, bdl.updatedby, bd.spr_budget_id, bd.c_project_id, bd.type AS budgettype, bd.name AS budgetname, bdl.m_product_id, bdl.qtyordered, bdl.qtyordered - COALESCE(bdl.qtyinrequisition, 0) AS maxqtyordered, bdl.qtyordered - COALESCE(bdl.qtyinrequisition, 0) AS newqtyordered, bdl.c_currency_id, bdl.priceactual, bdl.linenetamt, bdl.qtyinrequisition, bdl.generaterequisition, bdl.spr_budgetitem_id, bd.excludefromproject FROM spr_budgetline bdl, spr_budget bd WHERE bdl.spr_budget_id = bd.spr_budget_id AND bdl.isbudgetitem = 'N' AND bd.docstatus = 'CO']]></view>
+  </database>

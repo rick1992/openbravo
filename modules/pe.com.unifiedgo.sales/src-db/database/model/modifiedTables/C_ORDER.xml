@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE C_ORDER">
+    <table name="C_ORDER" primaryKey="C_ORDER_KEY">
+      <column name="EM_SSA_COMBO_ITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_SPECIALDOCTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_QTY_CPOMODIFIED_LINES" primaryKey="false" required="false" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_REACTIVATEQUOTATION" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_CREATESALESINV_PROC" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_ISSERVICEORDER" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_PRINT_PHOTO" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_SHIPMENT_TYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default><![CDATA[GR]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_SALES_AREA_CBO_ITEM_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_COMBOITEM_VALUE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_INVOICEREF_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_ORDERTYPECMB_VALUE" primaryKey="false" required="false" type="VARCHAR" size="40" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_MAXDELIVERYTIME_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_QUOTATION_CONTACTNAME" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_QUOT_REFERENCES" primaryKey="false" required="false" type="VARCHAR" size="100" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SSA_ISSUMMARYPRINT_INV" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="C_INVOICE" name="EM_SSA_C_ORDER_IREF_FK">
+        <reference local="EM_SSA_INVOICEREF_ID" foreign="C_INVOICE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SSA_COMBO_ITEM_ID_FK">
+        <reference local="EM_SSA_COMBO_ITEM_ID" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SSA_MAXDELIVERYTIME_ID_FK">
+        <reference local="EM_SSA_MAXDELIVERYTIME_ID" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="SCR_COMBO_ITEM" name="EM_SSA_ORD_SAREACMB_FK">
+        <reference local="EM_SSA_SALES_AREA_CBO_ITEM_ID" foreign="SCR_COMBO_ITEM_ID"/>
+      </foreign-key>
+      <check name="EM_SSA_ORDER_ISSEROC_CHK"><![CDATA[EM_SSA_ISSERVICEORDER IN ('Y', 'N')]]></check>
+      <check name="EM_SSA_ORDER_ISSUMPRTINV_CHK"><![CDATA[EM_SSA_ISSUMMARYPRINT_INV IN ('Y', 'N')]]></check>
+    </table>
+  </database>

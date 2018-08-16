@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_UPDATESHIPMENT_TRG">
+    <trigger name="SWA_UPDATESHIPMENT_TRG" table="OBWPL_PICKINGLIST" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_docStatus  VARCHAR2(60);
+  v_inout_id VARCHAR2(32);
+  CUR_PARAMETER RECORD;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+IF (UPDATING) THEN
+
+  IF(:NEW.pickliststatus='CO' 
+     AND (:OLD.em_ssa_weight_pk <> :NEW.em_ssa_weight_pk
+     OR :OLD.em_ssa_volumen_pk <> :NEW.em_ssa_volumen_pk
+     OR :OLD.em_ssa_numboxes_pk <> :NEW.em_ssa_numboxes_pk
+    )) THEN
+
+    
+    SELECT m_inout_id 
+      INTO v_inout_id
+      FROM M_inoutline 
+     WHERE em_obwpl_pickinglist_id=:NEW.obwpl_pickinglist_id Limit 1;
+
+     UPDATE M_inout
+       SET em_swa_Peso_Guia_Total = :NEW.em_ssa_weight_pk, 
+           em_swa_Numcajas_Guia_Total = :NEW.em_ssa_numboxes_pk, 
+           em_swa_Cubicaje_Guia_Total = :NEW.em_ssa_volumen_pk
+       WHERE M_inout_id = v_inout_id;
+   END IF;
+
+  -- RAISE :NEW.em_spl_isprinted; 
+
+   -- IF(OLD.dateprinted <> NEW.dateprinted) THEN
+   IF(:OLD.em_spl_isprinted <> :NEW.em_spl_isprinted) THEN
+
+        FOR CUR_PARAMETER IN (
+	  SELECT * FROM M_INOUT IO
+	    WHERE M_INOUT_ID IN (SELECT distinct(m_inout_id) FROM M_INOUTLINE IOL WHERE IOL.em_obwpl_pickinglist_id = :NEW.obwpl_pickinglist_id)
+	)
+	LOOP
+               UPDATE M_INOUT 
+                 SET  EM_Swa_Printpickdatetime=now()
+               WHERE M_INOUT_ID = CUR_PARAMETER.M_INOUT_ID;
+	END LOOP; 
+
+   END IF;
+END IF;
+
+
+
+
+END SWA_UPDATESHIPMENT_TRG
+]]></body>
+    </trigger>
+  </database>

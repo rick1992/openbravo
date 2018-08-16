@@ -1,0 +1,299 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_COPYPERMISSIONS">
+    <function name="SCR_COPYPERMISSIONS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- Success
+--Parameter
+  Cur_Parameter RECORD;
+
+  CUR_ADWindow_Ac RECORD;
+  CUR_ADTab_Ac RECORD;
+  CUR_ADField_Ac RECORD;
+  CUR_ADProcess_Ac RECORD;
+  CUR_ADForm_Ac RECORD;
+  CUR_OBKMOWidgetClass_Ac RECORD;
+  CUR_OBUIAPP_ViewImpl_Ac RECORD;
+  CUR_OBUIAPP_Process_Ac RECORD;
+
+  v_AD_User_ID VARCHAR(32);
+  v_Record_ID VARCHAR(32);
+
+  p_AD_Role_ID VARCHAR(32);
+
+  
+  v_Client_ID VARCHAR(32);
+  v_Org_ID VARCHAR(32);
+
+  v_Aux NUMBER;
+  v_NextNo VARCHAR(32);
+
+  v_AD_Window_Access_ID VARCHAR(32);
+  v_AD_Tab_Access_ID VARCHAR(32);
+  v_AD_Field_Access_ID VARCHAR(32);
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCR_ErrorInProcessCall@') ;
+    END IF;
+
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo) 
+    LOOP
+         IF (Cur_Parameter.ParameterName = 'AD_Role_ID') THEN
+             p_AD_Role_ID := Cur_Parameter.P_String;
+	     DBMS_OUTPUT.PUT_LINE('  AD_Role_ID=' || p_AD_Role_ID) ;
+         ELSE
+             DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+         END IF;
+	v_Record_ID:=Cur_Parameter.Record_ID;
+        v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+    END LOOP; -- Get Parameter
+    
+
+    SELECT AD_Client_ID, AD_Org_ID
+      INTO v_Client_ID, v_Org_ID
+      FROM AD_Role
+    WHERE AD_Role_ID = v_Record_ID;
+
+    -- For Window Access
+    FOR CUR_ADWindow_Ac IN (SELECT * 
+                           FROM AD_Window_Access
+                           WHERE AD_Client_ID = v_Client_ID AND
+				 AD_Role_ID = p_AD_Role_ID)
+    LOOP
+      SELECT AD_Window_Access_ID
+        INTO v_AD_Window_Access_ID
+        FROM AD_Window_Access
+      WHERE AD_Window_ID = CUR_ADWindow_Ac.AD_Window_ID AND
+            AD_Role_ID = v_Record_ID AND
+            AD_Client_ID = v_Client_ID LIMIT 1;
+
+      IF(v_AD_Window_Access_ID IS NULL OR v_AD_Window_Access_ID='') THEN
+        AD_Sequence_Next('AD_Window_Access', v_Client_ID, v_AD_Window_Access_ID) ;    
+        INSERT INTO ad_window_access(
+                ad_window_access_id, ad_window_id, ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_AD_Window_Access_ID, CUR_ADWindow_Ac.AD_Window_ID, v_Record_ID, v_Client_ID, 
+                v_Org_ID, 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID, 
+                CUR_ADWindow_Ac.isreadwrite);
+      --ELSE
+        --UPDATE ad_window_access 
+          --SET isreadwrite = CUR_ADWindow_Ac.isreadwrite 
+        --WHERE ad_window_access_id = v_AD_Window_Access_ID; 
+      END IF;
+
+        FOR CUR_ADTab_Ac IN (SELECT * 
+                           FROM AD_Tab_Access
+                           WHERE AD_Client_ID = v_Client_ID AND
+				 ad_window_access_id = CUR_ADWindow_Ac.AD_Window_Access_ID)
+	LOOP
+          SELECT AD_Tab_Access_ID
+            INTO v_AD_Tab_Access_ID
+            FROM AD_Tab_Access
+          WHERE AD_Tab_ID = CUR_ADTab_Ac.AD_Tab_ID AND
+	        ad_window_access_id = v_AD_Window_Access_ID AND
+                AD_Client_ID = v_Client_ID LIMIT 1;
+
+          IF(v_AD_Tab_Access_ID IS NULL OR v_AD_Tab_Access_ID='') THEN
+            AD_Sequence_Next('AD_Tab_Access', v_Client_ID, v_AD_Tab_Access_ID);
+            INSERT INTO ad_tab_access(
+                        ad_tab_access_id, ad_client_id, ad_org_id, isactive, created, 
+                        createdby, updated, updatedby, ad_window_access_id, ad_tab_id, 
+                        isreadwrite, em_scr_isnovisible)
+                VALUES ( v_AD_Tab_Access_ID, v_Client_ID, v_Org_ID, 'Y', now(), 
+                         v_AD_User_ID, now(), v_AD_User_ID, v_AD_Window_Access_ID, CUR_ADTab_Ac.AD_Tab_ID, 
+                         CUR_ADTab_Ac.isreadwrite, CUR_ADTab_Ac.em_scr_isnovisible);
+   
+          --ELSE
+            --UPDATE ad_tab_access 
+              --SET isreadwrite = CUR_ADTab_Ac.isreadwrite,
+	          --em_scr_isnovisible = CUR_ADTab_Ac.em_scr_isnovisible
+           --WHERE ad_tab_access_id = v_AD_Tab_Access_ID; 
+          END IF;
+
+          FOR CUR_ADField_Ac IN (SELECT * 
+                                 FROM AD_Field_Access
+                                 WHERE AD_Client_ID = v_Client_ID AND
+				 ad_tab_access_id = CUR_ADTab_Ac.AD_Tab_Access_ID)
+          LOOP
+            SELECT AD_Field_Access_ID
+              INTO v_AD_Field_Access_ID
+              FROM AD_Field_Access
+            WHERE AD_Field_ID = CUR_ADField_Ac.AD_Field_ID AND
+	          ad_tab_access_id = v_AD_Tab_Access_ID AND
+                  AD_Client_ID = v_Client_ID LIMIT 1;
+
+            IF(v_AD_Field_Access_ID IS NULL OR v_AD_Field_Access_ID='') THEN
+              AD_Sequence_Next('AD_Field_Access', v_Client_ID, v_AD_Field_Access_ID);
+              INSERT INTO ad_field_access(
+                          ad_field_access_id, ad_client_id, ad_org_id, isactive, created, 
+                          createdby, updated, updatedby, ad_tab_access_id, ad_field_id, 
+                          isreadwrite, ischeckonsave)
+                  VALUES (v_AD_Field_Access_ID, v_Client_ID, v_Org_ID, 'Y', now(), 
+                          v_AD_User_ID, now(), v_AD_User_ID, v_AD_Tab_Access_ID, CUR_ADField_Ac.AD_Field_ID, 
+                          CUR_ADField_Ac.isreadwrite, CUR_ADField_Ac.ischeckonsave);
+            --ELSE
+              --UPDATE ad_field_access 
+                --SET isreadwrite = CUR_ADField_Ac.isreadwrite,
+	            --ischeckonsave = CUR_ADField_Ac.ischeckonsave
+              --WHERE ad_field_access_id = v_AD_Field_Access_ID; 
+            END IF;
+          END LOOP;
+
+        END LOOP;
+
+    END LOOP;
+
+    -- For Report And Process Access
+    FOR CUR_ADProcess_Ac IN (SELECT * 
+                           FROM AD_Process_Access
+                           WHERE AD_Client_ID = v_Client_ID AND
+                                 AD_Role_ID = p_AD_Role_ID)
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM AD_Process_Access
+      WHERE AD_Process_ID = CUR_ADProcess_Ac.AD_Process_ID AND
+            AD_Role_ID = v_Record_ID AND
+            AD_Client_ID = v_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('AD_Process_Access', v_Client_ID, v_NextNo) ;    
+        INSERT INTO ad_process_access(
+                ad_process_access_id, ad_process_id, ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_NextNo, CUR_ADProcess_Ac.AD_Process_ID, v_Record_ID, v_Client_ID, 
+                v_Org_ID, 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID, 
+                CUR_ADProcess_Ac.isreadwrite); 
+      END IF;
+    END LOOP;
+
+    -- For Form Access
+    FOR CUR_ADForm_Ac IN (SELECT * 
+                           FROM AD_Form_Access
+                           WHERE AD_Client_ID = v_Client_ID AND
+                                 AD_Role_ID = p_AD_Role_ID)
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM AD_Form_Access
+      WHERE AD_Form_ID = CUR_ADForm_Ac.AD_Form_ID AND
+            AD_Role_ID = v_Record_ID AND
+            AD_Client_ID = v_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('AD_Form_Access', v_Client_ID, v_NextNo) ;    
+        INSERT INTO ad_form_access(
+                ad_form_access_id, ad_form_id, ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_NextNo, CUR_ADForm_Ac.AD_Form_ID, v_Record_ID, v_Client_ID, 
+                v_Org_ID, 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID, 
+                CUR_ADForm_Ac.isreadwrite); 
+      END IF;
+    END LOOP;
+
+    -- For Widget Class Access
+    FOR CUR_OBKMOWidgetClass_Ac IN (SELECT * 
+                           FROM OBKMO_Widget_Class_Access
+                           WHERE AD_Client_ID = v_Client_ID AND
+                                 AD_Role_ID = p_AD_Role_ID)
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM OBKMO_Widget_Class_Access
+      WHERE OBKMO_Widget_Class_ID = CUR_OBKMOWidgetClass_Ac.OBKMO_Widget_Class_ID AND
+            AD_Role_ID = v_Record_ID AND
+            AD_Client_ID = v_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('OBKMO_Widget_Class_Access', v_Client_ID, v_NextNo) ;    
+        INSERT INTO OBKMO_Widget_Class_Access(
+                obkmo_widget_class_access_id, obkmo_widget_class_id, ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby)
+        VALUES (v_NextNo, CUR_OBKMOWidgetClass_Ac.OBKMO_Widget_Class_ID, v_Record_ID, v_Client_ID, 
+                v_Org_ID, 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID); 
+      END IF;
+    END LOOP;
+
+    -- For View Implementation Access
+    FOR CUR_OBUIAPP_ViewImpl_Ac IN (SELECT * 
+                           FROM OBUIAPP_View_Role_Access
+                           WHERE AD_Client_ID = v_Client_ID AND
+                                 AD_Role_ID = p_AD_Role_ID)
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM OBUIAPP_View_Role_Access
+      WHERE OBUIAPP_View_Impl_ID = CUR_OBUIAPP_ViewImpl_Ac.OBUIAPP_View_Impl_ID AND
+            AD_Role_ID = v_Record_ID AND
+            AD_Client_ID = v_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('OBUIAPP_View_Role_Access', v_Client_ID, v_NextNo) ;    
+        INSERT INTO OBUIAPP_View_Role_Access(
+                obuiapp_view_role_access_id, obuiapp_view_impl_id , ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby)
+        VALUES (v_NextNo, CUR_OBUIAPP_ViewImpl_Ac.OBUIAPP_View_Impl_ID, v_Record_ID, v_Client_ID, 
+                v_Org_ID, 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID);
+      END IF;
+    END LOOP;
+
+    -- For Process Definition Access
+    FOR CUR_OBUIAPP_Process_Ac IN (SELECT * 
+                           FROM OBUIAPP_Process_Access
+                           WHERE AD_Client_ID = v_Client_ID AND
+                                 AD_Role_ID = p_AD_Role_ID)
+    LOOP
+      SELECT Count(*) 
+        INTO v_Aux
+        FROM OBUIAPP_Process_Access
+      WHERE OBUIAPP_Process_ID = CUR_OBUIAPP_Process_Ac.OBUIAPP_Process_ID AND
+            AD_Role_ID = v_Record_ID AND
+            AD_Client_ID = v_Client_ID;
+
+      IF(v_Aux=0) THEN
+        AD_Sequence_Next('OBUIAPP_Process_Access', v_Client_ID, v_NextNo) ;    
+        INSERT INTO OBUIAPP_Process_Access(
+                obuiapp_process_access_id, obuiapp_process_id , ad_role_id, ad_client_id, 
+                ad_org_id, isactive, created, createdby, updated, updatedby, 
+                isreadwrite)
+        VALUES (v_NextNo, CUR_OBUIAPP_Process_Ac.OBUIAPP_Process_ID, v_Record_ID, v_Client_ID, 
+                v_Org_ID, 'Y', now(), v_AD_User_ID, now(), v_AD_User_ID,
+                CUR_OBUIAPP_Process_Ac.isreadwrite);
+      END IF;
+    END LOOP;
+
+    v_Message:='@SCR_CopyPermissionsProcessCompleted@'; --OBTG:-20000--
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SCR_COPYPERMISSIONS
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_MOVEMENTLINE_TRG">
+    <trigger name="SWA_MOVEMENTLINE_TRG" table="M_MOVEMENTLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+  v_ID VARCHAR2(32);
+  v_RO      NUMBER;
+  V_STOCKED NUMBER;
+  v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
+  v_productname m_product.name%TYPE;
+  v_isgeneric   CHAR(1);
+  v_qtyavailable NUMBER;
+  v_qtyreserved NUMBER;
+  v_warehouse_id VARCHAR2(32);
+  /******************************************************************************
+  * The contents of this file are subject to the   Compiere License  Version 1.1
+  * ("License"); You may not use this file except in compliance with the License
+  * You may obtain a copy of the License at http://www.compiere.org/license.html
+  * Software distributed under the License is distributed on an  "AS IS"  basis,
+  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+  * the specific language governing rights and limitations under the License.
+  * The Original Code is                  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+  * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2013 Openbravo S.L.U.
+  ******************************************************************************/
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Get ID
+  IF(UPDATING OR INSERTING) THEN
+    v_ID:=:new.M_Movement_ID;
+  ELSE
+    v_ID:=:old.M_Movement_ID;
+  END IF;
+
+  IF(INSERTING)THEN
+    SELECT em_swa_m_warehouse_id INTO v_warehouse_id FROM M_MOVEMENT WHERE M_MOVEMENT_ID = v_ID;
+
+    v_qtyavailable:=swa_product_getstock(:NEW.m_product_id,v_warehouse_id,:NEW.m_locator_id,6);
+    v_qtyreserved:=swa_product_getstock(:NEW.m_product_id,v_warehouse_id,:NEW.m_locator_id,5);
+
+    :NEW.em_swa_qtyreserved_storage:=v_qtyreserved;
+    :NEW.em_swa_qtyavailable_storage:=v_qtyavailable;
+  END IF;
+   
+ 
+
+END SWA_MOVEMENTLINE_TRG
+]]></body>
+    </trigger>
+  </database>

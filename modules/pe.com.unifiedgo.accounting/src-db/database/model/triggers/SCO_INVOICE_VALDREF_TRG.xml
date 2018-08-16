@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_VALDREF_TRG">
+    <trigger name="SCO_INVOICE_VALDREF_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_podoc_cmbi_value VARCHAR(40);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  --update em_sco_podoc_cmbi_value
+  IF(INSERTING) THEN
+    IF(:NEW.em_sco_podoctype_comboitem_id IS NOT NULL) THEN
+      SELECT value 
+        INTO v_podoc_cmbi_value
+        FROM scr_combo_item 
+      WHERE scr_combo_item_id=:NEW.em_sco_podoctype_comboitem_id;
+
+      :NEW.em_sco_podoc_cmbi_value := v_podoc_cmbi_value;
+    ELSE
+      :NEW.em_sco_podoc_cmbi_value := NULL;
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.em_sco_podoctype_comboitem_id,'.')<>COALESCE(:NEW.em_sco_podoctype_comboitem_id,'.')) THEN
+      IF(:NEW.em_sco_podoctype_comboitem_id IS NOT NULL) THEN
+        SELECT value 
+          INTO v_podoc_cmbi_value
+          FROM scr_combo_item 
+        WHERE scr_combo_item_id=:NEW.em_sco_podoctype_comboitem_id;
+
+        :NEW.em_sco_podoc_cmbi_value := v_podoc_cmbi_value;
+      ELSE
+        :NEW.em_sco_podoc_cmbi_value := NULL;
+      END IF;
+    END IF;
+  END IF;
+
+  --if the c_invoice is a AP Invoice validate the invoiceref
+  SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_Doctype_ID = :NEW.c_doctypetarget_id;
+  IF(v_specialdoctype = 'SCOAPINVOICE') THEN
+    IF(INSERTING) THEN
+      IF(COALESCE(:NEW.em_sco_podoc_cmbi_value,'') NOT IN ('tabla10_98','tabla10_08','tabla10_88')) THEN
+        :NEW.em_sco_doctyperef_id := NULL;
+        :NEW.em_sco_invoiceref_id := NULL;
+        :NEW.em_sco_manualinvoiceref := NULL;
+        :NEW.em_sco_manualinvoicerefdate := NULL;
+        :NEW.em_sco_ismanualref := 'N';
+        :NEW.em_sco_memoisselfref := 'N';
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.em_sco_podoc_cmbi_value,'.')<>COALESCE(:NEW.em_sco_podoc_cmbi_value,'.')) THEN
+        IF(COALESCE(:NEW.em_sco_podoc_cmbi_value,'') NOT IN ('tabla10_98','tabla10_08','tabla10_88')) THEN
+          :NEW.em_sco_doctyperef_id := NULL;
+          :NEW.em_sco_invoiceref_id := NULL;
+          :NEW.em_sco_manualinvoiceref := NULL;
+          :NEW.em_sco_manualinvoicerefdate := NULL;
+          :NEW.em_sco_ismanualref := 'N';
+          :NEW.em_sco_memoisselfref := 'N';
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  --Check em_sco_memoisselfref
+  IF(INSERTING) THEN
+    IF(COALESCE(:NEW.em_sco_memoisselfref,'N')='Y') THEN
+      :NEW.em_sco_doctyperef_id := NULL;
+      :NEW.em_sco_invoiceref_id := NULL;
+      :NEW.em_sco_manualinvoiceref := NULL;
+      :NEW.em_sco_manualinvoicerefdate := NULL;
+      :NEW.em_sco_ismanualref := 'N';
+    END IF;
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.em_sco_memoisselfref,'')<>COALESCE(:NEW.em_sco_memoisselfref,'')) THEN
+      IF(COALESCE(:NEW.em_sco_memoisselfref,'N')='Y') THEN
+        :NEW.em_sco_doctyperef_id := NULL;
+        :NEW.em_sco_invoiceref_id := NULL;
+        :NEW.em_sco_manualinvoiceref := NULL;
+        :NEW.em_sco_manualinvoicerefdate := NULL;
+        :NEW.em_sco_ismanualref := 'N';
+      END IF;
+    END IF;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.em_sco_ismanualref = 'Y') THEN
+
+      IF(:NEW.em_sco_manualinvoiceref IS NULL OR :NEW.em_sco_manualinvoiceref='') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvManualInvoiceRef@');
+      END IF;
+
+      :NEW.em_sco_doctyperef_id := NULL;
+      :NEW.em_sco_invoiceref_id := NULL;
+    ELSE
+      IF((:NEW.em_sco_invoiceref_id IS NOT NULL AND :NEW.em_sco_doctyperef_id IS NULL) OR 
+         (:NEW.em_sco_invoiceref_id IS NULL AND :NEW.em_sco_doctyperef_id IS NOT NULL)) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvInvoiceRef@');
+      END IF;
+
+      :NEW.em_sco_manualinvoiceref := NULL;
+      :NEW.em_sco_manualinvoicerefdate := NULL;
+
+    END IF;
+  ELSE
+    IF(COALESCE(:OLD.em_sco_ismanualref,'')<>COALESCE(:NEW.em_sco_ismanualref,'') OR
+       COALESCE(:OLD.em_sco_manualinvoiceref,'')<>COALESCE(:NEW.em_sco_manualinvoiceref,'')  OR
+       COALESCE(:OLD.em_sco_manualinvoicerefdate,TO_DATE('31-12-9999', 'DD-MM-YYYY'))<>COALESCE(:NEW.em_sco_manualinvoicerefdate,TO_DATE('31-12-9999', 'DD-MM-YYYY'))  OR
+       COALESCE(:OLD.em_sco_doctyperef_id,'.')<>COALESCE(:NEW.em_sco_doctyperef_id,'.')  OR
+       COALESCE(:OLD.em_sco_invoiceref_id,'.')<>COALESCE(:NEW.em_sco_invoiceref_id,'.')) THEN
+
+      IF(:NEW.em_sco_ismanualref = 'Y') THEN
+
+        IF(:NEW.em_sco_manualinvoiceref IS NULL OR :NEW.em_sco_manualinvoiceref='') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvManualInvoiceRef@');
+        END IF;
+
+        :NEW.em_sco_doctyperef_id := NULL;
+        :NEW.em_sco_invoiceref_id := NULL;
+      ELSE
+        IF((:NEW.em_sco_invoiceref_id IS NOT NULL AND :NEW.em_sco_doctyperef_id IS NULL) OR 
+           (:NEW.em_sco_invoiceref_id IS NULL AND :NEW.em_sco_doctyperef_id IS NOT NULL)) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvInvoiceRef@');
+        END IF;
+
+        :NEW.em_sco_manualinvoiceref := NULL;
+        :NEW.em_sco_manualinvoicerefdate := NULL;
+
+      END IF;
+    END IF;
+  END IF;
+
+  --MAKE INVOICEREF MANDATORY FOR CREDIT/DEBIT MEMO
+  SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_DocType WHERE C_Doctype_ID = :NEW.c_doctypetarget_id;
+  IF(INSERTING) THEN
+    IF(v_specialdoctype IN ('SCOARDEBITMEMO','SCOAPCREDITMEMO','SCOARCREDITMEMO','SCOARINVOICERETURNMAT') OR COALESCE(:NEW.em_sco_podoc_cmbi_value,'') IN ('tabla10_98','tabla10_08','tabla10_88')) THEN
+      IF(:NEW.em_sco_ismanualref <> 'Y' AND :NEW.em_sco_invoiceref_id IS NULL AND :NEW.em_sco_memoisselfref <> 'Y') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_CreditDebitMemoNoInvRef@');
+      END IF;
+    END IF;
+  ELSE
+    IF(COALESCE(:OLD.c_doctypetarget_id,'.')<>COALESCE(:NEW.c_doctypetarget_id,'.') 
+       OR COALESCE(:OLD.em_sco_podoctype_comboitem_id,'.')<>COALESCE(:NEW.em_sco_podoctype_comboitem_id,'.')
+       OR COALESCE(:OLD.em_sco_ismanualref,'.')<>COALESCE(:NEW.em_sco_ismanualref,'.')
+       OR COALESCE(:OLD.em_sco_invoiceref_id,'.')<>COALESCE(:NEW.em_sco_invoiceref_id,'.')
+       OR COALESCE(:OLD.em_sco_memoisselfref,'.')<>COALESCE(:NEW.em_sco_memoisselfref,'.')
+      ) THEN
+
+      IF(v_specialdoctype IN ('SCOARDEBITMEMO','SCOAPCREDITMEMO','SCOARCREDITMEMO','SCOARINVOICERETURNMAT') OR COALESCE(:NEW.em_sco_podoc_cmbi_value,'') IN ('tabla10_98','tabla10_08','tabla10_88')) THEN
+        IF(:NEW.em_sco_ismanualref <> 'Y' AND :NEW.em_sco_invoiceref_id IS NULL AND :NEW.em_sco_memoisselfref <> 'Y') THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_CreditDebitMemoNoInvRef@');
+        END IF;
+      END IF;
+
+    END IF;
+  END IF;
+
+
+END SCO_INVOICE_VALDREF_TRG
+]]></body>
+    </trigger>
+  </database>

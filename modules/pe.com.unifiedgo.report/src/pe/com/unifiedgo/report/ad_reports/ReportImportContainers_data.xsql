@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportImportContainersData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_cro_pag_imp" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+		select
+		
+		'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal,
+		
+		sfi.documentno as COD_SEG,
+		
+		(select coalesce( arlt.name,coalesce(arl.name)) from ad_ref_list arl
+		inner join ad_reference arf on arl.ad_reference_id=arf.ad_reference_id
+		left join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+		where arf.name in ('sim_modeload') and arl.value=sfi.load_mode AND arlt.ad_language='es_PE' ) as TIPO_SEG,
+		
+		case when sfi.container_type IN ('MIX') then  sct.container_type||' ('||sct.number_container||'.00)'
+		else (case when sfi.load_mode IN ('CS') then 'CS(0.00)' else  sfi.container_type||' (1.00)' end) end as CANT_CNTR,
+		
+		sfi.description_importation as DES_IMPO,
+		
+		case   (select count(DISTINCT co.c_bpartner_id ) from c_order co where co.em_sim_folioimport_id = sfi.sim_folioimport_id)
+		when  0  then cbp.name
+		when 1 then (select  ter.name  from c_order co 
+			inner join c_bpartner ter on co.c_bpartner_id=ter.c_bpartner_id
+			where co.em_sim_folioimport_id = sfi.sim_folioimport_id limit 1)
+		else cbp.name end  as PROVEEDOR,
+		
+		(sfi.descripcion_productos) as MERCADERIA,
+		
+		 coalesce(sfi.total_num_cajas,0) as BULTO,
+		 
+		coalesce( sfi.total_peso, 0 ) as PESO_KG ,
+		
+		coalesce(sfi.total_cubicaje, 0 ) as VOLUMEN,
+		
+		to_char(sfi.Dateaproxwarehouse,'DD/MM/YYYY') as FECHA_LLEGADA,
+		
+		to_char(sfi.datewarehouse,'DD/MM/YYYY') as FECHA_ALMACEN,
+		
+		ao.name as ORGANIZACION
+		
+		from sim_folioimport sfi
+		inner join ad_org ao on sfi.ad_org_id=ao.ad_org_id
+		inner join c_bpartner cbp on sfi.c_bpartner_id= cbp.c_bpartner_id
+		left join sim_container sct on sct.sim_folioimport_id=sfi.sim_folioimport_id
+		
+		where  sfi.docstatus='CO'  and 
+		ao.ad_client_id IN ('1') 
+		and ao.ad_org_id in ('1') 
+		and trunc(sfi.Dateaproxwarehouse) between ? AND ?
+		order by sfi.documentno
+    
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="ao.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and ao.ad_org_id in (" text="'1'"/>
+    <Parameter name="parDateFrom"/>
+    <Parameter name="parDateTo"/>        
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>  
+  <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/> 
+  </SqlMethod>
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+</SqlClass>

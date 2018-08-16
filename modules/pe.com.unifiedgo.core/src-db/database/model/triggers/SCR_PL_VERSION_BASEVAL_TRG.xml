@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_PL_VERSION_BASEVAL_TRG">
+    <trigger name="SCR_PL_VERSION_BASEVAL_TRG" table="M_PRICELIST_VERSION" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_Processed VARCHAR(60) ;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(:NEW.em_scr_isbasedonversion = 'Y' AND (:NEW.em_scr_prilversion_id IS NULL OR :NEW.em_scr_prilversion_id='')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCR_PLVInvalidBasedOnVersion@') ;
+    END IF;  
+
+    END SCR_PL_VERSION_BASEVAL_TRG
+]]></body>
+    </trigger>
+  </database>

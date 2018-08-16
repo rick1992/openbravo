@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSH_CONFIRM_ARRIVAL">
+    <function name="SSH_CONFIRM_ARRIVAL" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_CountLines NUMBER:=1; -- Success
+  v_docstatus VARCHAR2(60);
+  v_docaction VARCHAR2(60);
+  v_docactionnew VARCHAR2(60);
+  v_movementshipment DATE;
+  
+  
+  CUR_shipment VARCHAR%ROWTYPE; --OBTG:VARCHAR2--
+  v_shipment_docstatus VARCHAR2(60);
+  v_shipment_status VARCHAR2(60);
+
+  
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+    SELECT COUNT(ssh_trasportistaline_id)
+    INTO v_CountLines
+    FROM ssh_trasportistaline
+    WHERE ssh_transportista_id=v_Record_ID;
+
+    IF(v_CountLines = 0) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@ssh_waybillhasnotlines@');
+    END IF;
+    
+    
+    SELECT docstatus, movementshipment
+      INTO v_docstatus,v_movementshipment
+    FROM ssh_transportista
+    WHERE ssh_transportista_id=v_Record_ID;
+    
+    IF(v_docstatus = 'CO')THEN
+       FOR CUR_shipment IN (SELECT * 
+                              FROM ssh_trasportistaline 
+                             WHERE ssh_transportista_id=v_Record_ID)
+       LOOP 
+        SELECT docstatus,EM_Swa_Shipstatus 
+          INTO v_shipment_docstatus, v_shipment_status
+          FROM M_inout 
+         WHERE m_inout_id = CUR_shipment.m_inout_id;
+        IF(v_shipment_docstatus='CO' AND v_shipment_status='SWA_UWAY')THEN
+        --   RAISE_APPLICATION_ERROR(-20000, 'sipi');
+         UPDATE M_inout 
+            SET EM_Swa_Shipstatus = 'SWA_DELI',
+                EM_Swa_Delidatetime = now(),
+                EM_Swa_Shipmentaction = 'SWA_RE'
+          WHERE m_inout_id = CUR_shipment.m_inout_id;
+        END IF;
+       END LOOP;
+    ELSE
+       RAISE_APPLICATION_ERROR(-20000, '@SSH_documennotcompleted@');
+    END IF;
+
+   
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SSH_CONFIRM_ARRIVAL
+]]></body>
+    </function>
+  </database>

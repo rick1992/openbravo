@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_SWITHHO_REC_UPLICAMT_TRG">
+    <trigger name="SCO_SWITHHO_REC_UPLICAMT_TRG" table="SCO_SWITHHOLDING_RECEIPT" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_n NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(UPDATING) THEN
+    IF(COALESCE(:OLD.multiplyexchangerate,-1) <> COALESCE(:NEW.multiplyexchangerate,-1) OR :OLD.dategen <> :NEW.dategen) THEN
+      --Update the lines so they will recalculate the convertedamount
+      UPDATE sco_swithho_rec_line SET updated = now() WHERE sco_swithholding_receipt_id = :NEW.sco_swithholding_receipt_id;
+    END IF;
+  END IF;
+
+  END SCO_SWITHHO_REC_UPLICAMT_TRG
+]]></body>
+    </trigger>
+  </database>

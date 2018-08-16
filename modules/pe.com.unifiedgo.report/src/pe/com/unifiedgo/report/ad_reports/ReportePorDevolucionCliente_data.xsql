@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportePorDevolucionClienteData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+		
+		select
+		
+		'' as orgid
+		, '' as orgname 
+				
+		 ,ord.c_order_id as solicitud_id
+		,ord.dateordered as fecha_solicitud
+		,ord.documentno as nro_solicitud
+		,coalesce(pro.value,'') as codigo_producto
+		,coalesce(pro.name,'') as producto
+		,coalesce(trl.name,coalesce(uom.name,'')) as um
+		,abs(coalesce(lin.qtyordered,0.00)) as cantidad
+		,mw.value||' - '||mw.name as almacen 
+		
+		
+		from c_order ord
+		
+		join c_orderline lin on ord.c_order_id = lin.c_order_id
+		inner join m_warehouse mw on ord.m_warehouse_id=mw.m_warehouse_id
+		left join m_product pro on lin.m_product_id = pro.m_product_id
+		left join c_uom uom on pro.c_uom_id = uom.c_uom_id
+		left join c_uom_trl trl on uom.c_uom_id = trl.c_uom_id
+		
+		
+		where lin.isactive = 'Y' and 
+		ord.ad_client_id IN ('1') 
+			AND ord.ad_org_id IN ('1') 
+			AND 1=1
+		and  abs(lin.qtyordered)-abs(lin.qtydelivered)!=0
+		and ord.em_ssa_specialdoctype in ('SSARFCORDER')
+		
+		order by ord.dateordered,ord.documentno
+		
+	
+
+
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="ord.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND ord.ad_org_id IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND ord.dateordered :: DATE >= to_date(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND ord.dateordered :: DATE <= to_date(?)]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+   <SqlMethod name="selectOrgs" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+  		select org.ad_org_id as orgid, org.name as orgname 
+        from ad_org org join ad_orgtype t using (ad_orgtype_id) 
+        where t.islegalentity!='Y' and t.isacctlegalentity!='Y' 
+        and org.ad_org_id not in ('0') order by org.name 
+	
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+
+  </SqlMethod>
+  
+  
+  
+  
+  
+
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>
+  
+  
+
+  
+</SqlClass>

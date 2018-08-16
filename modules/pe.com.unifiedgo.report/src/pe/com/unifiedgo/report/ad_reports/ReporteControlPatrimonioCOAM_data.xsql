@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteControlPatrimonioCOAMData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+   <SqlMethod name="select_saldo_inicial" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+	select 
+	
+	'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal,
+	'' as codigo,'SALDOS INICIALES' as cuentas_patrimoniales, 0.00 as total,
+    sum(capital) as capital,sum(acciones_inversion) as acciones_inversion, sum(capital_adicional) as  capital_adicional,
+    sum(resul_norealizados) as resul_norealizados, sum(excede_revaluacion) as excede_revaluacion , sum(reserva_legal) as reserva_legal,
+    sum(otras_reservas) as otras_reservas, sum(resultado_acumulado) as resultado_acumulado
+    
+    from(
+    
+    select acctvalue,acctdescription ,
+    case when acctvalue like '50%'  then  (amtacctdr-amtacctcr) else 0.00 end as capital,
+    case when acctvalue like '51%'  then  (amtacctdr-amtacctcr) else 0.00 end as acciones_inversion,
+    case when acctvalue like '52%'  then  (amtacctdr-amtacctcr) else 0.00 end as capital_adicional,
+    case when acctvalue like '56%'  then  (amtacctdr-amtacctcr) else 0.00 end as resul_norealizados,
+    case when acctvalue like '57%'  then  (amtacctdr-amtacctcr) else 0.00 end as excede_revaluacion,
+    case when acctvalue like '582%'  then  (amtacctdr-amtacctcr) else 0.00 end as reserva_legal ,
+    case when acctvalue like '589%'  then  (amtacctdr-amtacctcr) else 0.00 end as otras_reservas, 
+    case when acctvalue like '59%'  then  (amtacctdr-amtacctcr) else 0.00 end as resultado_acumulado
+    
+    from fact_acct fa 
+    where     acctvalue  like any (array ['50%','51%','52%','56%','57%','582%','589%','59%'])
+    and fa.ad_client_id in ('1')
+    and fa.ad_org_id in ('1') 
+    and case when to_date(?) = to_date(?) then fa.factaccttype in ('O') AND trunc(fa.dateacct) = to_date(?) 
+    else     fa.factaccttype in ('O','N') AND trunc(fa.dateacct) between to_date(?) and to_date(?) end
+    
+    
+    ) as t 
+	
+	
+	
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and fa.ad_org_id in (" text="'1'"/>        
+    <Parameter name="dateIniYear"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="dateIniYear"/>
+    <Parameter name="dateFrom"/>
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+   <SqlMethod name="select_cuentas_patrimoniales" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+    select codigo,cuentas_patrimoniales,sum(capital) as capital,sum(acciones_inversion) as acciones_inversion, sum(capital_adicional) as  capital_adicional,
+    sum(resul_norealizados) as resul_norealizados, sum(excede_revaluacion) as excede_revaluacion , sum(reserva_legal) as reserva_legal,
+    sum(otras_reservas) as otras_reservas, sum(resultado_acumulado) as resultado_acumulado
+    
+    from(
+    select pc.code as codigo,pc.name as cuentas_patrimoniales, 
+    case when acctvalue like '50%'  then  (amtacctdr-amtacctcr) else 0.00 end as capital,
+    case when acctvalue like '51%'  then  (amtacctdr-amtacctcr) else 0.00 end as acciones_inversion,
+    case when acctvalue like '52%'  then  (amtacctdr-amtacctcr) else 0.00 end as capital_adicional,
+    case when acctvalue like '56%'  then  (amtacctdr-amtacctcr) else 0.00 end as resul_norealizados,
+    case when acctvalue like '57%'  then  (amtacctdr-amtacctcr) else 0.00 end as excede_revaluacion,
+    case when acctvalue like '582%'  then  (amtacctdr-amtacctcr) else 0.00 end as reserva_legal ,
+    case when acctvalue like '589%'  then  (amtacctdr-amtacctcr) else 0.00 end as otras_reservas, 
+    case when acctvalue like '59%'  then  (amtacctdr-amtacctcr) else 0.00 end as resultado_acumulado
+    
+    from SCO_EEFF_Patrimchange pc 
+    left join fact_acct fa on pc.SCO_EEFF_Patrimchange_id = fa.em_sco_eeff_patrimchange_id 
+        AND trunc(fa.dateacct) between to_date(?) and to_date(?)
+        and fa.factaccttype = 'N' 
+    
+    where pc.ad_client_id in ('1') 
+    and pc.ad_org_id in ('1')  
+        
+    
+    ) as t 
+    GROUP BY 1,2
+    
+    
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+            <Parameter name="parDateFrom"/>
+    <Parameter name="parDateTo"/>  
+     <Parameter name="adUserClient" type="replace" optional="true" after="ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="ad_org_id in (" text="'1'"/>      
+
+
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+</SqlClass>

@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_PACCESS_UPDMAINMENU_TRG">
+    <trigger name="SCR_PACCESS_UPDMAINMENU_TRG" table="AD_PROCESS_ACCESS" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+  vAux NUMBER;
+  v_mainmenu_id VARCHAR(32);
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    scr_getmainmenu_from_process(:NEW.ad_process_id, v_mainmenu_id);
+    :NEW.em_scr_mainmenu_id = v_mainmenu_id;
+  ELSIF(UPDATING) THEN
+    IF(:OLD.ad_process_id<>:NEW.ad_process_id) THEN
+      scr_getmainmenu_from_process(:NEW.ad_process_id, v_mainmenu_id);
+      :NEW.em_scr_mainmenu_id = v_mainmenu_id;
+    END IF;
+  END IF;
+
+  END SCR_PACCESS_UPDMAINMENU_TRG
+]]></body>
+    </trigger>
+  </database>

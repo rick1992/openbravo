@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_FIXEDCASHREP_TRG">
+    <trigger name="SCO_FIXEDCASHREP_TRG" table="SCO_FIXEDCASH_REPOSITION" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_Aux NUMBER;
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+
+  IF (INSERTING OR UPDATING) THEN
+
+    --Link the reposition to the reconciliation
+    UPDATE FIN_Reconciliation SET em_sco_fixcash_rep_id = :NEW.sco_fixedcash_reposition_id
+      WHERE FIN_Reconciliation_ID = :NEW.FIN_Reconciliation_ID;
+
+  END IF;
+
+  END SCO_FIXEDCASHREP_TRG
+]]></body>
+    </trigger>
+  </database>

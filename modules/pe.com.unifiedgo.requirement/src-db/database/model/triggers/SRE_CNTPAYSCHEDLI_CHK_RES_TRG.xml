@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SRE_CNTPAYSCHEDLI_CHK_RES_TRG">
+    <trigger name="SRE_CNTPAYSCHEDLI_CHK_RES_TRG" table="SRE_CONTRACT_PAYSCHED_LINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Count NUMBER:= 0;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+v_CntPaySched_ID VARCHAR2(32);
+v_Processed VARCHAR(60);
+v_DocStatus VARCHAR(60);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF INSERTING THEN
+    v_CntPaySched_ID:=:new.sre_contract_payschedule_id;
+  ELSE
+    v_CntPaySched_ID:=:old.sre_contract_payschedule_id;
+  END IF;
+
+ SELECT PROCESSED,DOCSTATUS INTO v_Processed,v_DocStatus FROM sre_contract_payschedule WHERE sre_contract_payschedule_id=v_CntPaySched_ID;
+
+  IF UPDATING THEN
+    IF(v_Processed='Y'
+	   AND((COALESCE(:old.LINE, 0) <> COALESCE(:new.LINE, 0))
+         OR (COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+	     OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	     OR(COALESCE(:old.c_bpartner_id, '0') <> COALESCE(:new.c_bpartner_id, '0'))
+	     OR(COALESCE(:old.c_project_id, '0') <> COALESCE(:new.c_project_id,'0'))
+	     OR(COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:new.C_Currency_ID, '0'))
+	     OR(COALESCE(:old.amount, 0) <> COALESCE(:new.amount, 0))
+	     OR(COALESCE(:old.sre_purchase_contract_id, '0') <> COALESCE(:new.sre_purchase_contract_id, '0'))
+)    
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;   
+
+  END IF;
+
+  IF(DELETING) THEN
+    IF v_Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF v_Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+    END IF;
+  END IF;
+
+END SRE_CNTPAYSCHEDLI_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

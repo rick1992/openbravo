@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_INOUT_CHK_PHYDOCNO_TRG">
+    <trigger name="SCR_INOUT_CHK_PHYDOCNO_TRG" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_physicalDocNo_def VARCHAR(60):='000-0000000';
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+
+  IF(INSERTING) THEN 
+     IF(:NEW.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT','SWARTVRECEIPT')) THEN
+       IF(:NEW.em_scr_physical_documentno IS NOT NULL AND :NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN 
+       
+	 IF (:NEW.em_scr_physical_documentno !~* '^.+-.+') THEN
+	     RAISE_APPLICATION_ERROR(-20000, '@SCR_PhyDocNo_IncorrectFormat@') ;
+	 END IF;  	
+	 
+       END IF;	 
+     END IF;
+  END IF;   
+
+  IF(UPDATING) THEN 
+     IF(COALESCE(:OLD.em_sco_specialdoctype,'.')<>COALESCE(:NEW.em_sco_specialdoctype,'.') OR
+        COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.')) THEN
+
+	  IF (:NEW.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT','SWARTVRECEIPT')) THEN
+	      IF(:NEW.em_scr_physical_documentno IS NOT NULL AND :NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN 
+
+	         IF (:NEW.em_scr_physical_documentno !~* '^.+-.+') THEN
+		     RAISE_APPLICATION_ERROR(-20000, '@SCR_PhyDocNo_IncorrectFormat@') ;
+	         END IF;
+	        	
+	      END IF;
+	  END IF;	
+
+     END IF;  
+  END IF;
+
+
+  END SCR_INOUT_CHK_PHYDOCNO_TRG
+]]></body>
+    </trigger>
+  </database>

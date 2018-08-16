@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_CONVRATE_UPD_TRG">
+    <trigger name="SCO_INVOICE_CONVRATE_UPD_TRG" table="C_INVOICE" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+  v_convrate NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(:NEW.processed = 'Y' AND TRUNC(:OLD.dateacct)<>TRUNC(:NEW.dateacct)) THEN
+      --Update em_sco_convrate
+      sco_invoice_convrate(:NEW.c_invoice_id, v_convrate);
+      UPDATE C_Invoice SET em_sco_convrate=v_convrate WHERE C_Invoice_ID = :NEW.c_invoice_id;
+    END IF;
+
+    END SCO_INVOICE_CONVRATE_UPD_TRG
+]]></body>
+    </trigger>
+  </database>

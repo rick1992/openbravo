@@ -1,0 +1,511 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_VoucherLibro_Docs_ugo" pageWidth="595" pageHeight="842" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="style1" fill="Solid" radius="5">
+		<pen lineWidth="0.5"/>
+	</style>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="ISTAXINCLUDED" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="TABLA_ID" class="java.lang.String"/>
+	<parameter name="RECORD_ID" class="java.lang.String"/>
+	<parameter name="PAYMENT_ID" class="java.lang.String"/>
+	<parameter name="LANGUAGE" class="java.lang.String">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="TRANSACTION_ID" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[/* DOCUMENTOS DEL VOUCHER LIBRO BANCOS */
+
+/* LETRAS */
+
+(
+select pay.fin_payment_id as "PAGO_ID",
+to_char('') as "ITEM_ID",
+inv.c_invoice_id  as "INVOICE_ID",
+to_char('cobro') as "TIPO",
+coalesce((select name from c_doctype_trl where c_doctype_id = doc.c_doctype_id),doc.name) as "DOCUMENTO",
+inv.em_scr_physical_documentno as "NRO_FACT",
+to_char('') as "TIPO_MOV",
+to_char('') as "SIMB_DEBE",
+
+coalesce((select cursymbol from c_currency_trl where c_currency_id = cur.c_currency_id and ad_language =  $P{LANGUAGE} ),cur.cursymbol) as "SIMB_HABER",
+
+0.00 as "DEBE",
+
+inv.grandtotal as "HABER",
+
+case when tra.em_sco_alt_convert_rate is not null then tra.em_sco_alt_convert_rate
+else sim_currency_convert_table(1,
+(select c_currency_id from c_currency where iso_code = 'USD'),
+(select c_currency_id from c_currency where iso_code = 'PEN'),
+pay.paymentdate,
+(select ad_table_id from c_doctype where c_doctype_id = pay.c_doctype_id)
+,pay.fin_payment_id,
+pay.ad_client_id,pay.ad_org_id) end as "TC",
+
+to_char('1') as "POS"
+
+from fin_finacc_transaction tra
+join fin_payment pay on tra.fin_payment_id = pay.fin_payment_id
+join sco_boe_to_discount btd on btd.fin_payment_id = pay.fin_payment_id
+join sco_boetodisc_line lin on btd.sco_boe_to_discount_id = lin.sco_boe_to_discount_id
+join c_invoice inv on lin.invoiceref_id = inv.c_invoice_id
+left join c_doctype doc on inv.c_doctypetarget_id = doc.c_doctype_id
+left join c_currency cur on  inv.c_currency_id = cur.c_currency_id
+
+where tra.fin_finacc_transaction_id in ($P{TRANSACTION_ID})
+
+order by lin.line
+)
+
+union
+
+
+/* FACTURAS DEL PAGO */
+
+
+select pay.fin_payment_id as "PAGO_ID",
+to_char('') as "ITEM_ID",
+inv.c_invoice_id as "INVOICE_ID",
+
+case pay.isreceipt
+when 'Y' then case when coalesce(pdt.amount,0.0)<0 then 'pago' else 'cobro' end
+when 'N' then case when coalesce(pdt.amount,0.0)<0 then 'cobro' else 'pago' end
+end as "TIPO",
+
+case typ.em_sco_specialdoctype
+	when 'SCOARINVOICE' then 'Factura'
+	when 'SCOARCREDITMEMO' then 'Nota de Credito'
+	when 'SCOARINVOICERETURNMAT' then 'Nota de Credito'
+	when 'SCOARDEBITMEMO' then 'Nota de Debito'
+	when 'SCOARTICKET' then 'Boleta'
+	when 'SCOARBOEINVOICE' then 'Letra' else
+(select name from scr_combo_item where scr_combo_item_id = inv.em_sco_podoctype_comboitem_id)
+end as "DOCUMENTO",
+
+coalesce(inv.em_scr_physical_documentno,'') as "NRO_FACT",
+
+to_char('') as "TIPO_MOV",
+
+case when (pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)>=0) or (pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)<0) then
+coalesce(coalesce((select cursymbol from c_currency_trl where c_currency_id = c2.c_currency_id and ad_language = $P{LANGUAGE} ),c2.cursymbol),
+coalesce((select cursymbol from c_currency_trl where c_currency_id = c1.c_currency_id and ad_language = $P{LANGUAGE}),c1.cursymbol))
+else null end as "SIMB_DEBE",
+
+case when (pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)>=0) or (pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)<0) then
+coalesce(coalesce((select cursymbol from c_currency_trl where c_currency_id = c2.c_currency_id and ad_language = $P{LANGUAGE}),c2.cursymbol),
+coalesce((select cursymbol from c_currency_trl where c_currency_id = c1.c_currency_id and ad_language = $P{LANGUAGE}),c1.cursymbol))
+else null end as "SIMB_HABER",
+
+sum(case when (pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)>=0) or
+(pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)<0) then abs(coalesce(pdt.amount,0.00)) else 0.00 end) as "DEBE",
+
+sum(case when (pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)>=0) or
+(pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)<0) then abs(coalesce(pdt.amount,0.00)) else 0.00 end) as "HABER",
+
+em_sco_convert_rate as "TC",
+to_char('1') as "POS"
+
+from fin_payment pay
+join fin_payment_detail pdt on pay.fin_payment_id = pdt.fin_payment_id
+/* si no hay factura el currency es del pago */
+left join c_currency c1 on pay.c_currency_id = c1.c_currency_id
+
+left join fin_payment_scheduledetail sdt on pdt.fin_payment_detail_id = sdt.fin_payment_detail_id
+left join fin_payment_schedule psc on sdt.fin_payment_schedule_invoice = psc.fin_payment_schedule_id
+join c_invoice inv on psc.c_invoice_id = inv.c_invoice_id
+/* si hay factura el currency es de la factura */
+left join c_currency c2 on inv.c_currency_id = c2.c_currency_id
+
+left join c_doctype typ on inv.c_doctypetarget_id = typ.c_doctype_id
+
+where pay.isactive = 'Y'
+and pay.fin_payment_id in ($P{PAYMENT_ID})
+
+group by 1,2,3,4,5,6,7,8,9,12,13
+
+union
+
+
+/* CONCEPTOS CONTABLES DEL PAGO */
+
+select pay.fin_payment_id as "PAGO_ID",
+gl.c_glitem_id as "ITEM_ID",
+to_char('') as "INVOICE_ID",
+case pay.isreceipt
+when 'Y' then case when coalesce(pdt.amount,0.0)<0 then 'pago' else 'cobro' end
+when 'N' then case when coalesce(pdt.amount,0.0)<0 then 'cobro' else 'pago' end
+end as "TIPO",
+to_char('NO DEFINIDO') as "DOCUMENTO",
+(select ci.em_scr_physical_documentno from c_invoice ci
+inner join fin_payment_scheduledetail fpsd on ci.c_invoice_id=fpsd.em_sco_invoice_glref_id
+where fpsd.fin_payment_detail_id=pdt.fin_payment_detail_id limit 1) as "NRO_FACT",
+case when gl.c_glitem_id is not null then gl.name else '' end as "TIPO_MOV",
+
+case when (pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)>=0) or (pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)<0) then
+coalesce((select cursymbol from c_currency_trl where c_currency_id = c1.c_currency_id and ad_language = 'es_PE'),c1.cursymbol)
+else null end as "SIMB_DEBE",
+
+case when (pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)>=0) or (pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)<0) then
+coalesce((select cursymbol from c_currency_trl where c_currency_id = c1.c_currency_id and ad_language = 'es_PE'),c1.cursymbol)
+else null end as "SIMB_HABER",
+
+sum(case when (pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)>=0) or
+(pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)<0) then abs(coalesce(pdt.amount,0.00)) else 0.00 end) as "DEBE",
+
+sum(case when (pay.isreceipt = 'Y' and coalesce(pdt.amount,0.00)>=0) or
+(pay.isreceipt = 'N' and coalesce(pdt.amount,0.00)<0) then abs(coalesce(pdt.amount,0.00)) else 0.00 end) as "HABER",
+
+em_sco_convert_rate as "TC",
+to_char('2') as "POS"
+
+from fin_payment pay
+left join fin_payment_detail pdt on pay.fin_payment_id = pdt.fin_payment_id
+left join c_glitem gl on pdt.c_glitem_id = gl.c_glitem_id
+/* si no hay factura el currency es del pago */
+left join c_currency c1 on pay.c_currency_id = c1.c_currency_id
+
+where pay.isactive = 'Y'
+and pdt.c_glitem_id is not null
+and pay.fin_payment_id in ($P{PAYMENT_ID})
+
+group by 1,2,3,4,5,6,7,8,9,12,13
+
+
+union
+
+/* CONCEPTO CONTABLE DE LA TRANSACCION */
+
+(
+select tra.fin_payment_id,
+ite.c_glitem_id,
+to_char(''),
+to_char('transaccion'),
+to_char('NO DEFINIDO'),
+(select ci.em_scr_physical_documentno from c_invoice ci where ci.c_invoice_id=tra.em_sco_invoice_glref_id),
+ite.name,
+
+coalesce((select cursymbol from c_currency_trl where c_currency_id = cur.c_currency_id and ad_language = $P{LANGUAGE}),cur.cursymbol),
+coalesce((select cursymbol from c_currency_trl where c_currency_id = cur.c_currency_id and ad_language = $P{LANGUAGE}),cur.cursymbol),
+
+case when tra.depositamt<0 then abs(coalesce(depositamt,0.00)) when tra.paymentamt>=0 then abs(coalesce(paymentamt,0.00)) else 0.00 end as "DEBE",
+case when tra.paymentamt<0 then abs(coalesce(paymentamt,0.00)) when tra.depositamt>=0 then abs(coalesce(depositamt,0.00)) else 0.00 end as "HABER",
+
+case when tra.em_sco_alt_convert_rate is not null then tra.em_sco_alt_convert_rate
+else  sim_currency_convert_table(1,(select c_currency_id from c_currency where iso_code = 'USD'),
+(select c_currency_id from c_currency where iso_code = 'PEN'),tra.dateacct,
+'4D8C3B3C31D1410DA046140C9F024D17',tra.fin_finacc_transaction_id,tra.ad_client_id,tra.ad_org_id)
+end  as "TC"
+
+,to_char('2')
+
+from fin_finacc_transaction tra
+left join c_currency cur on tra.c_currency_id = cur.c_currency_id
+left join c_glitem ite on tra.c_glitem_id = ite.c_glitem_id
+left join fin_payment p on tra.fin_payment_id = p.fin_payment_id
+left join sco_boe_to_discount b on p.fin_payment_id =b.fin_payment_id
+
+where fin_finacc_transaction_id in ($P{TRANSACTION_ID})
+and tra.fin_payment_id is null
+and tra.isactive = 'Y'
+
+)
+
+order by 13
+
+
+/*  */]]>
+	</queryString>
+	<field name="PAGO_ID" class="java.lang.String"/>
+	<field name="ITEM_ID" class="java.lang.String"/>
+	<field name="INVOICE_ID" class="java.lang.String"/>
+	<field name="TIPO" class="java.lang.String"/>
+	<field name="DOCUMENTO" class="java.lang.String"/>
+	<field name="NRO_FACT" class="java.lang.String"/>
+	<field name="TIPO_MOV" class="java.lang.String"/>
+	<field name="SIMB_DEBE" class="java.lang.String"/>
+	<field name="SIMB_HABER" class="java.lang.String"/>
+	<field name="DEBE" class="java.math.BigDecimal"/>
+	<field name="HABER" class="java.math.BigDecimal"/>
+	<field name="TC" class="java.math.BigDecimal"/>
+	<field name="POS" class="java.lang.String"/>
+	<variable name="ITEM" class="java.math.BigDecimal" resetType="Group" resetGroup="PAYMENT_OUT_ID" calculation="Count">
+		<variableExpression><![CDATA[$F{DOCUMENTO}]]></variableExpression>
+	</variable>
+	<group name="PAYMENT_OUT_ID">
+		<groupExpression><![CDATA[$F{PAGO_ID}]]></groupExpression>
+		<groupHeader>
+			<band splitType="Stretch"/>
+		</groupHeader>
+		<groupFooter>
+			<band height="10" splitType="Stretch"/>
+		</groupFooter>
+	</group>
+	<pageHeader>
+		<band height="18" splitType="Stretch">
+			<rectangle radius="5">
+				<reportElement mode="Transparent" x="20" y="0" width="554" height="18"/>
+				<graphicElement>
+					<pen lineWidth="0.5"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="235" y="0" width="155" height="18"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Tipo de Movimiento]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="390" y="0" width="70" height="18"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Debe]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="460" y="0" width="70" height="18"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Haber]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="20" y="0" width="25" height="18"/>
+				<box leftPadding="3" rightPadding="3">
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Item]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="45" y="0" width="120" height="18"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Documento]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="165" y="0" width="70" height="18"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.5"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Numero]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="530" y="0" width="45" height="18"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[T/Cambio]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="480" y="0" width="50" height="13">
+					<printWhenExpression><![CDATA[$F{TIPO}.equalsIgnoreCase("cobro") || $F{TIPO}.equalsIgnoreCase("transaccion")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{HABER})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="410" y="0" width="50" height="13">
+					<printWhenExpression><![CDATA[$F{TIPO}.equalsIgnoreCase("pago") || $F{TIPO}.equalsIgnoreCase("transaccion")]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{DEBE})]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" pattern="" isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="235" y="0" width="155" height="13"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TIPO_MOV}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="530" y="0" width="45" height="13"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{TC}]]></textFieldExpression>
+			</textField>
+			<textField pattern="000" isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="20" y="0" width="25" height="13"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{ITEM}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="165" y="0" width="70" height="13"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_FACT}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="45" y="0" width="120" height="13"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DOCUMENTO}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="390" y="0" width="20" height="13"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{SIMB_DEBE}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="true">
+				<reportElement stretchType="RelativeToBandHeight" x="460" y="0" width="20" height="13"/>
+				<box leftPadding="3" rightPadding="3">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{SIMB_HABER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

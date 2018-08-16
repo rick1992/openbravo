@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_PRODUCT_GETSTOCK">
+    <function name="SWA_PRODUCT_GETSTOCK" type="NUMERIC">
+      <parameter name="p_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_warehouse_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_locator_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_type_query" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_qty_return NUMBER:=0;
+BEGIN
+
+  /**
+   Esta Función es para retornar la cantidades de un producto en un almacén determinado
+   el valor que retorna estará determinado segun el parámetro tipo de consulta p_type_query
+
+   p_type_query = 1 ; Retorna la Cantidad Física     de un Producto en el Almacén
+   p_type_query = 2 ; Retorna la Cantidad Reservada  de un Producto en el Almacén
+   p_type_query = 3 ; Retorna la Cantidad Disponible de un Producto en el Almacén
+   p_type_query = 4 ; Retorna la Cantidad Física     de un Producto en un Almacén y una Ubicación Determinada
+   p_type_query = 5 ; Retorna la Cantidad Reservada  de un Producto en el Almacén y una Ubicación Determinada
+   p_type_query = 6 ; Retorna la Cantidad Disponible de un Producto en el Almacén y una Ubicación Determinada
+   
+  */
+
+  IF(p_type_query = 1)THEN ------------------------------------
+  
+	   SELECT COALESCE(sum(qtyonhand),0) INTO v_qty_return 
+	     FROM swa_product_warehouse_v 
+	    WHERE m_product_id = p_product_id
+	      AND m_warehouse_id = p_warehouse_id;
+
+  ELSIF(p_type_query = 2) THEN ----------------------------------
+
+	   SELECT COALESCE(sum(qtyreserved),0) INTO v_qty_return 
+	     FROM swa_product_warehouse_v 
+	    WHERE m_product_id = p_product_id
+	      AND m_warehouse_id = p_warehouse_id;
+	  
+  ELSIF(p_type_query = 3) THEN ----------------------------------
+
+   SELECT COALESCE(sum(totalqty),0) INTO v_qty_return 
+     FROM swa_product_warehouse_v 
+    WHERE m_product_id = p_product_id
+      AND m_warehouse_id = p_warehouse_id;
+
+  ELSIF(p_type_query = 4) THEN ----------------------------------
+
+   SELECT COALESCE(sum(totalqty),0) INTO v_qty_return 
+     FROM swa_product_by_anaquel_v 
+    WHERE m_product_id = p_product_id
+      AND m_warehouse_id = p_warehouse_id
+      AND m_locator_id = p_locator_id ;
+
+  ELSIF(p_type_query = 5) THEN ----------------------------------
+
+   SELECT COALESCE(sum(reserved),0) INTO v_qty_return 
+     FROM swa_product_by_anaquel_v 
+    WHERE m_product_id = p_product_id
+      AND m_warehouse_id = p_warehouse_id
+      AND m_locator_id = p_locator_id ;
+  
+  ELSIF(p_type_query = 6) THEN ----------------------------------
+
+    SELECT COALESCE(sum(qtyonhand),0) INTO v_qty_return 
+     FROM swa_product_by_anaquel_v 
+    WHERE m_product_id = p_product_id
+      AND m_warehouse_id = p_warehouse_id
+      AND m_locator_id = p_locator_id ;
+     
+  END IF;
+
+  RETURN v_qty_return;
+  
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SWA_PRODUCT_GETSTOCK
+]]></body>
+    </function>
+  </database>

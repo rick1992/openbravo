@@ -1,0 +1,466 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_TRANSFERINOUT_POST">
+    <function name="SCO_TRANSFERINOUT_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_Result NUMBER:=1; -- Success
+  v_is_included NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_line RECORD;
+    Cur_Order RECORD;
+  -- Record Info
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_Warehouse_Org VARCHAR2(32);
+  v_Org_Name VARCHAR2(60);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60) ;
+  v_DocStatus VARCHAR(60) ;
+  v_DocType_ID VARCHAR2(32);
+  v_DocTypeTarget_ID VARCHAR2(32);
+  v_DocSubTypeSO VARCHAR(60) ;
+  v_DocSubTypeSOTarget VARCHAR(60) ;
+  v_DocBaseTypeTarget VARCHAR(60);
+  v_IsReturnDocType CHAR(1);
+  v_IsBinding CHAR(1):='Y';
+  v_istaxincluded CHAR(1);
+
+  v_Line NUMBER:=0;
+  v_DocumentNo VARCHAR2(200) ;
+  v_GrandTotal NUMBER;
+  v_Multiplier NUMBER:=1;
+  v_Date DATE;
+  v_count NUMBER;
+  v_isSoTrx CHAR(1) ;
+  v_Aux NUMBER;
+  v_c_Bpartner_ID VARCHAR2(32);
+  v_project_id VARCHAR2(32);
+
+  FINISH_PROCESS BOOLEAN:=FALSE;
+  END_PROCESSING BOOLEAN:=FALSE;
+  v_CBPartner_ID VARCHAR2(32);
+  rowcount NUMBER;
+
+  v_bpartner_blocked VARCHAR2(1):='N';
+  v_orderBlocking VARCHAR2(1):='N';
+  v_bpartner_name c_bpartner.name%TYPE;
+  v_productname m_product.name%TYPE;
+
+  BEGIN
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_Order_ID;
+      SELECT CREATEDBY INTO v_User  FROM SCO_TRANSFERINOUT  WHERE SCO_TRANSFERINOUT_ID=p_Order_ID;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  BEGIN --BODY
+  
+    /**
+    * Read Transfer document
+    */
+    v_ResultStr:='ReadingOrder';
+    SELECT Processing, Processed, DocAction, DocStatus,
+      C_DocType_ID, C_DocTypeTarget_ID, SCO_TRANSFERINOUT.AD_Client_ID,
+      SCO_TRANSFERINOUT.AD_Org_ID, SCO_TRANSFERINOUT.UpdatedBy, TRUNC(Movementdate), Issotrx, documentno, c_project_id
+
+    INTO v_IsProcessing, v_IsProcessed, v_DocAction, v_DocStatus,
+      v_DocType_ID, v_DocTypeTarget_ID, v_Client_ID,
+      v_Org_ID, v_UpdatedBy, v_Date,v_isSoTrx,v_DocumentNo, v_project_id
+    FROM SCO_TRANSFERINOUT
+    WHERE SCO_TRANSFERINOUT_ID=v_Record_ID  FOR UPDATE;
+
+
+    -- Get current DocSubTypeSO
+    SELECT DocSubTypeSO
+      INTO v_DocSubTypeSO
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocType_ID;
+    SELECT DocSubTypeSO, isreturn
+      INTO v_DocSubTypeSOTarget, v_isreturndoctype
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocTypetarget_ID;
+
+    /**
+    * Check if transfer document has lines
+    */
+    IF (v_DocAction = 'CO' OR v_DocAction = 'PR') THEN
+      SELECT COUNT(*)
+        INTO v_Aux
+       FROM SCO_TRANSFERINOUTLINE
+       WHERE SCO_TRANSFERINOUT_ID = v_Record_ID;
+       IF v_Aux=0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_TransferinoutWithoutlines@');
+       END IF;
+
+    END IF;
+
+    /**
+    * Order Closed, Voided or Reversed - No action possible
+    */
+    IF(v_DocStatus IN('CL', 'VO', 'RE')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@') ;
+    END IF;
+
+    /**
+    * Unlock
+    */
+    IF(v_DocAction='XL') THEN
+      UPDATE SCO_TRANSFERINOUT
+        SET Processing='N',
+        DocAction='--',
+        Updated=now(),
+        UpdatedBy=v_User
+      WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+      FINISH_PROCESS:=TRUE;
+    END IF;
+
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsProcessing='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+      END IF;
+
+
+      /**
+      * Re-activate
+      */
+    IF (v_DocAction='RE') THEN
+       
+       SELECT Count(*) INTO v_count  FROM sco_transferinoutline where sco_transferinout_id = v_Record_ID
+        AND a_asset_id is not null;
+
+        IF(v_count > 0 )THEN
+           RAISE_APPLICATION_ERROR(-20000, '@spr_transferReactivatewithAsset@') ;
+        END IF;
+
+        DBMS_OUTPUT.PUT_LINE('Re-Activating ' || v_DocSubTypeSO || ': ' || v_Record_ID) ;
+        
+        -- Update Order
+        v_ResultStr:='ReActivate';
+
+	UPDATE SCO_TRANSFERINOUT
+        SET DocStatus='DR', -- Draft
+            DocAction='CO',
+            Processing='N',
+	    Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+       
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+
+    IF (v_DocAction='VO') THEN
+        DBMS_OUTPUT.PUT_LINE('voided ' || v_DocSubTypeSO || ': ' || v_Record_ID) ;
+        -- Update Order
+        v_ResultStr:='ToVoid';
+
+	UPDATE SCO_TRANSFERINOUT
+        SET DocStatus='VO', -- Void
+            DocAction='--',
+	    Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+       
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    
+
+    IF (NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_TRANSFERINOUT C, C_DOCTYPE
+      WHERE C_DocType.DocBaseType IN ('MMM')
+        AND C_DocType.IsSOTrx=C.ISSOTRX
+        AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+        AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+	AND C_DocType.em_sco_specialdoctype in ('SCOTRANSFERDOCUMENT')
+        AND C.SCO_TRANSFERINOUT_ID = v_Record_ID;
+      IF (v_Count=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgDoctypeOrder@') ;
+      END IF;
+
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_TRANSFERINOUT C, SCO_TRANSFERINOUTLINE OL
+      WHERE C.SCO_TRANSFERINOUT_ID = OL.SCO_TRANSFERINOUT_ID
+        AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+        AND C.SCO_TRANSFERINOUT_ID = v_Record_ID;
+      IF (v_Count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+      END IF;
+      
+
+      /**
+      * Close Order - prepare
+      */
+
+     /**************************************************************************
+      * Start Processing ------------------------------------------------------
+      *************************************************************************/
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+        INTO v_is_ready, v_is_tr_allow
+      FROM SCO_TRANSFERINOUT, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=SCO_TRANSFERINOUT.AD_Org_ID
+        AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+        AND SCO_TRANSFERINOUT.SCO_TRANSFERINOUT_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+      SELECT AD_ORG_CHK_DOCUMENTS('SCO_TRANSFERINOUT', 'SCO_TRANSFERINOUTLINE', v_Record_ID, 'SCO_TRANSFERINOUT_ID', 'SCO_TRANSFERINOUT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='LockingOrder';
+        UPDATE SCO_TRANSFERINOUT  SET Processing='Y'  WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+        COMMIT;
+        -- Now, needs to go to END_PROCESSING to unlock
+      END IF;
+
+
+      /**
+      * Allowed Actions:  COmplete, CLose
+      */
+      IF (v_DocAction IN('CO', 'CL', 'PR')) THEN
+        NULL;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@') ;
+      END IF;
+
+      /**
+      * Convert to Target DocType
+      */
+      DECLARE
+        v_DocSubTypeSO_Target VARCHAR(60) ;
+      BEGIN
+        v_ResultStr:='ConvertingDocType';
+        IF (v_DocType_ID <> v_DocTypeTarget_ID) THEN
+          -- New
+          IF (v_DocStatus='DR' OR v_DocType_ID='0') THEN
+            -- Update to Target Document Type
+            WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+            LOOP
+              BEGIN
+                v_ResultStr:='UpdateDocType';
+                UPDATE SCO_TRANSFERINOUT
+                SET C_DocType_ID=v_DocTypeTarget_ID,
+                    Updated=now(),
+                    UpdatedBy=v_User
+                WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+                v_DocType_ID:=v_DocTypeTarget_ID;
+              EXCEPTION
+              WHEN OTHERS THEN
+                v_ResultStr:='UpdateDocumentNo';
+                UPDATE SCO_TRANSFERINOUT  SET DocumentNo=DocumentNo || '.'  WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+              END;
+            END LOOP;
+          ELSE
+            v_ResultStr:='GetTargetDocType';
+            SELECT DocSubTypeSO
+              INTO v_DocSubTypeSO_Target
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=v_DocTypeTarget_ID;
+            DBMS_OUTPUT.PUT_LINE('Changing DocType from ' || v_DocSubTypeSO || ' to ' || v_DocSubTypeSO_Target) ;
+            -- Change Offer to anything, Change InProcess to anything
+            IF (v_DocSubTypeSO IN('ON', 'OB') OR v_DocStatus='IP') THEN
+              -- Update to Target Document Type
+              WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+              LOOP
+                BEGIN
+                  v_ResultStr:='UpdateDocType';
+                  UPDATE SCO_TRANSFERINOUT
+                  SET C_DocType_ID=v_DocTypeTarget_ID,
+                      Updated=now(),
+                      UpdatedBy=v_User
+                  WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+                  v_DocType_ID:=v_DocTypeTarget_ID;
+                EXCEPTION
+                WHEN OTHERS THEN
+                  v_ResultStr:='UpdateDocumentNo';
+                  UPDATE SCO_TRANSFERINOUT  SET DocumentNo=DocumentNo || '.'  WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+                END;
+              END LOOP;
+            ELSE
+              -- Change Back
+              UPDATE SCO_TRANSFERINOUT
+                SET C_DocTypeTarget_ID=v_DocType_ID
+              WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+              RAISE_APPLICATION_ERROR(-20000, '@CannotChangeDocType@') ;
+            END IF;
+          END IF;
+        END IF; -- C_DocType_ID <> C_DocTypeTarget_ID
+      END; -- Conversion
+
+
+
+    /**
+      * Get DocSubTypeSO + Is it Binding :1:2
+      */
+      v_ResultStr:='TestBinding DocType_ID=' || v_DocType_ID;
+      SELECT CASE DocSubTypeSO WHEN 'ON' THEN 'N' ELSE 'Y' END, DocSubTypeSO
+        INTO v_IsBinding, v_DocSubTypeSO
+      FROM C_DOCTYPE
+      WHERE C_DocType_ID=v_DocType_ID;
+      DBMS_OUTPUT.PUT_LINE('DocSubTypeSO=' || v_DocSubTypeSO || ' IsBinding=' || v_IsBinding) ;
+
+
+      -- Synchronize Client/Org Ownership
+      UPDATE SCO_TRANSFERINOUT
+      SET AD_Client_ID=v_Client_ID
+      WHERE SCO_TRANSFERINOUT_ID=v_Record_ID
+        AND (AD_Client_ID<>v_Client_ID) ;
+
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**
+      * In Progress -----------------------------------------------------------
+      */
+      UPDATE SCO_TRANSFERINOUT
+      SET DocStatus='IP',
+          Updated=now(),
+          UpdatedBy=v_User
+      WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        COMMIT;
+      END IF;
+
+    /**
+      * Finished with processing
+      */
+      IF (v_DocAction='PR') THEN
+        v_ResultStr:='FinishProcessing';
+        UPDATE SCO_TRANSFERINOUT
+        SET DocStatus='IP',
+            DocAction='CO',
+            Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+  
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+
+      IF (v_DocAction IN('CO', 'CL')) THEN
+
+
+        FOR CUr_parameter IN (
+          SELECT * FROM sco_transferinoutline WHERE sco_transferinout_id = v_Record_ID
+            AND a_asset_id is not null
+        )
+        LOOP
+          UPDATE a_asset
+             SET c_project_id= v_project_id
+            WHERE a_asset_id= CUr_parameter.a_asset_id;
+        END LOOP;
+
+      
+        UPDATE SCO_TRANSFERINOUT
+        SET DocStatus='CO',
+            DocAction='RE',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+
+      END IF;
+
+      IF (v_DocAction NOT IN('CO')) THEN
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+
+      IF (v_DocAction='CL') THEN
+        UPDATE SCO_TRANSFERINOUT
+        SET DocStatus='CL',
+            DocAction='--',
+            Processed='Y'
+        WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='UnLockingOrder';
+        UPDATE SCO_TRANSFERINOUT
+        SET Processing='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+        COMMIT;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    --<<FINISH_PROCESS>>
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    --Inserted by Carlos Romero 062706
+    UPDATE SCO_TRANSFERINOUT  SET Processing='N'  WHERE SCO_TRANSFERINOUT_ID=v_Record_ID;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END SCO_TRANSFERINOUT_POST
+]]></body>
+    </function>
+  </database>

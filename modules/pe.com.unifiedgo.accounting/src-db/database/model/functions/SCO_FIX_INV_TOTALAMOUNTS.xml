@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_FIX_INV_TOTALAMOUNTS">
+    <function name="SCO_FIX_INV_TOTALAMOUNTS" type="NULL">
+      <parameter name="p_c_invoice_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_Count NUMBER;
+  Cur_Invoice RECORD;
+  v_totallines NUMBER;
+  v_totalgrosslines NUMBER;
+  v_grandtotal NUMBER;
+  v_taxAmt NUMBER;
+  v_istaxincluded VARCHAR(1);
+  BEGIN
+
+  SELECT *
+    INTO Cur_Invoice
+    FROM C_Invoice
+  WHERE C_Invoice_ID = p_c_invoice_id FOR UPDATE;
+
+  IF(Cur_Invoice.docstatus <> 'DR') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SCO_DocNotInDR@');
+  END IF;
+
+  SELECT istaxincluded
+    INTO v_istaxincluded
+    FROM m_pricelist
+  WHERE m_pricelist_id = Cur_Invoice.m_pricelist_id;
+
+  SELECT COALESCE(SUM(COALESCE(LineNetAmt,0)),0)
+    INTO v_totallines
+    FROM C_Invoiceline
+  WHERE C_Invoice_ID = p_c_invoice_id;
+
+  SELECT COALESCE(SUM(COALESCE(line_gross_amount,0)),0)
+    INTO v_totalgrosslines
+    FROM C_Invoiceline
+  WHERE C_Invoice_ID = p_c_invoice_id;
+
+  SELECT SUM(TaxAmt) 
+    INTO v_taxAmt
+    FROM C_InvoiceTax
+  WHERE C_Invoice_ID= p_c_invoice_id;
+
+  UPDATE C_Invoice
+    SET TotalLines = v_totallines,
+        GrandTotal = CASE v_istaxincluded
+                       WHEN 'Y' THEN v_totalgrosslines
+                       ELSE v_totallines + v_taxAmt
+                     END
+    WHERE C_Invoice_ID = p_c_invoice_id;
+
+
+  IF (v_istaxincluded = 'Y') THEN
+    SELECT totallines, grandtotal INTO v_totallines, v_grandtotal
+    FROM C_Invoice
+    WHERE C_Invoice_id = p_c_invoice_id;
+    C_INVOICETAX_ROUNDING(p_c_invoice_id, v_grandtotal, v_totallines);
+  END IF;
+
+  RETURN;
+END SCO_FIX_INV_TOTALAMOUNTS
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_INV_SALESREP_CHK_TRG">
+    <trigger name="SSA_INV_SALESREP_CHK_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_specialDocType VARCHAR(60);
+v_ordertype_oldvalue VARCHAR(60);
+v_ordertype_newvalue VARCHAR(60);
+v_bpvalue VARCHAR(60);
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  
+  IF (INSERTING) THEN
+    SELECT em_sco_specialdoctype INTO v_specialDocType FROM C_Doctype WHERE C_Doctype_ID = :NEW.C_DoctypeTarget_ID;
+    SELECT value INTO v_bpvalue FROM C_BPartner WHERE C_BPartner_ID = :NEW.C_BPartner_ID;
+    IF(:NEW.IsSOTrx='Y' AND v_specialDocType IN ('SCOARINVOICE','SCOARTICKET','SCOARINVOICERETURNMAT','SCOARCREDITMEMO','SCOARDEBITMEMO')) THEN
+       IF(:NEW.SalesRep_ID IS NULL AND v_bpvalue<>'--') THEN
+          --RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesOrderNoSalesRep@') ;
+       END IF;
+    END IF;
+  
+
+  ELSIF (UPDATING) THEN   
+    SELECT em_sco_specialdoctype INTO v_specialDocType FROM C_Doctype WHERE C_Doctype_ID = :NEW.C_DoctypeTarget_ID; 
+    SELECT value INTO v_bpvalue FROM C_BPartner WHERE C_BPartner_ID = :NEW.C_BPartner_ID;
+    IF(COALESCE(:OLD.SalesRep_ID,'.')<>COALESCE(:NEW.SalesRep_ID,'.') OR COALESCE(:OLD.C_Bpartner_ID,'.')<>COALESCE(:NEW.C_Bpartner_ID,'.')) THEN
+       IF(:NEW.IsSOTrx='Y' AND v_specialDocType IN ('SCOARINVOICE','SCOARTICKET','SCOARINVOICERETURNMAT','SCOARCREDITMEMO','SCOARDEBITMEMO')) THEN
+          IF(:NEW.SalesRep_ID IS NULL AND v_bpvalue<>'--') THEN
+             --RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesOrderNoSalesRep@') ;
+          END IF;
+       END IF;
+    END IF;
+  END IF;
+
+END SSA_INV_SALESREP_CHK_TRG
+]]></body>
+    </trigger>
+  </database>

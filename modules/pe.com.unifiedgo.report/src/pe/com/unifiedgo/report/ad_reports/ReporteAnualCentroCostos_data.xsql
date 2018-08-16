@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteAnualCentroCostosData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+
+  
+  
+  
+  
+ <SqlMethod name="select_costos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    select 
+
+	COALESCE((select name from c_costcenter where c_costcenter_id=t.nivel1),'') as des_nivel1,
+	COALESCE((select name from c_costcenter where c_costcenter_id=t.nivel2),'') as des_nivel2,
+	COALESCE((select name from c_costcenter where c_costcenter_id=n3.node_id),'') as des_nivel3,
+	
+	coalesce(t.nivel1,'') as nivel1,coalesce(t.nivel2,'') as nivel2,COALESCE(n3.node_id , '' ) as nivel3,
+	'' as node_id,
+	'' as cuenta,
+	'' as value_cuenta,
+	0.00 factamt,
+	'' as mes,
+	'' as orden_mes,
+
+	'' as idanio,
+	'' as anio,
+	'' AS idorganizacion,
+	'' as centro_costo
+
+
+	from (
+	select t.nivel1,n2.node_id nivel2
+	from (
+	select 
+	n1.node_id as nivel1
+	 from   ad_treenode n1 
+	where n1.ad_tree_id='6339E812D7964D9185FE9315BFF82E2D'
+	and n1.parent_id='0'
+	AND n1.ad_org_id in ('1')	
+	AND n1.ad_client_id in ('1')
+	) t
+	left join   ad_treenode n2 on t.nivel1 = n2.parent_id
+	)t 
+	left join ad_treenode n3 on t.nivel2 = n3.parent_id
+	order by 1,2,3
+
+
+		
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="n1.ad_org_id in (" text="'1'"/>        
+
+    <Parameter name="adUserClient" type="replace" optional="true" after="n1.ad_client_id in (" text="'1'"/>
+    
+  </SqlMethod>
+  
+  
+  
+    
+   <SqlMethod name="select_costos_accts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    select * from (
+		   select 
+		   	COALESCE((select name from c_costcenter where c_costcenter_id=t.nivel1),'') as des_nivel1,
+			COALESCE((select name from c_costcenter where c_costcenter_id=t.nivel2),'') as des_nivel2,
+			COALESCE((select name from c_costcenter where c_costcenter_id=t.nivel3),'') as des_nivel3,
+		*
+		 from (
+		
+		select DISTINCT t.nivel1,t.nivel2,t.nivel3 , fa.acctvalue as value_cuenta,fa.acctdescription as cuenta
+		from 
+		(
+		select 
+			coalesce(t.nivel1,'') as nivel1,coalesce(t.nivel2,'') as nivel2,COALESCE(n3.node_id , '' ) as nivel3
+			from (
+			select t.nivel1,n2.node_id nivel2
+			from (
+			select 
+			n1.node_id as nivel1
+			 from   ad_treenode n1 
+			where n1.ad_tree_id='6339E812D7964D9185FE9315BFF82E2D'
+			and n1.parent_id='0'
+			AND 1=1 AND n1.ad_org_id in ('1')
+			AND 1=1 AND n1.ad_client_id in ('1')				
+			) t
+			left join   ad_treenode n2 on t.nivel1 = n2.parent_id
+			)t 
+			left join ad_treenode n3 on t.nivel2 = n3.parent_id
+		) t
+		left join fact_acct fa on  t.nivel3 = fa.c_costcenter_id and EXTRACT (YEAR FROM fa.dateacct) = CAST(? as INTEGER)
+		 
+		union 
+		
+		
+		select DISTINCT t.nivel1,t.nivel2, '--' as nivel3 , fa.acctvalue,fa.acctdescription
+		from 
+		(
+			select t.nivel1,n2.node_id nivel2
+			from (
+			select 
+			n1.node_id as nivel1
+			 from   ad_treenode n1 
+			where n1.ad_tree_id='6339E812D7964D9185FE9315BFF82E2D'
+			and n1.parent_id='0'
+			AND 2=2 AND n1.ad_org_id in ('2')
+			AND 2=2 AND n1.ad_client_id in ('2')	
+			) t
+			left join   ad_treenode n2 on t.nivel1 = n2.parent_id
+		) t
+		left join fact_acct fa on  t.nivel2 = fa.c_costcenter_id and EXTRACT (YEAR FROM fa.dateacct) = CAST(? as INTEGER)
+		
+		) as t
+		
+		where t.value_cuenta is not null
+		
+		order by 1,2,3
+		
+		) as t2
+		where 3=3
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg1" type="replace" optional="true" after="1=1 AND n1.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient1" type="replace" optional="true" after="1=1 AND n1.ad_client_id in (" text="'1'"/>
+    <Parameter name="anio1" />
+    <Parameter name="adUserOrg2" type="replace" optional="true" after="2=2 AND n1.ad_org_id in (" text="'2'"/>        
+    <Parameter name="adUserClient2" type="replace" optional="true" after="2=2 AND n1.ad_client_id in (" text="'2'"/>
+    <Parameter name="anio2" />
+    <Parameter name="CostCenterId" optional="true" after="3=3"><![CDATA[ AND  cast(? as VARCHAR) IN (t2.nivel1,t2.nivel2,t2.nivel3) ]]></Parameter>
+    
+    
+    
+  </SqlMethod>
+  
+  
+   <SqlMethod name="select_facts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+					SELECT			   
+						 CAST(  EXTRACT (MONTH FROM fa.dateacct) AS INTEGER) AS ORDEN_MES,
+						CASE EXTRACT (MONTH FROM fa.dateacct)
+					WHEN 1 THEN
+						'ENERO'
+					WHEN 2 THEN
+						'FEBRERO'
+					WHEN 3 THEN
+						'MARZO'
+					WHEN 4 THEN
+						'ABRIL'
+					WHEN 5 THEN
+						'MAYO'
+					WHEN 6 THEN
+						'JUNIO'
+					WHEN 7 THEN
+						'JULIO'
+					WHEN 8 THEN
+						'AGOSTO'
+					WHEN 9 THEN
+						'SETIEMBRE'
+					WHEN 10 THEN
+						'OCTUBRE'
+					WHEN 11 THEN
+						'NOVIEMBRE'
+					WHEN 12 THEN
+						'DICIEMBRE'
+					END AS MES,
+						fa.acctvalue as value_cuenta,fa.acctdescription as cuenta,fa.c_costcenter_id as node_id, SUM  (fa.amtacctdr - fa.amtacctcr) AS factamt
+					FROM
+						fact_acct fa
+					WHERE
+					 fa.ad_org_id in ('1')
+					AND fa.ad_client_id in ('1')
+					AND EXTRACT (YEAR FROM fa.dateacct) = CAST(? as INTEGER)
+					AND fa.factaccttype in ('O','N')
+					and fa.c_costcenter_id is not null
+					GROUP BY
+						1,2,3,4,5
+
+					order by 1,2,3
+	
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="adUserOrg" type="replace" optional="true" after="fa.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient" type="replace" optional="true" after="fa.ad_client_id in (" text="'1'"/>
+    <Parameter name="anio"/>
+    
+    
+    
+  </SqlMethod>
+  
+
+
+   <SqlMethod name="select_costos_facts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    select fa.acctvalue value_cuenta,fa.acctdescription cuenta,ccc.value || ' - ' || ccc.name as centro_costo
+    ,SUM  (fa.amtacctdr - fa.amtacctcr) AS factamt
+     from 
+    
+    fact_acct fa
+    inner join c_costcenter ccc on fa.c_costcenter_id=ccc.c_costcenter_id
+    
+    where ad_isorgincluded(fa.ad_org_id ,?, fa.ad_client_id) <> -1 and 1=1
+    
+    group by fa.acctvalue,fa.acctdescription,centro_costo
+    
+    order by centro_costo,fa.acctvalue
+    
+    
+          
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg" />        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[AND trunc(fa.DATEACCT) >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[AND trunc(fa.DATEACCT) <= TO_DATE(?) ]]></Parameter>
+    <Parameter name="CostCenterId" optional="true" after="1=1"><![CDATA[ AND  fa.c_costcenter_id = ? ]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+
+     
+       <SqlMethod name="select_anios" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cy.c_year_id as idanio,
+	cy.year as anio
+	   
+	FROM c_year cy
+	INNER   join ad_org ao on cy.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where cy.isactive='Y'
+	ORDER BY 1,cy.year  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+     
+</SqlClass>

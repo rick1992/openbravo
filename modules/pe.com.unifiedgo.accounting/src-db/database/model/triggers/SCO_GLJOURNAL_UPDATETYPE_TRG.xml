@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_GLJOURNAL_UPDATETYPE_TRG">
+    <trigger name="SCO_GLJOURNAL_UPDATETYPE_TRG" table="GL_JOURNAL" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(INSERTING) THEN
+	IF(:NEW.gl_journalbatch_id IS NULL OR :NEW.gl_journalbatch_id='') THEN
+	  :NEW.em_sco_gljournaltype = 'SCO_STANDALONE';
+	ELSE
+	  :NEW.em_sco_gljournaltype = 'SCO_WITHBATCH';
+	END IF;
+    ELSE
+      IF(COALESCE(:OLD.gl_journalbatch_id,'')<>COALESCE(:NEW.gl_journalbatch_id,'')) THEN
+	IF(:NEW.gl_journalbatch_id IS NULL OR :NEW.gl_journalbatch_id='') THEN
+	  :NEW.em_sco_gljournaltype = 'SCO_STANDALONE';
+	ELSE
+	  :NEW.em_sco_gljournaltype = 'SCO_WITHBATCH';
+	END IF;
+      END IF;
+    END IF;
+
+    END SCO_GLJOURNAL_UPDATETYPE_TRG
+]]></body>
+    </trigger>
+  </database>

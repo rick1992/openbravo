@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteSeguimientoVisitasData" package="pe.com.unifiedgo.report.ad_reports">
+    <SqlClassComment></SqlClassComment>
+    
+    <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select '' as rownum, '' as ssa_projprop_contract_id , '' as c_bpartner_id, '' as documentno, '' as taxid, 
+                '' as bpname, '' as datedoc, '' as email, '' as phone, '' as description, '' as projectname, '' as propertiesdetail, 
+                '' as orgname, '' as socialname, '' as orgruc from dual
+            ]]>
+        </Sql>
+    </SqlMethod>
+    
+    <SqlMethod name="selectData" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+            	select p.ssa_projprop_contract_id, 
+				bp.c_bpartner_id, 
+				p.documentno, 
+				bp.taxid, 
+				bp.name as bpname, 
+				p.datedoc, 
+				(select i.email from ssa_contact_information i where i.c_bpartner_id=bp.c_bpartner_id and i.isactive='Y' limit 1) as email, 
+				(select i.phone from ssa_contact_information i where i.c_bpartner_id=bp.c_bpartner_id and i.isactive='Y' limit 1) as phone, 
+				p.description, 
+				proj.name as projectname, 
+				/*array_to_string(array(select prop.name from ssa_projprop_contract_line pl, ssa_project_property prop 
+								where pl.ssa_projprop_contract_id=p.ssa_projprop_contract_id 
+								and prop.ssa_project_property_id=pl.ssa_project_property_id),',')*/
+				coalesce((select name from ssa_project_property where ssa_project_property_id = lin.ssa_project_property_id), '') as propertiesdetail 
+								
+				from ssa_projprop_contract p
+				left join ssa_projprop_contract_line lin on p.ssa_projprop_contract_id = lin.ssa_projprop_contract_id
+				inner join c_project proj on lin.c_project_id=proj.c_project_id 
+				
+				inner join c_bpartner bp on p.c_bpartner_id=bp.c_bpartner_id
+				
+				where p.specialdoctype='SSAARPROSPECT'
+				and p.docstatus='CO'
+				
+				and ad_isorgincluded(p.ad_org_id, ?, p.ad_client_id) <> -1
+				and p.datedoc between to_date(?) and to_date(?)
+            	and 1=1
+            	order by p.datedoc 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+        <Parameter name="dateFrom" />
+        <Parameter name="dateTo" />        
+        <Parameter name="projectId" optional="true" after="1=1"><![CDATA[ and p.c_project_id=? ]]></Parameter>
+        <Parameter name="salesRepId" optional="true" after="1=1"><![CDATA[ and p.salesrep_id=? ]]></Parameter>
+    </SqlMethod>
+    
+    <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select name as orgname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select social_name as socialname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectRuc" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select taxid as orgruc from ad_orginfo where ad_org_id = ? 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+    
+</SqlClass>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="SSAProjPropContractBPartnerData" package="pe.com.unifiedgo.sales.ad_callouts">
+
+<!--not used anymore -->
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT p.C_PaymentTerm_ID,
+      p.M_PriceList_ID,p.PaymentRule,p.POReference,
+      p.SO_Description,COALESCE(p.IsDiscountPrinted,'N') AS IsDiscountPrinted,
+      p.InvoiceRule,p.DeliveryRule,DeliveryViaRule,
+      COALESCE(p.SO_CreditLimit-p.SO_CreditUsed,-1) AS CreditAvailable,
+      p.PO_PriceList_ID, p.PaymentRulePO, p.PO_PaymentTerm_ID, p.salesrep_Id
+      FROM C_BPartner p
+      WHERE p.C_BPartner_ID=?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+<!--not used anymore -->
+
+  <SqlMethod name="userIdSalesRep" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select max(ad_user_id) AS ID
+        from ad_user, c_bpartner
+        where ad_user.c_bpartner_id = c_bpartner.c_bpartner_id
+        and c_bpartner.issalesrep='Y'
+        and ad_user.isactive='Y' 
+        and ad_user.c_bpartner_id= ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+<!--not used anymore -->
+
+</SqlClass>

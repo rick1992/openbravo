@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportPaymentImportScheduleData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_cro_pag_imp" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+ select	distinct    	
+		'' as idorganizacion,
+		'' as idperiodo,
+		'' as periodo,
+		'' as fechainicial,
+		'' as fechafinal,
+		ao.name as ORGANIZACION,
+		cbp.name as PROVEEDOR,
+		soi.documentno as NRO_OC,
+		to_char(co.dateordered ,'DD/MM/YYYY')as FECHA_OC,
+		to_char(co.em_sim_datetoforwarder ,'DD/MM/YYYY')as FECHA_IFW,
+		to_char( sfi.dateshipment,'DD/MM/YYYY')as FECHA_EMBARQUE,
+		coalesce(sfi.description_importation,'NO REGISTRADO') AS DES_IMPO,
+		to_char(sfi.datearrival,'DD/MM/YYYY')as FECHA_LLEGADA,
+		to_char(sfi.datewarehouse,'DD/MM/YYYY')as FECHA_ALMACEN,
+		coalesce(cptt.name,coalesce(cpt.name,''))  as FORMA_PAGO,
+		
+		( case when (select count(col2.m_product_id)
+		from c_orderline col2
+		where col2.c_order_id=co.c_order_id)> 1
+		then 'PRODUCTOS VARIOS' else
+		(select  mp2.name
+		from c_orderline col2
+		left join m_product mp2 on col2.m_product_id=mp2.m_product_id
+		where col2.c_order_id=co.c_order_id)
+		end
+		)as MERCADERIA,
+		
+		
+		ci.em_scr_physical_documentno as NRO_FACTURA,
+		to_char(ci.dateinvoiced,'DD/MM/YYYY') as FECHA_FACTURA,
+		to_char(fps.duedate,'DD/MM/YYYY') as FECHA_VENCIMIENTO,
+		cit.name as INCOTERM,
+		cc.iso_code||cc.cursymbol as MONEDA,
+		fps.outstandingamt as IMPORTE
+		
+		from sim_orderimport soi
+		join c_bpartner cbp on soi.c_bpartner_id= cbp.c_bpartner_id
+		join c_order co on soi.sim_orderimport_id=co.em_sim_orderimport_id
+		left join sim_folioimport sfi on co.em_sim_folioimport_id=sfi.sim_folioimport_id
+		join sim_invoice_x_partial_v ip on ip.c_order_id = co.c_order_id
+		join c_invoice ci on co.c_order_id=ci.c_order_id
+		join c_paymentterm cpt on ci.c_paymentterm_id=cpt.c_paymentterm_id
+		join c_paymentterm_trl cptt on cpt.c_paymentterm_id=cptt.c_paymentterm_id
+		join c_currency cc on ci.c_currency_id=cc.c_currency_id
+		join ad_org ao on soi.ad_org_id=ao.ad_org_id
+		join c_incoterms cit on co.c_incoterms_id=cit.c_incoterms_id
+		join fin_payment_schedule fps on ci.c_invoice_id=fps.c_invoice_id
+		
+		where ci.EM_Sco_Purchaseinvoicetype='SCO_PURIMP' and ci.docstatus = 'CO' and ci.ispaid='N' and fps.outstandingamt>0 and cptt.ad_language='es_PE' 
+		and ao.ad_client_id IN ('1') 
+		and ao.ad_org_id in ('1')
+		and 1=1   
+		order by cbp.name
+    
+       
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="and ao.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and ao.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND fps.duedate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND fps.duedate < TO_DATE(?)]]></Parameter>
+    <!--Parameter name="paramLanguage"></Parameter-->
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod> 
+  
+  <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+    
+</SqlClass>

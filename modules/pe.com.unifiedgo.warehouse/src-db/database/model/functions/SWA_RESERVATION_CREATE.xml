@@ -1,0 +1,184 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_RESERVATION_CREATE">
+    <function name="SWA_RESERVATION_CREATE" type="NULL">
+      <parameter name="p_record_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_action" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[CUR_ORDERLINE RECORD;
+CUR_REQUEREPODET RECORD;
+
+v_Message VARCHAR2(2000):='';
+v_DocumentNo VARCHAR(30);
+v_m_reservation_id VARCHAR(32);
+v_repositiontrx CHARACTER:='N';
+
+v_Client_ID VARCHAR(32);
+v_Org_ID  VARCHAR(32);
+v_AD_User_ID  VARCHAR(32);
+v_Product_ID VARCHAR(32);
+v_Uom_ID VARCHAR(32);
+v_qtyreserved NUMBER;
+v_InventoryLine_ID VARCHAR(32);
+v_Warehouse_ID VARCHAR(32);
+v_Locator_ID VARCHAR(32);
+v_from_m_warehouse_id VARCHAR(32);
+v_to_m_warehouse_id VARCHAR(32);
+
+v_count NUMBER;
+
+BEGIN
+
+/***
+p_action:
+ INV  Reserva para Inventario                                p_record_id = swa_inventory_missing_id
+ SOL  Reserva para Lineas de Venta                           p_record_id = c_orderline_id
+ POS  Reserva para Lineas de Orden de compra por Servicio    p_record_id = c_orderline_id
+ REP  Reserva para Reposiciones                              p_record_id = sw_requerepo_detail_id
+ PRO  Reserva para Armado/Desarmado(Produccion)              p_record_id = m_productionline_id
+ INO  Reserva para productos con documento de Salida         p_record_id = m_inoutline_id
+*/
+
+
+  IF(p_action = 'INV')THEN 
+    SELECT count(*) INTO v_count FROM swa_inventory_missing WHERE swa_inventory_missing_id= p_record_id;
+    
+    IF(v_count > 0)THEN --Si corresponde a esta tabla
+    
+                   --Datos para la Reserva
+                  SELECT ad_client_id, ad_org_id , createdby , m_product_id , c_uom_id, qtyreserved, m_inventoryline_id, m_warehouse_id , m_locator_id
+                   INTO v_Client_ID, v_Org_ID , v_AD_User_ID , v_Product_ID, v_Uom_ID, v_qtyreserved, v_InventoryLine_ID, v_Warehouse_ID, v_Locator_ID
+                   FROM swa_inventory_missing 
+                   WHERE swa_inventory_missing_id = p_record_id;
+		
+
+                  ----INMEDIATAMENTE SE PROCEDE CON LA RESERVA
+		  v_m_reservation_id:=get_uuid();
+	          INSERT INTO M_RESERVATION(
+		  m_reservation_id, ad_client_id,ad_org_id,isactive,
+		  created,createdby,updated,updatedby,
+		  m_product_id,quantity,c_uom_id,
+		  em_swa_m_inventoryline_id,em_swa_inventory_missing_id,
+		  res_status,res_process,m_warehouse_id,em_obwpl_generatedbypicking
+		  )
+	          VALUES ( v_m_reservation_id,v_Client_ID, v_Org_ID,'Y',
+		  now(),v_AD_User_ID, now(), v_AD_User_ID,
+		  v_Product_ID, v_qtyreserved, v_Uom_ID, 
+		  v_InventoryLine_ID,p_record_id,
+		  'DR','PR',v_Warehouse_ID,'N'
+		  );
+		
+	          --Reservando la cantidad de cada linea
+	          INSERT INTO M_RESERVATION_STOCK(
+	          M_RESERVATION_STOCK_ID, AD_CLIENT_ID,AD_ORG_ID,ISACTIVE,
+	          created,createdby,updated,updatedby,
+	          m_reservation_id, quantity,M_LOCATOR_ID
+	          )
+	          VALUES(
+	          get_uuid(), v_Client_ID, v_Org_ID, 'Y',
+	          now(),v_AD_User_ID, now(), v_AD_User_ID,
+	          v_m_reservation_id, v_qtyreserved , v_Locator_ID
+	          );	
+	          --Con este PERFORM se procesa la reserva para que quede separada.  
+                  M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',v_AD_User_ID ) ;
+	          ---
+    ELSE
+      RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+    END IF;
+  ELSIF(p_action = 'SOL')THEN
+  ELSIF(p_action = 'POS')THEN
+  ELSIF(p_action = 'REP')THEN
+    
+    SELECT count(*) INTO v_count FROM swa_requerepo_detail WHERE swa_requerepo_detail_id= p_record_id;
+    IF(v_count > 0)THEN --Si corresponde a esta tabla
+    
+        --Datos para la Reserva
+        SELECT rp.ad_client_id, rp.ad_org_id , rp.createdby , rp.repositiontrx,  rd.m_product_id , rd.c_uom_id, rd.qtyreserved, rp.from_m_warehouse_id, rp.to_m_warehouse_id
+          INTO v_Client_ID, v_Org_ID , v_AD_User_ID , v_repositiontrx, v_Product_ID, v_Uom_ID, v_qtyreserved,  v_from_m_warehouse_id , v_to_m_warehouse_id
+          FROM swa_requerepo_detail rd
+               INNER JOIN swa_requerimientoreposicion rp on rp.swa_requerimientoreposicion_id = rd.swa_requerimientoreposicion_id
+         WHERE swa_requerepo_detail_id = p_record_id;
+          
+	  v_Warehouse_ID:=v_from_m_warehouse_id;
+          IF(v_repositiontrx='Y')THEN
+           v_Warehouse_ID:=v_to_m_warehouse_id; 
+          END IF;
+
+          
+                  ----INMEDIATAMENTE SE PROCEDE CON LA RESERVA
+		  v_m_reservation_id:=get_uuid();
+	          INSERT INTO M_RESERVATION(
+		  m_reservation_id, ad_client_id,ad_org_id,isactive,
+		  created,createdby,updated,updatedby,
+		  m_product_id,quantity,c_uom_id,
+		  em_swa_requerepo_detail_id,
+		  res_status,res_process,m_warehouse_id,em_obwpl_generatedbypicking
+		  )
+	          VALUES ( v_m_reservation_id,v_Client_ID, v_Org_ID,'Y',
+		  now(),v_AD_User_ID, now(), v_AD_User_ID,
+		  v_Product_ID, v_qtyreserved, v_Uom_ID, 
+		  p_record_id,
+		  'DR','PR',v_Warehouse_ID,'N'
+		  );
+		
+	          --Con este PERFORM se procesa la reserva para que quede separada. (Solo reserva a nivel de Almaceń)  
+                  M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',v_AD_User_ID ) ;
+	          ---
+    ELSE
+      RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+    END IF;
+  ELSIF(p_action = 'PRO')THEN
+     SELECT count(*) INTO v_count FROM m_productionline WHERE m_productionline_id= p_record_id;
+     IF(v_count > 0)THEN --Si corresponde a esta tabla
+    
+                   --Datos para la Reserva
+        	SELECT p.ad_client_id, p.ad_org_id, p.createdby, pl.m_product_id , pl.c_uom_id, pl.movementqty*-1, p.em_swa_m_warehouse_id, pl.m_locator_id
+		  INTO v_Client_ID, v_Org_ID ,v_AD_User_ID, v_Product_ID, v_Uom_ID, v_qtyreserved,  v_Warehouse_ID, v_Locator_ID
+		  FROM M_PRODUCTIONLINE PL 
+		    INNER JOIN M_PRODUCTIONPLAN PP ON PP.M_PRODUCTIONPLAN_ID = PL.M_PRODUCTIONPLAN_ID
+		    INNER JOIN M_PRODUCTION P ON P.M_PRODUCTION_ID = PP.M_PRODUCTION_ID
+		 WHERE PL.M_PRODUCTIONLINE_ID = p_record_id;
+
+                  ----INMEDIATAMENTE SE PROCEDE CON LA RESERVA
+		  v_m_reservation_id:=get_uuid();
+	          INSERT INTO M_RESERVATION(
+		  m_reservation_id, ad_client_id,ad_org_id,isactive,
+		  created,createdby,updated,updatedby,
+		  m_product_id,quantity,c_uom_id,
+		  em_swa_m_productionline_id,
+		  res_status,res_process,m_warehouse_id,em_obwpl_generatedbypicking
+		  )
+	          VALUES ( v_m_reservation_id,v_Client_ID, v_Org_ID,'Y',
+		  now(),v_AD_User_ID, now(), v_AD_User_ID,
+		  v_Product_ID, v_qtyreserved, v_Uom_ID, 
+		  p_record_id,
+		  'DR','PR',v_Warehouse_ID,'N'
+		  );
+		
+	          --Reservando la cantidad de cada linea
+	          INSERT INTO M_RESERVATION_STOCK(
+	          M_RESERVATION_STOCK_ID, AD_CLIENT_ID,AD_ORG_ID,ISACTIVE,
+	          created,createdby,updated,updatedby,
+	          m_reservation_id, quantity,M_LOCATOR_ID
+	          )
+	          VALUES(
+	          get_uuid(), v_Client_ID, v_Org_ID, 'Y',
+	          now(),v_AD_User_ID, now(), v_AD_User_ID,
+	          v_m_reservation_id, v_qtyreserved , v_Locator_ID
+	          );	
+	          --Con este PERFORM se procesa la reserva para que quede separada.  
+                  M_RESERVATION_POST(NULL, v_m_reservation_id,'PR',v_AD_User_ID ) ;
+	          ---
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+      END IF;
+
+  ELSE
+     RAISE_APPLICATION_ERROR(-20000, '@swa_reservation_noactionrecord@' || ' ' ||p_action);
+  END IF;
+END SWA_RESERVATION_CREATE
+]]></body>
+    </function>
+  </database>

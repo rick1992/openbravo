@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_ORDERLINEIMPORT_TRG">
+    <trigger name="SIM_ORDERLINEIMPORT_TRG" table="C_ORDERLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_amount NUMBER:=0;
+  v_qty_Old NUMBER:=0;
+  v_qtyordered NUMBER:=0;
+  v_band NUMBER:=0;
+  v_qty NUMBER:=0;
+  v_docStatus  VARCHAR(60);
+  v_docstatusOrder VARCHAR(60);
+  v_order_docstatus VARCHAR(60);
+  v_cOrderID VARCHAR2(32);
+  v_simorderimportID VARCHAR2(32);
+  v_simorderimportLineID VARCHAR2(32);
+  v_isimport character(1);
+
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.c_orderline_id;
+  v_qty:= :OLD.qtyordered;
+  v_cOrderID:=:OLD.c_order_id;
+  v_simorderimportLineID:=:OLD.em_sim_orderimportline_id;
+ELSE
+  v_ID:=:NEW.c_orderline_id;
+  v_qty:= :NEW.qtyordered;
+  v_cOrderID:=:NEW.c_order_id;
+  v_simorderimportLineID:=:NEW.em_sim_orderimportline_id;
+END IF;
+
+SELECT DOCSTATUS 
+  INTO v_order_docstatus
+  FROM C_ORDER WHERE C_ORDER_ID = v_cOrderID;
+
+IF (DELETING) THEN
+  IF (v_simorderimportLineID IS NOT NULL) THEN
+      select qtyreserved , qtyordered INTO v_qty_Old , v_qtyordered FROM  sim_orderimportline WHERE sim_orderimportline_id= v_simorderimportLineID;
+      v_qty = v_qty_Old + v_qty;
+
+  END IF;
+END IF;
+
+IF (v_simorderimportLineID IS NOT NULL) THEN
+        SELECT qtyreserved , qtyordered INTO v_qty_Old , v_qtyordered FROM  sim_orderimportline WHERE sim_orderimportline_id= v_simorderimportLineID;
+
+   IF (DELETING) THEN
+
+        
+	  v_qty = v_qty_Old + :OLD.qtyordered;
+
+          v_docStatus='NG';
+          IF (v_qty = 0) THEN
+           v_qty=0;
+           v_docStatus='GR';
+          END IF; 
+
+          IF (v_qty < 0) THEN
+           RAISE_APPLICATION_ERROR(-20000, '@sim_invalidqytpartial@');
+          END IF;
+
+          UPDATE sim_orderimportline
+	   SET qtyreserved = v_qty,
+	       docstatus = v_docStatus
+	  WHERE sim_orderimportline_id= v_simorderimportLineID;
+	  
+   END IF;
+	
+   IF (INSERTING AND v_simorderimportLineID is not null) THEN
+      v_qty = v_qty_Old - v_qty;
+
+      v_docStatus='NG';
+      IF (v_qty = 0) THEN
+         v_qty=0;
+         v_docStatus='GR';
+      END IF; 
+
+      IF (v_qty < 0) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@sim_invalidqytpartial@');
+      END IF;
+
+      UPDATE sim_orderimportline
+	 SET qtyreserved = v_qty,
+	     docstatus = v_docStatus
+       WHERE sim_orderimportline_id= v_simorderimportLineID;
+	    
+   END IF;
+
+   IF (UPDATING AND v_simorderimportLineID is not null) THEN
+
+      SELECT DOCSTATUS INTO v_docstatusOrder from  C_ORDER WHERE C_ORDER_ID = :NEW.C_ORDER_ID;
+
+     IF(:OLD.qtyordered <> :NEW.qtyordered AND v_docstatusOrder='DR')THEN
+   
+	 v_qty = :OLD.qtyordered - :NEW.qtyordered;
+         v_qty = v_qty_Old + v_qty;
+
+         v_docStatus='NG';
+         IF (v_qty = 0) THEN
+           v_qty=0;
+           v_docStatus='GR';
+         END IF; 
+         IF (v_qty < 0) THEN
+           RAISE_APPLICATION_ERROR(-20000, '@sim_invalidqytpartial@');
+         END IF;
+
+         UPDATE sim_orderimportline
+	    SET qtyreserved = v_qty,
+	       docstatus = v_docStatus
+	  WHERE sim_orderimportline_id= v_simorderimportLineID;
+     END IF;
+   END IF;
+         
+        
+
+       IF (UPDATING AND v_order_docstatus='CO') THEN  --UPDATE em_sim_partida_arancelaria | em_sim_advalorem | em_sim_tlc_disc_advalorem
+	 IF(:OLD.em_sim_partida_arancelaria <> :NEW.em_sim_partida_arancelaria or
+	    :OLD.em_sim_advalorem <> :NEW.em_sim_advalorem or
+	    :OLD.em_sim_tlc_disc_advalorem <> :NEW.em_sim_tlc_disc_advalorem
+	 ) THEN
+          UPDATE m_product 
+            set em_sim_partida_arancelaria = :NEW.em_sim_partida_arancelaria,
+                em_sim_advalorem = :NEW.em_sim_advalorem,
+                em_sim_tlc_disc_advalorem = :NEW.em_sim_tlc_disc_advalorem
+            WHERE m_product_id = :NEW.m_product_id;
+	 END IF;
+	END IF;
+
+       IF(UPDATING)THEN
+        IF(:OLD.em_sim_partida_arancelaria <> :NEW.em_sim_partida_arancelaria or
+	    :OLD.em_sim_advalorem <> :NEW.em_sim_advalorem or
+	    :OLD.em_sim_tlc_disc_advalorem <> :NEW.em_sim_tlc_disc_advalorem
+	 ) THEN
+           UPDATE sim_orderimportline
+	      SET partida_arancelaria = :NEW.em_sim_partida_arancelaria,
+	          advalorem = :NEW.em_sim_advalorem, 
+	          tlc_disc_advalorem = :NEW.em_sim_tlc_disc_advalorem
+	    WHERE sim_orderimportline_id= v_simorderimportLineID;
+	END IF;
+       END IF;
+
+	   
+END IF;
+  
+END SIM_ORDERLINEIMPORT_TRG
+]]></body>
+    </trigger>
+  </database>

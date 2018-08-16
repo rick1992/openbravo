@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE FIN_FINANCIAL_ACCOUNT">
+    <table name="FIN_FINANCIAL_ACCOUNT" primaryKey="FIN_FINANCIAL_ACCOUNT_KEY">
+      <column name="EM_SCO_FORAPPPAYMENT" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_INTERNAL_DOC_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_CCI_ACCOUNTNO" primaryKey="false" required="false" type="VARCHAR" size="100" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_INTERNAL_DOC" name="EM_SCO_FINACC_INTDOC_FK">
+        <reference local="EM_SCO_INTERNAL_DOC_ID" foreign="SCO_INTERNAL_DOC_ID"/>
+      </foreign-key>
+      <check name="EM_SCO_FINACC_FORAPP_CHK"><![CDATA[EM_SCO_FORAPPPAYMENT IN ('Y', 'N')]]></check>
+    </table>
+  </database>

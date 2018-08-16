@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_PRODUCT_RECEIVED_TRG">
+    <trigger name="SWA_PRODUCT_RECEIVED_TRG" table="C_ORDERLINE" fires="before" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2013 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_C_ORDER_ID VARCHAR2(32) ;
+  v_orderCreditApprovedState VARCHAR(32);
+  v_orderDiscountApprovedState VARCHAR(32);
+  v_DocTypeTarget_ID VARCHAR(32);
+  v_specialDocType VARCHAR(60);
+  v_issotrx CHAR;
+  v_total_ordered NUMBER;
+  v_total_received NUMBER;
+  v_percent_received NUMBER;
+  v_new_received NUMBER;
+  v_importline_received NUMBER;
+  v_lineqty_to_importline NUMBER;
+  v_em_sim_orderimport_id VARCHAR(32);
+  v_em_sim_is_import CHAR;
+  
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_ORDER_ID:=:NEW.C_ORDER_ID;
+  ELSE
+    v_C_ORDER_ID:=:OLD.C_ORDER_ID;
+  END IF;
+
+  --select em_sim_orderimport_id, em_sim_is_import  from c_order limit 1
+
+
+
+  SELECT issotrx,em_sim_orderimport_id,em_sim_is_import
+  INTO v_issotrx,v_em_sim_orderimport_id, v_em_sim_is_import 
+  FROM C_ORDER
+  WHERE C_ORDER_ID=v_C_ORDER_ID;
+
+--Con el delete no hay problema, por que el campo que utilizo para este trigger se actualiza segun el m_inout
+ IF(v_issotrx='N')THEN
+   IF (UPDATING) THEN
+      
+   
+    IF(:NEW.qtyreserved <> :OLD.qtyreserved) THEN
+         v_new_received:=(:NEW.qtyreserved)*-1;
+         :NEW.em_swa_received:= v_new_received;
+
+         SELECT SUM(qtyordered) ,SUM(em_swa_received) 
+           INTO v_total_ordered,v_total_received 
+           FROM C_ORDERLINE 
+          WHERE C_ORDER_ID =  v_C_ORDER_ID
+            AND C_ORDERLINE_ID NOT IN (:NEW.C_ORDERLINE_ID); 
+
+         IF(v_total_received IS NULL)THEN
+           v_total_received:=0;
+         END IF;
+         IF (v_total_ordered IS NULL) THEN
+          v_total_ordered:=0;
+         END IF;
+         
+       
+
+          
+         v_total_received:=v_total_received+v_new_received;
+         v_total_ordered:=v_total_ordered+:NEW.qtyordered;
+
+         IF(v_total_received=0) THEN
+             v_percent_received:=0; 
+         ELSE
+             v_percent_received:=(v_total_received*100)/v_total_ordered;
+         END IF;
+
+--RAISE v_total_ordered ; --v_total_received || ' - ' || v_total_ordered ;
+  
+       
+          IF(v_em_sim_orderimport_id IS NOT NULL AND  v_em_sim_is_import = 'Y')THEN --si fuera de importacion (parcial) entonces se modifica elsim_orderimport_id
+                v_lineqty_to_importline:= (:NEW.qtyreserved)*-1 - (:OLD.qtyreserved)*-1; -- La cantidad en que varia se sumarà al received de la orden de compra de importacion
+              --  RAISE v_lineqty_to_importline ; --v_total_received || ' - ' || v_total_ordered ;
+                SELECT received
+                  INTO v_importline_received 
+                  FROM SIM_ORDERIMPORTLINE
+                 WHERE SIM_ORDERIMPORTLINE_ID=:NEW.em_sim_orderimportline_id;
+
+                v_importline_received:=v_importline_received + v_lineqty_to_importline;
+
+                UPDATE SIM_ORDERIMPORTLINE
+                   SET received = v_importline_received
+                 WHERE SIM_ORDERIMPORTLINE_ID=:NEW.em_sim_orderimportline_id;
+        
+          END IF;
+         
+    END IF;
+   END IF;
+ END IF;
+ 
+
+
+END SWA_PRODUCT_RECEIVED_TRG
+]]></body>
+    </trigger>
+  </database>

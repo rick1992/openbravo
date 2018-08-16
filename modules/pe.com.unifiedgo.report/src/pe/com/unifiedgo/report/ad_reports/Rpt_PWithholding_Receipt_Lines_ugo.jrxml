@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_PWithholding_Receipt_Lines_ugo" pageWidth="595" pageHeight="842" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.0526324729228267"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="SCO_PWITHHOLDING_RECEIPT_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="ISTAXINCLUDED" class="java.lang.String"/>
+	<parameter name="TASA_CAMBIO" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select --(select referenceno from fin_payment where fin_payment_id=pwr.fin_withholdingpayment_id)
+
+CASE WHEN pwr.fin_withholdingpayment_id is not null then
+	(select case
+	 when fp.em_scr_specialpaymentmethod='SCOWIRETRANSFER' then 'TRANSF. BCP'
+	 when fp.em_scr_specialpaymentmethod='SCOCHECK' then fp.referenceno
+	end
+	from fin_payment fp where pwr.fin_withholdingpayment_id=fp.fin_payment_id limit 1)
+ELSE
+	lin.referenceno
+END
+as "NRO_REF",
+coalesce(substring(inv.em_scr_physical_documentno from 1 for (position ('-' in inv.em_scr_physical_documentno)-1)),'') as "SER_DOC",
+coalesce ((select sci.code from scr_combo_item sci WHERE inv.em_sco_podoctype_comboitem_id=sci.scr_combo_item_id),'') as "COD_DOC",
+substring( coalesce( inv.em_scr_physical_documentno ,'') from  position( '-' in coalesce( inv.em_scr_physical_documentno ,'') ) +1  for 20 )as "NRO_FACT",
+
+inv.em_sco_newdateinvoiced as "FECHA",
+
+--pagados
+case when cur.iso_code = 'USD' then (lin.paymentamount+lin.amount)*$P{TASA_CAMBIO} else lin.paymentamount+lin.amount end as "PAG_SOL",
+case when cur.iso_code = 'USD' then (lin.paymentamount+lin.amount) else null end as "PAG_DOL",
+
+--retenidos
+case when cur.iso_code = 'USD' then lin.amount*$P{TASA_CAMBIO} else lin.amount end  as "RET_SOL",
+case when cur.iso_code = 'USD' then lin.amount else null end as "RET_DOL"
+
+from sco_pwithholding_receipt pwr
+join sco_pwithho_rec_line lin on pwr.sco_pwithholding_receipt_id = lin.sco_pwithholding_receipt_id
+join c_invoice inv on lin.invoiceref_id = inv.c_invoice_id
+join c_currency cur on inv.c_currency_id = cur.c_currency_id
+
+where lin.isactive = 'Y'
+and lin.sco_pwithholding_receipt_id in ($P{SCO_PWITHHOLDING_RECEIPT_ID})
+order by inv.em_sco_newdateinvoiced]]>
+	</queryString>
+	<field name="NRO_REF" class="java.lang.String"/>
+	<field name="SER_DOC" class="java.lang.String"/>
+	<field name="COD_DOC" class="java.lang.String"/>
+	<field name="NRO_FACT" class="java.lang.String"/>
+	<field name="FECHA" class="java.sql.Timestamp"/>
+	<field name="PAG_SOL" class="java.math.BigDecimal"/>
+	<field name="PAG_DOL" class="java.math.BigDecimal"/>
+	<field name="RET_SOL" class="java.math.BigDecimal"/>
+	<field name="RET_DOL" class="java.math.BigDecimal"/>
+	<variable name="TOT_RET_DOL" class="java.math.BigDecimal" resetType="Group" resetGroup="W_RECEIPT_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{RET_DOL}!=null?$F{RET_DOL}:BigDecimal.ZERO]]></variableExpression>
+	</variable>
+	<variable name="TOT_RET_SOL" class="java.math.BigDecimal" resetType="Group" resetGroup="W_RECEIPT_ID" calculation="Sum">
+		<variableExpression><![CDATA[$F{RET_SOL}!=null?$F{RET_SOL}:BigDecimal.ZERO]]></variableExpression>
+	</variable>
+	<variable name="TOT_PAG_DOL" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{PAG_DOL}!=null?$F{PAG_DOL}:BigDecimal.ZERO]]></variableExpression>
+	</variable>
+	<variable name="TOT_PAG_SOL" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{PAG_SOL}!=null?$F{PAG_SOL}:BigDecimal.ZERO]]></variableExpression>
+	</variable>
+	<group name="W_RECEIPT_ID"/>
+	<detail>
+		<band height="12" splitType="Stretch">
+			<textField>
+				<reportElement x="314" y="0" width="65" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{PAG_DOL}!=null?$P{NUMBERFORMAT}.format($F{PAG_DOL}):""]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="20" y="0" width="69" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_REF}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="199" y="0" width="65" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement>
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_FACT}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="264" y="0" width="50" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{FECHA}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="444" y="0" width="65" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{RET_DOL}!=null?$P{NUMBERFORMAT}.format($F{RET_DOL}):""]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="509" y="0" width="65" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{RET_SOL}!=null?$P{NUMBERFORMAT}.format($F{RET_SOL}):""]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="379" y="0" width="65" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Right">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{PAG_SOL}!=null?$P{NUMBERFORMAT}.format($F{PAG_SOL}):""]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="89" y="0" width="60" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{COD_DOC}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="149" y="0" width="50" height="12"/>
+				<box leftPadding="1" rightPadding="1"/>
+				<textElement textAlignment="Center">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{SER_DOC}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

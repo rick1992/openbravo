@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_SHIPMENT_GENERATETRANSFER">
+    <function name="SWA_SHIPMENT_GENERATETRANSFER" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- Success
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_Client_ID VARCHAR(32); 
+  v_Org_ID VARCHAR(32);
+  v_sco_transfereinout_id VARCHAR(32);
+  v_docStatus VARCHAR(60);
+  v_doctype_id VARCHAR(32);
+  v_transferin VARCHAR(2000);
+  v_transferout VARCHAR(2000);
+  v_documentno  VARCHAR(30);
+  v_LineSeqNo NUMBER:=0; 
+
+ 
+--Parameter
+  Cur_Parameter RECORD;
+  Cur_Lines RECORD;
+  p_shipmentaction VARCHAR(60); 
+  v_Count NUMBER;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SWA_ErrorInProcessCall@') ;
+    END IF;
+
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,i.AD_User_ID, i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date , p.p_number
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo) 
+    LOOP
+	v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+    END LOOP; -- Get Parameter
+
+   
+
+ --RAISE v_Record_ID;
+
+  SELECT * INTO Cur_Parameter FROM m_inout where m_inout_id = v_Record_ID for update;
+
+  IF(Cur_Parameter.docstatus <> 'CO')THEN
+    RAISE_APPLICATION_ERROR(-20000, '@SWA_togoodtransferonlycompleted@');
+  END IF;
+
+
+  --Obteniendo el Doctype
+  SELECT C_DocType_ID 
+     INTO v_doctype_id
+     FROM C_DOCTYPE
+    WHERE em_sco_specialdoctype='SCOTRANSFERDOCUMENT'
+      AND ISACTIVE='Y' 
+      AND AD_Client_Id= Cur_Parameter.ad_client_id
+      AND AD_ISORGINCLUDED(Cur_Parameter.ad_org_id, AD_Org_ID, Cur_Parameter.ad_client_id) <> -1
+      AND COALESCE(isreturn, 'N') = 'N'
+      LIMIT 1;
+
+
+  IF (v_doctype_id IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000,'@swa_missingtransferdoctype@') ;
+  END IF;
+
+  AD_Sequence_DocType(v_doctype_id, Cur_Parameter.ad_client_id, 'Y', v_documentno) ;
+
+  v_transferin:='--';
+  v_transferout:='--';
+
+  v_sco_transfereinout_id := get_uuid();
+  INSERT INTO SCO_Transferinout (
+        SCO_Transferinout_id, ad_client_id, ad_org_id, isactive, 
+        created, createdby, updated, updatedby, 
+        issotrx, documentno, docstatus, docaction,
+        c_doctype_id, c_doctypetarget_id, movementdate,
+        c_bpartner_id, c_bpartner_location_id, transferin, transferout
+   )
+   VALUES (
+        v_sco_transfereinout_id,Cur_Parameter.ad_client_id, Cur_Parameter.ad_org_id, 'Y',
+        now(), v_User , now(), v_User,
+        'Y',v_documentno, 'DR', 'CO',
+        0,v_doctype_id, Cur_Parameter.movementdate,
+        Cur_Parameter.c_bpartner_id, Cur_Parameter.c_bpartner_location_id, v_transferin, v_transferout
+   );
+
+
+  FOR Cur_Lines IN (
+    SELECT m_product_id,c_uom_id, movementqty  FROM m_inoutline where m_inout_id = v_Record_ID for update
+  )
+  LOOP
+    v_LineSeqNo:= 10 + v_LineSeqNo;
+    INSERT INTO sco_transferinoutline(
+     sco_transferinoutline_id, ad_client_id, ad_org_id, isactive,
+     created, createdby, updated, updatedby,
+     line, m_product_id, c_uom_id, movementqty,
+     sco_transferinout_id 
+    )
+    VALUES(
+     get_uuid(), Cur_Parameter.ad_client_id, Cur_Parameter.ad_org_id, 'Y',
+     now(), v_User , now(), v_User,
+     v_LineSeqNo, Cur_Lines.m_product_id ,Cur_Lines.c_uom_id, Cur_Lines.movementqty,
+     v_sco_transfereinout_id
+    );
+  END LOOP;
+   
+
+
+    v_Message:='@SWA_generateGoodsTransfer@' || ' - ' || v_documentno ; --OBTG:-20000--
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_SHIPMENT_GENERATETRANSFER
+]]></body>
+    </function>
+  </database>

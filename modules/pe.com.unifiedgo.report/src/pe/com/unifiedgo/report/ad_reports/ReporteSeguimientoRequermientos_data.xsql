@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteSeguimientoRequermientosData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_cro_pag_imp" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+	select 
+                
+        mr.ad_user_id as idvendor,
+        
+        coalesce((select coalesce( cbp2.name,COALESCE(au2.name)) from ad_user au2 
+        left join  c_bpartner cbp2 on au2.c_bpartner_id=cbp2.c_bpartner_id
+        where au2.ad_user_id=mr.ad_user_id limit 1),'' ) as vendedor,
+        
+        mr.documentno as nrequerimiento,
+        mr.created::date as fecha_requer,
+        to_char(mrl.created, 'HH12:MI AM') as hora_requer,
+        COALESCE( cbp.name ,/* (select cbp2.name from c_bpartner cbp2 where cbp2.c_bpartner_id=co.c_bpartner_id)*/'') as cliente,
+        COALESCE( mp.value,'') as cod_producto,
+        COALESCE(mp.name,'') as producto,
+        /*COALESCE(co.documentno, cpo.documentno, '' )*/'' as n_pedido,
+        COALESCE( mrl.qty , 0) as cantidad,
+        COALESCE((select  coalesce(cut.name,cu.name,'') from c_uom cu
+        left join c_uom_trl cut on cu.c_uom_id=cut.c_uom_id
+        where cu.c_uom_id=mp.c_uom_id limit 1),'') as unidad_medida,
+        
+        /*COALESCE((
+        
+        SELECT  col2.priceactual from c_orderline col2
+        INNER JOIN c_order co2 on col2.c_order_id=co2.c_order_id
+        where col2.m_product_id=mrl.m_product_id and co2.c_order_id=co.c_order_id limit 1
+        
+        )*mrl.qty,0.0)*/ 0.00 as sinigv,
+        
+        /*case mrl.em_swa_isrejected when 'Y' then
+        to_char(mrl.em_swa_rejected_date,'dd/MM/yyyy HH12:MI:SS a.m.')
+        else '' end */'' as fec_rechazo,
+        
+        COALESCE(mrl.description, mr.description, '') as observaciones,
+        
+        COALESCE(ocomp.documentno, COALESCE(soi.documentno, '')) as n_ordencompra,
+        
+        COALESCE( col.created::date, soil.created::date) as fecha_orden,
+        COALESCE(to_char(col.created, 'HH12:MI AM'),COALESCE(to_char(soil.created, 'HH12:MI AM'),'')) as hora_orden,
+        
+        COALESCE(col.qtyordered , COALESCE(soil.qtyordered , 0)) as cantidad_orden,
+        
+        COALESCE(ocomp.datepromised,soi.datepromised) fecha_prometida,
+        
+        COALESCE(col.em_swa_received , COALESCE(soil.received , 0)) as cantidad_recepcion
+        
+            ,case  mrl.reqstatus when 'O' THEN 'Abierto' 
+            when 'C' THEN 'Cerrado' 
+            WHEN 'D' THEN 'Descartado' else 'Indefinido' end as estado,
+
+        /*,case mrl.em_swa_isrejected when 'N' THEN 'No' ELSE 'Si' END*/ 'No' as rechazado
+        
+        ,ao.name as organizacion
+        
+        ,aoi.taxid as ruc
+        
+        /*,coalesce((
+        select coalesce(arlt.name,arl.name) from ad_ref_list arl
+        inner join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+        where arl.value=mr.em_sre_credit_eval_status and arlt.ad_language='es_PE' limit 1)
+        ,'NN')*/,'NN' as eval_credito,
+        
+        /*coalesce((
+        select coalesce(arlt.name,arl.name) from ad_ref_list arl
+        inner join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+        where arl.value=mr.em_sre_disc_eval_status and arlt.ad_language='es_PE' limit 1)
+        ,'NN')*/'' as eval_descuento,
+        
+        /*COALESCE((
+        
+        SELECT  col2.priceactual from c_orderline col2
+        INNER JOIN c_order co2 on col2.c_order_id=co2.c_order_id
+        where col2.m_product_id=mrl.m_product_id and co2.c_order_id=co.c_order_id limit 1
+        
+        ),0.0)*/0.00 as valor_venta
+        
+        ,coalesce(cp.name,'') as proyecto 
+        
+        ,'' as id, '' as padre , '' as name
+        , coalesce((select c.iso_code from c_currency c where c.c_currency_id = ocomp.c_currency_id), '') as moneda 
+        
+        , col.priceactual as costounitario,
+        
+        mrl.needbydate as fechanecesidad 
+        
+        from m_requisition mr
+        left join c_bpartner cbp ON mr.c_bpartner_id = cbp.c_bpartner_id
+        inner JOIN m_requisitionline mrl on mr.m_requisition_id=mrl.m_requisition_id
+        /*left join c_order co on mr.em_sre_salesorder_id=co.c_order_id*/
+        left join m_product mp on mrl.m_product_id=mp.m_product_id
+        left JOIN m_requisitionorder mro on mrl.m_requisitionline_id=mro.m_requisitionline_id
+        LEFT JOIN c_orderline col on mro.c_orderline_id=col.c_orderline_id
+        left join c_order ocomp on col.c_order_id= ocomp.c_order_id
+
+        LEFT JOIN sim_orderimportline soil on mro.em_sim_orderimportline_id=soil.sim_orderimportline_id
+        left join sim_orderimport soi on soil.sim_orderimport_id= soi.sim_orderimport_id
+        left join ad_org ao on mr.ad_org_id=ao.ad_org_id
+        left join ad_orginfo aoi on ao.ad_org_id=aoi.ad_org_id
+        /*LEFT JOIN ssa_clientpo cpo on mr.em_ssa_clientpo_id = cpo.ssa_clientpo_id*/
+        
+        left join c_project cp on mr.em_spr_project_id=cp.c_project_id
+        
+        where 
+        mr.ad_client_id IN ('1') 
+        and mr.ad_org_id in ('1') 
+        /*and mr.em_sre_genby_requirementarea <> 'Y'*/
+        and 1=1 
+        /*and mr.ad_user_id like '%'||coalesce(?,'')||'%'*/  
+        and mr.documentno like '%'||coalesce(?,'')||'%'
+        
+        and mr.docstatus in ('CO','CL') 
+        
+        and mrl.reqstatus IN ('3')
+        
+        order by ao.name,cp.name, fecha_requer,nrequerimiento
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mr.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="mr.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND mr.created >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND mr.created < TO_DATE(?)]]></Parameter>
+    <Parameter name="strBpartnerId" optional="true" after="1=1"><![CDATA[ AND mr.c_bpartner_id = ?]]></Parameter>
+    <Parameter name="strOnlyPending" optional="true" after="1=1"><![CDATA[and to_char('Y') = to_char(?) and COALESCE( mrl.qty , 0) - COALESCE(col.em_swa_received , soil.received , 0) > 0]]></Parameter>
+    <Parameter name="strSalesRepId" optional="true" after="1=1"><![CDATA[ and mr.em_ssa_salesrep_id = ?]]></Parameter>
+    <Parameter name="nrequerimiento"></Parameter>
+    <Parameter name="estatusRequisition" type="replace" optional="true" after="mrl.reqstatus IN (" text="'3'"/>        
+    
+  </SqlMethod>
+  
+
+  <SqlMethod name="select_vendors" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+			select DISTINCT	au.ad_user_id as idvendor,
+		 coalesce( cbp.name,COALESCE(au.name)) as vendedor
+		 from ad_user au
+		inner join m_requisition mr on au.ad_user_id=mr.ad_user_id
+		left join  c_bpartner cbp on au.c_bpartner_id=cbp.c_bpartner_id
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+
+  </SqlMethod>
+  
+  
+ <SqlMethod name="select_vendor_org" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+	     select
+
+		cbp.ad_org_id as id,
+		
+		au.ad_user_id as padre,
+		cbp.name||' - '||ao.name as name
+		from c_bpartner cbp
+		INNER JOIN ad_org ao on cbp.ad_org_id=ao.ad_org_id
+		left join ad_user au on cbp.c_bpartner_id=au.c_bpartner_id
+		where cbp.isvendor='Y' and cbp.isemployee='Y' and au.ad_user_id is not NULL 
+		
+		union 
+
+	 select '0' as id,
+		au.ad_user_id as padre,
+		cbp.name||' - '||ao.name as name
+		from c_bpartner cbp
+		INNER JOIN ad_org ao on cbp.ad_org_id=ao.ad_org_id
+		left join ad_user au on cbp.c_bpartner_id=au.c_bpartner_id
+		where cbp.isvendor='Y' and cbp.isemployee='Y' and au.ad_user_id is not NULL 
+
+		 order by id,padre,name
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

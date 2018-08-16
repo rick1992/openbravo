@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_INOUT_REPOSITION_TRG">
+    <trigger name="SWA_INOUT_REPOSITION_TRG" table="M_INOUT" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_order_specialdoctype VARCHAR(60);
+  v_order_deliverymethod VARCHAR(60);
+  v_combo_item_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+        
+    IF(UPDATING) THEN
+     IF(:NEW.em_swa_asociate_inout_id IS NOT NULL)THEN
+      IF(:OLD.movementDate <> :NEW.movementDate OR 
+         :OLD.DateAcct <> :NEW.DateAcct
+      )THEN
+        UPDATE m_inout
+         SET movementDate = :NEW.movementdate,
+             DateAcct = :NEW.dateacct
+         WHERE m_inout_id = :NEW.em_swa_asociate_inout_id;
+      END IF;
+     END IF;
+    END IF;
+
+    END SWA_INOUT_REPOSITION_TRG
+]]></body>
+    </trigger>
+  </database>

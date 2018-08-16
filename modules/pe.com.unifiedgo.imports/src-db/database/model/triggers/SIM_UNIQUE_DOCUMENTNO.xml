@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_UNIQUE_DOCUMENTNO">
+    <trigger name="SIM_UNIQUE_DOCUMENTNO" table="SIM_ORDERIMPORT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+LENGTH_PHYDOCNO NUMBER:=11;
+v_physicalDocNo_def VARCHAR(60):='000-0000000';
+v_count_tmp NUMBER:=0;
+v_special VARCHAR(60);
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+ IF(INSERTING)THEN
+
+  SELECT em_sco_specialdoctype INTO v_special from c_doctype where c_doctype_id = :NEW.c_doctype_id;
+   IF(v_special IN ('SIMORDERIMPORT')) THEN
+    SELECT count(sim_orderimport_id)
+      INTO v_count_tmp 
+      FROM sim_orderimport 
+     WHERE trim(documentno) = trim(:NEW.documentno)
+      AND ad_org_id = :NEW.ad_org_id
+      AND trim(documentno)<>'OC00000000';
+
+      IF(v_count_tmp > 0)THEN --Si ya Hay. OJO QUE ESTO ES UN BEFORE
+         :NEW.DOCUMENTNO := 'OC00000000';
+      END IF;
+    END IF;
+ END IF;
+
+
+
+  IF(UPDATING) THEN 
+      SELECT em_sco_specialdoctype INTO v_special from c_doctype where c_doctype_id = :NEW.c_doctype_id;
+     IF(v_special IN ('SIMORDERIMPORT') AND (:OLD.DOCUMENTNO<> :NEW.DOCUMENTNO)) THEN
+	SELECT count(sim_orderimport_id)
+	  INTO v_count_tmp
+	  FROM sim_orderimport 
+	 WHERE trim(documentno) = trim(:NEW.documentno)
+	   AND ad_org_id = :NEW.ad_org_id;
+
+
+      IF(v_count_tmp > 0)THEN --Si ya Hay. OJO QUE ESTO ES UN BEFORE
+          RAISE_APPLICATION_ERROR(-20000, '@sre_purchasedocumentno_exist@') ;
+      END IF;
+    END IF;
+  END IF;
+
+
+  END SIM_UNIQUE_DOCUMENTNO
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,1069 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="GeneralLedgerJournalData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT 
+    '' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal,
+    '' as idlibro, 
+    '' nombrelibro,
+    '' as correlativo, 
+		C_INVOICE_ID, 
+		'' as operation_status,
+      
+      SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, NREG, DATEACCT, datetrx, AA.VALUE, AA.NAME, ID, AD_TABLE_ID, DOCBASETYPE,AR.NAME as DOCNAME, SEQNO, '' AS TOTAL, DESCRIPTION,
+      (CASE FACTACCTTYPE WHEN 'O' THEN 1 WHEN 'N' THEN 2 WHEN 'R' THEN 3 WHEN 'D' THEN 4 ELSE 5 END) AS FACTACCTTYPE2, COSTCENTER, CURRENCYCODE, PHYSICALDOCUMENT, TDCOMP,FECEMI, FECVENC, TDBP,RUCBP,
+      (CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, (CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR, 
+      '' AS GROUPEDLINES, '' AS TAXID, AD_GETTAB_FROM_TABLE(AA.AD_TABLE_ID, AA.DOCBASETYPE, AA.AD_CLIENT_ID) AS TAB_ID  , '' as newStyle,TABLENAME, NUMDOC,ISSOTRX, '' T8COD, AMTSOURCE, (SELECT cursymbol FROM C_Currency WHERE C_Currency_ID = AA.C_Currency_ID) AS cursymbol
+      FROM 
+      (SELECT C.C_INVOICE_ID, F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT,F.EM_SCO_REGNUMBER NREG,
+      F.ACCTVALUE AS VALUE, F.datetrx, F.ACCTDESCRIPTION AS NAME, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END AS DESCRIPTION, F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE,
+      sum(F.AMTACCTDR) AS AMTACCTDR, sum(F.AMTACCTCR) AS AMTACCTCR, 
+       case F.factaccttype when 'O' then 'A' when 'N' then 'M' when 'R' then 'C' when 'D' then 'M' else F.factaccttype end || 
+                     case when coalesce(MAX(F.em_sco_seqno), 0) > 99999 then to_char(MAX(F.em_sco_seqno)) else coalesce(lpad(to_char(MAX(F.em_sco_seqno)), 5, '0'), '00000') end as seqno ,
+      
+       F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID,T.TABLENAME,C.ISSOTRX, CC.VALUE AS COSTCENTER,
+      (CASE  
+                                    WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno
+                                    WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno
+                                    WHEN T .TABLENAME like 'FIN_Payment' then (select CI2.em_scr_physical_documentno from c_invoice CI2 WHERE CI2.C_INVOICE_ID=F.em_sco_record3_id)
+                                    
+                                    ELSE '' 
+      END) as NUMDOC,
+      (CASE
+        WHEN F.C_CURRENCY_ID='100' THEN 2
+        WHEN F.C_CURRENCY_ID='308' THEN 1
+        ELSE 9
+        END) AS CURRENCYCODE,
+      (CASE WHEN C.c_bpartner_id IS NOT NULL THEN
+        (SELECT CODE FROM scr_combo_item ci INNER JOIN c_bpartner bp ON 
+        ci.scr_combo_item_id = bp.em_scr_combo_item_id WHERE bp.c_bpartner_id=C.c_bpartner_id)
+      ELSE ''
+      END) AS TDBP,
+       (CASE WHEN C.c_bpartner_id IS NOT NULL THEN
+        (SELECT TAXID FROM c_bpartner bp WHERE bp.c_bpartner_id=C.c_bpartner_id )
+      ELSE ''
+      END) AS RUCBP,
+      (CASE 
+        WHEN C.issotrx='Y' THEN
+        (CASE (SELECT dt.NAME FROM C_DOCTYPE dt INNER JOIN C_INVOICE inv ON 
+            dt.C_DOCTYPE_ID = inv.C_DOCTYPE_ID WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID ) WHEN
+           'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '' 
+        end) 
+        WHEN C.issotrx='N' THEN
+            (SELECT dt.CODE FROM scr_combo_item dt INNER JOIN C_INVOICE inv ON 
+            dt.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID)
+      ELSE '' end) as TDCOMP,
+       
+       (CASE
+        WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno
+        WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno
+        ELSE ''
+        END) AS PHYSICALDOCUMENT,
+       
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECVENC, 
+         
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECEMI, sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID
+        
+      FROM FACT_ACCT F
+      INNER JOIN C_PERIOD CP ON F.C_PERIOD_ID=CP.C_PERIOD_ID
+      JOIN AD_TABLE T ON F.AD_TABLE_ID  = T.AD_TABLE_ID
+
+      LEFT JOIN C_INVOICE C ON C.C_INVOICE_ID = F.RECORD_ID 
+      LEFT JOIN M_INOUT M ON M.M_INOUT_ID  = F.RECORD_ID 
+      LEFT JOIN FIN_PAYMENT PAY ON PAY.FIN_PAYMENT_ID = F.RECORD_ID
+      LEFT JOIN fin_finacc_transaction TRANS ON TRANS.fin_finacc_transaction_id = F.RECORD_ID
+      LEFT JOIN C_COSTCENTER CC ON CC.C_COSTCENTER_ID= F.C_COSTCENTER_ID
+      ,  
+      C_ACCTSCHEMA SC  
+      WHERE F.AD_CLIENT_ID IN ('1')
+      AND F.AD_ORG_ID IN('1')
+      AND 1=1
+      AND f.AD_ORG_ID IN('2')
+      AND F.FactAcctType IN ('C','N','O','R','D')
+      AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+      GROUP BY f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.ACCTDESCRIPTION, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END, 
+      F.ACCTVALUE, F.datetrx, F.DOCBASETYPE, F.RECORD_ID, 
+      F.FACT_ACCT_GROUP_ID,F.EM_SCO_REGNUMBER, F.ACCOUNT_ID,F.FACTACCTTYPE, 
+      CC.VALUE, F.C_CURRENCY_ID, C.c_bpartner_id, C.C_INVOICE_ID, C.em_scr_physical_documentno, M.em_scr_physical_documentno,
+      C.em_sco_firstduedate, C.dateacct, C.em_sco_newdateinvoiced, M.movementdate, PAY.paymentdate, TRANS.statementdate
+      ,
+      (CASE F.AMTACCTDR WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END), F.AD_CLIENT_ID,T.TABLENAME,NUMDOC,C.ISSOTRX, F.C_CURRENCY_ID
+      HAVING (sum(F.AMTACCTDR) <> 0 OR sum(F.AMTACCTCR) <> 0)) AA
+      LEFT JOIN (select * from AD_REF_LIST_V WHERE AD_REFERENCE_ID = '183'  AND AD_LANGUAGE=?) AR  ON AR.VALUE=AA.DOCBASETYPE 
+      ORDER BY SCHEMA_NAME, DATEACCT, FACTACCTTYPE2, IDENTIFIER, AA.AMTACCTDR DESC, AA.AMTACCTCR DESC, SEQNO
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="descriptionGrouping" type="replace" optional="true" after="AS NAME, CASE WHEN " text="'Y'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) >= trunc(TO_DATE(?))]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) <= trunc(TO_DATE(?))]]></Parameter>
+    <Parameter name="docbasetype" optional="true" after="AND 1=1"><![CDATA[ AND f.DOCBASETYPE = ?]]></Parameter>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="periodType" optional="true" after="1=1"><![CDATA[  AND CP.periodtype = ? ]]></Parameter>
+    <Parameter name="orgFamily" type="replace" optional="true" after="AND f.AD_ORG_ID IN(" text="'2'"/>
+    <Parameter name="checks" type="replace" optional="true" after="AND F.FactAcctType IN (" text="'C','N','O','R','D'"/>
+    <Parameter name="descriptionGrouping" type="replace" optional="true" after="F.ACCTDESCRIPTION, CASE WHEN " text="'Y'"/>
+    
+    <Parameter name="paramLanguage"></Parameter>
+  </SqlMethod>
+  
+  
+  
+  
+  
+
+	<SqlMethod name="selectNew" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				SELECT C_INVOICE_ID, SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, NREG, DATEACCT, datetrx, AA.VALUE, AA.NAME, ID, AD_TABLE_ID, 
+				DOCBASETYPE,AR.NAME as DOCNAME, SEQNO, '' AS TOTAL, DESCRIPTION, 
+				(CASE FACTACCTTYPE WHEN 'O' THEN 1 WHEN 'N' THEN 2 WHEN 'R' THEN 3 WHEN 'D' THEN 4 ELSE 5 END) AS FACTACCTTYPE2, 
+				COSTCENTER, CURRENCYCODE, PHYSICALDOCUMENT, TDCOMP, FECEMI, FECVENC, TDBP, RUCBP, 
+				(CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, 
+				(CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR, 
+				'' AS GROUPEDLINES, '' AS TAXID, AD_GETTAB_FROM_TABLE(AA.AD_TABLE_ID, AA.DOCBASETYPE, AA.AD_CLIENT_ID) AS TAB_ID, 
+				'' as newStyle,TABLENAME, NUMDOC,ISSOTRX, '' T8COD, AMTSOURCE, (SELECT cursymbol FROM C_Currency WHERE C_Currency_ID = AA.C_Currency_ID) AS cursymbol, 
+				case (factaccttype) when 'O' then 'A' when 'N' then 'M' when 'R' then 'C' when 'D' then 'M' else factaccttype end || 
+                case when coalesce((em_sco_seqno), 0) > 99999 then to_char((em_sco_seqno)) else coalesce(lpad(to_char((em_sco_seqno)), 5, '0'), '00000') end as correlativo 
+                FROM (
+                	SELECT C.C_INVOICE_ID, F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT, 
+                	F.EM_SCO_REGNUMBER NREG, F.ACCTVALUE AS VALUE, F.datetrx, 
+                	F.ACCTDESCRIPTION AS NAME, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END AS DESCRIPTION, 
+                	F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE, 
+                	sum(F.AMTACCTDR) AS AMTACCTDR, sum(F.AMTACCTCR) AS AMTACCTCR, MIN(SEQNO) AS SEQNO, F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID,T.TABLENAME, 
+                	C.ISSOTRX, CC.VALUE AS COSTCENTER, 
+                	
+                	(CASE 
+                		WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno 
+                		WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno 
+                		WHEN T .TABLENAME like 'FIN_Payment' then (select CI2.em_scr_physical_documentno from c_invoice CI2 WHERE CI2.C_INVOICE_ID=F.em_sco_record3_id) 
+                		ELSE '' END) as NUMDOC, 
+            		
+            		(CASE 
+            			WHEN F.C_CURRENCY_ID='100' THEN 2 
+            			WHEN F.C_CURRENCY_ID='308' THEN 1 
+            			ELSE 9 END) AS CURRENCYCODE, 
+        			
+        			(CASE 
+        				WHEN C.c_bpartner_id IS NOT NULL THEN (SELECT CODE 
+        														FROM scr_combo_item ci INNER JOIN c_bpartner bp ON ci.scr_combo_item_id = bp.em_scr_combo_item_id 
+        														WHERE bp.c_bpartner_id=C.c_bpartner_id) 
+						ELSE '' END) AS TDBP, 
+					
+					(CASE 
+						WHEN C.c_bpartner_id IS NOT NULL THEN (SELECT TAXID FROM c_bpartner bp WHERE bp.c_bpartner_id=C.c_bpartner_id ) 
+						ELSE '' END) AS RUCBP, 
+					
+					(CASE 
+						WHEN C.issotrx='Y' THEN (CASE (SELECT dt.NAME 
+														FROM C_DOCTYPE dt INNER JOIN C_INVOICE inv ON dt.C_DOCTYPE_ID = inv.C_DOCTYPE_ID 
+														WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID) 
+												WHEN 'AR Invoice' THEN '01' 
+												WHEN 'AR Ticket' THEN '03' 
+												WHEN 'AR Credit Memo' THEN '07' 
+												WHEN 'Return Material Sales Invoice' THEN '07' 
+												WHEN 'AR Debit Memo' THEN '08' else '00' end) 
+						WHEN C.issotrx='N' THEN (SELECT dt.CODE 
+													FROM scr_combo_item dt INNER JOIN C_INVOICE inv ON dt.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id 
+													WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID) 
+						ELSE '' end) as TDCOMP,
+       
+       (CASE
+        WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno
+        WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno
+        ELSE ''
+        END) AS PHYSICALDOCUMENT,
+       
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECVENC, 
+         
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECEMI, sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID
+			,F.EM_SCO_SEQNO
+        
+      FROM FACT_ACCT F
+      INNER JOIN C_PERIOD CP ON F.C_PERIOD_ID=CP.C_PERIOD_ID
+			INNER JOIN c_elementvalue ON F.account_id = c_elementvalue.c_elementvalue_id
+      JOIN AD_TABLE T ON F.AD_TABLE_ID  = T.AD_TABLE_ID
+
+      LEFT JOIN C_INVOICE C ON C.C_INVOICE_ID = F.RECORD_ID 
+      LEFT JOIN M_INOUT M ON M.M_INOUT_ID  = F.RECORD_ID 
+      LEFT JOIN FIN_PAYMENT PAY ON PAY.FIN_PAYMENT_ID = F.RECORD_ID
+      LEFT JOIN fin_finacc_transaction TRANS ON TRANS.fin_finacc_transaction_id = F.RECORD_ID
+      LEFT JOIN C_COSTCENTER CC ON CC.C_COSTCENTER_ID= F.C_COSTCENTER_ID
+      ,  
+      C_ACCTSCHEMA SC  
+      WHERE F.AD_CLIENT_ID IN ('1')
+      AND F.AD_ORG_ID IN('1')
+      AND 1=1
+      AND f.AD_ORG_ID IN('2')
+      AND F.FactAcctType IN ('C','N','O','R','D')
+      AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+      AND 5=5 	
+	  AND ( F.factaccttype <> 'O'
+	  OR c_elementvalue.em_sco_requiresanalytics <> 'N' ) 
+
+      GROUP BY f.fact_acct_id, f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.ACCTDESCRIPTION, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END, F.ACCTVALUE, F.datetrx, F.DOCBASETYPE, F.RECORD_ID, 
+      F.FACT_ACCT_GROUP_ID,F.EM_SCO_REGNUMBER, F.ACCOUNT_ID,F.FACTACCTTYPE, 
+      CC.VALUE, F.C_CURRENCY_ID, C.c_bpartner_id, C.C_INVOICE_ID, C.em_scr_physical_documentno, M.em_scr_physical_documentno,
+      C.em_sco_firstduedate, C.dateacct, C.em_sco_newdateinvoiced, M.movementdate, PAY.paymentdate, TRANS.statementdate,F.EM_SCO_SEQNO
+      ,
+      (CASE F.AMTACCTDR WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END), F.AD_CLIENT_ID,T.TABLENAME,NUMDOC,C.ISSOTRX, F.C_CURRENCY_ID
+      HAVING (sum(F.AMTACCTDR) <> 0 OR sum(F.AMTACCTCR) <> 0)
+
+
+	UNION 
+
+ 	SELECT C.C_INVOICE_ID, F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT,F.EM_SCO_REGNUMBER NREG,
+      F.ACCTVALUE AS VALUE, F.datetrx, F.ACCTDESCRIPTION AS NAME,  CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END AS DESCRIPTION, F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE,
+	CASE
+	WHEN SUM (AMTACCTDR) - SUM (AMTACCTCR) > 0 THEN
+		SUM (AMTACCTDR) - SUM (AMTACCTCR)
+	ELSE
+		0
+	END AS AMTACCTDR,
+	 CASE
+	WHEN SUM (AMTACCTDR) - SUM (AMTACCTCR) < 0 THEN
+		SUM (AMTACCTCR) - SUM (AMTACCTDR)
+	ELSE
+		0
+	END AS AMTACCTCR,
+        MIN(SEQNO) AS SEQNO, F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID,T.TABLENAME,C.ISSOTRX, CC.VALUE AS COSTCENTER,
+      (CASE  
+                                    WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno
+                                    WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno
+                                    WHEN T .TABLENAME like 'FIN_Payment' then (select CI2.em_scr_physical_documentno from c_invoice CI2 WHERE CI2.C_INVOICE_ID=F.em_sco_record3_id)
+                                    
+                                    ELSE '' 
+      END) as NUMDOC,
+      1 AS CURRENCYCODE,
+      (CASE WHEN C.c_bpartner_id IS NOT NULL THEN
+        (SELECT CODE FROM scr_combo_item ci INNER JOIN c_bpartner bp ON 
+        ci.scr_combo_item_id = bp.em_scr_combo_item_id WHERE bp.c_bpartner_id=C.c_bpartner_id)
+      ELSE ''
+      END) AS TDBP,
+       (CASE WHEN C.c_bpartner_id IS NOT NULL THEN
+        (SELECT TAXID FROM c_bpartner bp WHERE bp.c_bpartner_id=C.c_bpartner_id )
+      ELSE ''
+      END) AS RUCBP,
+      (CASE 
+        WHEN C.issotrx='Y' THEN
+        (CASE (SELECT dt.NAME FROM C_DOCTYPE dt INNER JOIN C_INVOICE inv ON 
+            dt.C_DOCTYPE_ID = inv.C_DOCTYPE_ID WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID ) WHEN
+           'AR Invoice' THEN '01' WHEN 'AR Ticket' THEN '03' WHEN 'AR Credit Memo' THEN '07' WHEN 'Return Material Sales Invoice' THEN '07' WHEN 'AR Debit Memo' THEN '08' else '00' 
+        end) 
+        WHEN C.issotrx='N' THEN
+            (SELECT dt.CODE FROM scr_combo_item dt INNER JOIN C_INVOICE inv ON 
+            dt.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID)
+      ELSE '' end) as TDCOMP,
+       
+       (CASE
+        WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno
+        WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno
+        ELSE ''
+        END) AS PHYSICALDOCUMENT,
+       
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECVENC, 
+         
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECEMI, sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, '308' AS C_CURRENCY_ID
+			,MAX(F.EM_SCO_SEQNO) AS EM_SCO_SEQNO
+        
+      FROM FACT_ACCT F
+      INNER JOIN C_PERIOD CP ON F.C_PERIOD_ID=CP.C_PERIOD_ID
+			INNER JOIN c_elementvalue ON F.account_id = c_elementvalue.c_elementvalue_id
+
+      JOIN AD_TABLE T ON F.AD_TABLE_ID  = T.AD_TABLE_ID
+
+      LEFT JOIN C_INVOICE C ON C.C_INVOICE_ID = F.RECORD_ID 
+      LEFT JOIN M_INOUT M ON M.M_INOUT_ID  = F.RECORD_ID 
+      LEFT JOIN FIN_PAYMENT PAY ON PAY.FIN_PAYMENT_ID = F.RECORD_ID
+      LEFT JOIN fin_finacc_transaction TRANS ON TRANS.fin_finacc_transaction_id = F.RECORD_ID
+      LEFT JOIN C_COSTCENTER CC ON CC.C_COSTCENTER_ID= F.C_COSTCENTER_ID
+      ,  
+      C_ACCTSCHEMA SC  
+      WHERE  F.AD_CLIENT_ID IN ('3')
+      AND  F.AD_ORG_ID IN('3')
+      AND 2=2
+      AND  f.AD_ORG_ID IN('4')
+      AND  F.FactAcctType IN ('C','N','O','R','D')
+      AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+      AND 5=5 
+		AND F.factaccttype = 'O'
+		AND c_elementvalue.em_sco_requiresanalytics = 'N'
+
+      
+     GROUP BY  f.C_ACCTSCHEMA_ID,	SC. NAME,	F.AD_TABLE_ID,	F.DATEACCT,	F.ACCTDESCRIPTION,  CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END,
+ 	F.ACCTVALUE, F.datetrx, F.DOCBASETYPE, F.RECORD_ID, F.FACT_ACCT_GROUP_ID, F.EM_SCO_REGNUMBER, F.ACCOUNT_ID, F.FACTACCTTYPE, CC.VALUE
+	,	C .c_bpartner_id,	C .C_INVOICE_ID,	C .em_scr_physical_documentno,	M .em_scr_physical_documentno,	C .em_sco_firstduedate,	C .dateacct,
+	C .em_sco_newdateinvoiced,	M .movementdate,	PAY.paymentdate,	TRANS.statementdate,	F.AD_CLIENT_ID,	T .TABLENAME,	NUMDOC,	C .ISSOTRX
+	HAVING	(		SUM (F.AMTACCTDR)- SUM (F.AMTACCTCR) <> 0	)
+
+      ) AA
+      LEFT JOIN (select * from AD_REF_LIST_V WHERE AD_REFERENCE_ID = '183'  AND AD_LANGUAGE=?) AR  ON AR.VALUE=AA.DOCBASETYPE 
+      ORDER BY SCHEMA_NAME, DATEACCT, FACTACCTTYPE2, IDENTIFIER, AA.AMTACCTDR DESC, AA.AMTACCTCR DESC, SEQNO
+      
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="descriptionGrouping" type="replace" optional="true" after="AS NAME, CASE WHEN " text="'Y'"/>    
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND f.dateacct >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND TRUNC(f.dateacct) <= (TO_DATE(?))]]></Parameter>
+    <Parameter name="docbasetype" optional="true" after="AND 1=1"><![CDATA[ AND f.DOCBASETYPE = ?]]></Parameter>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="tipoPeriodo" optional="true" after="AND 1=1"><![CDATA[ AND  cp.periodType = ? ]]></Parameter>    
+    <Parameter name="orgFamily" type="replace" optional="true" after="AND f.AD_ORG_ID IN(" text="'2'"/>
+    <Parameter name="checks" type="replace" optional="true" after="AND F.FactAcctType IN (" text="'C','N','O','R','D'"/>
+    <Parameter name="descriptionGrouping" type="replace" optional="true" after="F.ACCTDESCRIPTION, CASE WHEN " text="'Y'"/>
+    
+    
+      <Parameter name="descriptionGrouping" type="replace" optional="true" after="AS NAME,  CASE WHEN " text="'Y'"/>    
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE  F.AD_CLIENT_ID IN (" text="'3'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND  F.AD_ORG_ID IN(" text="'3'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 2=2"><![CDATA[ AND f.dateacct >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 2=2"><![CDATA[ AND TRUNC(f.dateacct) <= (TO_DATE(?))]]></Parameter>
+    <Parameter name="docbasetype" optional="true" after="AND 2=2"><![CDATA[ AND f.DOCBASETYPE = ?]]></Parameter>
+    <Parameter name="acctschema" optional="true" after="AND 2=2"><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="tipoPeriodo" optional="true" after="AND 2=2"><![CDATA[ AND  cp.periodType = ? ]]></Parameter>    
+    <Parameter name="orgFamily" type="replace" optional="true" after="AND  f.AD_ORG_ID IN(" text="'4'"/>
+    <Parameter name="checks" type="replace" optional="true" after="AND  F.FactAcctType IN (" text="'C','N','O','R','D'"/>
+    <Parameter name="descriptionGrouping" type="replace" optional="true" after="F.ACCTDESCRIPTION,  CASE WHEN " text="'Y'"/>
+    
+        <Parameter name="paramLanguage"></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+    <SqlMethod name="selectFactsOriginales" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                               SELECT C_INVOICE_ID, SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, NREG, DATEACCT, datetrx, AA.VALUE, AA.NAME, ID, AD_TABLE_ID, 
+                DOCBASETYPE,AR.NAME as DOCNAME, SEQNO, '' AS TOTAL, DESCRIPTION, 
+                (CASE FACTACCTTYPE WHEN 'O' THEN 1 WHEN 'N' THEN 2 WHEN 'R' THEN 3 WHEN 'D' THEN 4 ELSE 5 END) AS FACTACCTTYPE2, 
+                COSTCENTER, CURRENCYCODE, PHYSICALDOCUMENT, TDCOMP, FECEMI, FECVENC, TDBP, RUCBP, 
+                (CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, 
+                (CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR, 
+                '' AS GROUPEDLINES, '' AS TAXID, AD_GETTAB_FROM_TABLE(AA.AD_TABLE_ID, AA.DOCBASETYPE, AA.AD_CLIENT_ID) AS TAB_ID, 
+                '' as newStyle,TABLENAME, NUMDOC,ISSOTRX, '' T8COD, AMTSOURCE, (SELECT cursymbol FROM C_Currency WHERE C_Currency_ID = AA.C_Currency_ID) AS cursymbol, 
+                case (factaccttype) when 'O' then 'A' when 'N' then 'M' when 'R' then 'C' when 'D' then 'M' else factaccttype end || 
+                case when coalesce((sco_seqno), 0) > 99999 then to_char((sco_seqno)) else coalesce(lpad(to_char((sco_seqno)), 5, '0'), '00000') end as correlativo 
+                FROM (
+                    SELECT C.C_INVOICE_ID, F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT, 
+                    F.SCO_REGNUMBER NREG, F.ACCTVALUE AS VALUE, F.datetrx, 
+                    F.ACCTDESCRIPTION AS NAME, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END AS DESCRIPTION, 
+                    F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE, 
+                    sum(F.AMTACCTDR) AS AMTACCTDR, sum(F.AMTACCTCR) AS AMTACCTCR, MIN(SEQNO) AS SEQNO, F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID,T.TABLENAME, 
+                    C.ISSOTRX, CC.VALUE AS COSTCENTER, 
+                    
+                    (CASE 
+                        WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno 
+                        WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno 
+                        WHEN T .TABLENAME like 'FIN_Payment' then (select CI2.em_scr_physical_documentno from c_invoice CI2 WHERE CI2.C_INVOICE_ID=F.sco_record3_id) 
+                        ELSE '' END) as NUMDOC, 
+                    
+                    (CASE 
+                        WHEN F.C_CURRENCY_ID='100' THEN 2 
+                        WHEN F.C_CURRENCY_ID='308' THEN 1 
+                        ELSE 9 END) AS CURRENCYCODE, 
+                    
+                    (CASE 
+                        WHEN C.c_bpartner_id IS NOT NULL THEN (SELECT CODE 
+                                                                FROM scr_combo_item ci INNER JOIN c_bpartner bp ON ci.scr_combo_item_id = bp.em_scr_combo_item_id 
+                                                                WHERE bp.c_bpartner_id=C.c_bpartner_id) 
+                        ELSE '' END) AS TDBP, 
+                    
+                    (CASE 
+                        WHEN C.c_bpartner_id IS NOT NULL THEN (SELECT TAXID FROM c_bpartner bp WHERE bp.c_bpartner_id=C.c_bpartner_id ) 
+                        ELSE '' END) AS RUCBP, 
+                    
+                    (CASE 
+                        WHEN C.issotrx='Y' THEN (CASE (SELECT dt.NAME 
+                                                        FROM C_DOCTYPE dt INNER JOIN C_INVOICE inv ON dt.C_DOCTYPE_ID = inv.C_DOCTYPE_ID 
+                                                        WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID) 
+                                                WHEN 'AR Invoice' THEN '01' 
+                                                WHEN 'AR Ticket' THEN '03' 
+                                                WHEN 'AR Credit Memo' THEN '07' 
+                                                WHEN 'Return Material Sales Invoice' THEN '07' 
+                                                WHEN 'AR Debit Memo' THEN '08' else '00' end) 
+                        WHEN C.issotrx='N' THEN (SELECT dt.CODE 
+                                                    FROM scr_combo_item dt INNER JOIN C_INVOICE inv ON dt.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id 
+                                                    WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID) 
+                        ELSE '' end) as TDCOMP,
+       
+       (CASE
+        WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno
+        WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno
+        ELSE ''
+        END) AS PHYSICALDOCUMENT,
+       
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECVENC, 
+         
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECEMI, sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID
+            ,F.SCO_SEQNO
+        
+      FROM sco_ple5_6_reg F
+      INNER JOIN C_PERIOD CP ON F.reg56_period_id=CP.C_PERIOD_ID
+            INNER JOIN c_elementvalue ON F.account_id = c_elementvalue.c_elementvalue_id
+      JOIN AD_TABLE T ON F.AD_TABLE_ID  = T.AD_TABLE_ID
+
+      LEFT JOIN C_INVOICE C ON C.C_INVOICE_ID = F.RECORD_ID 
+      LEFT JOIN M_INOUT M ON M.M_INOUT_ID  = F.RECORD_ID 
+      LEFT JOIN FIN_PAYMENT PAY ON PAY.FIN_PAYMENT_ID = F.RECORD_ID
+      LEFT JOIN fin_finacc_transaction TRANS ON TRANS.fin_finacc_transaction_id = F.RECORD_ID
+      LEFT JOIN C_COSTCENTER CC ON CC.C_COSTCENTER_ID= F.C_COSTCENTER_ID
+      ,  
+      C_ACCTSCHEMA SC  
+      WHERE F.AD_CLIENT_ID IN ('1')
+      AND F.AD_ORG_ID IN('1')
+      AND 1=1
+      AND F.FactAcctType IN ('N')
+      AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+      AND 5=5   
+
+      GROUP BY f.sco_ple5_6_reg_id, f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.ACCTDESCRIPTION, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END, F.ACCTVALUE, F.datetrx, F.DOCBASETYPE, F.RECORD_ID, 
+      F.FACT_ACCT_GROUP_ID,F.SCO_REGNUMBER, F.ACCOUNT_ID,F.FACTACCTTYPE, 
+      CC.VALUE, F.C_CURRENCY_ID, C.c_bpartner_id, C.C_INVOICE_ID, C.em_scr_physical_documentno, M.em_scr_physical_documentno,
+      C.em_sco_firstduedate, C.dateacct, C.em_sco_newdateinvoiced, M.movementdate, PAY.paymentdate, TRANS.statementdate,F.SCO_SEQNO
+      ,
+      (CASE F.AMTACCTDR WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END), F.AD_CLIENT_ID,T.TABLENAME,NUMDOC,C.ISSOTRX, F.C_CURRENCY_ID
+      HAVING (sum(F.AMTACCTDR) <> 0 OR sum(F.AMTACCTCR) <> 0)
+
+      ) AA
+      LEFT JOIN (select * from AD_REF_LIST_V WHERE AD_REFERENCE_ID = '183' AND ad_language='es_PE' ) AR  ON AR.VALUE=AA.DOCBASETYPE 
+      ORDER BY SCHEMA_NAME, DATEACCT, FACTACCTTYPE2, IDENTIFIER, AA.AMTACCTDR DESC, AA.AMTACCTCR DESC, SEQNO
+      
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND trunc(cp.startdate) <= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND TRUNC(cp.enddate) >= (TO_DATE(?))]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+     <SqlMethod name="selectFactsARegularizar" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                              SELECT C_INVOICE_ID, SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, NREG, DATEACCT, datetrx, AA.VALUE, AA.NAME, ID, AD_TABLE_ID, 
+                DOCBASETYPE,AR.NAME as DOCNAME, SEQNO, '' AS TOTAL, DESCRIPTION, 
+                (CASE FACTACCTTYPE WHEN 'O' THEN 1 WHEN 'N' THEN 2 WHEN 'R' THEN 3 WHEN 'D' THEN 4 ELSE 5 END) AS FACTACCTTYPE2, 
+                COSTCENTER, CURRENCYCODE, PHYSICALDOCUMENT, TDCOMP, FECEMI, FECVENC, TDBP, RUCBP, 
+                (CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, 
+                (CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR, 
+                '' AS GROUPEDLINES, '' AS TAXID, AD_GETTAB_FROM_TABLE(AA.AD_TABLE_ID, AA.DOCBASETYPE, AA.AD_CLIENT_ID) AS TAB_ID, 
+                '' as newStyle,TABLENAME, NUMDOC,ISSOTRX, '' T8COD, AMTSOURCE, (SELECT cursymbol FROM C_Currency WHERE C_Currency_ID = AA.C_Currency_ID) AS cursymbol, 
+                case (factaccttype) when 'O' then 'A' when 'N' then 'M' when 'R' then 'C' when 'D' then 'M' else factaccttype end || 
+                case when coalesce((EM_sco_seqno), 0) > 99999 then to_char((EM_sco_seqno)) else coalesce(lpad(to_char((EM_sco_seqno)), 5, '0'), '00000') end as correlativo 
+                FROM (
+                    SELECT C.C_INVOICE_ID, F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT, 
+                    F.EM_SCO_REGNUMBER NREG, F.ACCTVALUE AS VALUE, F.datetrx, 
+                    F.ACCTDESCRIPTION AS NAME, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END AS DESCRIPTION, 
+                    F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE, 
+                    sum(F.AMTACCTDR) AS AMTACCTDR, sum(F.AMTACCTCR) AS AMTACCTCR, MIN(SEQNO) AS SEQNO, F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID,T.TABLENAME, 
+                    C.ISSOTRX, CC.VALUE AS COSTCENTER, 
+                    
+                    (CASE 
+                        WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno 
+                        WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno 
+                        WHEN T .TABLENAME like 'FIN_Payment' then (select CI2.em_scr_physical_documentno from c_invoice CI2 WHERE CI2.C_INVOICE_ID=F.EM_sco_record3_id) 
+                        ELSE '' END) as NUMDOC, 
+                    
+                    (CASE 
+                        WHEN F.C_CURRENCY_ID='100' THEN 2 
+                        WHEN F.C_CURRENCY_ID='308' THEN 1 
+                        ELSE 9 END) AS CURRENCYCODE, 
+                    
+                    (CASE 
+                        WHEN C.c_bpartner_id IS NOT NULL THEN (SELECT CODE 
+                                                                FROM scr_combo_item ci INNER JOIN c_bpartner bp ON ci.scr_combo_item_id = bp.em_scr_combo_item_id 
+                                                                WHERE bp.c_bpartner_id=C.c_bpartner_id) 
+                        ELSE '' END) AS TDBP, 
+                    
+                    (CASE 
+                        WHEN C.c_bpartner_id IS NOT NULL THEN (SELECT TAXID FROM c_bpartner bp WHERE bp.c_bpartner_id=C.c_bpartner_id ) 
+                        ELSE '' END) AS RUCBP, 
+                    
+                    (CASE 
+                        WHEN C.issotrx='Y' THEN (CASE (SELECT dt.NAME 
+                                                        FROM C_DOCTYPE dt INNER JOIN C_INVOICE inv ON dt.C_DOCTYPE_ID = inv.C_DOCTYPE_ID 
+                                                        WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID) 
+                                                WHEN 'AR Invoice' THEN '01' 
+                                                WHEN 'AR Ticket' THEN '03' 
+                                                WHEN 'AR Credit Memo' THEN '07' 
+                                                WHEN 'Return Material Sales Invoice' THEN '07' 
+                                                WHEN 'AR Debit Memo' THEN '08' else '00' end) 
+                        WHEN C.issotrx='N' THEN (SELECT dt.CODE 
+                                                    FROM scr_combo_item dt INNER JOIN C_INVOICE inv ON dt.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id 
+                                                    WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID) 
+                        ELSE '' end) as TDCOMP,
+       
+       (CASE
+        WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno
+        WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno
+        ELSE ''
+        END) AS PHYSICALDOCUMENT,
+       
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECVENC, 
+         
+       (CASE 
+         WHEN C.ISSOTRX = 'Y' THEN C.dateacct
+         WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced
+         ELSE F.dateacct
+         END) AS FECEMI, sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID
+            ,F.EM_SCO_SEQNO
+        
+      FROM fact_acct F
+      INNER JOIN C_PERIOD CP ON F.c_period_id=CP.C_PERIOD_ID
+            INNER JOIN c_elementvalue ON F.account_id = c_elementvalue.c_elementvalue_id
+      JOIN AD_TABLE T ON F.AD_TABLE_ID  = T.AD_TABLE_ID
+
+      LEFT JOIN C_INVOICE C ON C.C_INVOICE_ID = F.RECORD_ID 
+      LEFT JOIN M_INOUT M ON M.M_INOUT_ID  = F.RECORD_ID 
+      LEFT JOIN FIN_PAYMENT PAY ON PAY.FIN_PAYMENT_ID = F.RECORD_ID
+      LEFT JOIN fin_finacc_transaction TRANS ON TRANS.fin_finacc_transaction_id = F.RECORD_ID
+      LEFT JOIN C_COSTCENTER CC ON CC.C_COSTCENTER_ID= F.C_COSTCENTER_ID
+      ,  
+      C_ACCTSCHEMA SC  
+      WHERE F.AD_CLIENT_ID IN ('1')
+      AND F.AD_ORG_ID IN('1')
+      AND 1=1
+      AND F.FactAcctType IN ('N')
+      AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+      AND 5=5   
+
+      GROUP BY f.fact_acct_id, f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.ACCTDESCRIPTION, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END, F.ACCTVALUE, F.datetrx, F.DOCBASETYPE, F.RECORD_ID, 
+      F.FACT_ACCT_GROUP_ID,F.EM_SCO_REGNUMBER, F.ACCOUNT_ID,F.FACTACCTTYPE, 
+      CC.VALUE, F.C_CURRENCY_ID, C.c_bpartner_id, C.C_INVOICE_ID, C.em_scr_physical_documentno, M.em_scr_physical_documentno,
+      C.em_sco_firstduedate, C.dateacct, C.em_sco_newdateinvoiced, M.movementdate, PAY.paymentdate, TRANS.statementdate,F.EM_SCO_SEQNO
+      ,
+      (CASE F.AMTACCTDR WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END), F.AD_CLIENT_ID,T.TABLENAME,NUMDOC,C.ISSOTRX, F.C_CURRENCY_ID
+      HAVING (sum(F.AMTACCTDR) <> 0 OR sum(F.AMTACCTCR) <> 0)
+
+      ) AA
+        INNER JOIN 
+        (  select DISTINCT record_id as recordid,ad_table_id as tableid from sco_ple5_6_reg t56
+           inner join c_period cp on cp.c_period_id = t56.reg56_period_id where 6=6
+        )   as fo on aa.id=fo.recordid and aa.ad_table_id = fo.tableid
+                    
+      LEFT JOIN (select * from AD_REF_LIST_V WHERE AD_REFERENCE_ID = '183' AND ad_language='es_PE' ) AR  ON AR.VALUE=AA.DOCBASETYPE 
+
+      ORDER BY SCHEMA_NAME, DATEACCT, FACTACCTTYPE2, IDENTIFIER, AA.AMTACCTDR DESC, AA.AMTACCTCR DESC, SEQNO
+      
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND  trunc(f.dateacct)< TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="6=6"><![CDATA[ AND trunc(cp.startdate) <= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="6=6"><![CDATA[ AND TRUNC(cp.enddate) >= (TO_DATE(?))]]></Parameter>
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+	<SqlMethod name="selectAll" type="preparedStatement" return="multiple">
+		<SqlMethodComment></SqlMethodComment>
+		<Sql>
+			<![CDATA[
+				SELECT '' as idorganizacion, '' as idperiodo, '' as periodo, '' as fechainicial, '' as fechafinal, '' as idlibro, '' nombrelibro, 
+				C_INVOICE_ID, SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, NREG, DATEACCT, datetrx, AA.VALUE, AA.NAME, ID, AD_TABLE_ID, DOCBASETYPE, 
+				AR.NAME as DOCNAME, SEQNO, '' AS TOTAL, DESCRIPTION, 
+				(CASE FACTACCTTYPE WHEN 'O' THEN 1 WHEN 'N' THEN 2 WHEN 'R' THEN 3 WHEN 'D' THEN 4 ELSE 5 END) AS FACTACCTTYPE2, COSTCENTER, 
+				CURRENCYCODE, PHYSICALDOCUMENT, TDCOMP,FECEMI, FECVENC, TDBP,RUCBP, 
+				(CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, 
+				(CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR, '' AS GROUPEDLINES, '' AS TAXID, 
+				AD_GETTAB_FROM_TABLE(AA.AD_TABLE_ID, AA.DOCBASETYPE, AA.AD_CLIENT_ID) AS TAB_ID  , '' as newStyle,TABLENAME, NUMDOC,ISSOTRX, 
+				'' T8COD, AMTSOURCE, (SELECT cursymbol FROM C_Currency WHERE C_Currency_ID = AA.C_Currency_ID) AS cursymbol 
+				FROM (
+					SELECT C.C_INVOICE_ID, F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, 
+					F.DATEACCT,F.EM_SCO_REGNUMBER NREG, F.ACCTVALUE AS VALUE, F.datetrx, 
+					F.ACCTDESCRIPTION AS NAME, CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END AS DESCRIPTION, F.RECORD_ID AS ID, F.AD_TABLE_ID, 
+					F.DOCBASETYPE, (F.AMTACCTDR) AS AMTACCTDR, (F.AMTACCTCR) AS AMTACCTCR, 
+					case F.factaccttype when 'O' then 'A' when 'N' then 'M' when 'R' then 'C' when 'D' then 'M' else F.factaccttype end || 
+					case when coalesce((F.em_sco_seqno), 0) > 99999 then to_char((F.em_sco_seqno)) else coalesce(lpad(to_char((F.em_sco_seqno)), 5, '0'), '00000') end as seqno , 
+					F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID,T.TABLENAME,C.ISSOTRX, CC.VALUE AS COSTCENTER, 
+					(CASE 
+						WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno 
+						WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno 
+						WHEN T .TABLENAME like 'FIN_Payment' then (select CI2.em_scr_physical_documentno from c_invoice CI2 WHERE CI2.C_INVOICE_ID=F.em_sco_record3_id) 
+						ELSE '' END) as NUMDOC, 
+					(CASE 
+						WHEN F.C_CURRENCY_ID='100' THEN 2 
+						WHEN F.C_CURRENCY_ID='308' THEN 1 
+						ELSE 9 END) AS CURRENCYCODE, 
+					(CASE 
+						WHEN C.c_bpartner_id IS NOT NULL 
+						THEN (SELECT CODE FROM scr_combo_item ci INNER JOIN c_bpartner bp ON ci.scr_combo_item_id = bp.em_scr_combo_item_id WHERE bp.c_bpartner_id=C.c_bpartner_id) 
+						ELSE '' END) AS TDBP, 
+					(CASE WHEN C.c_bpartner_id IS NOT NULL THEN (SELECT TAXID FROM c_bpartner bp WHERE bp.c_bpartner_id=C.c_bpartner_id ) ELSE '' END) AS RUCBP, 
+					(CASE 
+						WHEN C.issotrx='Y' THEN (CASE (SELECT dt.NAME FROM C_DOCTYPE dt INNER JOIN C_INVOICE inv ON dt.C_DOCTYPE_ID = inv.C_DOCTYPE_ID WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID ) 
+							WHEN 'AR Invoice' THEN '01' 
+							WHEN 'AR Ticket' THEN '03' 
+							WHEN 'AR Credit Memo' THEN '07' 
+							WHEN 'Return Material Sales Invoice' THEN '07' 
+							WHEN 'AR Debit Memo' THEN '08' else '' end)
+						WHEN C.issotrx='N' THEN (SELECT dt.CODE FROM scr_combo_item dt 
+							INNER JOIN C_INVOICE inv ON dt.scr_combo_item_id = inv.em_sco_podoctype_comboitem_id WHERE inv.C_INVOICE_ID=C.C_INVOICE_ID) 
+						ELSE '' end) as TDCOMP, 
+					(CASE 
+						WHEN C.em_scr_physical_documentno IS NOT NULL THEN C.em_scr_physical_documentno 
+						WHEN M.em_scr_physical_documentno IS NOT NULL THEN M.em_scr_physical_documentno 
+						ELSE '' END) AS PHYSICALDOCUMENT, 
+					(CASE 
+						WHEN C.ISSOTRX = 'Y' THEN C.dateacct 
+						WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced 
+						ELSE F.dateacct END) AS FECVENC, 
+					(CASE 
+						WHEN C.ISSOTRX = 'Y' THEN C.dateacct 
+						WHEN C.ISSOTRX = 'N' THEN C.em_sco_newdateinvoiced 
+						ELSE F.dateacct END) AS FECEMI, 
+					(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID 
+					
+					FROM FACT_ACCT F 
+					INNER JOIN C_PERIOD CP ON F.C_PERIOD_ID=CP.C_PERIOD_ID 
+					JOIN AD_TABLE T ON F.AD_TABLE_ID  = T.AD_TABLE_ID 
+					
+					LEFT JOIN C_INVOICE C ON C.C_INVOICE_ID = F.RECORD_ID 
+					LEFT JOIN M_INOUT M ON M.M_INOUT_ID  = F.RECORD_ID 
+					LEFT JOIN FIN_PAYMENT PAY ON PAY.FIN_PAYMENT_ID = F.RECORD_ID 
+					LEFT JOIN fin_finacc_transaction TRANS ON TRANS.fin_finacc_transaction_id = F.RECORD_ID 
+					LEFT JOIN C_COSTCENTER CC ON CC.C_COSTCENTER_ID= F.C_COSTCENTER_ID, 
+					C_ACCTSCHEMA SC 
+					
+					WHERE F.AD_CLIENT_ID IN ('1') 
+					AND F.AD_ORG_ID IN('1') 
+					AND 1=1 
+					AND f.AD_ORG_ID IN('2') 
+					AND F.FactAcctType IN ('C','N','O','R','D') 
+					AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID 
+					
+					/*GROUP BY f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.ACCTDESCRIPTION, 
+					CASE WHEN 'Y' = 'Y' THEN TO_CHAR(F.DESCRIPTION) ELSE TO_CHAR('') END, F.ACCTVALUE, F.datetrx, F.DOCBASETYPE, F.RECORD_ID, 
+					F.FACT_ACCT_GROUP_ID,F.EM_SCO_REGNUMBER, F.ACCOUNT_ID,F.FACTACCTTYPE, 
+					CC.VALUE, F.C_CURRENCY_ID, C.c_bpartner_id, C.C_INVOICE_ID, C.em_scr_physical_documentno, M.em_scr_physical_documentno, 
+					C.em_sco_firstduedate, C.dateacct, C.em_sco_newdateinvoiced, M.movementdate, PAY.paymentdate, TRANS.statementdate, 
+					(CASE F.AMTACCTDR 
+						WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END), 
+					F.AD_CLIENT_ID,T.TABLENAME,NUMDOC,C.ISSOTRX, F.C_CURRENCY_ID 
+					
+					HAVING (sum(F.AMTACCTDR) <> 0 OR sum(F.AMTACCTCR) <> 0)*/) AA 
+				LEFT JOIN (select * from AD_REF_LIST_V WHERE AD_REFERENCE_ID = '183'  AND AD_LANGUAGE=?) AR  ON AR.VALUE=AA.DOCBASETYPE 
+				ORDER BY SCHEMA_NAME, DATEACCT, FACTACCTTYPE2, IDENTIFIER, AA.AMTACCTDR DESC, AA.AMTACCTCR DESC, SEQNO 
+			]]>
+		</Sql>
+		<Field name="rownum" value="count"/>
+		
+		<Parameter name="descriptionGrouping" type="replace" optional="true" after="AS NAME, CASE WHEN " text="'Y'"/>
+		<Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+		<Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+		<Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) >= trunc(TO_DATE(?))]]></Parameter>
+		<Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) <= trunc(TO_DATE(?))]]></Parameter>
+		<Parameter name="docbasetype" optional="true" after="AND 1=1"><![CDATA[ AND f.DOCBASETYPE = ?]]></Parameter>
+		<Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+		<Parameter name="periodType" optional="true" after="1=1"><![CDATA[  AND CP.periodtype = ? ]]></Parameter>
+		
+		<Parameter name="orgFamily" type="replace" optional="true" after="AND f.AD_ORG_ID IN(" text="'2'"/>
+		<Parameter name="checks" type="replace" optional="true" after="AND F.FactAcctType IN (" text="'C','N','O','R','D'"/>
+		
+		<!--Parameter name="closing" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'C'"/>
+		<Parameter name="regularization" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'R'"/>
+		<Parameter name="opening" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'O'"/-->
+		<Parameter name="paramLanguage"></Parameter>
+	</SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="selectCountGroupedLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COUNT(*) AS GROUPEDLINES, IDENTIFIER, SCHEMA_NAME, DATEACCT
+      FROM
+      (
+        SELECT SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, DATEACCT, VALUE, NAME, ID, AD_TABLE_ID, DOCBASETYPE, SEQNO, '' AS TOTAL, '' AS DESCRIPTION,
+        (CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, (CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR
+        FROM 
+        (SELECT F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT,
+        F.ACCTVALUE AS VALUE, F.ACCTDESCRIPTION AS NAME,F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE,
+        sum(F.AMTACCTDR) AS AMTACCTDR, sum(F.AMTACCTCR) AS AMTACCTCR, MIN(SEQNO) AS SEQNO, sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID
+        FROM FACT_ACCT F, C_ACCTSCHEMA SC  
+        WHERE F.AD_CLIENT_ID IN ('1')
+        AND F.AD_ORG_ID IN('1')
+        AND 1=1
+        AND f.AD_ORG_ID IN('2')
+        AND F.FactAcctType IN ('C','N','O','R','D')
+        AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+        GROUP BY f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.ACCTDESCRIPTION, F.ACCTVALUE, F.DOCBASETYPE, F.RECORD_ID, 
+        F.FACT_ACCT_GROUP_ID, F.ACCOUNT_ID, F.C_CURRENCY_ID,
+        (CASE F.AMTACCTDR WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END)) AA
+        ORDER BY SCHEMA_NAME, DATEACCT, IDENTIFIER, SEQNO
+      ) BB
+      GROUP BY IDENTIFIER, SCHEMA_NAME, DATEACCT
+      ORDER BY SCHEMA_NAME, DATEACCT, IDENTIFIER
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) >= trunc(TO_DATE(?))]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) <= trunc(TO_DATE(?))]]></Parameter>
+    <Parameter name="docbasetype" optional="true" after="AND 1=1"><![CDATA[ AND f.DOCBASETYPE = ?]]></Parameter>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="orgFamily" type="replace" optional="true" after="AND f.AD_ORG_ID IN(" text="'2'"/>
+    <Parameter name="checks" type="replace" optional="true" after="AND F.FactAcctType IN (" text="'C','N','O','R','D'"/>
+    <!--Parameter name="closing" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'C'"/>
+    <Parameter name="regularization" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'R'"/>
+    <Parameter name="opening" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'O'"/-->
+  </SqlMethod>
+  <SqlMethod name="selectCount" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT COUNT(FACT_ACCT_GROUP_ID) AS TOTAL
+        FROM (
+        SELECT F.DATEACCT, F.FACT_ACCT_GROUP_ID  
+        FROM FACT_ACCT F left join AD_TABLE T on F.AD_TABLE_ID = T.AD_TABLE_ID
+                         left join AD_TAB TB  on T.AD_TABLE_ID = TB.AD_TABLE_ID
+                         left join AD_COLUMN C on T.AD_TABLE_ID = C.AD_TABLE_ID 
+                                              AND C.ISKEY = 'Y'  
+                         left join AD_WINDOW W on TB.AD_WINDOW_ID = W.AD_WINDOW_ID
+        WHERE F.AD_CLIENT_ID IN ('1')
+        AND F.AD_ORG_ID IN('1')
+        AND 1=1
+        AND f.AD_ORG_ID IN('2')     
+          AND F.FactAcctType IN ('C','N','O','R','D')
+        AND (CASE (SELECT MAX(ISSOTRX) FROM C_DOCTYPE D 
+                    WHERE D.DOCBASETYPE = F.DOCBASETYPE) WHEN 'N' THEN COALESCE(T.PO_WINDOW_ID, T.AD_WINDOW_ID) ELSE T.AD_WINDOW_ID END) = (CASE TO_CHAR(F.DOCBASETYPE) 
+                    WHEN 'FAT' THEN '94EAA455D2644E04AB25D93BE5157B6D' ELSE W.AD_WINDOW_ID END)
+        GROUP BY F.DATEACCT, F.FACT_ACCT_GROUP_ID) AA
+        WHERE (DATEACCT< TO_DATE(?) OR (DATEACCT=TO_DATE(?) AND FACT_ACCT_GROUP_ID < ?))
+      ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) >= trunc(TO_DATE(?))]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND trunc(f.dateacct) <= trunc(TO_DATE(?))]]></Parameter>
+    <Parameter name="docbasetype" optional="true" after="AND 1=1"><![CDATA[ AND f.DOCBASETYPE = ?]]></Parameter>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="orgFamily" type="replace" optional="true" after="AND f.AD_ORG_ID IN(" text="'2'"/>
+    <Parameter name="checks" type="replace" optional="true" after="AND F.FactAcctType IN (" text="'C','N','O','R','D'"/>
+    <Parameter name="dateAcct"/>
+    <Parameter name="dateAcct"/>
+    <Parameter name="factAcctGroupId"/>
+    <!--Parameter name="closing" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'C'"/>
+    <Parameter name="regularization" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'R'"/>
+    <Parameter name="opening" optional="true" type="none" after="2=2" text=" AND F.FactAcctType = 'O'"/-->
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  <SqlMethod name="selectDirect" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, DATEACCT, datetrx, AA.VALUE, AA.NAME, ID, AD_TABLE_ID, DOCBASETYPE,AR.NAME as DOCNAME, SEQNO, '' AS TOTAL, 
+      (CASE FACTACCTTYPE WHEN 'O' THEN 1 WHEN 'N' THEN 2 WHEN 'R' THEN 3 WHEN 'D' THEN 4 ELSE 5 END) AS FACTACCTTYPE2,
+      (CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, (CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR,
+      AD_GETTAB_FROM_TABLE(AA.AD_TABLE_ID, AA.DOCBASETYPE, AA.AD_CLIENT_ID) AS TAB_ID  , '' as newStyle, AMTSOURCE, (SELECT cursymbol FROM C_Currency WHERE C_Currency_ID = AA.C_Currency_ID) AS cursymbol
+      FROM 
+      (SELECT F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT,
+      F.ACCTVALUE AS VALUE, F.datetrx, F.ACCTDESCRIPTION AS NAME, F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE,
+      sum(F.AMTACCTDR) AS AMTACCTDR, sum(F.AMTACCTCR) AS AMTACCTCR, MIN(SEQNO) AS SEQNO, F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID , sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID
+      FROM FACT_ACCT F, C_ACCTSCHEMA SC 
+      WHERE F.AD_CLIENT_ID IN ('1')
+      AND F.AD_ORG_ID IN('1')
+      AND 1=1
+      AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+      AND f.C_ACCTSCHEMA_ID = ?
+      GROUP BY f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.datetrx, F.ACCTDESCRIPTION,  F.ACCTVALUE, F.DOCBASETYPE, F.RECORD_ID, 
+      F.FACT_ACCT_GROUP_ID, F.ACCOUNT_ID,F.FACTACCTTYPE, F.C_CURRENCY_ID,
+      (CASE F.AMTACCTDR WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END), F.AD_CLIENT_ID
+      HAVING (sum(F.AMTACCTDR) <> 0 OR sum(F.AMTACCTCR) <> 0)) AA
+      LEFT JOIN (select * from AD_REF_LIST_V WHERE AD_REFERENCE_ID = '183'  AND AD_LANGUAGE=?) AR  ON AR.VALUE=AA.DOCBASETYPE 
+      ORDER BY SCHEMA_NAME, DATEACCT, FACTACCTTYPE2, IDENTIFIER, AA.AMTACCTDR DESC, AA.AMTACCTCR DESC, SEQNO
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="table" optional="true" after="AND 1=1"><![CDATA[ AND f.ad_table_Id = ?]]></Parameter>
+    <Parameter name="record" optional="true" after="AND 1=1"><![CDATA[ AND f.record_Id = ?]]></Parameter>   
+    <Parameter name="table" optional="true" after="AND 1=1"><![CDATA[ AND f.ad_table_ID = ?]]></Parameter>
+    <Parameter name="record" optional="true" after="AND 1=1"><![CDATA[ AND f.record_ID = ?]]></Parameter>
+    <Parameter name="cAcctshemaId"></Parameter>
+    <Parameter name="paramLanguage"></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectCountDirect" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT COUNT(FACT_ACCT_GROUP_ID) AS TOTAL
+        FROM (
+        SELECT F.DATEACCT, F.FACT_ACCT_GROUP_ID  
+        FROM  AD_TABLE T left join AD_TAB TB on T.AD_TABLE_ID = TB.AD_TABLE_ID
+                         left join AD_COLUMN C  on T.AD_TABLE_ID = C.AD_TABLE_ID 
+                                               AND C.ISKEY = 'Y'
+                         left join FACT_ACCT F on F.AD_TABLE_ID = T.AD_TABLE_ID
+                         left join AD_WINDOW W on TB.AD_WINDOW_ID = W.AD_WINDOW_ID 
+        WHERE F.AD_CLIENT_ID IN ('1')
+        AND F.AD_ORG_ID IN('1')
+        AND 1=1
+        AND F.fact_acct_group_id = ?
+        AND (CASE (SELECT MAX(ISSOTRX) FROM C_DOCTYPE D 
+        WHERE D.DOCBASETYPE = F.DOCBASETYPE) WHEN 'N' THEN COALESCE(T.PO_WINDOW_ID, T.AD_WINDOW_ID) ELSE T.AD_WINDOW_ID END) = W.AD_WINDOW_ID 
+        GROUP BY F.DATEACCT, F.FACT_ACCT_GROUP_ID) AA
+        WHERE (DATEACCT< TO_DATE(?) OR (DATEACCT=to_date(?) AND FACT_ACCT_GROUP_ID < ?))
+      ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="table" optional="true" after="AND 1=1"><![CDATA[ AND f.ad_table_Id = ?]]></Parameter>
+    <Parameter name="record" optional="true" after="AND 1=1"><![CDATA[ AND f.record_Id = ?]]></Parameter>
+    <Parameter name="factAcctGroup"/>
+    <Parameter name="dateAcct"/>
+    <Parameter name="dateAcct"/>
+    <Parameter name="factAcctGroupId"/>
+  </SqlMethod>
+  <SqlMethod name="selectDirect2" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT SCHEMA_ID, SCHEMA_NAME, IDENTIFIER, DATEACCT, datetrx, AA.VALUE, AA.NAME, ID, AD_TABLE_ID, DOCBASETYPE,AR.NAME as DOCNAME, SEQNO, '' AS TOTAL,  (CASE FACTACCTTYPE WHEN 'O' THEN 1 WHEN 'N' THEN 2 WHEN 'R' THEN 3 WHEN 'D' THEN 4 ELSE 5 END) AS FACTACCTTYPE2,
+      (CASE AMTACCTDR WHEN 0 THEN NULL ELSE AMTACCTDR END) AS AMTACCTDR, (CASE AMTACCTCR WHEN 0 THEN NULL ELSE AMTACCTCR END) AS AMTACCTCR,
+      AD_GETTAB_FROM_TABLE(AA.AD_TABLE_ID, AA.DOCBASETYPE, AA.AD_CLIENT_ID) AS TAB_ID  , '' as newStyle, AMTSOURCE, (SELECT cursymbol FROM C_Currency WHERE C_Currency_ID = AA.C_Currency_ID) AS cursymbol
+      FROM 
+      (SELECT F.C_ACCTSCHEMA_ID AS SCHEMA_ID, SC.NAME AS SCHEMA_NAME, F.FACT_ACCT_GROUP_ID AS IDENTIFIER, F.DATEACCT,
+      F.ACCTVALUE AS VALUE, F.datetrx, F.ACCTDESCRIPTION AS NAME, F.RECORD_ID AS ID, F.AD_TABLE_ID, F.DOCBASETYPE,
+      sum(F.AMTACCTDR) AS AMTACCTDR, sum(F.AMTACCTCR) AS AMTACCTCR, MIN(SEQNO) AS SEQNO, F.FACTACCTTYPE AS FACTACCTTYPE, F.AD_CLIENT_ID , sum(F.AMTSOURCEDR + F.AMTSOURCECR) AS AMTSOURCE, F.C_CURRENCY_ID 
+      FROM FACT_ACCT F, C_ACCTSCHEMA SC 
+      WHERE F.AD_CLIENT_ID IN ('1')
+      AND F.AD_ORG_ID IN('1')
+      AND f.C_ACCTSCHEMA_ID = SC.C_ACCTSCHEMA_ID
+      AND F.Fact_Acct_Group_ID = ?
+      GROUP BY f.C_ACCTSCHEMA_ID, SC.NAME, F.AD_TABLE_ID, F.DATEACCT, F.ACCTDESCRIPTION, F.ACCTVALUE, F.datetrx, F.DOCBASETYPE, F.RECORD_ID, 
+      F.FACT_ACCT_GROUP_ID, F.ACCOUNT_ID,F.FACTACCTTYPE, F.C_CURRENCY_ID,
+      (CASE F.AMTACCTDR WHEN 0 THEN (CASE SIGN(F.AMTACCTCR) WHEN -1 THEN 1 ELSE 2 END) ELSE (CASE SIGN(F.AMTACCTDR) WHEN -1 THEN 3 ELSE 4 END) END), F.AD_CLIENT_ID
+      HAVING (sum(F.AMTACCTDR) <> 0 OR sum(F.AMTACCTCR) <> 0)) AA
+      LEFT JOIN (select * from AD_REF_LIST_V WHERE AD_REFERENCE_ID = '183'  AND AD_LANGUAGE=?) AR  ON AR.VALUE=AA.DOCBASETYPE 
+      ORDER BY SCHEMA_NAME, DATEACCT, FACTACCTTYPE2, IDENTIFIER, AA.AMTACCTDR DESC, AA.AMTACCTCR DESC, SEQNO
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="factAcctGroupId"/>
+    <Parameter name="paramLanguage"></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectCountDirect2" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT COUNT(FACT_ACCT_GROUP_ID) AS TOTAL
+        FROM (
+        SELECT F.DATEACCT, F.FACT_ACCT_GROUP_ID  
+        FROM AD_TABLE T left join AD_TAB TB    on T.AD_TABLE_ID = TB.AD_TABLE_ID
+                        left join AD_COLUMN C  on T.AD_TABLE_ID = C.AD_TABLE_ID
+                                              AND C.ISKEY = 'Y'
+                        left join FACT_ACCT F  on F.AD_TABLE_ID = T.AD_TABLE_ID 
+                        left join AD_WINDOW W  on TB.AD_WINDOW_ID = W.AD_WINDOW_ID
+        WHERE F.AD_CLIENT_ID IN ('1')
+        AND F.AD_ORG_ID IN('1')
+        AND 1=1
+        and f.fact_acct_group_id = ?
+        AND (CASE (SELECT MAX(ISSOTRX) FROM C_DOCTYPE D 
+        WHERE D.DOCBASETYPE = F.DOCBASETYPE) WHEN 'N' THEN COALESCE(T.PO_WINDOW_ID, T.AD_WINDOW_ID) ELSE T.AD_WINDOW_ID END) = W.AD_WINDOW_ID 
+        GROUP BY F.DATEACCT, F.FACT_ACCT_GROUP_ID) AA
+        WHERE (DATEACCT< to_date(?) OR (DATEACCT=to_date(?) AND FACT_ACCT_GROUP_ID < ?))
+      ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="factAcctGroupId"/>
+    <Parameter name="dateAcct"/>
+    <Parameter name="dateAcct"/>
+    <Parameter name="identifier"/>
+  </SqlMethod>
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrgTaxID" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT MIN(I.TAXID)
+        FROM AD_ORGINFO I
+        WHERE I.AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	/*where periodtype!='A'*/
+	ORDER BY 1,cp.startdate desc
+
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+     
+     
+     
+      <SqlMethod name="select_libros" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+				SELECT cas.C_ACCTSCHEMA_ID as idlibro, 
+		((CASE cas.isActive WHEN 'N' THEN '**' ELSE '' END) || cas.Name) as nombrelibro,
+		ao3.ad_org_id as idorganizacion
+				 FROM C_ACCTSCHEMA cas
+			INNER   join ad_org ao on cas.ad_org_id=ao.ad_org_id
+			LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+			on ao.social_name=ao3.social_name
+		ORDER BY ao3.name
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+
+     
+     
+     
+  
+</SqlClass>

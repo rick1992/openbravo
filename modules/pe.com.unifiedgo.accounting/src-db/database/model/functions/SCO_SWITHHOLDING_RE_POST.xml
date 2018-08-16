@@ -1,0 +1,796 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_SWITHHOLDING_RE_POST">
+    <function name="SCO_SWITHHOLDING_RE_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_Result NUMBER:=1; -- Success
+  v_is_included NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_line RECORD;
+    Cur_refundline RECORD;
+  -- Record Info
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60) ;
+  v_DocStatus VARCHAR(60) ;
+  v_DocType_ID VARCHAR2(32);
+  v_DocTypeTarget_ID VARCHAR2(32);
+  v_DocSubTypeSO VARCHAR(60) ;
+  v_DocSubTypeSOTarget VARCHAR(60) ;
+  v_DocBaseTypeTarget VARCHAR(60);
+  v_IsReturnDocType CHAR(1);
+  v_IsBinding CHAR(1):='Y';
+  v_istaxincluded CHAR(1);
+
+  v_Line NUMBER:=0;
+  v_DocumentNo VARCHAR2(200) ;
+  v_Date DATE;
+  v_DateAcct DATE;
+  v_isSoTrx CHAR(1) ;
+  v_Aux NUMBER;
+  v_c_Bpartner_ID VARCHAR2(32);
+  v_c_currency_ID VARCHAR2(32);
+  FINISH_PROCESS BOOLEAN:=FALSE;
+  END_PROCESSING BOOLEAN:=FALSE;
+  rowcount NUMBER;
+  v_Posted SCO_SWITHHOLDING_RECEIPT.Posted%TYPE;
+  v_Amount NUMBER;
+  v_count NUMBER;
+
+  v_specialDocType VARCHAR(60);
+  v_Aux3 VARCHAR(32);
+
+  v_PeriodStartDate DATE;
+  v_PeriodEndDate DATE;
+  v_DocNo_Org_ID AD_Sequence.AD_Org_ID%TYPE;
+  v_TargetDocBaseType C_DOCTYPE.DocBaseType%TYPE;
+  v_isReversal C_DOCTYPE.IsReversal%TYPE;
+  v_MultiplierARC NUMBER:=1;
+  v_available_period NUMBER:=0;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+  v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+  v_withholdingnumber VARCHAR(30);
+
+  BEGIN
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_Order_ID;
+      SELECT CREATEDBY INTO v_User  FROM SCO_SWITHHOLDING_RECEIPT  WHERE SCO_SWITHHOLDING_RECEIPT_ID=p_Order_ID;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  BEGIN --BODY
+
+    /**
+    * Read Sales Withholding Receipt
+    */
+    v_ResultStr:='ReadingOrder';
+    SELECT Processing, Processed, DocAction, DocStatus,
+      C_DocType_ID, C_DocTypeTarget_ID, SCO_SWITHHOLDING_RECEIPT.AD_Client_ID,
+      SCO_SWITHHOLDING_RECEIPT.AD_Org_ID, SCO_SWITHHOLDING_RECEIPT.UpdatedBy, TRUNC(DateGen),
+      documentno,Posted,DateAcct, C_Bpartner_ID, withholdingnumber
+    INTO v_IsProcessing, v_IsProcessed, v_DocAction, v_DocStatus,
+      v_DocType_ID, v_DocTypeTarget_ID, v_Client_ID,
+      v_Org_ID, v_UpdatedBy, v_Date,
+      v_DocumentNo,v_Posted,v_DateAcct, v_c_Bpartner_ID, v_withholdingnumber
+    FROM SCO_SWITHHOLDING_RECEIPT
+    WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID  FOR UPDATE;
+
+
+    -- Get current DocSubTypeSO
+    SELECT DocSubTypeSO
+      INTO v_DocSubTypeSO
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocType_ID;
+    SELECT DocSubTypeSO, isreturn
+      INTO v_DocSubTypeSOTarget, v_isreturndoctype
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocTypetarget_ID;
+
+    IF (v_DocAction = 'CO' OR v_DocAction = 'PR') THEN
+
+     /**
+      * Check if sales withholding receipt has Lines
+      */
+      SELECT COUNT(*)
+        INTO v_Aux
+       FROM SCO_Swithho_Rec_Line
+       WHERE SCO_SWITHHOLDING_RECEIPT_ID = v_Record_ID;
+       IF v_Aux=0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_SWithholdingRecWithoutLines@');
+       END IF;
+
+       IF(v_withholdingnumber IS NULL OR v_withholdingnumber = '') THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SCO_SWithholdingRecWithoutWNumber@');
+       END IF;
+
+       --Check for cross reference between the swithholding receipt line and invoice
+       DECLARE
+	  CurLines RECORD;
+          v_line NUMBER;
+          v_invoiceref_id VARCHAR(32);
+	  v_otherdocnumber VARCHAR(60);
+       BEGIN
+	  FOR CurLines IN
+            (SELECT * FROM SCO_Swithho_Rec_Line WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID  ORDER BY line)
+          LOOP
+	    
+	      SELECT documentno
+	        INTO v_otherdocnumber
+	        FROM C_Invoice
+	      WHERE C_Invoice_ID = CurLines.invoiceref_id FOR UPDATE;
+
+	      IF(Curlines.C_Bpartner_ID <> v_c_Bpartner_ID) THEN
+		v_Message := '@SCO_NotPossibleCompleteSWithholdingRec@' || ' ' || v_DocumentNo;
+                v_Message := v_Message || ' ' || '@line@' || ' ' || CurLines.line || '. ';
+                v_Message := v_Message || '@SCO_SWithholdingRecInvLine@';
+                RAISE_APPLICATION_ERROR(-20000, v_Message);
+	      END IF;
+
+	  END LOOP;
+       END;
+
+      /*
+       * Avoids repeating the same documentno for the same organization tree within the same fiscal year
+       */
+      SELECT COUNT(*) INTO v_count
+      FROM (SELECT Y.C_CALENDAR_ID, Y.C_YEAR_ID,
+                MIN(P.STARTDATE) AS PERIODSTARTDATE, MAX(P.ENDDATE) AS PERIODENDDATE
+            FROM C_YEAR Y, C_PERIOD P
+            WHERE Y.C_YEAR_ID = P.C_YEAR_ID
+              AND Y.ISACTIVE = 'Y'
+              AND P.ISACTIVE = 'Y'
+              AND Y.C_CALENDAR_ID = (SELECT O.C_CALENDAR_ID 
+                                     FROM AD_ORG O
+                                     WHERE AD_ORG_ID = AD_ORG_GETCALENDAROWNER(v_Org_ID))
+            GROUP BY Y.C_CALENDAR_ID, Y.C_YEAR_ID) A
+      WHERE PERIODSTARTDATE <= v_Date
+        AND PERIODENDDATE+1 > v_Date ;
+      IF (v_count<>0) THEN
+        SELECT PERIODSTARTDATE, PERIODENDDATE
+          INTO v_PeriodStartDate, v_PeriodEndDate
+        FROM (SELECT Y.C_CALENDAR_ID, Y.C_YEAR_ID,
+                  MIN(P.STARTDATE) AS PERIODSTARTDATE, MAX(P.ENDDATE) AS PERIODENDDATE
+              FROM C_YEAR Y, C_PERIOD P
+              WHERE Y.C_YEAR_ID = P.C_YEAR_ID
+                AND Y.ISACTIVE = 'Y'
+                AND P.ISACTIVE = 'Y'
+                AND Y.C_CALENDAR_ID = (SELECT O.C_CALENDAR_ID 
+                                       FROM AD_ORG O
+                                       WHERE AD_ORG_ID = AD_ORG_GETCALENDAROWNER(v_Org_ID))
+              GROUP BY Y.C_CALENDAR_ID, Y.C_YEAR_ID) A
+        WHERE PERIODSTARTDATE <= v_Date
+          AND PERIODENDDATE+1 > v_Date ;
+        IF (v_PeriodStartDate IS NOT NULL AND v_PeriodEndDate IS NOT NULL) THEN
+          SELECT D.AD_ORG_ID INTO v_DocNo_Org_ID
+          FROM C_DOCTYPE D
+          WHERE D.C_DOCTYPE_ID = v_DocTypeTarget_ID ;
+          SELECT COUNT(*) INTO v_count
+          FROM SCO_SWITHHOLDING_RECEIPT I
+          WHERE I.DOCUMENTNO = v_DocumentNo
+            AND I.C_DOCTYPETARGET_ID = v_DocTypeTarget_ID
+            AND I.DATEGEN >= v_PeriodStartDate
+            AND I.DATEGEN < v_PeriodEndDate+1 
+            AND I.SCO_SWITHHOLDING_RECEIPT_ID <> v_Record_ID 
+            AND AD_ISORGINCLUDED(I.AD_ORG_ID, v_DocNo_Org_ID, I.AD_CLIENT_ID) <> -1
+            AND I.AD_CLIENT_ID = v_Client_ID ;
+          IF (v_count<>0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_SWithholdingRecDifferentDocumentNo@');
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+    
+    /**
+    * Order Closed, Voided or Reversed - No action possible
+    */
+    IF(v_DocStatus IN('CL', 'VO', 'RE')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@') ;
+    END IF;
+
+    /**
+    * Unlock
+    */
+    IF(v_DocAction='XL') THEN
+      UPDATE SCO_SWITHHOLDING_RECEIPT
+        SET Processing='N',
+        DocAction='--',
+        Updated=now(),
+        UpdatedBy=v_User
+      WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+      FINISH_PROCESS:=TRUE;
+    END IF;
+    
+    IF (NOT FINISH_PROCESS) THEN
+
+      
+      /**
+       * Everything done
+       */
+      IF (v_IsProcessed='Y' AND v_DocAction NOT IN('RC', 'RE','CL')) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@');
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsProcessing='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+      END IF;
+
+      IF (v_DocAction='VO' AND v_DocStatus NOT IN('CO', 'RE')) THEN
+
+        --Erase all the lines to release the cross ref
+        DELETE FROM sco_swithho_rec_line WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+
+	UPDATE SCO_SWITHHOLDING_RECEIPT
+        SET DocStatus='VO',
+            DocAction='--',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    END IF;
+
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsProcessing='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+      END IF;
+
+      /**
+      * Re-activate
+      */
+      
+      IF (v_DocAction='RE') THEN
+       
+
+        DBMS_OUTPUT.PUT_LINE('Re-Activating ' || v_DocSubTypeSO || ': ' || v_Record_ID) ;
+        
+        -- Update Order
+        v_ResultStr:='ReActivate';
+
+        IF (v_Posted='Y') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_SWithholdingRecDocumentPosted@');
+        END IF;
+
+	----INVOICE LINE PROCESS: revert payment of Amount to the invoices
+        DECLARE
+          CUR_SWithholdRecLine RECORD;
+	  CUR_SwlrecliPayschedetail RECORD;
+          v_paySchedDetail_amount NUMBER;
+	  v_paySched_order_ID VARCHAR(32);
+	  v_paySched_invoice_ID VARCHAR(32);
+	  v_invoiceCbpartner_ID VARCHAR(32);
+
+        BEGIN
+          FOR CUR_SWithholdRecLine IN
+            (SELECT * 
+               FROM SCO_Swithho_Rec_Line
+               WHERE SCO_SWITHHOLDING_RECEIPT_ID = v_Record_ID)
+          LOOP
+	    
+	    SELECT c_bpartner_id
+	      INTO v_invoiceCbpartner_ID
+	    FROM C_Invoice WHERE C_Invoice_ID = CUR_SWithholdRecLine.invoiceref_id FOR UPDATE;
+
+            FOR CUR_SwlrecliPayschedetail IN
+              (SELECT * 
+                 FROM SCO_Swlrecli_Payschedetail
+                 WHERE SCO_Swithho_Rec_Line_ID = CUR_SWithholdRecLine.SCO_Swithho_Rec_Line_ID)
+            LOOP
+
+	      DELETE FROM SCO_Swlrecli_Payschedetail WHERE SCO_Swlrecli_Payschedetail_ID = CUR_SwlrecliPayschedetail.SCO_Swlrecli_Payschedetail_ID;
+
+	      SELECT amount, fin_payment_schedule_order, fin_payment_schedule_invoice
+	        INTO v_paySchedDetail_amount, v_paySched_order_ID, v_paySched_invoice_ID
+                FROM FIN_Payment_ScheduleDetail 
+              WHERE FIN_Payment_ScheduleDetail_ID = CUR_SwlrecliPayschedetail.FIN_Payment_ScheduleDetail_ID FOR UPDATE;
+
+	      SCO_UPDATE_CUSTOMERCREDIT(v_invoiceCbpartner_ID, v_paySchedDetail_amount , 'N');
+
+	      IF(v_paySched_invoice_ID IS NOT NULL) THEN
+                SCO_UPDATE_PS_AMOUNTS(v_paySched_invoice_ID, -1*v_paySchedDetail_amount);
+	      END IF;
+
+	      IF(v_paySched_order_ID IS NOT NULL) THEN
+	        SCO_UPDATE_PS_AMOUNTS(v_paySched_order_ID, -1*v_paySchedDetail_amount);
+	      END IF;
+
+	      SCO_MERGE_PSD(CUR_SwlrecliPayschedetail.FIN_Payment_ScheduleDetail_ID);
+
+	      SELECT amount
+	        INTO v_paySchedDetail_amount
+		FROM FIN_Payment_ScheduleDetail 
+	      WHERE FIN_Payment_ScheduleDetail_ID = CUR_SwlrecliPayschedetail.FIN_Payment_ScheduleDetail_ID;
+
+	      IF(v_paySchedDetail_amount = 0) THEN
+	        DELETE FROM FIN_Payment_ScheduleDetail WHERE FIN_Payment_ScheduleDetail_ID = CUR_SwlrecliPayschedetail.FIN_Payment_ScheduleDetail_ID;
+	      ELSE
+	        UPDATE FIN_Payment_ScheduleDetail
+		  SET isinvoicepaid = 'N',
+	              em_sco_externalpayment = 'N',
+		      em_sco_iswithholdingpayment = 'N',
+                      em_sco_externalpaydate = NULL
+                WHERE FIN_Payment_ScheduleDetail_ID = CUR_SwlrecliPayschedetail.FIN_Payment_ScheduleDetail_ID;
+	      END IF;
+
+	    END LOOP;
+
+          END LOOP;
+        END;
+
+	UPDATE SCO_SWITHHOLDING_RECEIPT
+        SET DocStatus='DR', -- Draft
+            DocAction='CO',
+            Processing='N',
+	    Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+       
+        FINISH_PROCESS:=TRUE;
+      END IF;
+      
+
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_SWITHHOLDING_RECEIPT C, C_DOCTYPE
+      WHERE C_DocType.DocBaseType IN ('SCO_WL')
+        AND C_DocType.IsSOTrx='Y'
+        AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+        AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+	AND C_DocType.em_sco_specialdoctype='SCOSWITHHOLDINGRECEIPT'
+        AND C.SCO_SWITHHOLDING_RECEIPT_ID = v_Record_ID;
+      IF (v_Count=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_NotCorrectOrgDoctypeSWithholdingREC@') ;
+      END IF;
+
+
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_SWITHHOLDING_RECEIPT C, SCO_Swithho_Rec_Line OL
+      WHERE C.SCO_SWITHHOLDING_RECEIPT_ID = OL.sco_swithholding_receipt_id
+        AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+        AND C.SCO_SWITHHOLDING_RECEIPT_ID = v_Record_ID;
+      IF (v_Count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+      END IF;
+
+
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM SCO_SWITHHOLDING_RECEIPT C, SCO_Swithho_Rec_Line OL
+      WHERE C.SCO_SWITHHOLDING_RECEIPT_ID = OL.sco_swithholding_receipt_id
+        AND AD_ISORGINCLUDED(OL.AD_Org_ID, C.AD_Org_ID, C.AD_Client_ID) = -1
+        AND C.SCO_SWITHHOLDING_RECEIPT_ID = v_Record_ID;
+      IF (v_Count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+      END IF;
+      
+
+      /**
+      * Close Order - prepare
+      */
+
+     /**************************************************************************
+      * Start Processing ------------------------------------------------------
+      *************************************************************************/
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+        INTO v_is_ready, v_is_tr_allow
+      FROM SCO_SWITHHOLDING_RECEIPT, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=SCO_SWITHHOLDING_RECEIPT.AD_Org_ID
+        AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+        AND SCO_SWITHHOLDING_RECEIPT.SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+      SELECT AD_ORG_CHK_DOCUMENTS('SCO_SWITHHOLDING_RECEIPT', 'SCO_Swithho_Rec_Line', v_Record_ID, 'SCO_SWITHHOLDING_RECEIPT_ID', 'SCO_SWITHHOLDING_RECEIPT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('SCO_SWITHHOLDING_RECEIPT', v_Record_ID, 'SCO_SWITHHOLDING_RECEIPT_ID', 'LE') INTO v_org_bule_id FROM DUAL;
+      SELECT AD_OrgType.IsAcctLegalEntity INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+        AND AD_Org.AD_Org_ID=v_org_bule_id;
+
+      IF (v_isacctle='Y') THEN
+        SELECT C_CHK_OPEN_PERIOD(v_Org_ID, v_DateAcct, NULL, v_DocTypeTarget_ID) INTO v_available_period FROM DUAL;
+        IF (v_available_period<>1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+        END IF;
+      END IF;
+
+      WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+      LOOP
+        BEGIN
+          v_ResultStr:='UpdateDocType';
+          UPDATE SCO_SWITHHOLDING_RECEIPT
+          SET C_DocType_ID=C_DocTypeTarget_ID,
+              Updated=now(),
+              UpdatedBy=v_UpdatedBy
+          WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+          v_DocType_ID:=v_DocTypeTarget_ID;
+        EXCEPTION
+          WHEN OTHERS THEN
+            v_ResultStr:='UpdateDocumentNo';
+            UPDATE SCO_SWITHHOLDING_RECEIPT
+              SET DocumentNo=DocumentNo || '.'
+            WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+        END;
+      END LOOP;
+
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='LockingOrder';
+        UPDATE SCO_SWITHHOLDING_RECEIPT  SET Processing='Y'  WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+        COMMIT;
+        -- Now, needs to go to END_PROCESSING to unlock
+      END IF;
+
+
+      /**
+      * Allowed Actions:  COmplete, CLose
+      */
+      IF (v_DocAction IN('CO', 'CL', 'PR')) THEN
+        NULL;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@') ;
+      END IF;
+
+
+      /**
+      * Convert to Target DocType
+      */
+      DECLARE
+        v_DocSubTypeSO_Target VARCHAR(60) ;
+      BEGIN
+        v_ResultStr:='ConvertingDocType';
+        IF (v_DocType_ID <> v_DocTypeTarget_ID) THEN
+          -- New
+          IF (v_DocStatus='DR' OR v_DocType_ID='0') THEN
+            -- Update to Target Document Type
+            WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+            LOOP
+              BEGIN
+                v_ResultStr:='UpdateDocType';
+                UPDATE SCO_SWITHHOLDING_RECEIPT
+                SET C_DocType_ID=v_DocTypeTarget_ID,
+                    Updated=now(),
+                    UpdatedBy=v_User
+                WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+                v_DocType_ID:=v_DocTypeTarget_ID;
+              EXCEPTION
+              WHEN OTHERS THEN
+                v_ResultStr:='UpdateDocumentNo';
+                UPDATE SCO_SWITHHOLDING_RECEIPT  SET DocumentNo=DocumentNo || '.'  WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+              END;
+            END LOOP;
+          ELSE
+            v_ResultStr:='GetTargetDocType';
+            SELECT DocSubTypeSO
+              INTO v_DocSubTypeSO_Target
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=v_DocTypeTarget_ID;
+            DBMS_OUTPUT.PUT_LINE('Changing DocType from ' || v_DocSubTypeSO || ' to ' || v_DocSubTypeSO_Target) ;
+            -- Change Offer to anything, Change InProcess to anything
+            IF (v_DocSubTypeSO IN('ON', 'OB') OR v_DocStatus='IP') THEN
+              -- Update to Target Document Type
+              WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+              LOOP
+                BEGIN
+                  v_ResultStr:='UpdateDocType';
+                  UPDATE SCO_SWITHHOLDING_RECEIPT
+                  SET C_DocType_ID=v_DocTypeTarget_ID,
+                      Updated=now(),
+                      UpdatedBy=v_User
+                  WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+                  v_DocType_ID:=v_DocTypeTarget_ID;
+                EXCEPTION
+                WHEN OTHERS THEN
+                  v_ResultStr:='UpdateDocumentNo';
+                  UPDATE SCO_SWITHHOLDING_RECEIPT  SET DocumentNo=DocumentNo || '.'  WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+                END;
+              END LOOP;
+            ELSE
+              -- Change Back
+              UPDATE SCO_SWITHHOLDING_RECEIPT
+                SET C_DocTypeTarget_ID=v_DocType_ID
+              WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+              RAISE_APPLICATION_ERROR(-20000, '@CannotChangeDocType@') ;
+            END IF;
+          END IF;
+        END IF; -- C_DocType_ID <> C_DocTypeTarget_ID
+      END; -- Conversion
+
+
+
+    /**
+      * Get DocSubTypeSO + Is it Binding :1:2
+      */
+      v_ResultStr:='TestBinding DocType_ID=' || v_DocType_ID;
+      SELECT CASE DocSubTypeSO WHEN 'ON' THEN 'N' ELSE 'Y' END, DocSubTypeSO
+        INTO v_IsBinding, v_DocSubTypeSO
+      FROM C_DOCTYPE
+      WHERE C_DocType_ID=v_DocType_ID;
+      DBMS_OUTPUT.PUT_LINE('DocSubTypeSO=' || v_DocSubTypeSO || ' IsBinding=' || v_IsBinding) ;
+
+      -- Synchronize Client/Org Ownership
+      UPDATE SCO_SWITHHOLDING_RECEIPT
+      SET AD_Client_ID=v_Client_ID
+      WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID
+        AND (AD_Client_ID<>v_Client_ID) ;
+
+
+
+      IF(v_DocAction = 'CO') THEN
+        ----INVOICE LINE PROCESS: take Amount from the shedule detail of invoices to pay them
+        DECLARE
+          CUR_SWithholdRecLine RECORD;
+	  CUR_PS RECORD;
+	  CUR_PSD RECORD;
+	  v_invoiceCbpartner_ID VARCHAR(32);
+          v_invoiceOutstandingAmt NUMBER;
+	  v_inv_Amt NUMBER;
+	  v_ps_Amt NUMBER;
+	  v_psd_Amt NUMBER;
+
+	  v_new_fin_payment_scheduledetail_id VARCHAR(32);
+	  p_SCO_Swlrecli_Payschedetail_ID VARCHAR(32);
+
+        BEGIN
+          FOR CUR_SWithholdRecLine IN
+            (SELECT * 
+               FROM SCO_Swithho_Rec_Line
+               WHERE SCO_SWITHHOLDING_RECEIPT_ID = v_Record_ID)
+          LOOP
+	    SELECT c_bpartner_id, outstandingamt
+	      INTO v_invoiceCbpartner_ID, v_invoiceOutstandingAmt
+	    FROM C_Invoice WHERE C_Invoice_ID = CUR_SWithholdRecLine.invoiceref_id FOR UPDATE;
+
+	    IF(v_invoiceOutstandingAmt < CUR_SWithholdRecLine.amount) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SCO_SWithholdingRecCOInvalidAmountRef@');
+            END IF;
+	    v_inv_Amt := CUR_SWithholdRecLine.amount;
+
+	    FOR CUR_PS IN
+	      (SELECT *
+		FROM FIN_Payment_Schedule
+	        WHERE C_Invoice_ID = CUR_SWithholdRecLine.invoiceref_id ORDER BY duedate FOR UPDATE)
+	    LOOP
+
+	      IF(v_inv_Amt = 0) THEN
+	        EXIT;
+	      END IF;
+
+	      IF(v_inv_Amt > CUR_PS.outstandingamt) THEN
+	        v_ps_Amt := CUR_PS.outstandingamt;
+	      ELSE
+	        v_ps_Amt := v_inv_Amt;
+	      END IF;
+
+	      v_inv_Amt := v_inv_Amt - v_ps_Amt;
+
+	      FOR CUR_PSD IN
+	        (SELECT *
+		  FROM FIN_Payment_ScheduleDetail
+		 WHERE fin_payment_detail_id IS NULL AND
+		       (em_sco_externalpayment IS NULL OR em_sco_externalpayment='N') AND
+		       fin_payment_schedule_invoice = CUR_PS.fin_payment_schedule_id ORDER BY amount FOR UPDATE)
+	      LOOP
+	        IF(v_ps_Amt = 0) THEN
+	          EXIT;
+	        END IF;
+	
+		IF(v_ps_Amt > CUR_PSD.amount) THEN
+	          v_psd_Amt := CUR_PSD.amount;
+	        ELSE
+	          v_psd_Amt := v_ps_Amt;
+	        END IF;
+
+	        v_ps_Amt:= v_ps_Amt - v_psd_Amt;
+
+		IF(v_psd_Amt < CUR_PSD.amount) THEN
+	          SELECT * 
+		    INTO v_new_fin_payment_scheduledetail_id 
+	          FROM sco_copy_psd(CUR_PSD.fin_payment_scheduledetail_id, CUR_PSD.amount - v_psd_Amt, 0,  v_User);
+
+		  UPDATE FIN_Payment_ScheduleDetail SET amount = v_psd_Amt WHERE FIN_Payment_ScheduleDetail_ID = CUR_PSD.FIN_Payment_ScheduleDetail_ID;
+		  CUR_PSD.amount := v_psd_Amt;
+
+	        END IF;
+
+		--Create Link between payment_schedule_detail and SCO_Swithho_Rec_Line
+	        Ad_Sequence_Next('SCO_Swlrecli_Payschedetail', CUR_SWithholdRecLine.ad_client_id, p_SCO_Swlrecli_Payschedetail_ID) ;   
+	        INSERT INTO SCO_Swlrecli_Payschedetail(
+			    SCO_Swlrecli_Payschedetail_id, ad_client_id, ad_org_id, created,
+		            createdby, updated, updatedby, isactive, SCO_Swithho_Rec_Line_id,
+		            amount, fin_payment_scheduledetail_id)
+		     VALUES (
+		            p_SCO_Swlrecli_Payschedetail_ID,CUR_SWithholdRecLine.ad_client_id, CUR_SWithholdRecLine.ad_org_id,now(),
+			    v_User, now(), v_User, 'Y', CUR_SWithholdRecLine.SCO_Swithho_Rec_Line_id,
+			    CUR_PSD.amount, CUR_PSD.FIN_Payment_ScheduleDetail_ID);
+	        UPDATE FIN_Payment_ScheduleDetail
+		  SET isinvoicepaid = 'Y',
+		      em_sco_externalpayment = 'Y',
+		      em_sco_iswithholdingpayment = 'Y',
+		      em_sco_externalpaydate = v_Date
+	        WHERE FIN_Payment_ScheduleDetail_ID = CUR_PSD.FIN_Payment_ScheduleDetail_ID;
+
+
+	 SCO_UPDATE_CUSTOMERCREDIT(v_invoiceCbpartner_ID, CUR_PSD.amount , 'Y');
+
+	        IF(CUR_PSD.fin_payment_schedule_invoice IS NOT NULL) THEN
+                  SCO_UPDATE_PS_AMOUNTS(CUR_PSD.fin_payment_schedule_invoice, CUR_PSD.amount);
+	        END IF;
+
+	        IF(CUR_PSD.fin_payment_schedule_order IS NOT NULL) THEN
+	          SCO_UPDATE_PS_AMOUNTS(CUR_PSD.fin_payment_schedule_order, CUR_PSD.amount);
+	        END IF;
+
+	      END LOOP;
+
+	      IF(v_ps_Amt <> 0) THEN
+	        RAISE_APPLICATION_ERROR(-20000, '@SCO_SWithholdingRecInternalError@');
+	      END IF;
+
+	    END LOOP;
+
+	    IF(v_inv_Amt <> 0) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCO_SWithholdingRecInternalError@');
+	    END IF;
+
+          END LOOP;
+        END;
+
+      END IF;
+      
+
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**
+      * In Progress -----------------------------------------------------------
+      */
+      UPDATE SCO_SWITHHOLDING_RECEIPT
+      SET DocStatus='IP',
+          Updated=now(),
+          UpdatedBy=v_User
+      WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        COMMIT;
+      END IF;
+
+    /**
+      * Finished with processing
+      */
+      IF (v_DocAction='PR') THEN
+        v_ResultStr:='FinishProcessing';
+        UPDATE SCO_SWITHHOLDING_RECEIPT
+        SET DocStatus='IP',
+            DocAction='CO',
+            Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+  
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+
+      IF (v_DocAction IN('CO', 'CL')) THEN
+        UPDATE SCO_SWITHHOLDING_RECEIPT
+        SET DocStatus='CO',
+            DocAction='RE',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+
+      END IF;
+
+      IF (v_DocAction NOT IN('CO')) THEN
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+
+
+      IF (v_DocAction='CL') THEN
+
+       
+        --Close de Sales Withhloding Receipt no futher actions are permited
+        UPDATE SCO_SWITHHOLDING_RECEIPT
+        SET DocStatus='CL',
+            DocAction='--',
+            Processed='Y'
+        WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    IF (NOT FINISH_PROCESS) THEN
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='UnLockingOrder';
+        UPDATE SCO_SWITHHOLDING_RECEIPT
+        SET Processing='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+        COMMIT;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    --<<FINISH_PROCESS>>
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    --Inserted by Carlos Romero 062706
+    UPDATE SCO_SWITHHOLDING_RECEIPT  SET Processing='N'  WHERE SCO_SWITHHOLDING_RECEIPT_ID=v_Record_ID;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END SCO_SWITHHOLDING_RE_POST
+]]></body>
+    </function>
+  </database>

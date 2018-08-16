@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="ReporteGastosPorCuentaData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  
+  <SqlMethod name="select_facts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+					SELECT			   
+						 CAST(  EXTRACT (MONTH FROM fa.dateacct) AS INTEGER) AS ORDEN_MES,
+						CASE EXTRACT (MONTH FROM fa.dateacct)
+					WHEN 1 THEN
+						'ENERO'
+					WHEN 2 THEN
+						'FEBRERO'
+					WHEN 3 THEN
+						'MARZO'
+					WHEN 4 THEN
+						'ABRIL'
+					WHEN 5 THEN
+						'MAYO'
+					WHEN 6 THEN
+						'JUNIO'
+					WHEN 7 THEN
+						'JULIO'
+					WHEN 8 THEN
+						'AGOSTO'
+					WHEN 9 THEN
+						'SETIEMBRE'
+					WHEN 10 THEN
+						'OCTUBRE'
+					WHEN 11 THEN
+						'NOVIEMBRE'
+					WHEN 12 THEN
+						'DICIEMBRE'
+					END AS MES,
+							fa.acctvalue as value_cuenta,fa.acctdescription as cuenta,
+						COALESCE(acct.name,'') as cuenta_principal,
+						 SUM  (fa.amtacctdr - fa.amtacctcr) AS factamt
+						 
+					,'' as idorganizacion
+					,'' as idanio
+					,'' as anio
+					,'' as categoria
+					,'' as credito
+					,'' as debito
+
+					FROM
+						fact_acct fa
+					left join (select distinct '*'||cev.value||' - '||cev.name as name,cev.value from c_elementvalue cev 
+					where cev.ad_org_id in ('1') and cev.ad_client_id in ('1') 
+					and  char_length(value)= 2 
+					) as acct on fa.acctvalue like (acct.value||'%')
+					WHERE
+					 fa.ad_org_id in ('1')
+					AND fa.ad_client_id in ('1')
+					AND EXTRACT (YEAR FROM fa.dateacct) = CAST(? as INTEGER)
+					AND fa.factaccttype in ('O','N')
+					AND 1=1
+					GROUP BY
+						1,2,3,4,5
+
+					order by 1,2,3
+	
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg1" type="replace" optional="true" after="cev.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient1" type="replace" optional="true" after="cev.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg2" type="replace" optional="true" after="fa.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient2" type="replace" optional="true" after="fa.ad_client_id in (" text="'1'"/>
+    <Parameter name="anio"/>
+    <Parameter name="clase" optional="true"  after="AND 1=1"> <![CDATA[ AND fa.acctvalue like ? ]]> </Parameter>
+   
+  </SqlMethod>
+  
+  
+    <SqlMethod name="select_categorias_gastos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+						select 
+		cev.value as value_cuenta
+		,(select  cev1.name  from c_elementvalue cev1 where cev.value like  (cev1.value||'%')
+		and char_length(cev1.value)= 2
+		and cev1.ad_org_id in ('1')
+		and cev1.ad_client_id in ('1')  
+		) as categoria
+		,(select cev1.value  from c_elementvalue cev1 where cev1.c_elementvalue_id=cev.em_sco_autocredit_id) as credito
+		,(select cev1.value  from c_elementvalue cev1 where cev1.c_elementvalue_id=cev.em_sco_autodebit_id) as debito
+		
+		
+		from c_elementvalue cev 
+		
+							where cev.ad_org_id in ('2') 
+						    and cev.ad_client_id in ('2') 
+							and  char_length(value)= 7
+							and cev.value like '9%'
+		order by 2
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserOrg1" type="replace" optional="true" after="cev1.ad_org_id in (" text="'1'"/>        
+    <Parameter name="adUserClient1" type="replace" optional="true" after="cev1.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg2" type="replace" optional="true" after="cev.ad_org_id in (" text="'2'"/>        
+    <Parameter name="adUserClient2" type="replace" optional="true" after="cev.ad_client_id in (" text="'2'"/>
+   
+  </SqlMethod>
+  
+
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT b.taxid ruc 
+        FROM ad_org a 
+        LEFT JOIN c_bpartner b ON a.em_swa_c_bpartner_id=b.c_bpartner_id
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod> 
+  
+     <SqlMethod name="selectRUC" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TAXID
+        FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  
+
+  
+  
+        <SqlMethod name="select_anios" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cy.c_year_id as idanio,
+	cy.year as anio
+	   
+	FROM c_year cy
+	INNER   join ad_org ao on cy.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where cy.isactive='Y'
+	ORDER BY 1,cy.year  desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+   
+        <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+   </SqlMethod>    
+</SqlClass>

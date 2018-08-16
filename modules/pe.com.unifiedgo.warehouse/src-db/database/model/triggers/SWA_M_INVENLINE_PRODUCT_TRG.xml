@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_M_INVENLINE_PRODUCT_TRG">
+    <trigger name="SWA_M_INVENLINE_PRODUCT_TRG" table="M_INVENTORYLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_Count NUMBER:=0;
+  V_M_PRODUCT_ID VARCHAR(32);
+  v_em_sco_surpluslocator_id VARCHAR(32);
+  V_VALUE VARCHAR(40);
+  v_specialdoctype VARCHAR(60);
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      SELECT VALUE
+        INTO V_VALUE
+        FROM M_PRODUCT WHERE M_PRODUCT_ID = :NEW.M_PRODUCT_ID;
+        :NEW.em_swa_productvalue:= V_VALUE;
+        
+    END IF;
+    
+    IF(UPDATING) THEN
+      IF(:OLD.M_PRODUCT_ID <> :NEW.M_PRODUCT_ID) THEN
+        SELECT VALUE
+        INTO V_VALUE
+        FROM M_PRODUCT WHERE M_PRODUCT_ID = :NEW.M_PRODUCT_ID;
+        :NEW.em_swa_productvalue:= V_VALUE;
+      END IF;
+
+
+
+     IF(:OLD.qtyCount <> :NEW.qtyCount)THEN
+       SELECT em_sco_specialdoctype , MI.em_sco_surpluslocator_id
+         INTO v_specialdoctype , v_em_sco_surpluslocator_id
+         FROM C_DOCTYPE DT
+             INNER JOIN M_INVENTORY MI ON DT.C_DOCTYPE_ID = MI.c_doctypetarget_id
+         WHERE MI.M_INVENTORY_ID = :NEW.M_INVENTORY_ID;
+
+
+        IF(v_specialdoctype = 'SWAPHYSICALINVENTORY' AND (:NEW.qtyCount > :NEW.qtybook) AND v_em_sco_surpluslocator_id IS NOT NULL)THEN
+                :NEW.em_swa_qtysurplus:= :NEW.qtyCount - :NEW.qtybook;
+                :NEW.qtyCount:= :NEW.qtybook;
+        ELSE 
+                :NEW.em_swa_qtysurplus:= 0;
+        END IF;
+     END IF;
+
+      
+    END IF;
+
+    IF(INSERTING)THEN
+         SELECT em_sco_specialdoctype , MI.em_sco_surpluslocator_id
+           INTO v_specialdoctype , v_em_sco_surpluslocator_id
+           FROM C_DOCTYPE DT
+                INNER JOIN M_INVENTORY MI ON DT.C_DOCTYPE_ID = MI.c_doctypetarget_id
+          WHERE MI.M_INVENTORY_ID = :NEW.M_INVENTORY_ID;
+
+          
+        IF(v_specialdoctype = 'SWAPHYSICALINVENTORY' AND (:NEW.qtyCount > :NEW.qtybook) AND v_em_sco_surpluslocator_id IS NOT NULL)THEN
+                :NEW.em_swa_qtysurplus:= :NEW.qtyCount - :NEW.qtybook;
+                :NEW.qtyCount:= :NEW.qtybook;
+        END IF;
+    END IF;
+
+
+   
+
+    END SWA_M_INVENLINE_PRODUCT_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_PROCESS_REPOSITION">
+    <function name="SWA_PROCESS_REPOSITION" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_LineSeqNo NUMBER:=0;
+-- Record Info
+  Cur_Parameter RECORD;
+  v_swa_requerimientoreposicion_id VARCHAR2(32);
+  v_Client_id VARCHAR2(32);
+  v_ad_org_id VARCHAR2(32);
+  v_createdby VARCHAR2(32);
+  v_c_bpartner_id VARCHAR2(32);
+  v_from_m_warehouse VARCHAR2(32);
+  v_to_warehouse VARCHAR2(32);
+  v_swa_requerimientoDetail_id VARCHAR2(32);
+  v_name_from_warehouse VARCHAR2(60);
+  v_Message_detail VARCHAR2(120);
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+  SELECT ad_client_id,createdby,c_bpartner_id,from_m_warehouse_id, to_m_warehouse_id INTO v_Client_id,v_createdby ,v_c_bpartner_id,v_from_m_warehouse,v_to_warehouse FROM swa_requerimientoreposicion 
+       WHERE swa_requerimientoreposicion_id = v_Record_ID;
+
+   SELECT ad_org_id INTO v_ad_org_id FROM m_warehouse WHERE m_warehouse_id=v_to_warehouse;
+   SELECT m_warehouse.name INTO v_name_from_warehouse FROM m_warehouse where m_warehouse_id = v_from_m_warehouse;
+   v_Message_detail = '@swa_fromwarehouse@' || v_name_from_warehouse;
+   
+   
+   v_swa_requerimientoreposicion_id:=get_uuid();
+   INSERT INTO swa_requerimientoreposicion
+    (swa_requerimientoreposicion_id,ad_client_id,ad_org_id,isactive,created,createdby,
+     updated,updatedby,requer_name,from_m_warehouse_id,to_m_warehouse_id,status,
+     pickinglist_state,c_bpartner_id,is_processes
+    )
+   VALUES 
+    (v_swa_requerimientoreposicion_id,v_Client_id,v_ad_org_id,'Y',now(),v_createdby,
+     now(),v_createdby,v_Message_detail,v_from_m_warehouse,v_to_warehouse,'DR',
+     'NG',v_c_bpartner_id,'Y'
+    );
+
+
+   FOR Cur_Parameter IN 
+   (SELECT m_product_id,qtyordered
+    FROM swa_requerepo_detail where swa_requerimientoreposicion_id = v_Record_ID
+   )
+   LOOP     
+            v_LineSeqNo:= 10 + v_LineSeqNo;
+            v_swa_requerimientoDetail_id:=get_uuid();
+	    INSERT INTO swa_requerepo_detail
+	    (swa_requerepo_detail_id,ad_client_id,ad_org_id,line,isactive,created,createdby,
+	     updated,updatedby,m_product_id,qtyordered,swa_requerimientoreposicion_id,status
+	    )
+	   VALUES 
+	    (v_swa_requerimientoDetail_id,v_Client_id,v_ad_org_id,v_LineSeqNo,'Y',now(),v_createdby,
+             now(),v_createdby,Cur_Parameter.m_product_id,Cur_Parameter.qtyordered,v_swa_requerimientoreposicion_id,
+             'UP'
+	    ); 
+   END LOOP;
+    
+    
+    v_Message:='@swa_created_repo_receip@' || v_DocumentNo;
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    --v_Result := 1; -- Warning
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 1, v_Message) ;
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_PROCESS_REPOSITION
+]]></body>
+    </function>
+  </database>

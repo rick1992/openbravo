@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_SET_AVERAGE_MONTHLY_SALES">
+    <function name="SWA_SET_AVERAGE_MONTHLY_SALES" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- Success
+--Parameter
+  Cur_Parameter RECORD;
+  v_DateFrom DATE;
+  v_DateTo DATE;
+  v_Client_ID VARCHAR(32); 
+  p_Org_ID VARCHAR(32); 
+
+  Cur_Product RECORD;
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.AD_Client_ID, p.ParameterName, p.P_String, p.P_Date 
+       FROM AD_PInstance i
+         LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+       WHERE i.AD_PInstance_ID=p_PInstance_ID
+       ORDER BY p.SeqNo) 
+    LOOP
+         IF (Cur_Parameter.ParameterName = 'AD_Org_ID') THEN
+             p_Org_ID := Cur_Parameter.P_String;
+	     DBMS_OUTPUT.PUT_LINE('  AD_Org_ID=' || p_Org_ID) ;
+         ELSIF (Cur_Parameter.ParameterName='DateFrom') THEN
+             v_DateFrom:=Cur_Parameter.P_Date;
+             DBMS_OUTPUT.PUT_LINE('  DateFrom=' || v_DateFrom) ;
+         ELSIF (Cur_Parameter.ParameterName='DateTo') THEN
+             v_DateTo:=Cur_Parameter.P_Date;
+             DBMS_OUTPUT.PUT_LINE('  DateTo=' || v_DateTo) ;
+         ELSE
+             DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+         END IF;
+         v_Client_ID := Cur_Parameter.AD_Client_ID;
+    END LOOP; -- Get Parameter
+  
+    -- Checking
+    IF (v_DateFrom >= v_DateTo) THEN
+        RAISE_APPLICATION_ERROR(-20000,'@SWA_DatesWrong@');
+    END IF;
+
+    -- Logic 
+    FOR CUR_PRODUCT IN (
+	     SELECT A.PRODUCTID, round((sum(A.QTYORDERED)/(v_DateTo::date - v_DateFrom::date + 1))*30) AS QTYORDERED
+	       FROM
+		 (SELECT C_ORDER.DATEORDERED,M_PRODUCT.M_PRODUCT_ID AS PRODUCTID, 
+		         M_PRODUCT.NAME AS PRODUCTNAME, 
+		         (CASE WHEN (C_ORDER.DATEORDERED>=v_DateFrom AND C_ORDER.DATEORDERED<=v_DateTo) THEN C_ORDERLINE.QTYORDERED ELSE 0 END) AS QTYORDERED   
+		    FROM C_ORDER
+		         INNER JOIN C_ORDERLINE ON C_ORDERLINE.C_ORDER_ID = C_ORDER.C_ORDER_ID
+		         RIGHT JOIN M_PRODUCT ON M_PRODUCT.M_PRODUCT_ID = C_ORDERLINE.M_PRODUCT_ID
+		   WHERE M_PRODUCT.AD_CLIENT_ID = v_Client_ID
+		     AND (C_ORDER.EM_SSA_SPECIALDOCTYPE='SSASTANDARDORDER' OR C_ORDER.EM_SSA_SPECIALDOCTYPE='SSAWAREHOUSEORDER' OR C_ORDER.EM_SSA_SPECIALDOCTYPE='SSAPOSORDER')
+		     AND (C_ORDER.docstatus = 'CO' OR C_ORDER.docstatus = 'IP')
+		     AND AD_ISORGINCLUDED(C_ORDER.AD_ORG_ID, p_Org_ID, v_Client_ID) > -1
+		 ) A
+	      GROUP BY PRODUCTID
+	) LOOP
+	    UPDATE M_PRODUCT
+	       SET EM_SCR_REAL_AVG_MONTHLY_SALES = CUR_PRODUCT.QTYORDERED, EM_SWA_AVG_MONTHLY_SALES = CUR_PRODUCT.QTYORDERED
+	     WHERE M_PRODUCT.M_PRODUCT_ID = CUR_PRODUCT.PRODUCTID; 		
+	END LOOP; -- Logic
+    
+    
+    v_Message:='@SWA_SetAvgMonthlySalesProcessCompleted@';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_SET_AVERAGE_MONTHLY_SALES
+]]></body>
+    </function>
+  </database>

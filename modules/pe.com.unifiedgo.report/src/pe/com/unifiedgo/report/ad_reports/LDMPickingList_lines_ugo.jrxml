@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="LDMPickingList_lines_ugo" pageWidth="595" pageHeight="850" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.331000000000001"/>
+	<property name="ireport.x" value="52"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="PRODUCTION_ID" class="java.lang.String"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[select
+
+(select mp2.name from m_product mp2 WHERE mp2.m_product_id=mpp.m_product_id) as producto,
+coalesce(mpp.productionqty,0.0) as cantidad_produccion,
+coalesce(mp.name,'') as insumo,
+coalesce(mp.value,'') as codigoinsumo,
+
+coalesce((select name from c_uom_trl where c_uom_id = cu.c_uom_id and ad_language = $P{LANGUAGE}),cu.name) as  unidad_medida,
+coalesce(mpl.movementqty,0.0) as cantidad_movida,
+coalesce(ml.value,'') as almacen
+
+from m_productionplan mpp
+left join m_productionline mpl on mpp.m_productionplan_id= mpl.m_productionplan_id
+left join m_product mp on mpl.m_product_id=mp.m_product_id
+left join c_uom cu on mp.c_uom_id=cu.c_uom_id
+left join m_locator ml on mpl.m_locator_id=ml.m_locator_id
+
+where mpp.m_production_id = $P{PRODUCTION_ID}
+
+order by producto,mp.name]]>
+	</queryString>
+	<field name="producto" class="java.lang.String"/>
+	<field name="cantidad_produccion" class="java.math.BigDecimal"/>
+	<field name="insumo" class="java.lang.String"/>
+	<field name="codigoinsumo" class="java.lang.String"/>
+	<field name="unidad_medida" class="java.lang.String"/>
+	<field name="cantidad_movida" class="java.math.BigDecimal"/>
+	<field name="almacen" class="java.lang.String"/>
+	<variable name="CANT_PRODUCCION" class="java.math.BigDecimal" resetType="Group" resetGroup="PRODUCTO" calculation="Sum">
+		<variableExpression><![CDATA[$F{cantidad_produccion}]]></variableExpression>
+		<initialValueExpression><![CDATA[new BigDecimal(0.00)]]></initialValueExpression>
+	</variable>
+	<group name="PRODUCTO">
+		<groupExpression><![CDATA[$F{producto}]]></groupExpression>
+		<groupHeader>
+			<band height="47" splitType="Stretch">
+				<line>
+					<reportElement x="22" y="46" width="540" height="1"/>
+				</line>
+				<line>
+					<reportElement x="27" y="0" width="540" height="1"/>
+				</line>
+				<staticText>
+					<reportElement x="26" y="7" width="65" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[PRODUCTO:]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="169" y="30" width="100" height="15"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[INSUMO]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="479" y="30" width="97" height="15"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[UBICACION]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="410" y="30" width="65" height="15"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[CANTIDAD]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="347" y="30" width="50" height="15"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[UM]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="94" y="7" width="244" height="15"/>
+					<textElement verticalAlignment="Middle"/>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{producto}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="414" y="7" width="74" height="15"/>
+					<textElement verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Cnt. Produccion:]]></text>
+				</staticText>
+				<textField evaluationTime="Group" evaluationGroup="PRODUCTO">
+					<reportElement x="497" y="7" width="79" height="15"/>
+					<textElement verticalAlignment="Middle"/>
+					<textFieldExpression class="java.math.BigDecimal"><![CDATA[$V{CANT_PRODUCCION}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="22" y="30" width="70" height="15"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+					</textElement>
+					<text><![CDATA[CÓDIGO]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="20" splitType="Stretch"/>
+		</groupFooter>
+	</group>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<textField isBlankWhenNull="true">
+				<reportElement x="116" y="0" width="222" height="14"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{insumo}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="410" y="0" width="65" height="14"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{NUMBERFORMAT}.format($F{cantidad_movida})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="479" y="0" width="97" height="14"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{almacen}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="347" y="0" width="50" height="14"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{unidad_medida}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="22" y="0" width="70" height="14"/>
+				<box leftPadding="3" rightPadding="3"/>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{codigoinsumo}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

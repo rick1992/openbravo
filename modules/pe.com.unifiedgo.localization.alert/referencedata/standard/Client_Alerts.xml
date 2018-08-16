@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?><ob:Openbravo xmlns:ob="http://www.openbravo.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ADAlertRule id="4375F01216704441A08E776FF4D32BD1" identifier="Facturación Pendiente a Cliente por Venta">
+    <id>4375F01216704441A08E776FF4D32BD1</id>
+    <active>true</active>
+    <name>Facturación Pendiente a Cliente por Venta</name>
+    <tab id="4E7786AD5C344FD5A8885F07349005DB" entity-name="ADTab" identifier="Cronograma de Pago - Venta"/>
+    <filterClause xsi:nil="true"/>
+    <sql>SELECT ps.ssa_contract_payment_sched_id AS referencekey_id,
+ad_column_identifier('ssa_contract_payment_sched', ps.ssa_contract_payment_sched_id, 'es_PE') AS record_id,
+0 AS ad_role_id,
+null AS ad_user_id,
+'Facturar '||ps.amount||' '||ad_column_identifier('c_currency', ps.c_currency_id, 'es_PE')||' / '||p.name||'('||p.type||') / '||ad_column_identifier('c_bpartner', c.c_bpartner_id, 'es_PE') AS description,
+'Y' AS isActive,
+ps.ad_org_id,
+ps.ad_client_id,
+NOW() AS created,
+0 AS createdBy,
+NOW() as updated,
+0 AS updatedBy
+FROM ssa_contract_payment_sched ps, ad_user u, ssa_project_property p, ssa_projprop_contract c
+WHERE ps.createdby=u.ad_user_id
+AND ps.ssa_project_property_id=p.ssa_project_property_id
+AND ps.ssa_projprop_contract_id=c.ssa_projprop_contract_id
+AND c.docstatus&lt;&gt;'DR'
+AND ps.isready_tobeinvoiced='Y'
+AND ps.einvoice_link IS NULL
+AND ps.c_invoice_id IS NULL</sql>
+    <type>D</type>
+    <sCRIntervaloDeActualizacion>120</sCRIntervaloDeActualizacion>
+    <sCRFechaUltimaActualizacion>2018-01-09T16:28:25.0Z</sCRFechaUltimaActualizacion>
+  </ADAlertRule>
+  <ADAlertRule id="53DDA9BA8DC04DA28DE278D86786ABAD" identifier="Wrong Matched Invoice posting. Wrong account.">
+    <id>53DDA9BA8DC04DA28DE278D86786ABAD</id>
+    <active>false</active>
+    <name>Wrong Matched Invoice posting. Wrong account.</name>
+    <tab id="408" entity-name="ADTab" identifier="Facturas cuadradas - Facturas cuadradas"/>
+    <filterClause xsi:nil="true"/>
+    <sql xsi:nil="true"/>
+    <type>E</type>
+    <sCRIntervaloDeActualizacion>10</sCRIntervaloDeActualizacion>
+    <sCRFechaUltimaActualizacion>2017-11-07T12:44:53.0Z</sCRFechaUltimaActualizacion>
+  </ADAlertRule>
+  <ADAlertRule id="646015CBCBA44694ACA7FD9E0DA2182B" identifier="Wrong Matched Invoice posting. Wrong currency conversion.">
+    <id>646015CBCBA44694ACA7FD9E0DA2182B</id>
+    <active>true</active>
+    <name>Wrong Matched Invoice posting. Wrong currency conversion.</name>
+    <tab id="408" entity-name="ADTab" identifier="Facturas cuadradas - Facturas cuadradas"/>
+    <filterClause/>
+    <sql xsi:nil="true"/>
+    <type>E</type>
+    <sCRIntervaloDeActualizacion>10</sCRIntervaloDeActualizacion>
+    <sCRFechaUltimaActualizacion>2018-01-09T16:28:25.0Z</sCRFechaUltimaActualizacion>
+  </ADAlertRule>
+  <ADAlertRule id="8EFE198D00B146E18F9C30A3B8689FED" identifier="Facturación Generada a Cliente por Venta">
+    <id>8EFE198D00B146E18F9C30A3B8689FED</id>
+    <active>true</active>
+    <name>Facturación Generada a Cliente por Venta</name>
+    <tab id="4E7786AD5C344FD5A8885F07349005DB" entity-name="ADTab" identifier="Cronograma de Pago - Venta"/>
+    <filterClause xsi:nil="true"/>
+    <sql>SELECT ps.ssa_contract_payment_sched_id AS referencekey_id,
+ad_column_identifier('ssa_contract_payment_sched', ps.ssa_contract_payment_sched_id, 'es_PE') AS record_id,
+0 AS ad_role_id,
+null AS ad_user_id,
+'Facturación generada: '||ps.amount||' '||ad_column_identifier('c_currency', ps.c_currency_id, 'es_PE')||' / '||p.name||'('||p.type||') / '||ad_column_identifier('c_bpartner', c.c_bpartner_id, 'es_PE') AS description,
+'Y' AS isActive,
+ps.ad_org_id,
+ps.ad_client_id,
+NOW() AS created,
+0 AS createdBy,
+NOW() as updated,
+0 AS updatedBy
+FROM ssa_contract_payment_sched ps, ad_user u, ssa_project_property p, ssa_projprop_contract c
+WHERE ps.createdby=u.ad_user_id
+AND ps.ssa_project_property_id=p.ssa_project_property_id
+AND ps.ssa_projprop_contract_id=c.ssa_projprop_contract_id
+AND c.docstatus&lt;&gt;'DR'
+AND ps.isready_tobeinvoiced='Y'
+AND ps.einvoice_link IS NOT NULL
+AND ps.c_invoice_id IS NULL </sql>
+    <type>D</type>
+    <sCRIntervaloDeActualizacion>120</sCRIntervaloDeActualizacion>
+    <sCRFechaUltimaActualizacion>2018-01-09T16:28:25.0Z</sCRFechaUltimaActualizacion>
+  </ADAlertRule>
+  <ADAlertRule id="B30E65CA20864CAB82C160236DAF6BDA" identifier="Wrong Matched Invoice posting. Wrong account.">
+    <id>B30E65CA20864CAB82C160236DAF6BDA</id>
+    <active>true</active>
+    <name>Wrong Matched Invoice posting. Wrong account.</name>
+    <tab id="408" entity-name="ADTab" identifier="Facturas cuadradas - Facturas cuadradas"/>
+    <filterClause/>
+    <sql xsi:nil="true"/>
+    <type>E</type>
+    <sCRIntervaloDeActualizacion>10</sCRIntervaloDeActualizacion>
+    <sCRFechaUltimaActualizacion>2018-01-09T16:28:25.0Z</sCRFechaUltimaActualizacion>
+  </ADAlertRule>
+  <ADAlertRule id="D8E04226F1804D2297939EEE2F643571" identifier="Wrong Matched Invoice posting. Wrong currency conversion.">
+    <id>D8E04226F1804D2297939EEE2F643571</id>
+    <active>false</active>
+    <name>Wrong Matched Invoice posting. Wrong currency conversion.</name>
+    <tab id="408" entity-name="ADTab" identifier="Facturas cuadradas - Facturas cuadradas"/>
+    <filterClause xsi:nil="true"/>
+    <sql xsi:nil="true"/>
+    <type>E</type>
+    <sCRIntervaloDeActualizacion>10</sCRIntervaloDeActualizacion>
+    <sCRFechaUltimaActualizacion>2017-11-07T12:44:53.0Z</sCRFechaUltimaActualizacion>
+  </ADAlertRule>
+  <ADAlertRuleTrl id="5F03FDFA73BF4C55BC389150D9BD9162" identifier="Facturación Pendiente a Cliente por Venta">
+    <id>5F03FDFA73BF4C55BC389150D9BD9162</id>
+    <alertRule id="4375F01216704441A08E776FF4D32BD1" entity-name="ADAlertRule" identifier="Facturación Pendiente a Cliente por Venta"/>
+    <language id="146" entity-name="ADLanguage" identifier="Spanish (Peru)"/>
+    <active>true</active>
+    <name>Facturación Pendiente a Cliente por Venta</name>
+    <translation>false</translation>
+  </ADAlertRuleTrl>
+  <ADAlertRuleTrl id="7FAF3B52F45B4C72871407AF42F2CE7A" identifier="Facturación Pendiente a Cliente por Venta">
+    <id>7FAF3B52F45B4C72871407AF42F2CE7A</id>
+    <alertRule id="4375F01216704441A08E776FF4D32BD1" entity-name="ADAlertRule" identifier="Facturación Pendiente a Cliente por Venta"/>
+    <language id="192" entity-name="ADLanguage" identifier="English (USA)"/>
+    <active>true</active>
+    <name>Facturación Pendiente a Cliente por Venta</name>
+    <translation>false</translation>
+  </ADAlertRuleTrl>
+  <ADAlertRuleTrl id="E4382078F29D42B48E919E03F4AD6849" identifier="Facturación Generada a Cliente por Venta">
+    <id>E4382078F29D42B48E919E03F4AD6849</id>
+    <alertRule id="8EFE198D00B146E18F9C30A3B8689FED" entity-name="ADAlertRule" identifier="Facturación Generada a Cliente por Venta"/>
+    <language id="146" entity-name="ADLanguage" identifier="Spanish (Peru)"/>
+    <active>true</active>
+    <name>Facturación Generada a Cliente por Venta</name>
+    <translation>false</translation>
+  </ADAlertRuleTrl>
+  <ADAlertRuleTrl id="F3753246F2134ACD8814AE0B8FC420A2" identifier="Facturación Generada a Cliente por Venta">
+    <id>F3753246F2134ACD8814AE0B8FC420A2</id>
+    <alertRule id="8EFE198D00B146E18F9C30A3B8689FED" entity-name="ADAlertRule" identifier="Facturación Generada a Cliente por Venta"/>
+    <language id="192" entity-name="ADLanguage" identifier="English (USA)"/>
+    <active>true</active>
+    <name>Facturación Generada a Cliente por Venta</name>
+    <translation>false</translation>
+  </ADAlertRuleTrl>
+</ob:Openbravo>

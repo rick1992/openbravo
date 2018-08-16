@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SPR_BUDGET_CHK_RES_TRG">
+    <trigger name="SPR_BUDGET_CHK_RES_TRG" table="SPR_BUDGET" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+v_Project_ID VARCHAR(32);
+v_DocStatus VARCHAR(32);
+v_Count NUMBER:=0;
+
+BEGIN
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF; 
+
+  IF INSERTING THEN
+    v_Project_ID := :NEW.c_project_id;
+  ELSE 
+    v_Project_ID := :OLD.c_project_id;
+  END IF;
+
+  SELECT projectStatus INTO v_DocStatus FROM c_project WHERE c_project_id=v_Project_ID;
+
+  IF UPDATING THEN
+    SELECT COUNT(*) INTO v_Count FROM SPR_BudgetLine WHERE SPR_Budget_ID=:NEW.SPR_Budget_ID;       
+    IF(v_Count <> 0 
+       AND((COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+         OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+	 OR(COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:new.C_Currency_ID, '0'))
+	 OR(COALESCE(:old.m_pricelist_id, '0') <> COALESCE(:new.m_pricelist_id, '0'))
+         OR(COALESCE(:old.type, '0') <> COALESCE(:new.type, '0'))
+       )        
+    )THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SPR_CannotEditOpenProject@') ;
+    END IF;
+
+
+   IF(COALESCE(:OLD.type,'-') <> COALESCE(:NEW.type,'-'))THEN
+      SELECT COUNT(*) INTO v_Count FROM SPR_Budget WHERE C_Project_ID = v_Project_ID AND type='BDG';
+      IF((v_Count <> 0 AND :NEW.type='BDG') OR (v_DocStatus = 'SPR_EXE' AND :NEW.type = 'BDG')) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@SPR_CannotInsertTypeBudget@') ;
+      END IF;        
+   END IF;
+
+  END IF;
+
+
+  IF INSERTING THEN
+    SELECT COUNT(*) INTO v_Count FROM SPR_Budget WHERE C_Project_ID = v_Project_ID AND type='BDG';
+    IF((v_Count <> 0 AND :NEW.type='BDG')) THEN
+       RAISE_APPLICATION_ERROR(-20000, '@SPR_CannotInsertTypeBudget@') ;
+    END IF;  
+  END IF;
+
+
+  IF DELETING THEN
+    IF(v_DocStatus = 'SPR_EXE' AND :OLD.type = 'BDG') THEN
+       RAISE_APPLICATION_ERROR(-20000, '@SPR_CannotDeleteBudgetInExecution@') ;
+    END IF;  
+
+    IF(v_DocStatus = 'SPR_FIN') THEN
+       RAISE_APPLICATION_ERROR(-20000, '@SPR_NotDeleteInProjectFinished@') ;
+    END IF;    
+  END IF;
+
+END SPR_BUDGET_CHK_RES_TRG
+]]></body>
+    </trigger>
+  </database>

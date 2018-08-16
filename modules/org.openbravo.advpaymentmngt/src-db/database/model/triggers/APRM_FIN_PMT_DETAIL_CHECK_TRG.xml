@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER APRM_FIN_PMT_DETAIL_CHECK_TRG">
+    <trigger name="APRM_FIN_PMT_DETAIL_CHECK_TRG" table="FIN_PAYMENT_DETAIL" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+/************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+*************************************************************************/
+
+v_Processed VARCHAR(60) ;
+v_FIN_Payment_ID VARCHAR2(32) ;
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF (INSERTING) THEN
+    v_FIN_Payment_ID:=:NEW.FIN_Payment_ID;
+  ELSE
+    v_FIN_Payment_ID:=:OLD.FIN_Payment_ID;
+  END IF;
+  
+  SELECT PROCESSED
+  INTO v_Processed
+  FROM FIN_Payment
+  WHERE FIN_Payment_ID=v_FIN_Payment_ID;
+  
+  IF (UPDATING) THEN
+  	IF (v_Processed='Y') THEN
+      IF(COALESCE(:OLD.ad_client_id,'')<>COALESCE(:NEW.ad_client_id,'')
+      OR COALESCE(:OLD.ad_org_id,'')<>COALESCE(:NEW.ad_org_id,'')
+      OR COALESCE(:OLD.fin_payment_id,'')<>COALESCE(:NEW.fin_payment_id,'')
+      OR COALESCE(:OLD.amount,0)<>COALESCE(:NEW.amount,0)
+      OR COALESCE(:OLD.refund,'')<>COALESCE(:NEW.refund,'')
+      OR COALESCE(:OLD.writeoffamt,0)<>COALESCE(:NEW.writeoffamt,0)
+      OR COALESCE(:OLD.c_glitem_id,'')<>COALESCE(:NEW.c_glitem_id,'')
+      OR COALESCE(:OLD.em_sco_doc_currency_id,'')<>COALESCE(:NEW.em_sco_doc_currency_id,'')
+      OR COALESCE(:OLD.em_sco_convert_rate,0)<>COALESCE(:NEW.em_sco_convert_rate,0)
+      OR COALESCE(:OLD.em_sco_paymentamount,0)<>COALESCE(:NEW.em_sco_paymentamount,0)
+      OR COALESCE(:OLD.em_sco_discboe_id,'')<>COALESCE(:NEW.em_sco_discboe_id,'')
+      OR COALESCE(:OLD.em_sco_payoutrendcuentas,'')<>COALESCE(:NEW.em_sco_payoutrendcuentas,'')
+      OR COALESCE(:OLD.em_sco_payoutprepayment,'')<>COALESCE(:NEW.em_sco_payoutprepayment,'')
+      OR COALESCE(:OLD.em_sco_factoredinv_id,'')<>COALESCE(:NEW.em_sco_factoredinv_id,'')
+      OR COALESCE(:OLD.em_sco_loandocli_inv_id,'')<>COALESCE(:NEW.em_sco_loandocli_inv_id,'')) THEN
+    	RAISE_APPLICATION_ERROR(-20000, '@20501@');
+      END IF;
+  	END IF;
+  END IF;
+          
+  IF((DELETING OR INSERTING) AND v_Processed='Y') THEN
+	RAISE_APPLICATION_ERROR(-20000, '@20501@');
+  END IF;
+END APRM_FIN_PMT_DETAIL_CHECK_TRG
+]]></body>
+    </trigger>
+  </database>

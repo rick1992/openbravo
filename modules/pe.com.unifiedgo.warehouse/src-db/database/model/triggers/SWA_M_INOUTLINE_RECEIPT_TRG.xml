@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_M_INOUTLINE_RECEIPT_TRG">
+    <trigger name="SWA_M_INOUTLINE_RECEIPT_TRG" table="M_INOUTLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_ID          varchar2(32);
+  v_RO    NUMBER;
+  -- v_movementtype  VARCHAR(2); --OBTG:VARCHAR2--  Comment by Vafaster
+  v_movementtype  VARCHAR2(60);
+  v_specialdctype VARCHAR2(60);
+  v_ssa_cmbitem_value VARCHAR(40);
+  v_bpartner_id  varchar2(32);
+  v_other_org_id varchar2(32);
+  v_comboitem_id varchar2(32);
+  v_Ssa_Other_Inout_ID varchar2(32);
+  v_categoryvalue varchar2(40);
+  v_qtyordered NUMBER:=0;
+  v_qtypendingpo NUMBER:=0;
+ 
+  V_COUNT  NUMBER;
+  v_issotrx CHAR(1);
+ 
+  
+
+/******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP &  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2013 Openbravo S.L.U.
+ ******************************************************************************/
+     
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING)THEN
+       SELECT issotrx, c_bpartner_id, em_sco_specialdoctype, em_ssa_cmbitem_value, em_swa_combo_item_id INTO v_issotrx, v_bpartner_id, v_specialdctype, v_ssa_cmbitem_value, v_comboitem_id
+          FROM M_INOUT
+         WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
+
+       IF(v_issotrx='N' AND  v_specialdctype IN ('SCOMMRECEIPT'))THEN
+          SELECT cc.value INTO v_categoryvalue FROM scr_combo_category cc 
+             INNER JOIN  scr_combo_item ci ON ci.scr_combo_category_id = cc.scr_combo_category_id
+           where ci.scr_combo_item_id = v_comboitem_id;
+
+          IF(:NEW.isinvoiced = 'N' AND :NEW.c_orderline_id IS NULL AND v_categoryvalue IN ('TipoPedidoCompraEmpresas') AND v_ssa_cmbitem_value NOT IN ('IngresoporServicio') )THEN
+	     RAISE_APPLICATION_ERROR(-20000,'@swa_receiptneedsorder@');
+	  END IF;
+       END IF;
+
+
+       IF(v_issotrx='N' AND v_ssa_cmbitem_value IN ('CompraImportacion','CompraNacional'))THEN
+
+           IF(:NEW.isinvoiced = 'N' AND :NEW.c_orderline_id IS NULL)THEN
+                 RAISE_APPLICATION_ERROR(-20000,'@swa_goodreceipt_validation_oc@');
+           ELSIF(:NEW.c_orderline_id IS NOT NULL AND v_issotrx='N' AND v_ssa_cmbitem_value = 'CompraNacional')THEN
+                  SELECT COUNT(*) INTO V_COUNT 
+	            FROM C_ORDERLINE ol 
+	            WHERE ol.C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID
+	              AND ABS(:NEW.MOVEMENTQTY + coalesce(ol.em_swa_received,0)) > ABS(ol.QTYORDERED);
+
+	     IF(V_COUNT <> 0) THEN
+	       RAISE_APPLICATION_ERROR(-20000, '@MovementQtyCheck@');
+             END IF;
+          ELSIF(:NEW.c_orderline_id IS NOT NULL AND v_issotrx='N' AND v_ssa_cmbitem_value ='CompraImportacion')THEN
+            
+          END IF;
+       END IF;
+    END IF;
+
+    IF(UPDATING)THEN
+      IF(:old.MOVEMENTQTY <> :NEW.MOVEMENTQTY AND :NEW.C_ORDERLINE_ID IS NOT NULL) THEN
+        SELECT issotrx,em_sco_specialdoctype, em_ssa_cmbitem_value INTO v_issotrx, v_specialdctype, v_ssa_cmbitem_value
+          FROM M_INOUT
+         WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
+          IF(v_issotrx='N' AND v_specialdctype='SCOMMRECEIPT' AND v_ssa_cmbitem_value = 'CompraNacional')THEN
+              SELECT COUNT(*) INTO V_COUNT 
+		FROM C_ORDERLINE ol 
+	       WHERE ol.C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID
+		 AND ABS(:NEW.MOVEMENTQTY + coalesce(ol.em_swa_received,0)) > ABS(ol.QTYORDERED);
+
+	      IF(V_COUNT <> 0) THEN
+	       RAISE_APPLICATION_ERROR(-20000, '@MovementQtyCheck@');
+              END IF;
+              
+          ELSIF(v_issotrx='N' AND v_specialdctype='SCOMMRECEIPT' AND v_ssa_cmbitem_value = 'CompraImportacion')THEN
+              --Validacion: Para que no se pueda ingresar mas mercaderìa si hay productos en otro parcial
+             SELECT COUNT(*) INTO V_COUNT 
+	            FROM C_ORDERLINE ol 
+	            WHERE ol.C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID
+	              AND ABS(:NEW.MOVEMENTQTY + coalesce(ol.em_swa_received,0)) > ABS(ol.QTYORDERED);
+
+             IF(V_COUNT <> 0) THEN
+             --Preguntando si hay mas en otros parciales
+               SELECT ol.qtyordered, il.qtyordered - il.received
+                 INTO v_qtyordered , v_qtypendingpo
+                 FROM C_ORDERLINE ol 
+                   INNER JOIN SIM_ORDERIMPORTLINE il ON ol.em_sim_orderimportline_id = il.sim_orderimportline_id
+                WHERE ol.C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID;
+
+                IF(v_qtyordered <> v_qtypendingpo)THEN
+                  RAISE_APPLICATION_ERROR(-20000, '@sim_MovementQtyCheck@');
+                END IF;
+            END IF;
+	  END IF;
+      END IF;
+    END IF;
+
+
+END SWA_M_INOUTLINE_RECEIPT_TRG
+]]></body>
+    </trigger>
+  </database>

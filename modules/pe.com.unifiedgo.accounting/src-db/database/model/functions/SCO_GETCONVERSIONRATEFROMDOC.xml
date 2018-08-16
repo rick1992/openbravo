@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_GETCONVERSIONRATEFROMDOC">
+    <function name="SCO_GETCONVERSIONRATEFROMDOC" type="NUMERIC">
+      <parameter name="p_table_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_record_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_from" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency_to" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_Rate NUMBER;
+BEGIN
+  IF ( p_table_id = '318') THEN
+    --C_Invoice
+    SELECT rate 
+      INTO v_Rate
+      FROM c_conversion_rate_document
+    WHERE c_currency_id = p_currency_from AND
+	  c_currency_id_to = p_currency_to AND
+	  c_invoice_id = p_record_id LIMIT 1;
+
+  ELSIF ( p_table_id = 'D1A97202E832470285C9B1EB026D54E2' ) THEN
+    --FIN_Payment
+    SELECT rate 
+      INTO v_Rate
+      FROM c_conversion_rate_document
+    WHERE c_currency_id = p_currency_from AND
+	  c_currency_id_to = p_currency_to AND
+	  fin_payment_id = p_record_id LIMIT 1;
+
+  ELSIF ( p_table_id = '4D8C3B3C31D1410DA046140C9F024D17' ) THEN
+    --FIN_Finacc_Transaction
+    SELECT rate 
+      INTO v_Rate
+      FROM c_conversion_rate_document
+    WHERE c_currency_id = p_currency_from AND
+	  c_currency_id_to = p_currency_to AND
+	  fin_finacc_transaction_id = p_record_id LIMIT 1;
+  ELSE
+    RETURN NULL;
+  END IF;
+
+  RETURN v_Rate;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END SCO_GETCONVERSIONRATEFROMDOC
+]]></body>
+    </function>
+  </database>

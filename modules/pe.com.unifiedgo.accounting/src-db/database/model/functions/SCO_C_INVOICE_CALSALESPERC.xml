@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_C_INVOICE_CALSALESPERC">
+    <function name="SCO_C_INVOICE_CALSALESPERC" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+  v_Rate C_TAX.RATE%TYPE;
+  v_Prec C_CURRENCY.STDPRECISION%TYPE;
+  v_specialTerm VARCHAR(60);
+  v_C_Tax_ID VARCHAR(32);
+  v_LineNo  NUMBER;
+  v_invoiceClient_ID VARCHAR(32);
+  v_invoiceOrg_ID VARCHAR(32);
+  v_c_invoicePercBaseAmt NUMBER;
+
+-- Record Info
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+
+    SELECT c_paymentterm.em_sco_specialpayterm, c_currency.stdPrecision, c_invoice.ad_client_id, c_invoice.ad_org_id
+      INTO v_specialTerm,v_Prec, v_invoiceClient_ID, v_invoiceOrg_ID
+      FROM c_invoice,c_paymentterm,c_currency
+    WHERE c_paymentterm.c_paymentterm_id = c_invoice.c_paymentterm_id AND
+	  c_invoice.c_currency_id = c_currency.c_currency_id AND
+	  c_invoice.C_Invoice_ID = v_Record_ID;
+
+    IF(v_specialTerm = 'SCOINMEDIATETERM') THEN
+      --Get Percepcion de venta al contado
+      SELECT c_tax_id, rate 
+        INTO v_C_Tax_ID, v_Rate
+        FROM C_Tax 
+      WHERE em_sco_specialtax = 'SCOSINMEDIATEPERCEPTION' AND isactive = 'Y' LIMIT 1;
+
+    ELSE
+      --Get Percepcion de venta al credito
+      SELECT c_tax_id, rate 
+        INTO v_C_Tax_ID,v_Rate
+        FROM C_Tax 
+      WHERE em_sco_specialtax = 'SCOSCREDITPERCEPTION' AND isactive = 'Y' LIMIT 1;
+
+    END IF;
+    
+    
+    SELECT COALESCE(SUM(c_invoicelinetax.taxamt + c_invoicelinetax.taxbaseamt),0) as baseAmt
+      INTO v_c_invoicePercBaseAmt
+      FROM c_invoice, c_invoiceline, c_invoicelinetax    
+    WHERE c_invoiceline.c_invoice_id = c_invoice.c_invoice_id AND
+	  c_invoicelinetax.c_invoiceline_id = c_invoiceline.c_invoiceline_id AND
+	  c_invoiceline.em_sco_perceptionTaxed = 'Y' AND
+	  c_invoice.C_Invoice_ID = v_Record_ID;
+
+    --Delete all previous calculations
+    DELETE FROM c_invoicetax
+    WHERE c_invoice_id = v_Record_ID AND
+          c_tax_id IN (SELECT C_tax_ID FROM C_Tax WHERE em_sco_specialtax IN ('SCOSCREDITPERCEPTION', 'SCOSINMEDIATEPERCEPTION'));
+
+
+    IF(v_c_invoicePercBaseAmt<>0) THEN
+      SELECT COALESCE(MAX(LINE),0) + 10
+        INTO v_LineNo
+        FROM C_INVOICETAX
+      WHERE C_INVOICE_ID = v_Record_ID;
+      INSERT
+      INTO C_INVOICETAX (
+        C_InvoiceTax_ID, C_Invoice_ID, C_Tax_ID, AD_Client_ID, AD_Org_ID,
+        IsActive, Created, CreatedBy, Updated,
+        UpdatedBy, TaxBaseAmt, TaxAmt, Line, Recalculate)
+      VALUES (
+        GET_UUID(), v_Record_ID, v_C_Tax_ID, v_invoiceClient_ID, v_invoiceOrg_ID,
+        'Y', now(), v_User_ID, now(),
+        v_User_ID, v_c_invoicePercBaseAmt, ROUND(v_c_invoicePercBaseAmt*v_Rate / 100, v_Prec), v_LineNo, 'N');
+    END IF;
+	  
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SCO_C_INVOICE_CALSALESPERC
+]]></body>
+    </function>
+  </database>

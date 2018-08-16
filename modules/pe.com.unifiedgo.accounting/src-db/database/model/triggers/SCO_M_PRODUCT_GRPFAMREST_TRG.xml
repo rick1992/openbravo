@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_M_PRODUCT_GRPFAMREST_TRG">
+    <trigger name="SCO_M_PRODUCT_GRPFAMREST_TRG" table="M_PRODUCT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+ v_prdc_productgroup_id VARCHAR(32);
+
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF(INSERTING) THEN
+    IF(:NEW.em_sco_productfamily_id IS NOT NULL AND :NEW.em_sco_productfamily_id<>'') THEN
+      SELECT prdc_productgroup_id
+        INTO v_prdc_productgroup_id
+        FROM sco_productfamily
+      WHERE sco_productfamily_id = :NEW.em_sco_productfamily_id;
+
+      IF(v_prdc_productgroup_id IS NOT NULL) THEN
+        IF(v_prdc_productgroup_id <> COALESCE(:NEW.em_prdc_productgroup_id,'.')) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidProductFamily@');
+        END IF;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidProductFamily@');
+      END IF;
+    END IF;
+  ELSE
+    IF(COALESCE(:OLD.em_prdc_productgroup_id,'.')<>COALESCE(:NEW.em_prdc_productgroup_id,'.') OR
+       COALESCE(:OLD.em_sco_productfamily_id,'.')<>COALESCE(:NEW.em_sco_productfamily_id,'.')) THEN
+      IF(:NEW.em_sco_productfamily_id IS NOT NULL AND :NEW.em_sco_productfamily_id<>'') THEN
+        SELECT prdc_productgroup_id
+          INTO v_prdc_productgroup_id
+          FROM sco_productfamily
+        WHERE sco_productfamily_id = :NEW.em_sco_productfamily_id;
+
+        IF(v_prdc_productgroup_id IS NOT NULL) THEN
+          IF(v_prdc_productgroup_id <> COALESCE(:NEW.em_prdc_productgroup_id,'.')) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidProductFamily@');
+          END IF;
+        ELSE
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidProductFamily@');
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  END SCO_M_PRODUCT_GRPFAMREST_TRG
+]]></body>
+    </trigger>
+  </database>

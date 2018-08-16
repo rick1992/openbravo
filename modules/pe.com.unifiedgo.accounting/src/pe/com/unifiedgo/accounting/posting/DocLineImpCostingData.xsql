@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<SqlClass name="DocLineImpCostingData" package="pe.com.unifiedgo.accounting.posting">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT c_invoice.c_invoice_id, c_invoice.AD_CLIENT_ID, c_invoice.AD_ORG_ID AS AD_ORG_ID,
+          c_invoice.ISACTIVE, 
+        c_invoice.totallines AS AMOUNT, 
+        c_invoice.C_CURRENCY_ID
+        FROM c_invoice 
+        WHERE em_sco_dua_id = ? AND docstatus='CO'
+        UNION ALL
+        SELECT c_invoice.c_invoice_id, c_invoice.AD_CLIENT_ID, c_invoice.AD_ORG_ID AS AD_ORG_ID,
+          c_invoice.ISACTIVE, 
+          sum(c_invoiceline.linenetamt) AS AMOUNT, 
+        c_invoice.C_CURRENCY_ID
+	FROM c_invoiceLine 
+	inner join c_invoice on c_invoice.c_invoice_id = c_invoiceLine.c_invoice_id
+	WHERE c_invoiceLine.em_sim_dua_id = ? AND c_invoice.docstatus='CO' AND (c_invoice.em_sco_dua_id IS NULL OR c_invoice.em_sco_dua_id<>c_invoiceLine.em_sim_dua_id) GROUP BY c_invoice.c_invoice_id, c_invoice.AD_CLIENT_ID, c_invoice.AD_ORG_ID,
+          c_invoice.ISACTIVE, c_invoice.C_CURRENCY_ID
+        
+     ]]>
+     </Sql>
+     <Parameter name="em_sco_dua_id"/>
+     <Parameter name="em_sco_dua_id"/>
+   </SqlMethod>
+     
+  </SqlClass>

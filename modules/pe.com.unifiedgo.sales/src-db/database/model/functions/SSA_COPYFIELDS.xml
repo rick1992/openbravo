@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SSA_COPYFIELDS">
+    <function name="SSA_COPYFIELDS" type="NULL">
+      <body><![CDATA[v_NextFieldId VARCHAR(32);
+    v_module_id VARCHAR(32);
+    v_tabfrom_id VARCHAR(32);
+    v_tabto_id VARCHAR(32);
+    v_tableto_id VARCHAR(32);
+    v_columnto_id VARCHAR(32);
+    v_dbcolumnname_from VARCHAR(40);
+    CUR_Fields RECORD;
+    
+    v_Count NUMBER;
+BEGIN
+
+  v_module_id:='22A1F11413EB47F4BB5AB065878079C5';
+
+  v_tabfrom_id:='F4204696A73647E2AA9700106C00C7A5';
+  v_tabto_id:='86FA84E6141C4D88A6EB424BFB7C6519';
+
+  SELECT ad_table_id INTO v_tableto_id FROM ad_tab WHERE ad_tab_id=v_tabto_id;
+  IF(v_tableto_id is null OR v_tableto_id='') THEN
+    RAISE NO_DATA_FOUND;
+  END IF;
+
+  FOR CUR_Fields IN
+    (select * from ad_field where ad_tab_id=v_tabfrom_id)
+  LOOP
+    SELECT columnname INTO v_dbcolumnname_from FROM AD_Column WHERE AD_Column_ID = CUR_Fields.AD_Column_ID;
+
+    SELECT count(*) 
+      INTO v_Count 
+      FROM ad_field,ad_column 
+    WHERE ad_field.ad_column_id = ad_column.ad_column_id AND 
+          ad_field.ad_tab_id=v_tabto_id AND 
+	  ad_column.columnname = v_dbcolumnname_from;
+    IF(v_Count=0) THEN
+	
+	SELECT ad_column_id INTO v_columnto_id FROM AD_Column WHERE ad_table_id=v_tableto_id AND columnname = v_dbcolumnname_from;
+	IF(v_columnto_id IS NULL OR v_columnto_id='') THEN
+	  CONTINUE;
+	END IF;
+
+        AD_Sequence_Next('AD_Field', '0', v_NextFieldId) ;
+
+	INSERT INTO ad_field(
+            ad_client_id, ad_org_id, isactive, created, createdby, 
+            updated, updatedby, name, description, help, iscentrallymaintained, 
+            property, ignoreinwad, ad_fieldgroup_id, 
+            isdisplayed, displaylogic, displaylength, isreadonly, seqno, 
+            sortno, issameline, isfieldonly, isencrypted, showinrelation, 
+            isfirstfocusedfield, grid_seqno, startinoddcolumn, 
+            startnewline, isshowninstatusbar, onchangefunction, clientclass, 
+            em_obuiapp_colspan, em_obuiapp_rowspan, em_obuiapp_validator, 
+            em_obuiapp_showsummary, em_obuiapp_summaryfn, em_obuisel_outfield_id,
+	    ad_field_id,ad_tab_id, ad_column_id,ad_module_id)
+
+        VALUES (
+            '0', '0', CUR_Fields.isactive, now(), '100', 
+            now(), '100', CUR_Fields.name, CUR_Fields.description, CUR_Fields.help, CUR_Fields.iscentrallymaintained, 
+            CUR_Fields.property, CUR_Fields.ignoreinwad, CUR_Fields.ad_fieldgroup_id, 
+            CUR_Fields.isdisplayed, CUR_Fields.displaylogic, CUR_Fields.displaylength, CUR_Fields.isreadonly, CUR_Fields.seqno, 
+            CUR_Fields.sortno, CUR_Fields.issameline, CUR_Fields.isfieldonly, CUR_Fields.isencrypted, CUR_Fields.showinrelation, 
+            CUR_Fields.isfirstfocusedfield, CUR_Fields.grid_seqno, CUR_Fields.startinoddcolumn, 
+            CUR_Fields.startnewline, CUR_Fields.isshowninstatusbar, CUR_Fields.onchangefunction, CUR_Fields.clientclass, 
+            CUR_Fields.em_obuiapp_colspan, CUR_Fields.em_obuiapp_rowspan, CUR_Fields.em_obuiapp_validator, 
+            CUR_Fields.em_obuiapp_showsummary, CUR_Fields.em_obuiapp_summaryfn, CUR_Fields.em_obuisel_outfield_id,
+	    v_NextFieldId, v_tabto_id, v_columnto_id, v_module_id);
+	
+    END IF;
+
+  END LOOP;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+    RAISE;
+    RETURN;
+END SSA_COPYFIELDS
+]]></body>
+    </function>
+  </database>

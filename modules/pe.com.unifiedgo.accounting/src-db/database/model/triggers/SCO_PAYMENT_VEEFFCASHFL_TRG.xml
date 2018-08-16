@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYMENT_VEEFFCASHFL_TRG">
+    <trigger name="SCO_PAYMENT_VEEFFCASHFL_TRG" table="FIN_PAYMENT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_fin_payment_table_id VARCHAR(32);
+  v_ad_window_id VARCHAR(32);
+  v_sco_eeff_cashflow_id VARCHAR(32);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    v_fin_payment_table_id := 'D1A97202E832470285C9B1EB026D54E2';
+
+    IF(INSERTING) THEN
+      IF(:NEW.em_sco_eeff_cashflow_id IS NULL) THEN
+        --Search is there is a default eeffcashflow for this payment
+        SELECT AD_Window_ID
+          INTO v_ad_window_id
+          FROM SCR_Tabredirect 
+        WHERE keyword = :NEW.em_sco_specialdoctypeplus
+        AND AD_TABLE_ID = v_fin_payment_table_id;
+
+
+        IF(v_ad_window_id IS NOT NULL) THEN
+          SELECT sco_eeff_cashflow_id
+            INTO v_sco_eeff_cashflow_id
+            FROM sco_eeff_cashflow_defs
+          WHERE AD_Client_ID = :NEW.AD_Client_ID 
+          AND AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+          AND ad_window_id = v_ad_window_id;
+
+          IF(v_sco_eeff_cashflow_id IS NULL) THEN
+            --Put defaults
+            IF(:NEW.isreceipt = 'Y') THEN
+              SELECT sco_eeff_cashflow_id
+                INTO v_sco_eeff_cashflow_id
+                FROM sco_eeff_cashflow
+              WHERE AD_Client_ID = :NEW.AD_Client_ID 
+              AND AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+              AND ispayindefault = 'Y' LIMIT 1;
+            ELSE
+              SELECT sco_eeff_cashflow_id
+                INTO v_sco_eeff_cashflow_id
+                FROM sco_eeff_cashflow
+              WHERE AD_Client_ID = :NEW.AD_Client_ID  
+              AND AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+              AND ispayoutdefault = 'Y' LIMIT 1;
+            END IF;
+          END IF;
+
+          :NEW.em_sco_eeff_cashflow_id := v_sco_eeff_cashflow_id;
+
+        END IF;
+      END IF;
+    ELSIF(UPDATING) THEN
+      IF(COALESCE(:OLD.em_sco_eeff_cashflow_id,'')<>COALESCE(:NEW.em_sco_eeff_cashflow_id,'')) THEN
+        IF(:NEW.em_sco_eeff_cashflow_id IS NULL) THEN
+          --Search is there is a default eeffcashflow for this payment
+          SELECT AD_Window_ID
+            INTO v_ad_window_id
+            FROM SCR_Tabredirect 
+          WHERE keyword = :NEW.em_sco_specialdoctypeplus
+          AND AD_TABLE_ID = v_fin_payment_table_id;
+
+          IF(v_ad_window_id IS NOT NULL) THEN
+            SELECT sco_eeff_cashflow_id
+              INTO v_sco_eeff_cashflow_id
+              FROM sco_eeff_cashflow_defs
+            WHERE AD_Client_ID = :NEW.AD_Client_ID  
+            AND AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+            AND ad_window_id = v_ad_window_id;
+
+            IF(v_sco_eeff_cashflow_id IS NULL) THEN
+              --Put defaults
+              IF(:NEW.isreceipt = 'Y') THEN
+                SELECT sco_eeff_cashflow_id
+                  INTO v_sco_eeff_cashflow_id
+                  FROM sco_eeff_cashflow
+                WHERE AD_Client_ID = :NEW.AD_Client_ID  
+                AND AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+                AND ispayindefault = 'Y' LIMIT 1;
+              ELSE
+                SELECT sco_eeff_cashflow_id
+                  INTO v_sco_eeff_cashflow_id
+                  FROM sco_eeff_cashflow
+                WHERE AD_Client_ID = :NEW.AD_Client_ID  
+                AND AD_ISORGINCLUDED(:NEW.ad_org_id, ad_org_id, :NEW.ad_client_id) <> -1
+                AND ispayoutdefault = 'Y' LIMIT 1;
+              END IF;
+            END IF;
+
+            :NEW.em_sco_eeff_cashflow_id := v_sco_eeff_cashflow_id;
+
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+
+    END SCO_PAYMENT_VEEFFCASHFL_TRG
+]]></body>
+    </trigger>
+  </database>

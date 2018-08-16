@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+  <database name="VIEW SWA_REQUISITIONORDER_TRACE">
+    <view name="SWA_REQUISITIONORDER_TRACE"><![CDATA[SELECT DISTINCT COALESCE(r.m_requisition_id, '-') || o.c_order_id AS swa_requisitionorder_trace_id, r.ad_client_id, r.ad_org_id, r.isactive, r.updated, r.updatedby, r.created, r.createdby, r.m_requisition_id, o.c_order_id, o.docstatus, i.m_inout_id, i.docstatus AS inoutstatus FROM m_requisitionorder ro JOIN c_orderline ol ON ol.c_orderline_id = ro.c_orderline_id JOIN c_order o ON o.c_order_id = ol.c_order_id LEFT JOIN m_inoutline il ON il.c_orderline_id = ol.c_orderline_id LEFT JOIN m_inout i ON i.m_inout_id = il.m_inout_id JOIN m_requisitionline rl ON rl.m_requisitionline_id = ro.m_requisitionline_id JOIN m_requisition r ON r.m_requisition_id = rl.m_requisition_id]]></view>
+  </database>

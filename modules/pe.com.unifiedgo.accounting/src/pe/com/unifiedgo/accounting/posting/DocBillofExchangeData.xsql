@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+
+<SqlClass name="DocBillofExchangeData" package="pe.com.unifiedgo.accounting.posting">
+  <SqlClassComment></SqlClassComment>
+  
+  <SqlMethod name="selectRegistro" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT I.AD_CLIENT_ID, I.AD_ORG_ID, I.DOCUMENTNO, I.DATEACCT,
+     	I.C_DOCTYPE_ID, I.POSTED, I.DESCRIPTION, I.C_CURRENCY_ID,
+     	'' AS GLITEM_DEBIT_ACCT, '' AS GLITEM_CREDIT_ACCT, COALESCE(I.SCO_AREA_ID,'') AS SCO_Area_ID
+        FROM sco_billofexchange I
+        WHERE AD_Client_ID=?
+        AND sco_billofexchange_id=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="id"/>
+   </SqlMethod>
+   
+   <SqlMethod name="selectGlitem" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    SELECT GLITEM_DEBIT_ACCT, GLITEM_CREDIT_ACCT
+    FROM C_GLITEM_ACCT 
+    WHERE C_GLITEM_id = ?
+    AND C_ACCTSCHEMA_id = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_Glitem_ID"/>
+     <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+
+   
+</SqlClass>

@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SIM_ORDERIMPORT_OTHER_TRG">
+    <trigger name="SIM_ORDERIMPORT_OTHER_TRG" table="SIM_ORDERIMPORT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+  v_specialmethod VARCHAR(60);
+  v_linenetamt NUMBER:=0;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(UPDATING) THEN
+      IF(:OLD.aditional_one_cost <> :NEW.aditional_one_cost OR
+         :OLD.aditional_two_cost <> :NEW.aditional_two_cost OR
+         :OLD.aditional_three_cost <> :NEW.aditional_three_cost
+        )THEN
+       SELECT SUM(linenetamt) INTO v_linenetamt FROM sim_orderimportline WHERE sim_orderimport_id = :NEW.sim_orderimport_id; 
+       v_linenetamt:= COALESCE(v_linenetamt,0) + COALESCE(:NEW.aditional_one_cost,0) + COALESCE(:NEW.aditional_two_cost,0) +COALESCE(:NEW.aditional_three_cost,0);
+       :NEW.grandtotal=v_linenetamt; 
+      END IF;
+    END IF;
+
+      
+  
+    END SIM_ORDERIMPORT_OTHER_TRG
+]]></body>
+    </trigger>
+  </database>

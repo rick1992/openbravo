@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteMovimientosSalidasxOrganizacionData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_movimientosxorganizacion" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    
+    
+			SELECT
+					case when mt.movementqty >0 then 'IN' else 'SA' END AS usuario, 
+		  			ci.code as codigo_documento,
+					ci. NAME AS leyenda,
+				
+					coalesce((case 
+						when mt.m_inventoryline_id is not null then (miv.documentno)
+						when mt.m_inoutline_id is not null then (io.em_scr_physical_documentno)
+						when mt.m_productionline_id is not null then (mprd.documentno)
+						else '' end
+					),' - ') as serie_numero,
+					mt.movementdate AS fecha,
+					bp.taxid as pro_cli,
+					'' as ide,
+					bp.name as nombre_pro_cli,
+					mp.value AS cod_item,
+					'nose'  as cod_ref,
+					mp.name AS det_item,
+					cut.uomsymbol AS unid_medi,
+					CASE WHEN (mt.movementqty) >= 0 THEN mt.movementqty
+					ELSE 0.0 END AS entrada,
+				  CASE WHEN (mt.movementqty) < 0 THEN mt.movementqty *- 1
+				ELSE 0.0 END AS salida,
+				
+				( case when (COALESCE(io.docstatus,'') = 'VO') THEN '*' ELSE '' END) as anulado,
+				
+				COALESCE(mw.value,''	) as area_almacen,
+						
+				COALESCE(( select arlt2.name from ad_ref_list arl2 
+				inner join ad_ref_list_trl arlt2 on arl2.ad_ref_list_id=arlt2.ad_ref_list_id
+				where arl2.value=io.docstatus LIMIT 1),'') as estado,
+		
+		io.docstatus,
+				
+					(case 
+				when mt.m_inventoryline_id is not null then (miv.documentno)
+				when mt.m_inoutline_id is not null then (io.em_scr_physical_documentno)
+				when mt.m_productionline_id is not null then (mprd.documentno)
+				else '' end
+					)  as num_guia,
+					
+				'' as doc_ref,
+				
+				date_part('month',mt.movementdate)	as mes,
+				
+				'' as nro_lote, 
+				
+				'' as fec_vcto
+		
+		,miv.m_inventory_id 
+		,mprd.m_production_id
+		,io.m_inout_id
+		
+		,mw.name as almacen
+		
+		,COALESCE(io.description , '' )||COALESCE(mprd.description,'')||COALESCE(io.description,'') as notas 
+
+		
+		,mt.m_transaction_id
+		
+				,case when io.em_swa_requireposicion_id is not null then 
+			(select coalesce(ori.name,'') || ' --> ' || COALESCE(des.name,'')  from swa_requerimientoreposicion srr
+				left join m_warehouse ori on srr.from_m_warehouse_id=ori.m_warehouse_id
+				left join m_warehouse des on srr.to_m_warehouse_id=des.m_warehouse_id
+			
+			where srr.swa_requerimientoreposicion_id= io.em_swa_requireposicion_id )
+		 else '' end as almacen_referencia
+
+		
+		FROM
+			M_Transaction mt
+		LEFT JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+		LEFT JOIN m_warehouse  mw ON mw.m_warehouse_id = ml.m_warehouse_id
+		LEFT JOIN scr_combo_item ci ON ci.scr_combo_item_id = mt.em_ssa_combo_item_id
+		LEFT JOIN m_product mp ON mp.m_product_id = mt.m_product_id
+		LEFT JOIN c_uom cu ON cu.c_uom_id = mt.c_uom_id
+		LEFT JOIN m_inoutline mi ON mi.m_inoutline_id = mt.m_inoutline_id
+		LEFT JOIN m_inout io ON io.m_inout_id = mi.m_inout_id
+		LEFT JOIN m_inventoryLine mil ON mil.m_inventoryLine_id = mt.m_inventoryLine_id
+		LEFT JOIN m_inventory miv ON miv.m_inventory_id = mil.m_inventory_id
+		LEFT JOIN m_productionline mprdl ON mprdl.m_productionline_id = mt.m_productionline_id
+		LEFT JOIN m_productionplan mprdp ON mprdp.m_productionplan_id = mprdl.m_productionplan_id
+		LEFT JOIN m_production mprd ON mprd.m_production_id = mprdp.m_production_id
+		LEFT JOIN c_bpartner bp ON io.c_bpartner_id = bp.c_bpartner_id 
+		left JOIN c_uom_trl cut on mp.c_uom_id=cut.c_uom_id 
+
+ 
+		where 
+		
+		/* mt.m_movementline_id is null and  */
+		
+		 mt.ad_client_id IN ('1') 
+		and mt.ad_org_id in ('1') 
+		and 1=1   
+		and COALESCE(io.docstatus,'') <> 'VO'
+		ORDER BY mt.movementdate
+       
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mt.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and mt.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ AND mt.movementdate >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="1=1"><![CDATA[ AND mt.movementdate < TO_DATE(?)]]></Parameter>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

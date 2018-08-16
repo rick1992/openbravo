@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_BPARTNER_CHKTAXID_TRG">
+    <trigger name="SCR_BPARTNER_CHKTAXID_TRG" table="C_BPARTNER" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  v_cmbItemValue VARCHAR(60);
+  v_Aux NUMBER;
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+ 
+  IF (INSERTING) THEN
+      SELECT value INTO v_cmbItemValue FROM scr_combo_item WHERE scr_combo_item_id=:NEW.em_scr_combo_item_id;
+      
+      IF (v_cmbItemValue<>'OTROS TIPOS DE DOCUMENTOS') THEN  
+          SELECT Count(*) 
+	    INTO v_Aux 
+            FROM C_Bpartner
+           WHERE AD_Client_ID = :NEW.AD_Client_ID
+	     AND AD_Org_ID = :NEW.AD_Org_ID
+	     AND em_scr_combo_item_id = :NEW.em_scr_combo_item_id
+	     AND taxid = :NEW.taxid
+	     AND C_Bpartner_ID <> :NEW.C_Bpartner_ID LIMIT 1;
+
+          IF (v_Aux <> 0) THEN
+	      RAISE_APPLICATION_ERROR(-20000, '@SCR_DuplicateBpartnerTaxID@') ;
+          END IF;
+      END IF;
+
+  ELSIF(UPDATING) THEN
+    IF(COALESCE(:OLD.AD_Client_ID,'')<>COALESCE(:NEW.AD_Client_ID,'')
+       OR COALESCE(:OLD.AD_Org_ID,'')<>COALESCE(:NEW.AD_Org_ID,'')
+       OR COALESCE(:OLD.em_scr_combo_item_id,'')<>COALESCE(:NEW.em_scr_combo_item_id,'')
+       OR COALESCE(:OLD.taxid,'')<>COALESCE(:NEW.taxid,'')
+       OR COALESCE(:OLD.C_Bpartner_ID,'')<>COALESCE(:NEW.C_Bpartner_ID,'')
+       OR COALESCE(:OLD.isactive,'')<>COALESCE(:NEW.isactive,'')
+       OR COALESCE(:OLD.c_bp_group_id,'')<>COALESCE(:NEW.c_bp_group_id,'')
+    ) THEN    
+      SELECT value INTO v_cmbItemValue FROM scr_combo_item WHERE scr_combo_item_id=:NEW.em_scr_combo_item_id;
+      
+      IF(v_cmbItemValue<>'OTROS TIPOS DE DOCUMENTOS') THEN
+         SELECT Count(*) 
+           INTO v_Aux 
+           FROM C_Bpartner
+          WHERE AD_Client_ID = :NEW.AD_Client_ID
+            AND AD_Org_ID = :NEW.AD_Org_ID
+            AND em_scr_combo_item_id = :NEW.em_scr_combo_item_id
+            AND taxid = :NEW.taxid
+            AND C_Bpartner_ID <> :NEW.C_Bpartner_ID LIMIT 1;
+
+         IF(v_Aux <> 0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCR_DuplicateBpartnerTaxID@') ;
+         END IF;
+      END IF;
+
+    END IF;
+  END IF;
+
+  END SCR_BPARTNER_CHKTAXID_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,1059 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteMovimientosValorizadoData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_por_producto" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+	
+	SELECT 		a.producto as PRODUCTO,
+			 a.referencedocument as REFERENCEDOCUMENT,
+			a.physicalnumber as PHYSICALNUMBER,
+		      
+	
+				a.m_transaction_id as TRANSACTIONID,
+		       a.ad_client_id as CLIENTID,
+		       a.ad_org_id as ORGID,
+		       a.record_id as RECORDID,
+		       a.transactiondate as TRANSACTIONDATE,
+		       a.trxprocessdate as TRXPROCESSDATE,
+		       a.trxprocessdate_ref as TRXPROCESSDATEREF,
+		       a.movementdate as MOVEMENTDATE,
+		       a.m_product_id as PRODUCTID,
+		       a.m_warehouse_id as WAREHOUSEID,
+		       a.value_warehouse as VALUEWAREHOUSE,
+			   a.name_warehouse as NAMEWAREHOUSE,
+		       a.qtypossitive as QTYPOSSITIVE,
+		       a.qtynegative as QTYNEGATIVE,
+		       a.em_ssa_combo_item_id as COMBOITEMID,
+		       cbi.name  as MOVEMENTTYPE
+					,(a.tercero) as TERCERO
+					,(A.ructercero) AS RUCTERCERO
+					,(a.unidad) AS UNIDAD
+							      ,a.costototal as COSTOTOTAL
+					,a.costounitario as COSTOUNITARIO
+					,a.iscostcalculated AS ESTACOSTEADO
+					,'' as ESCOSTOAJUSTADO
+					,'' AS ESTADO
+		       
+		FROM(
+			SELECT mt.m_transaction_id,
+				mt.ad_client_id, 
+				mt.ad_org_id ,
+				coalesce(miv.m_inventory_id,mprd.m_production_id , mvc.swa_movementcode_id) as record_id,
+
+				mt.movementdate as transactiondate,
+				mt.trxprocessdate,
+				mt.trxprocessdate as trxprocessdate_ref,
+				to_char(mt.movementdate, 'DD-MM-YYYY') as movementdate,
+				mt.m_product_id, 
+				mw.m_warehouse_id,
+				mw.value as value_warehouse,
+			    mw.name as name_warehouse,
+				case when mt.movementqty > 0 THEN mt.movementqty    ELSE 0 END AS qtypossitive,
+				case when mt.movementqty < 0 THEN mt.movementqty*-1 ELSE 0 END AS qtynegative,
+				'' AS physicalnumber,
+				coalesce(miv.documentno,mprd.documentno, mvc.documentno) as referencedocument, 
+				mt.em_ssa_combo_item_id 
+				,'' as tercero
+				,'' as ructercero
+				, (select coalesce(cutr.name,cu.name) from c_uom cu inner join c_uom_trl cutr on cu.c_uom_id=cutr.c_uom_id where cu.c_uom_id=mp.c_uom_id) as unidad
+			  ,mp.value||' - '||mp.name as producto
+			  
+			  
+			  				,mt.transactioncost as costototal
+				,(mt.transactioncost/COALESCE(mt.movementqty,1))  as costounitario
+				,mt.iscostcalculated
+				
+				
+				FROM m_transaction mt 
+			   LEFT JOIN m_product pr on mt.m_product_id=pr.m_product_id
+				 LEFT JOIN m_product mp on mt.m_product_id=mp.m_product_id
+
+			   LEFT JOIN m_locator ml  ON ml.m_locator_id =  mt.m_locator_id    
+				   LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id	  
+				   LEFT JOIN m_inventoryLine mil ON mil.m_inventoryLine_id = mt.m_inventoryLine_id		
+				   LEFT JOIN m_inventory miv ON miv.m_inventory_id = mil.m_inventory_id      
+				   LEFT JOIN m_productionline mprdl ON mprdl.m_productionline_id = mt.m_productionline_id      
+				   LEFT JOIN m_productionplan mprdp ON mprdp.m_productionplan_id = mprdl.m_productionplan_id      
+				   LEFT JOIN m_production mprd ON mprd.m_production_id = mprdp.m_production_id
+				   LEFT JOIN swa_movementcode_product mcp ON mcp.swa_movementcode_product_id = mt.em_swa_movcode_product_id
+				   LEFT JOIN swa_movementcode_plan mvp ON mvp.swa_movementcode_plan_id = mcp.swa_movementcode_plan_id
+				   LEFT JOIN swa_movementcode mvc ON mvc.swa_movementcode_id = mvp.swa_movementcode_id
+			  WHERE mt.m_inoutline_id is null
+
+			    AND mt.movementdate between  to_date(?) AND to_date(?) 
+			    AND 
+			mt.m_movementline_id is null
+
+
+			UNION ALL
+
+
+			SELECT li.m_inout_id as m_transaction_id, 
+			       mt.ad_client_id, 
+			       mt.ad_org_id, 
+			       io.m_inout_id as record_id,
+			       mt.movementdate as transactiondate,
+			       COALESCE(vw.trxprocessdate_source,max(mt.trxprocessdate)) as trxprocessdate,
+			       max(mt.trxprocessdate) as trxprocessdate_ref,
+			       to_char((COALESCE(mt.movementdate, vw.trxprocessdate_source,max(mt.trxprocessdate))), 'DD-MM-YYYY') as movementdate,
+			       mt.m_product_id, 
+			       mw.m_warehouse_id, 
+			       mw.value as value_warehouse,
+			       mw.name as name_warehouse,
+			       case when sum(mt.movementqty) > 0 THEN sum(mt.movementqty)    ELSE 0 END AS qtypossitive,
+			       case when sum(mt.movementqty) < 0 THEN sum(mt.movementqty)*-1 ELSE 0 END AS qtynegative,
+			       case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT')  THEN io.em_scr_physical_documentno ELSE '' END AS physicalnumber,
+					io.documentno  || ' / '  || io.em_scr_physical_documentno  AS referencedocument,
+			       mt.em_ssa_combo_item_id ,
+				trim (COALESCE (cbp. NAME,'')) AS tercero,
+				COALESCE ( cbp.taxid,'' ) as ructercero
+						, (select coalesce(cutr.name,cu.name) from c_uom cu inner join c_uom_trl cutr on cu.c_uom_id=cutr.c_uom_id where cu.c_uom_id=mp.c_uom_id) as unidad
+						,mp.value||' - '||mp.name as producto
+							, sum(COALESCE(mt.transactioncost,0))  as costototal
+				, sum (COALESCE((mt.transactioncost/COALESCE(mt.movementqty,1)),0))  as costounitario
+				,mt.iscostcalculated
+						
+			  FROM m_transaction mt 
+				 LEFT JOIN m_product mp on mt.m_product_id=mp.m_product_id
+				 INNER JOIN m_inoutline li ON li.m_inoutline_id = mt.m_inoutline_id 
+				 INNER JOIN m_inout io ON io.m_inout_id = li.m_inout_id
+				 LEFT JOIN c_bpartner cbp on io.c_bpartner_id=cbp.c_bpartner_id
+				 LEFT JOIN swa_inout_relation_void_v vw ON vw.m_inout_id = io.m_inout_id
+				 INNER JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+				 INNER JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+			  WHERE 
+				mt.movementdate between to_date(?) AND to_date(?) 
+			    AND 
+			mt.m_inoutline_id is not null 
+			 GROUP BY li.m_inout_id, 
+				  io.m_inout_id,
+				  mt.ad_client_id, 
+				  mt.ad_org_id, 
+				  mt.m_product_id , 
+				  mw.m_warehouse_id,
+				  mw.value,
+			      mw.name,
+				  mt.movementdate,
+				  io.docstatus,
+				  vw.trxprocessdate_source,
+				  io.em_scr_physical_documentno,	
+				  io.documentno,
+				  io.em_sco_specialdoctype,
+				  mt.em_ssa_combo_item_id
+					,cbp.name	
+					,cbp.taxid
+					,mp.c_uom_id
+					,mp.value
+					,mp.name 
+					 ,mt.iscostcalculated
+					
+		    ) a
+		    
+		    INNER JOIN scr_combo_item cbi ON cbi.scr_combo_item_id = a.em_ssa_combo_item_id
+
+				where a.ad_client_id IN ('1')
+		      and a.ad_org_id IN ('1')
+		      and 2=2
+		      
+			
+			ORDER BY 	1,A .transactiondate,
+	a. trxprocessdate,
+	
+	A .trxprocessdate_ref
+	
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="fechaFrom1" />
+    <Parameter name="fechaTo1" />
+    <Parameter name="fechaFrom2" />
+    <Parameter name="fechaTo2" />
+    <Parameter name="adUserClient" type="replace" optional="true" after=" a.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and a.ad_org_id IN (" text="'1'"/> 
+    <Parameter name="idAlmacen"  optional="true" after="and 2=2"><![CDATA[  AND a.m_warehouse_id = (?)]]></Parameter>       
+    <Parameter name="idtipomov"  optional="true" after="and 2=2"><![CDATA[  AND a.em_ssa_combo_item_id = (?)]]></Parameter>       
+           
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="select_por_documento" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+	
+		SELECT 		a.producto as PRODUCTO,
+			 a.referencedocument as REFERENCEDOCUMENT,
+			a.physicalnumber as PHYSICALNUMBER,
+		      
+	
+				a.m_transaction_id as TRANSACTIONID,
+		       a.ad_client_id as CLIENTID,
+		       a.ad_org_id as ORGID,
+		       a.record_id as RECORDID,
+		       a.transactiondate as TRANSACTIONDATE,
+		       a.trxprocessdate as TRXPROCESSDATE,
+		       a.trxprocessdate_ref as TRXPROCESSDATEREF,
+		       a.movementdate as MOVEMENTDATE,
+		       a.m_product_id as PRODUCTID,
+		       a.m_warehouse_id as WAREHOUSEID,
+		       a.value_warehouse as VALUEWAREHOUSE,
+			   a.name_warehouse as NAMEWAREHOUSE,
+		       a.qtypossitive as QTYPOSSITIVE,
+		       a.qtynegative as QTYNEGATIVE,
+		       a.em_ssa_combo_item_id as COMBOITEMID,
+		       cbi.name  as MOVEMENTTYPE
+					,(a.tercero) as TERCERO
+								,(A.ructercero) AS RUCTERCERO
+					,(a.unidad) AS UNIDAD
+					
+							      ,a.costototal as COSTOTOTAL
+					,a.costounitario as COSTOUNITARIO
+					,a.iscostcalculated AS ESTACOSTEADO
+
+
+					
+		       
+		FROM(
+			SELECT mt.m_transaction_id,
+				mt.ad_client_id, 
+				mt.ad_org_id ,
+				coalesce(miv.m_inventory_id,mprd.m_production_id , mvc.swa_movementcode_id) as record_id,
+
+				mt.movementdate as transactiondate,
+				mt.trxprocessdate,
+				mt.trxprocessdate as trxprocessdate_ref,
+				to_char(mt.movementdate, 'DD-MM-YYYY') as movementdate,
+				mt.m_product_id, 
+				mw.m_warehouse_id,
+				mw.value as value_warehouse,
+			    mw.name as name_warehouse,
+				case when mt.movementqty > 0 THEN mt.movementqty    ELSE 0 END AS qtypossitive,
+				case when mt.movementqty < 0 THEN mt.movementqty*-1 ELSE 0 END AS qtynegative,
+				'' AS physicalnumber,
+				coalesce(miv.documentno,mprd.documentno, mvc.documentno) as referencedocument, 
+				mt.em_ssa_combo_item_id 
+				,'' as tercero
+				,'' as ructercero
+				, (select coalesce(cutr.name,cu.name) from c_uom cu inner join c_uom_trl cutr on cu.c_uom_id=cutr.c_uom_id where cu.c_uom_id=mp.c_uom_id) as unidad
+			  ,mp.value||' - '||mp.name as producto
+			  
+			  
+				,mt.transactioncost as costototal
+				,(mt.transactioncost/COALESCE(mt.movementqty,1))  as costounitario
+				,mt.iscostcalculated
+			  
+				FROM m_transaction mt 
+			   LEFT JOIN m_product pr on mt.m_product_id=pr.m_product_id
+				 LEFT JOIN m_product mp on mt.m_product_id=mp.m_product_id
+
+			   LEFT JOIN m_locator ml  ON ml.m_locator_id =  mt.m_locator_id    
+				   LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id	  
+				   LEFT JOIN m_inventoryLine mil ON mil.m_inventoryLine_id = mt.m_inventoryLine_id		
+				   LEFT JOIN m_inventory miv ON miv.m_inventory_id = mil.m_inventory_id      
+				   LEFT JOIN m_productionline mprdl ON mprdl.m_productionline_id = mt.m_productionline_id      
+				   LEFT JOIN m_productionplan mprdp ON mprdp.m_productionplan_id = mprdl.m_productionplan_id      
+				   LEFT JOIN m_production mprd ON mprd.m_production_id = mprdp.m_production_id
+				   LEFT JOIN swa_movementcode_product mcp ON mcp.swa_movementcode_product_id = mt.em_swa_movcode_product_id
+				   LEFT JOIN swa_movementcode_plan mvp ON mvp.swa_movementcode_plan_id = mcp.swa_movementcode_plan_id
+				   LEFT JOIN swa_movementcode mvc ON mvc.swa_movementcode_id = mvp.swa_movementcode_id
+			  WHERE mt.m_inoutline_id is null
+
+			    AND mt.movementdate between  to_date(?) AND to_date(?) 
+			    AND 
+			mt.m_movementline_id is null
+
+
+			UNION ALL
+
+
+			SELECT li.m_inout_id as m_transaction_id, 
+			       mt.ad_client_id, 
+			       mt.ad_org_id, 
+			       io.m_inout_id as record_id,
+			       mt.movementdate as transactiondate,
+			       COALESCE(vw.trxprocessdate_source,max(mt.trxprocessdate)) as trxprocessdate,
+			       max(mt.trxprocessdate) as trxprocessdate_ref,
+			       to_char((COALESCE(mt.movementdate, vw.trxprocessdate_source,max(mt.trxprocessdate))), 'DD-MM-YYYY') as movementdate,
+			       mt.m_product_id, 
+			       mw.m_warehouse_id, 
+			       mw.value as value_warehouse,
+			       mw.name as name_warehouse,
+			       case when sum(mt.movementqty) > 0 THEN sum(mt.movementqty)    ELSE 0 END AS qtypossitive,
+			       case when sum(mt.movementqty) < 0 THEN sum(mt.movementqty)*-1 ELSE 0 END AS qtynegative,
+			       case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT')  THEN io.em_scr_physical_documentno ELSE '' END AS physicalnumber,
+					io.documentno  || ' / '  || io.em_scr_physical_documentno  AS referencedocument,
+					mt.em_ssa_combo_item_id 
+								 ,trim (COALESCE (cbp. NAME,'')) AS tercero,
+					COALESCE ( cbp.taxid,'' ) as ructercero
+						, (select coalesce(cutr.name,cu.name) from c_uom cu inner join c_uom_trl cutr on cu.c_uom_id=cutr.c_uom_id where cu.c_uom_id=mp.c_uom_id) as unidad
+						,mp.value||' - '||mp.name as producto
+				, sum(COALESCE(mt.transactioncost,0))  as costototal
+				, sum (COALESCE((mt.transactioncost/COALESCE(mt.movementqty,1)),0))  as costounitario
+				,mt.iscostcalculated	
+						
+			  FROM m_transaction mt 
+				 LEFT JOIN m_product mp on mt.m_product_id=mp.m_product_id
+				 INNER JOIN m_inoutline li ON li.m_inoutline_id = mt.m_inoutline_id 
+				 INNER JOIN m_inout io ON io.m_inout_id = li.m_inout_id
+				 LEFT JOIN c_bpartner cbp on io.c_bpartner_id=cbp.c_bpartner_id
+				 LEFT JOIN swa_inout_relation_void_v vw ON vw.m_inout_id = io.m_inout_id
+				 INNER JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+				 INNER JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+			  WHERE 
+				mt.movementdate between to_date(?) AND to_date(?) 
+			    AND 
+			mt.m_inoutline_id is not null 
+			 GROUP BY li.m_inout_id, 
+				  io.m_inout_id,
+				  mt.ad_client_id, 
+				  mt.ad_org_id, 
+				  mt.m_product_id , 
+				  mw.m_warehouse_id,
+				  mw.value,
+			      mw.name,
+				  mt.movementdate,
+				  io.docstatus,
+				  vw.trxprocessdate_source,
+				  io.em_scr_physical_documentno,	
+				  io.documentno,
+				  io.em_sco_specialdoctype,
+				  mt.em_ssa_combo_item_id
+					,cbp.name	
+					,cbp.taxid
+					,mp.c_uom_id
+					,mp.value
+					,mp.name
+					 ,mt.iscostcalculated
+					
+		    ) a
+		    
+		    INNER JOIN scr_combo_item cbi ON cbi.scr_combo_item_id = a.em_ssa_combo_item_id
+
+			  where a.ad_client_id IN ('1')
+		      and a.ad_org_id IN ('1')
+		      and 2=2
+
+			ORDER BY 	A .transactiondate,
+		a. trxprocessdate,
+		A .trxprocessdate_ref,
+		2
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="fechaFrom1" />
+    <Parameter name="fechaTo1" />
+    <Parameter name="fechaFrom2" />
+    <Parameter name="fechaTo2" />
+    <Parameter name="adUserClient" type="replace" optional="true" after="where a.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and a.ad_org_id IN (" text="'1'"/> 
+     <Parameter name="idAlmacen"  optional="true" after="and 2=2"><![CDATA[  AND a.m_warehouse_id = (?)]]></Parameter>       
+               <Parameter name="idtipomov"  optional="true" after="and 2=2"><![CDATA[  AND a.em_ssa_combo_item_id = (?)]]></Parameter>       
+           
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="select_movimientos_valorizado" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+	
+		SELECT 		a.producto as PRODUCTO,
+			 a.referencedocument as REFERENCEDOCUMENT,
+			a.physicalnumber as PHYSICALNUMBER,
+		      
+	
+				a.m_transaction_id as TRANSACTIONID,
+		       a.ad_client_id as CLIENTID,
+		       a.ad_org_id as ORGID,
+		       a.record_id as RECORDID,
+		       a.transactiondate as TRANSACTIONDATE,
+		       a.trxprocessdate as TRXPROCESSDATE,
+		       a.trxprocessdate_ref as TRXPROCESSDATEREF,
+		       a.movementdate as MOVEMENTDATE,
+		       a.m_product_id as PRODUCTID,
+		       a.m_warehouse_id as WAREHOUSEID,
+		       a.value_warehouse as VALUEWAREHOUSE,
+			   a.name_warehouse as NAMEWAREHOUSE,
+		       a.qtypossitive as QTYPOSSITIVE,
+		       a.qtynegative as QTYNEGATIVE,
+		       a.em_ssa_combo_item_id as COMBOITEMID,
+		       cbi.name  as MOVEMENTTYPE
+					,(a.tercero) as TERCERO
+								,(A.ructercero) AS RUCTERCERO
+					,(a.unidad) AS UNIDAD
+					
+		,case when a.qtypossitive > 0 then a.costototal else a.costototal  * -1 end as COSTOTOTAL
+					,CASE WHEN a.qtypossitive > 0  THEN a.costototal / a.qtypossitive when a.qtynegative<>0 THEN a.costototal/a.qtynegative * -1 else 0 end  as COSTOUNITARIO
+					,a.iscostcalculated AS ESTACOSTEADO
+					,a.em_sco_costadjusment as ESCOSTOAJUSTADO
+					,a.estado as ESTADO
+					
+
+
+					
+		       
+		FROM(
+			SELECT mt.m_transaction_id,
+				mt.ad_client_id, 
+				mt.ad_org_id ,
+				coalesce(miv.m_inventory_id,mprd.m_production_id , mvc.swa_movementcode_id) as record_id,
+
+				mt.movementdate as transactiondate,
+				mt.trxprocessdate,
+				mt.trxprocessdate as trxprocessdate_ref,
+				to_char(mt.movementdate, 'DD-MM-YYYY') as movementdate,
+				mt.m_product_id,  
+				mw.m_warehouse_id,
+				mw.value as value_warehouse,
+			    mw.name as name_warehouse,
+				case when mt.movementqty > 0 THEN mt.movementqty    ELSE 0 END AS qtypossitive,
+				case when mt.movementqty < 0 THEN mt.movementqty*-1 ELSE 0 END AS qtynegative,
+				'' AS physicalnumber,
+				coalesce(miv.documentno,mprd.documentno, mvc.documentno) as referencedocument, 
+				mt.em_ssa_combo_item_id 
+				,'' as tercero
+				,'' as ructercero
+				, (select coalesce(cutr.name,cu.name) from c_uom cu inner join c_uom_trl cutr on cu.c_uom_id=cutr.c_uom_id where cu.c_uom_id=mp.c_uom_id) as unidad
+			  ,mp.value||' - '||mp.name as producto
+			  
+			  
+				,mt.transactioncost as costototal
+				,(mt.transactioncost/(CASE WHEN mt.movementqty<>0 THEN mt.movementqty ELSE 0.0000001 END ))  as costounitario
+				,mt.iscostcalculated
+				,coalesce( mt.em_sco_costadjusment,'N')  as em_sco_costadjusment
+				,'--' estado
+							  
+				FROM m_transaction mt 
+			   LEFT JOIN m_product pr on mt.m_product_id=pr.m_product_id
+				 LEFT JOIN m_product mp on mt.m_product_id=mp.m_product_id
+
+			   LEFT JOIN m_locator ml  ON ml.m_locator_id =  mt.m_locator_id    
+				   LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id	  
+				   LEFT JOIN m_inventoryLine mil ON mil.m_inventoryLine_id = mt.m_inventoryLine_id		
+				   LEFT JOIN m_inventory miv ON miv.m_inventory_id = mil.m_inventory_id      
+				   LEFT JOIN m_productionline mprdl ON mprdl.m_productionline_id = mt.m_productionline_id      
+				   LEFT JOIN m_productionplan mprdp ON mprdp.m_productionplan_id = mprdl.m_productionplan_id      
+				   LEFT JOIN m_production mprd ON mprd.m_production_id = mprdp.m_production_id
+				   LEFT JOIN swa_movementcode_product mcp ON mcp.swa_movementcode_product_id = mt.em_swa_movcode_product_id
+				   LEFT JOIN swa_movementcode_plan mvp ON mvp.swa_movementcode_plan_id = mcp.swa_movementcode_plan_id
+				   LEFT JOIN swa_movementcode mvc ON mvc.swa_movementcode_id = mvp.swa_movementcode_id
+			  WHERE mt.m_inoutline_id is null
+
+			    AND mt.movementdate between  to_date(?) AND to_date(?) 
+			     
+			/* AND mt.m_movementline_id is null*/
+
+
+			UNION ALL
+
+
+			SELECT li.m_inout_id as m_transaction_id, 
+			       mt.ad_client_id, 
+			       mt.ad_org_id, 
+			       io.m_inout_id as record_id,
+			       mt.movementdate as transactiondate,
+			       COALESCE(vw.trxprocessdate_source,max(mt.trxprocessdate)) as trxprocessdate,
+			       max(mt.trxprocessdate) as trxprocessdate_ref,
+			       to_char((COALESCE(mt.movementdate, vw.trxprocessdate_source,max(mt.trxprocessdate))), 'DD-MM-YYYY') as movementdate,
+			       mt.m_product_id, 
+			       mw.m_warehouse_id, 
+			       mw.value as value_warehouse,
+			       mw.name as name_warehouse,
+			       case when sum(mt.movementqty) > 0 THEN sum(mt.movementqty)    ELSE 0 END AS qtypossitive,
+			       case when sum(mt.movementqty) < 0 THEN sum(mt.movementqty)*-1 ELSE 0 END AS qtynegative,
+			       case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT')  THEN io.em_scr_physical_documentno ELSE '' END AS physicalnumber,
+					io.documentno  || ' / '  || io.em_scr_physical_documentno  AS referencedocument,
+					mt.em_ssa_combo_item_id 
+								 ,trim (COALESCE (cbp. NAME,'')) AS tercero,
+					COALESCE ( cbp.taxid,'' ) as ructercero
+						, (select coalesce(cutr.name,cu.name) from c_uom cu inner join c_uom_trl cutr on cu.c_uom_id=cutr.c_uom_id where cu.c_uom_id=mp.c_uom_id) as unidad
+						,mp.value||' - '||mp.name as producto
+				, sum(COALESCE(mt.transactioncost,0))  as costototal
+				, sum (COALESCE((mt.transactioncost/(CASE WHEN mt.movementqty<>0 THEN mt.movementqty ELSE 0.0000001  END) ),0))  as costounitario
+				,mt.iscostcalculated	
+				,coalesce( mt.em_sco_costadjusment,'N')  as em_sco_costadjusment
+				,case when io.docstatus='VO' then 'Anulado' else '--' end as estado
+						
+			  FROM m_transaction mt 
+				 LEFT JOIN m_product mp on mt.m_product_id=mp.m_product_id
+				 INNER JOIN m_inoutline li ON li.m_inoutline_id = mt.m_inoutline_id 
+				 INNER JOIN m_inout io ON io.m_inout_id = li.m_inout_id
+				 LEFT JOIN c_bpartner cbp on io.c_bpartner_id=cbp.c_bpartner_id
+				 LEFT JOIN swa_inout_relation_void_v vw ON vw.m_inout_id = io.m_inout_id
+				 INNER JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+				 INNER JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+			  WHERE 
+				mt.movementdate between to_date(?) AND to_date(?) 
+			    AND 
+			mt.m_inoutline_id is not null 
+			 GROUP BY li.m_inout_id, 
+				  io.m_inout_id,
+				  mt.ad_client_id, 
+				  mt.ad_org_id, 
+				  mt.m_product_id , 
+				  mw.m_warehouse_id,
+				  mw.value,
+			      mw.name,
+				  mt.movementdate,
+				  io.docstatus,
+				  vw.trxprocessdate_source,
+				  io.em_scr_physical_documentno,	
+				  io.documentno,
+				  io.em_sco_specialdoctype,
+				  mt.em_ssa_combo_item_id
+					,cbp.name	
+					,cbp.taxid
+					,mp.c_uom_id
+					,mp.value
+					,mp.name
+					 ,mt.iscostcalculated
+					 ,coalesce( mt.em_sco_costadjusment,'N') 
+					 ,io.docstatus
+					 
+					
+		    ) a
+		    
+		    INNER JOIN scr_combo_item cbi ON cbi.scr_combo_item_id = a.em_ssa_combo_item_id
+
+			  where a.ad_client_id IN ('1')
+		      and a.ad_org_id IN ('1')
+		     /* and cbi.value not in ('MovimientoInterno') */
+		      and 2=2
+
+			ORDER BY 	
+		a. trxprocessdate,
+
+		A .trxprocessdate_ref,
+				A .transactiondate,
+		2
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="fechaFrom1" />
+    <Parameter name="fechaTo1" />
+    <Parameter name="fechaFrom2" />
+    <Parameter name="fechaTo2" />
+    <Parameter name="adUserClient" type="replace" optional="true" after="where a.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and a.ad_org_id IN (" text="'1'"/> 
+     <Parameter name="idAlmacen"  optional="true" after="and 2=2"><![CDATA[  AND a.m_warehouse_id = (?)]]></Parameter>       
+               <Parameter name="idtipomov"  optional="true" after="and 2=2"><![CDATA[  AND a.em_ssa_combo_item_id = (?)]]></Parameter>       
+           
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="select_por_producto_conProveedor" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+			
+		SELECT
+			A .producto AS PRODUCTO,
+			A .referencedocument AS REFERENCEDOCUMENT,
+			A .physicalnumber AS PHYSICALNUMBER,
+			A .m_transaction_id AS TRANSACTIONID,
+			A .ad_client_id AS CLIENTID,
+			A .ad_org_id AS ORGID,
+			A .record_id AS RECORDID,
+			A .transactiondate AS TRANSACTIONDATE,
+			A .trxprocessdate AS TRXPROCESSDATE,
+			A .trxprocessdate_ref AS TRXPROCESSDATEREF,
+			A .movementdate AS MOVEMENTDATE,
+			A .m_product_id AS PRODUCTID,
+			A .m_warehouse_id AS WAREHOUSEID,
+			A .value_warehouse AS VALUEWAREHOUSE,
+			A .name_warehouse AS NAMEWAREHOUSE,
+			A .qtypossitive AS QTYPOSSITIVE,
+			A .qtynegative AS QTYNEGATIVE,
+			A .em_ssa_combo_item_id AS COMBOITEMID,
+			cbi. NAME AS MOVEMENTTYPE,
+			(A .tercero) AS TERCERO,
+			(A.ructercero) AS RUCTERCERO,
+			(A .unidad) AS UNIDAD
+			
+			 ,a.costototal as COSTOTOTAL
+					,a.costounitario as COSTOUNITARIO
+					,a.iscostcalculated AS ESTACOSTEADO
+			
+		FROM
+			(
+		
+			SELECT
+				li.m_inout_id AS m_transaction_id,
+				mt.ad_client_id,
+				mt.ad_org_id,
+				io.m_inout_id AS record_id,
+				mt.movementdate AS transactiondate,
+				COALESCE (
+					vw.trxprocessdate_source,
+					MAX (mt.trxprocessdate)
+				) AS trxprocessdate,
+				MAX (mt.trxprocessdate) AS trxprocessdate_ref,
+				to_char(
+					(
+						COALESCE (
+							mt.movementdate,
+							vw.trxprocessdate_source,
+							MAX (mt.trxprocessdate)
+						)
+					),
+					'DD-MM-YYYY'
+				) AS movementdate,
+				mt.m_product_id,
+				mw.m_warehouse_id,
+				mw.
+			VALUE
+				AS value_warehouse,
+				mw. NAME AS name_warehouse,
+				CASE
+			WHEN SUM (mt.movementqty) > 0 THEN
+				SUM (mt.movementqty)
+			ELSE
+				0
+			END AS qtypossitive,
+			CASE
+		WHEN SUM (mt.movementqty) < 0 THEN
+			SUM (mt.movementqty) *- 1
+		ELSE
+			0
+		END AS qtynegative,
+		 CASE
+		WHEN io.em_sco_specialdoctype IN (
+			'SCOMMSHIPMENT',
+			'SWAINTERNALSHIPMENT'
+		) THEN
+			io.em_scr_physical_documentno
+		ELSE
+			''
+		END AS physicalnumber,
+					io.documentno  || ' / '  || io.em_scr_physical_documentno  AS referencedocument,
+		 mt.em_ssa_combo_item_id,
+		 trim (COALESCE (cbp. NAME,'')) AS tercero,
+		COALESCE ( cbp.taxid,'' ) as ructercero,
+		 (
+			SELECT
+				COALESCE (cutr. NAME, cu. NAME)
+			FROM
+				c_uom cu
+			INNER JOIN c_uom_trl cutr ON cu.c_uom_id = cutr.c_uom_id
+			WHERE
+				cu.c_uom_id = mp.c_uom_id
+		) AS unidad,
+		 mp.
+		VALUE
+			|| ' - ' || mp. NAME AS producto
+			
+			
+							, sum(COALESCE(mt.transactioncost,0))  as costototal
+				, sum (COALESCE((mt.transactioncost/COALESCE(mt.movementqty,1)),0))  as costounitario
+				,mt.iscostcalculated
+			
+			
+		FROM
+			m_transaction mt
+		LEFT JOIN m_product mp ON mt.m_product_id = mp.m_product_id
+		INNER JOIN m_inoutline li ON li.m_inoutline_id = mt.m_inoutline_id
+		INNER JOIN m_inout io ON io.m_inout_id = li.m_inout_id
+		LEFT JOIN c_bpartner cbp ON io.c_bpartner_id = cbp.c_bpartner_id
+		LEFT JOIN swa_inout_relation_void_v vw ON vw.m_inout_id = io.m_inout_id
+		INNER JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+		INNER JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+		WHERE
+			mt.movementdate BETWEEN to_date(?)
+		AND to_date(?)
+		AND mt.m_inoutline_id IS NOT NULL
+		GROUP BY
+			li.m_inout_id,
+			io.m_inout_id,
+			mt.ad_client_id,
+			mt.ad_org_id,
+			mt.m_product_id,
+			mw.m_warehouse_id,
+			mw.
+		VALUE
+			,
+			mw. NAME,
+			mt.movementdate,
+			io.docstatus,
+			vw.trxprocessdate_source,
+			io.em_scr_physical_documentno,
+			io.documentno,
+			io.em_sco_specialdoctype,
+			mt.em_ssa_combo_item_id,
+			cbp.name,
+		  cbp.taxid,
+			mp.c_uom_id,
+			mp.value
+			,mp.name
+			 ,mt.iscostcalculated
+			
+			) A
+		INNER JOIN scr_combo_item cbi ON cbi.scr_combo_item_id = A .em_ssa_combo_item_id
+				where a.ad_client_id IN ('1')
+		      and a.ad_org_id IN ('1')
+		      and 2=2
+		      
+		      	ORDER BY 	A.tercero,1,A .transactiondate,
+	a. trxprocessdate,
+	
+	A .trxprocessdate_ref
+		      
+
+	
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="fechaFrom1" />
+    <Parameter name="fechaTo1" />
+
+    <Parameter name="adUserClient" type="replace" optional="true" after=" a.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and a.ad_org_id IN (" text="'1'"/> 
+    <Parameter name="idAlmacen"  optional="true" after="and 2=2"><![CDATA[  AND a.m_warehouse_id = (?)]]></Parameter>       
+               <Parameter name="idtipomov"  optional="true" after="and 2=2"><![CDATA[  AND a.em_ssa_combo_item_id = (?)]]></Parameter>       
+           
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  
+    <SqlMethod name="select_por_documento_conProveedor" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+			
+		SELECT
+			A .producto AS PRODUCTO,
+			A .referencedocument AS REFERENCEDOCUMENT,
+			A .physicalnumber AS PHYSICALNUMBER,
+			A .m_transaction_id AS TRANSACTIONID,
+			A .ad_client_id AS CLIENTID,
+			A .ad_org_id AS ORGID,
+			A .record_id AS RECORDID,
+			A .transactiondate AS TRANSACTIONDATE,
+			A .trxprocessdate AS TRXPROCESSDATE,
+			A .trxprocessdate_ref AS TRXPROCESSDATEREF,
+			A .movementdate AS MOVEMENTDATE,
+			A .m_product_id AS PRODUCTID,
+			A .m_warehouse_id AS WAREHOUSEID,
+			A .value_warehouse AS VALUEWAREHOUSE,
+			A .name_warehouse AS NAMEWAREHOUSE,
+			A .qtypossitive AS QTYPOSSITIVE,
+			A .qtynegative AS QTYNEGATIVE,
+			A .em_ssa_combo_item_id AS COMBOITEMID,
+			cbi. NAME AS MOVEMENTTYPE,
+			(A .tercero) AS TERCERO,
+			(A.ructercero) AS RUCTERCERO,
+			(A .unidad) AS UNIDAD
+			
+		      ,a.costototal as COSTOTOTAL
+					,a.costounitario as COSTOUNITARIO
+					,a.iscostcalculated AS ESTACOSTEADO
+		FROM
+			(
+		
+			SELECT
+				li.m_inout_id AS m_transaction_id,
+				mt.ad_client_id,
+				mt.ad_org_id,
+				io.m_inout_id AS record_id,
+				mt.movementdate AS transactiondate,
+				COALESCE (
+					vw.trxprocessdate_source,
+					MAX (mt.trxprocessdate)
+				) AS trxprocessdate,
+				MAX (mt.trxprocessdate) AS trxprocessdate_ref,
+				to_char(
+					(
+						COALESCE (
+							mt.movementdate,
+							vw.trxprocessdate_source,
+							MAX (mt.trxprocessdate)
+						)
+					),
+					'DD-MM-YYYY'
+				) AS movementdate,
+				mt.m_product_id,
+				mw.m_warehouse_id,
+				mw.
+			VALUE
+				AS value_warehouse,
+				mw. NAME AS name_warehouse,
+				CASE
+			WHEN SUM (mt.movementqty) > 0 THEN
+				SUM (mt.movementqty)
+			ELSE
+				0
+			END AS qtypossitive,
+			CASE
+		WHEN SUM (mt.movementqty) < 0 THEN
+			SUM (mt.movementqty) *- 1
+		ELSE
+			0
+		END AS qtynegative,
+		 CASE
+		WHEN io.em_sco_specialdoctype IN (
+			'SCOMMSHIPMENT',
+			'SWAINTERNALSHIPMENT'
+		) THEN
+			io.em_scr_physical_documentno
+		ELSE
+			''
+		END AS physicalnumber,
+					io.documentno  || ' / '  || io.em_scr_physical_documentno  AS referencedocument,
+		 mt.em_ssa_combo_item_id,
+		 trim (COALESCE (cbp. NAME,'')) AS tercero,
+		COALESCE ( cbp.taxid,'' ) as ructercero,
+		 (
+			SELECT
+				COALESCE (cutr. NAME, cu. NAME)
+			FROM
+				c_uom cu
+			INNER JOIN c_uom_trl cutr ON cu.c_uom_id = cutr.c_uom_id
+			WHERE
+				cu.c_uom_id = mp.c_uom_id
+		) AS unidad,
+		 mp.
+		VALUE
+			|| ' - ' || mp. NAME AS producto
+			
+							, sum(COALESCE(mt.transactioncost,0))  as costototal
+				, sum (COALESCE((mt.transactioncost/COALESCE(mt.movementqty,1)),0))  as costounitario
+				,mt.iscostcalculated
+			
+		FROM
+			m_transaction mt
+		LEFT JOIN m_product mp ON mt.m_product_id = mp.m_product_id
+		INNER JOIN m_inoutline li ON li.m_inoutline_id = mt.m_inoutline_id
+		INNER JOIN m_inout io ON io.m_inout_id = li.m_inout_id
+		LEFT JOIN c_bpartner cbp ON io.c_bpartner_id = cbp.c_bpartner_id
+		LEFT JOIN swa_inout_relation_void_v vw ON vw.m_inout_id = io.m_inout_id
+		INNER JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+		INNER JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+		WHERE
+			mt.movementdate BETWEEN to_date(?)
+		AND to_date(?)
+		AND mt.m_inoutline_id IS NOT NULL
+		GROUP BY
+			li.m_inout_id,
+			io.m_inout_id,
+			mt.ad_client_id,
+			mt.ad_org_id,
+			mt.m_product_id,
+			mw.m_warehouse_id,
+			mw.value,
+			mw.name,
+			mt.movementdate,
+			io.docstatus,
+			vw.trxprocessdate_source,
+			io.em_scr_physical_documentno,
+			io.documentno,
+			io.em_sco_specialdoctype,
+			mt.em_ssa_combo_item_id,
+			cbp.name,
+		  cbp.taxid,
+			mp.c_uom_id,
+			mp.name
+			,mp.value
+			 ,mt.iscostcalculated
+			
+			) A
+		INNER JOIN scr_combo_item cbi ON cbi.scr_combo_item_id = A .em_ssa_combo_item_id
+				where a.ad_client_id IN ('1')
+		      and a.ad_org_id IN ('1')
+		      and 2=2
+		      
+		ORDER BY
+			A.tercero,
+			A .transactiondate,
+			A .trxprocessdate,
+			A .trxprocessdate_ref,
+			2
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+    <Parameter name="fechaFrom1" />
+    <Parameter name="fechaTo1" />
+
+    <Parameter name="adUserClient" type="replace" optional="true" after=" a.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="and a.ad_org_id IN (" text="'1'"/> 
+    <Parameter name="idAlmacen"  optional="true" after="and 2=2"><![CDATA[  AND a.m_warehouse_id = (?)]]></Parameter>       
+               <Parameter name="idtipomov"  optional="true" after="and 2=2"><![CDATA[  AND a.em_ssa_combo_item_id = (?)]]></Parameter>       
+           
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+  <SqlMethod name="select_tipo_movimientos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+	SELECT DISTINCT mt.em_ssa_combo_item_id as COMBOITEMID,sci.name as MOVEMENTTYPE FROM m_transaction  MT
+	inner join scr_combo_item sci on mt.em_ssa_combo_item_id=sci.scr_combo_item_id
+	order by 2
+
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+
+           
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+  
+ 
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  
+  		  <SqlMethod name="selectPrdcProductgroup" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		      SELECT PRDC_PRODUCTGROUP.VALUE || ' - ' || PRDC_PRODUCTGROUP.DESCRIPTION AS NAME     FROM PRDC_PRODUCTGROUP 
+		           WHERE PRDC_PRODUCTGROUP.PRDC_PRODUCTGROUP_ID = ?
+		    </Sql>
+		    <Parameter name="idLineaProducto"/>
+		  </SqlMethod>    
+  
+  
+  
+     <SqlMethod name="selectMproduct" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		       SELECT M_PRODUCT.VALUE || ' - ' || M_PRODUCT.NAME AS NAME  FROM M_PRODUCT      WHERE M_PRODUCT.M_PRODUCT_ID = ?
+		    </Sql>
+		    <Parameter name="idProducto"/>
+		  </SqlMethod>   
+		  
+		  
+		  
+		  <SqlMethod name="selectMWarehouse" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		        SELECT M_WAREHOUSE.VALUE || ' - ' || M_WAREHOUSE.NAME AS NAME FROM M_WAREHOUSE       WHERE M_WAREHOUSE.M_WAREHOUSE_ID = ?
+		    </Sql>
+		    <Parameter name="idAlmacen"/>
+		  </SqlMethod>   
+  
+  
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

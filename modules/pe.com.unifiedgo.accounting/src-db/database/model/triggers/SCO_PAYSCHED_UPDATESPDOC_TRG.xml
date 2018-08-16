@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_PAYSCHED_UPDATESPDOC_TRG">
+    <trigger name="SCO_PAYSCHED_UPDATESPDOC_TRG" table="FIN_PAYMENT_SCHEDULE" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  keycol_table_id VARCHAR(32);
+  v_specialdoctype VARCHAR(60);
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF(:NEW.c_invoice_id IS NOT NULL AND :NEW.c_invoice_id<>'') THEN
+      SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_Invoice WHERE C_Invoice_ID = :NEW.c_invoice_id;
+      :NEW.em_sco_specialdoctype := v_specialdoctype;
+    ELSIF(:NEW.c_order_id IS NOT NULL AND :NEW.c_order_id<>'') THEN
+      SELECT em_ssa_specialdoctype INTO v_specialdoctype FROM C_Order WHERE C_Order_ID = :NEW.c_order_id;
+      :NEW.em_sco_specialdoctype := v_specialdoctype;
+    END IF;
+    END SCO_PAYSCHED_UPDATESPDOC_TRG
+]]></body>
+    </trigger>
+  </database>

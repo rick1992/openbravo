@@ -1,0 +1,196 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_PURCHASEORDER_CHECK">
+    <function name="SWA_PURCHASEORDER_CHECK" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Result NUMBER:=1; -- Success
+
+
+  v_newstatus VARCHAR2(60);
+  v_newdocaction VARCHAR2(60);
+-- Record Info
+  Cur_Parameter VARCHAR%ROWTYPE; --OBTG:VARCHAR2--
+  v_orderApprovedState VARCHAR2(32);
+  v_count_totallines NUMBER:=0;
+  v_newOrder_id VARCHAR2(32);
+  v_CDocTypeID VARCHAR2(32);
+  v_other_quotation_id VARCHAR2(32);
+  v_org_id VARCHAR2(32);
+  v_DocumentNo VARCHAR2(30);
+  v_cboitem_value VARCHAR2(40);
+  v_count_totalorder NUMBER:=0;
+  v_priceactual_toinsert NUMBER:=0;
+  v_qty_toinsert NUMBER:=0;
+  v_orderline_insert_id VARCHAR2(32);
+
+  Cur_Order RECORD;
+  Cur_OrderLine RECORD;
+  Cur_varifyOrder RECORD;
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+   SELECT COALESCE(COUNT(C_ORDERLINE_ID),0) INTO v_count_totallines 
+     FROM C_ORDERLINE WHERE C_ORDER_ID = v_Record_ID;
+
+     IF(v_count_totallines=0)THEN
+      RAISE_APPLICATION_ERROR(-20000,'@sim_import_not_lines@');
+     END IF;
+
+  SELECT  ad_org_id INTO v_org_id FROM C_ORDER 
+    WHERE c_order_id=v_Record_ID;
+
+  FOR Cur_varifyOrder IN (
+     SELECT * FROM C_ORDER 
+      WHERE em_ssa_other_solicitud_id = v_Record_ID
+        AND ISSOTRX='N'
+        AND AD_ORG_ID = v_org_id
+        AND DOCSTATUS<>'VO'
+       )
+   LOOP
+      RAISE_APPLICATION_ERROR(-20000,'@sre_requisitionwithorder@' || ' ' || Cur_varifyOrder.documentno);
+   END LOOP;
+
+    
+    --GET SALES QUOTATION
+    SELECT MAX(C_ORDER_ID) INTO  v_other_quotation_id 
+      FROM C_ORDER WHERE ISSOTRX='Y' AND DOCSTATUS='UE' AND EM_Ssa_Other_Solicitud_ID= v_Record_ID; --UE Under Evaluation 
+
+    IF(v_other_quotation_id IS NULL)THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_requisition_no quotation@');
+    END IF;
+  
+      --v_newdocaction:= 'GR'; --ya no es necesario este estado
+      FOR Cur_Order IN (
+        SELECT * 
+        FROM C_ORDER 
+        WHERE C_ORDER_ID= v_Record_ID
+      )
+      LOOP
+        --Crear Otra Orden de Compra 
+
+         --Obteniendo el Tipo de Documento
+          SELECT C_DocType_ID INTO v_CDocTypeID
+	    FROM C_DOCTYPE
+	   WHERE em_sco_specialdoctype='SREPURCHASEORDER'
+	     AND ISACTIVE='Y' 
+	     AND AD_Client_Id= Cur_Order.AD_CLIENT_ID
+	     AND AD_ISORGINCLUDED(Cur_Order.AD_ORG_ID, AD_Org_ID, Cur_Order.AD_CLIENT_ID) <> -1
+	     AND COALESCE(isreturn, 'N') = 'N'
+	ORDER BY AD_ISORGINCLUDED(Cur_Order.AD_ORG_ID, AD_Org_ID, Cur_Order.AD_CLIENT_ID),IsDefault DESC, C_DocType_ID;
+         --
+
+
+
+         IF(v_CDocTypeID IS NULL)THEN
+          RAISE_APPLICATION_ERROR(-20000,'No se encuentra el tipo de Documento SREPURCHASEORDER');
+         END IF;
+
+         AD_Sequence_DocType(v_CDocTypeID, Cur_Order.AD_CLIENT_ID, 'Y', v_DocumentNo);
+        
+       v_newOrder_id:=get_uuid();
+       INSERT INTO C_ORDER (C_ORDER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, 
+        DOCUMENTNO, DOCSTATUS, DOCACTION, C_DOCTYPE_ID, C_DOCTYPETARGET_ID,
+        DATEORDERED, DATEPROMISED, DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, BILLTO_ID, C_CURRENCY_ID, 
+        PAYMENTRULE, C_PAYMENTTERM_ID, INVOICERULE, DELIVERYRULE, FREIGHTCOSTRULE, 
+        DELIVERYVIARULE, M_WAREHOUSE_ID, M_PRICELIST_ID, em_ssa_combo_item_id, 
+        C_PROJECT_ID, C_ACTIVITY_ID, C_CAMPAIGN_ID, PRIORITYRULE, ISSOTRX,em_ssa_other_solicitud_id,em_ssa_other_quotation_id,processing,
+        FIN_PAYMENTMETHOD_ID
+        )
+        VALUES 
+        (v_newOrder_id,Cur_Order.AD_CLIENT_ID,Cur_Order.AD_ORG_ID,now(),v_User_ID,now(),v_User_ID,
+         v_DocumentNo,'DR','CO',0,v_CDocTypeID,
+         now(),now(),now(),Cur_Order.C_BPARTNER_ID,Cur_Order.C_BPARTNER_LOCATION_ID,Cur_Order.BILLTO_ID,Cur_Order.C_CURRENCY_ID,
+         Cur_Order.PAYMENTRULE,Cur_Order.C_PAYMENTTERM_ID,Cur_Order.INVOICERULE,Cur_Order.DELIVERYRULE,Cur_Order.FREIGHTCOSTRULE,
+         Cur_Order.DELIVERYVIARULE,Cur_Order.M_WAREHOUSE_ID,Cur_Order.M_PRICELIST_ID, Cur_Order.em_ssa_combo_item_id,
+         Cur_Order.C_PROJECT_ID,Cur_Order.C_ACTIVITY_ID,Cur_Order.C_CAMPAIGN_ID,Cur_Order.PRIORITYRULE,'N',Cur_Order.c_order_id,v_other_quotation_id,'N',
+         Cur_Order.FIN_PAYMENTMETHOD_ID
+        );
+
+        SELECT value INTO v_cboitem_value FROM scr_combo_item WHERE scr_combo_item_id = Cur_Order.em_ssa_combo_item_id;
+
+         FOR Cur_OrderLine IN (
+             SELECT * 
+               FROM C_ORDERLINE 
+              WHERE C_ORDER_ID= Cur_Order.C_ORDER_ID
+            )
+          LOOP
+               --Segun el tipo de movimiento se asigira el campo a insertar
+               IF( v_cboitem_value = 'ReposiciondecompraentreEmpresas')THEN
+                 v_qty_toinsert:= Cur_OrderLine.em_ssa_quot_qtyordered;
+                 v_priceactual_toinsert:=Cur_OrderLine.em_ssa_quot_priceactual;
+               ELSE
+                  v_qty_toinsert:=Cur_OrderLine.qtyordered;
+                  v_priceactual_toinsert:=Cur_OrderLine.em_ssa_quot_priceactual;
+              END IF;
+          
+               v_orderline_insert_id:=get_uuid();
+                
+                INSERT INTO c_orderline
+                (
+                c_orderline_id, ad_client_id, ad_org_id, isactive, created, createdby,
+                updated, updatedby, c_order_id, line, c_bpartner_id, c_bpartner_location_id,
+                dateordered, datepromised, datedelivered, dateinvoiced, description,
+                m_product_id, m_warehouse_id, directship, c_uom_id, qtyordered,
+                qtyreserved, qtydelivered, qtyinvoiced, m_shipper_id, c_currency_id,
+                pricelist, priceactual, pricelimit, linenetamt, discount, freightamt,
+                c_charge_id, chargeamt, c_tax_id, s_resourceassignment_id, ref_orderline_id,
+                m_attributesetinstance_id, isdescription, quantityorder, m_product_uom_id,
+                m_offer_id, pricestd, C_ORDER_DISCOUNT_ID,
+                gross_unit_price, taxbaseamt,line_gross_amount,em_ssa_other_inout_li_id 
+                )
+                VALUES
+                (
+                v_orderline_insert_id, Cur_OrderLine.ad_client_id, Cur_OrderLine.ad_org_id, 'Y', now(), v_User_ID,
+                now(), v_User_ID, v_newOrder_id, Cur_OrderLine.line, Cur_OrderLine.c_bpartner_id, Cur_OrderLine.c_bpartner_location_id,
+                now(), now(), now(), now(), Cur_OrderLine.description,
+                Cur_OrderLine.M_PRODUCT_ID, Cur_OrderLine.m_warehouse_id, Cur_OrderLine.directship, Cur_OrderLine.C_UOM_ID, v_qty_toinsert,
+                Cur_OrderLine.qtyreserved, Cur_OrderLine.qtydelivered, Cur_OrderLine.qtyinvoiced, Cur_OrderLine.m_shipper_id, Cur_OrderLine.c_currency_id,
+                Cur_OrderLine.pricelist, v_priceactual_toinsert, Cur_OrderLine.pricelimit, Cur_OrderLine.linenetamt, Cur_OrderLine.discount, Cur_OrderLine.freightamt,
+                Cur_OrderLine.c_charge_id, Cur_OrderLine.chargeamt, Cur_OrderLine.c_tax_id, Cur_OrderLine.s_resourceassignment_id, Cur_OrderLine.ref_orderline_id,
+                Cur_OrderLine.m_attributesetinstance_id, Cur_OrderLine.isdescription, Cur_OrderLine.quantityorder, Cur_OrderLine.m_product_uom_id,
+                Cur_OrderLine.m_offer_id, Cur_OrderLine.pricestd, Cur_OrderLine.C_ORDER_DISCOUNT_ID,
+                Cur_OrderLine.gross_unit_price, Cur_OrderLine.taxbaseamt,Cur_OrderLine.line_gross_amount,Cur_OrderLine.em_ssa_other_inout_li_id
+                );
+
+      
+          END LOOP;
+        ---Fin Insertando Lineas
+         v_Message:= v_Message || '@sre_purchaseorder_created@' || ' ' || v_DocumentNo;
+      END LOOP;
+
+
+       
+    --v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_PURCHASEORDER_CHECK
+]]></body>
+    </function>
+  </database>

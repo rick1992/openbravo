@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCR_INSERT_PPRODUCTPRICE_TRG">
+    <trigger name="SCR_INSERT_PPRODUCTPRICE_TRG" table="M_PRODUCT" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+    Cur_PriceList RECORD;
+    v_pricelist_version_id VARCHAR(32);
+    v_productprice_ID VARCHAR(32);
+
+BEGIN
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF (INSERTING) THEN    
+      FOR Cur_PriceList IN
+	(SELECT *
+	  FROM m_pricelist pl WHERE pl.isactive = 'Y'
+	   AND AD_ISORGINCLUDED(:NEW.ad_org_id, pl.AD_Org_ID, :NEW.ad_client_id) <> -1           
+	)
+      LOOP
+        SELECT m_pricelist_version_id 
+          INTO v_pricelist_version_id 
+          FROM m_pricelist_version 
+        WHERE m_pricelist_id = Cur_PriceList.m_pricelist_id ORDER BY validfrom, created ASC LIMIT 1;
+
+        IF(v_pricelist_version_id IS NOT NULL AND v_pricelist_version_id != '') THEN
+
+	  Ad_Sequence_Next('M_ProductPrice', :NEW.ad_org_id, v_productprice_ID);
+
+	  INSERT INTO m_productprice(
+	  	  m_productprice_id, m_pricelist_version_id, m_product_id, ad_client_id, 
+		  ad_org_id, isactive, created, createdby, updated, updatedby, 
+		  pricelist, pricestd, pricelimit, cost, algorithm, em_scr_isautocreated)
+	  VALUES (v_productprice_ID, v_pricelist_version_id, :NEW.m_product_id, :NEW.ad_client_id, 
+		  :NEW.ad_org_id, 'Y', now(), :NEW.createdby, now(), :NEW.updatedby, 
+		  0, 0, 0, 0, 'S', 'Y');
+        END IF;
+      END LOOP; 
+
+    END IF;
+
+    END SCR_INSERT_PPRODUCTPRICE_TRG
+]]></body>
+    </trigger>
+  </database>

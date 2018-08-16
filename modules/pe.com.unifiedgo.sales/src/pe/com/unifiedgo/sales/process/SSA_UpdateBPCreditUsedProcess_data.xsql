@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="SSAUpdateBPCreditUsedProcessData" package="pe.com.unifiedgo.sales.process">
+   <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT '' AS C_Bpartner_ID FROM DUAL
+      </Sql>
+      <Field name="rownum" value="count"/>
+   </SqlMethod>
+   <SqlMethod name="getBpUsedCredit" type="preparedStatement" return="string" default="">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT * FROM ssa_getbp_usedcredit(?,?)
+     ]]>
+   </Sql>
+   <Parameter name="cBpartnerId"/>
+   <Parameter name="cCurrencyId"/>
+   </SqlMethod>
+   <SqlMethod name="getCreditUpdateableBPartners" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT DISTINCT ON(c_bpartner_id) c_bpartner_id FROM c_invoice i
+       WHERE i.isactive = 'Y'
+       AND i.issotrx = 'Y'
+       AND i.docStatus NOT IN ('DR')
+       AND i.dateacct BETWEEN (NOW() - INTERVAL '6 month'::interval) AND NOW()
+     ]]>
+   </Sql>
+   </SqlMethod>
+   <SqlMethod name="existsCurrencyRateForToday" type="preparedStatement" return="string">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT * FROM scr_exists_currency_rate(?,?,?,TO_DATE(NOW()))
+     ]]>
+   </Sql>
+   <Parameter name="adClientId"/>
+   <Parameter name="cCurrencyFromId"/>
+   <Parameter name="cCurrencyToId"/>
+   </SqlMethod>
+</SqlClass>

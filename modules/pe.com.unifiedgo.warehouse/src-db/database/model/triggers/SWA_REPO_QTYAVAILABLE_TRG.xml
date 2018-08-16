@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SWA_REPO_QTYAVAILABLE_TRG">
+    <trigger name="SWA_REPO_QTYAVAILABLE_TRG" table="SWA_REQUEREPO_DETAIL" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+  v_ID VARCHAR2(32);
+  v_from_m_warehouse_id VARCHAR2(32);
+  is_requirement_trx char(1);
+  v_docStatus  VARCHAR2(60);
+  v_qty_available NUMBER;
+  v_doctype_id VARCHAR2(32);
+  v_Aux NUMBER;
+  v_specialdoctype VARCHAR(60);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+SELECT from_m_warehouse_id,repositiontrx, c_doctype_id
+  INTO v_from_m_warehouse_id, is_requirement_trx , v_doctype_id
+FROM swa_requerimientoreposicion 
+WHERE swa_requerimientoreposicion_id = :NEW.swa_requerimientoreposicion_id;
+
+
+SELECT em_sco_specialdoctype
+    INTO v_specialdoctype
+    FROM C_Doctype
+  WHERE C_Doctype_ID = v_doctype_id;
+
+
+  IF(v_specialdoctype IN ('SWAREPOSITION')) THEN
+    SELECT Count(*) 
+      INTO v_Aux
+      FROM swa_requerepo_detail
+    WHERE swa_requerimientoreposicion_id = :NEW.swa_requerimientoreposicion_id 
+        AND swa_requerepo_detail_id <> :NEW.swa_requerepo_detail_id;
+
+    IF(v_Aux >= 15) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCO_SUNATDocMax15@') ;
+    END IF;
+  END IF;
+
+
+--Actualizando la cantidad disponible en el campo qtyaonhand
+SELECT COALESCE(totalqty,0)
+  INTO v_qty_available
+  FROM swa_product_warehouse_v
+ WHERE m_warehouse_id= v_from_m_warehouse_id
+   AND m_product_id = :NEW.m_product_id;
+
+:NEW.qtyonhand:=COALESCE(v_qty_available,0);
+--------------------------------------------------
+
+
+END SWA_REPO_QTYAVAILABLE_TRG
+]]></body>
+    </trigger>
+  </database>

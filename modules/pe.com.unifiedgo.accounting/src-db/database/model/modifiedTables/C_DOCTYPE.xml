@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <database name="MODIFIED TABLE C_DOCTYPE">
+    <table name="C_DOCTYPE" primaryKey="C_DOCTYPE_KEY">
+      <column name="EM_SCO_SPECIALDOCTYPE" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="EM_SCO_AREA_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="SCO_AREA" name="EM_SCO_DOCTYPE_AREA">
+        <reference local="EM_SCO_AREA_ID" foreign="SCO_AREA_ID"/>
+      </foreign-key>
+      <unique name="EM_SCO_DOCTYPE_NAME">
+        <unique-column name="AD_CLIENT_ID"/>
+        <unique-column name="AD_ORG_ID"/>
+        <unique-column name="NAME"/>
+      </unique>
+      <unique name="EM_SCO_SPECIALDOCTYPE_UNIQ">
+        <unique-column name="AD_CLIENT_ID"/>
+        <unique-column name="AD_ORG_ID"/>
+        <unique-column name="EM_SCO_SPECIALDOCTYPE"/>
+      </unique>
+    </table>
+  </database>

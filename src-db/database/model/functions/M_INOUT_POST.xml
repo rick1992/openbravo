@@ -1,0 +1,2137 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_INOUT_POST">
+    <function name="M_INOUT_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_inout_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2014 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_InOut_Post.sql,v 1.8 2003/09/05 04:58:06 jjanke Exp $
+  ***
+  * Title: Post M_InOut_ID
+  * Description:
+  *  Action: COmplete
+  *  - Create Transaction
+  *    (only stocked products)
+  *  - Update Inventory (QtyReserved, QtyOnHand)
+  *    (only stocked products)
+  *  - Update OrderLine (QtyDelivered)
+  *
+  *  Action: Reverse Correction
+  *  - Create Header and lines with negative Quantities (and header amounts)
+  *  - Post it 
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Message_aux VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_PUser VARCHAR2(32);
+  v_DocStatus VARCHAR2(60);
+  v_is_included NUMBER:=0;
+  v_DocType_ID VARCHAR2(32);
+  v_inout_reference_reposition_ID VARCHAR2(32);
+  v_isfromreposition CHAR(1);
+  v_requireposicion_id VARCHAR2(32);
+  v_inout_intoreference_reposition NUMBER:=0;
+  v_isreturndoctype CHAR(1);
+  v_available_period NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  v_DateAcct DATE;
+  v_DateDelivered C_OrderLine.DateDelivered%TYPE;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+  v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --
+    Cur_InOut RECORD;
+    Cur_InOutLine RECORD;
+    Cur_Order RECORD;
+    Cur_OrderLine RECORD;
+    Cur_Lines RECORD;
+    CUR_VOID_RECEIPT_REPOSITION RECORD;
+    Cur_inOutLineCO RECORD;
+
+    Cur_parameter_Vafaster RECORD;
+    --
+    v_Result NUMBER:=1;
+    v_AD_Org_ID VARCHAR2(32);
+    v_Warehouse_Org VARCHAR2(32);
+    v_shipstatus VARCHAR2(60);
+    v_shipsaction VARCHAR(60);
+    v_dalidate DATE;
+    v_AD_Client_ID VARCHAR2(32);
+    v_NextNo VARCHAR2(32);
+    v_Qty NUMBER;
+    v_QtyPO NUMBER;
+    v_QtySO NUMBER;
+    v_QuantityOrder NUMBER;
+    v_QuantityOrderPO NUMBER;
+    v_QuantityOrderSO NUMBER;
+    v_RDocumentNo VARCHAR2(40) ;
+    v_RInOut_ID VARCHAR2(32);
+    v_IsStocked NUMBER;
+    v_DoctypeReversed_ID VARCHAR2(32);
+    --MODIFIED BY F.IRIAZABAL
+    v_QtyOrder NUMBER;
+    v_ProductUOM NUMBER;
+    v_BreakDown VARCHAR2(60) ;
+    v_ActualQty NUMBER;
+    v_QtyAux NUMBER;
+    v_Count NUMBER:=0;
+    v_Line VARCHAR2(10) ;
+    v_OrderID_old VARCHAR2(32);
+    Cur_MILines RECORD;
+    FINISH_PROCESS BOOLEAN:=false;
+    v_Aux NUMBER;
+    v_AuxCP NUMBER;
+    v_isSoTrx CHAR(1);
+    v_em_obwpl_isinpickinglist CHAR(1);
+    v_ProductName M_Product.name%TYPE;
+    v_reservation_id    VARCHAR2(32);
+    v_M_Warehouse_ID    VARCHAR2(32);
+    v_voidmovementdate M_Inout.MovementDate%TYPE;
+    v_voiddate_acct M_Inout.DateAcct%TYPE;
+    v_bpartner_blocked VARCHAR2(1):='N';
+    v_goods_blocked VARCHAR2(1):='N';
+    v_bpartner_name c_bpartner.name%TYPE;
+    v_DocAction VARCHAR2(60);
+    v_voiddoccount NUMBER:=0;
+    v_em_swa_isvoided CHAR(1);
+    v_EM_Swa_Tramitedoc CHAR(1);
+    v_var_noimport NUMBER:=0;
+    v_var_import NUMBER:=0;
+    v_combo_item_id    VARCHAR2(60);
+    v_specialdoctype VARCHAR(60);
+
+    v_shipmentoutline_ID VARCHAR(32);
+    v_sorderline_ID VARCHAR(32);
+    v_inoutfromorder_type VARCHAR(60);
+    v_voidmotive_comboitem_id VARCHAR(32);
+    v_pinstance_id VARCHAR(32);
+    
+    v_swa_annul_locator_id  VARCHAR(32);
+    v_locator_asign_id VARCHAR(32);    
+    v_Swa_Combo_Item_void_id VARCHAR(32);   
+    v_physical_document VARCHAR(30);
+    v_tmp_c_order_id VARCHAR(32);  
+    v_em_swa_requerepo_detail_id VARCHAR(32); 
+    v_em_sre_serviceorderline_id VARCHAR(32); 
+    v_locator_fromreserve_id VARCHAR(32); 
+
+    Cur_ServiceInoutLine RECORD; 
+    v_sumservicemovementqty NUMBER;
+    v_serviceqtyordered NUMBER;
+    v_em_swa_shipstatus VARCHAR(60);   
+    v_em_sco_specialdoctype VARCHAR(60);
+
+    v_exist_doc_pl VARCHAR(30);
+    CUR_tmp RECORD;
+
+    v_OrderStatus VARCHAR(32);
+ 
+    v_IO_Order VARCHAR(32);
+    v_cPaymentTerm_ID VARCHAR(32);
+    v_detail_block_msg VARCHAR(100);
+    v_IO_bpartner_id VARCHAR(32);
+    v_specialpaymenterm VARCHAR(60);
+    v_swa_warehousetype VARCHAR(60);
+    v_ssa_cmbitem_value VARCHAR(40);
+
+    v_bp_billclosure NUMBER:=0;
+    v_movementdate DATE;
+    v_BPartner_ID VARCHAR(32);
+
+    v_no_picking VARCHAR(2);
+    Cur_InOutLineDSO RECORD;
+
+    v_cmbitemvalue VARCHAR(60);
+
+    v_deliveryviarule VARCHAR(60);
+
+    v_region_id VARCHAR(32);
+    v_province_id VARCHAR(32);
+    v_city_id VARCHAR(32);
+    v_C_Project_Id VARCHAR(32);
+
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,
+          i.AD_User_ID,
+          p.ParameterName,
+          p.P_String,
+          p.P_Number,
+          p.P_Date
+        FROM AD_PInstance i
+        LEFT JOIN AD_PInstance_Para p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+        IF (Cur_Parameter.parametername = 'voidedDocumentDate') THEN
+          v_voidmovementdate := TO_DATE(Cur_Parameter.p_string, 'YYYY-MM-DD');
+        ELSIF (Cur_Parameter.parametername = 'voidedDocumentAcctDate') THEN
+          v_voiddate_acct := TO_DATE(Cur_Parameter.p_string, 'YYYY-MM-DD');
+        END IF;
+      END LOOP; -- Get Parameter
+      DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<M_InOut_Post>>') ;
+      v_Record_ID:=p_InOut_ID;
+      SELECT count(*),updatedby
+        INTO v_Count,v_User
+        FROM M_InOut
+        WHERE M_InOut_ID=v_Record_ID
+        GROUP BY updatedby;
+      IF v_Count=0 THEN
+        FINISH_PROCESS:=true;
+      END IF;
+    END IF;
+  BEGIN --BODY  
+  	IF(NOT FINISH_PROCESS) THEN
+  	  v_PUser:=v_User;
+      SELECT io.AD_Client_ID, io.AD_Org_ID, io.CreatedBy, io.C_DocType_ID, io.DateAcct, dt.isreturn, io.m_warehouse_id, io.issotrx,docaction, 
+             io.em_swa_combo_item_id,io.em_swa_asociate_inout_id,em_swa_isfromreposition,em_swa_requireposicion_id,
+             io.EM_Sco_Specialdoctype, io.movementDate, io.c_bpartner_id, io.deliveryviarule, io.c_project_id 
+        INTO v_AD_Client_ID, v_AD_Org_ID, v_User, v_DocType_ID, v_DateAcct, v_isreturndoctype, v_M_Warehouse_ID, v_isSoTrx,v_DocAction,
+             v_combo_item_id,v_inout_reference_reposition_ID,v_isfromreposition,v_requireposicion_id,
+             v_specialdoctype, v_movementdate, v_BPartner_ID, v_deliveryviarule, v_C_Project_Id
+        FROM M_InOut io JOIN c_doctype dt ON io.c_doctype_id = dt.c_doctype_id
+        WHERE io.M_InOut_ID=v_Record_ID;
+        IF(v_PUser IS NOT NULL) THEN
+        	v_User:=v_PUser;
+        END IF;
+      SELECT count(*)
+      INTO v_Count
+      FROM AD_CLIENTINFO
+      WHERE AD_CLIENT_ID=v_AD_Client_ID
+        AND CHECKINOUTORG='Y';
+
+        
+      IF (v_Count>0) THEN
+        v_ResultStr:='CheckingRestrictions - M_INOUT ORG IS IN C_BPARTNER ORG TREE';
+        SELECT count(*)
+        INTO v_Count
+        FROM M_InOut m,
+          C_BPartner bp
+        WHERE m.M_InOut_ID=v_Record_ID
+          AND m.C_BPARTNER_ID=bp.C_BPARTNER_ID
+          AND AD_IsOrgIncluded(m.AD_ORG_ID, bp.AD_ORG_ID, bp.AD_CLIENT_ID)=-1;
+         -- RAISE v_Count; 
+        IF v_Count>0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgBpartnerInout@') ;
+        END IF;
+		
+      END IF;
+     
+
+       Declare
+       v_Message_product VARCHAR(2000) :='';
+       Begin
+          FOR Cur_Lines IN (
+                             SELECT M.line
+                             FROM M_InOut I,
+                                  M_InOutLine M
+                             WHERE I.M_InOut_ID=M.M_InOut_ID
+                               AND I.M_INOUT_ID=v_Record_ID
+                               AND (M.M_PRODUCT_ID IS NULL AND M.MOVEMENTQTY <> 0)
+                               ORDER BY M.line
+                            ) LOOP
+               
+               v_Message_product:=v_Message_product||Cur_Lines.line||', ';
+          END LOOP;
+          if v_Message_product != '' then
+             RAISE_APPLICATION_ERROR(-20000, '@Inline@ '||v_Message_product||' '||'@ProductNullAndMovementQtyGreaterZero@') ;
+          end if ;
+	     End ;
+      if(v_isreturndoctype = 'N' AND v_isSoTrx = 'Y' and v_DocAction<>'RC') then
+        v_message := null;
+        for Cur_OrderLine in (
+          select c_orderline_id, line
+          from m_inoutline
+          where m_inout_id = v_Record_ID
+          and c_orderline_id is not null
+          order by line
+        ) loop
+          select COALESCE(sum(movementqty), 0)
+          into v_qty
+          from m_inoutline
+          where m_inout_id = v_Record_ID
+          and c_orderline_id = Cur_OrderLine.c_orderline_id;
+
+          select qtyordered, (coalesce(qtydelivered, 0) + v_qty)
+          into v_QuantityOrder, v_qty
+          from c_orderline
+          where c_orderline_id = Cur_OrderLine.c_orderline_id;
+
+          if(v_QuantityOrder < v_qty) then
+            if v_message is null THEN
+              v_message := Cur_OrderLine.line;
+            ELSE
+              v_message := v_message || ', ' || Cur_OrderLine.line;
+            END IF;
+          end if;
+        end loop;
+        if v_message is not null then
+          RAISE_APPLICATION_ERROR(-20000, '@MovementQtyCheck@'||' '||'@Inlines@'||' '||v_message);
+        end if;
+
+      end if;
+
+      --Check whether warehouse belongs to the organization.
+      SELECT count(AD_ORG_ID)
+      INTO v_count
+      FROM AD_Org_Warehouse
+      WHERE M_Warehouse_ID=v_M_Warehouse_ID
+      AND AD_Org_ID = v_AD_Org_ID;
+
+      -- RAISE v_count;
+      
+      IF (v_count = 0 AND v_isSoTrx = 'Y') OR (v_count = 0 AND v_isSoTrx = 'N') THEN --ADD BY VAFASTER : OR (v_count = 0 AND v_isSoTrx = 'N') 
+        RAISE_APPLICATION_ERROR(-20000,'@WrongWarehouse@');
+      END IF;
+      
+      SELECT AD_Org_ID
+      INTO v_Warehouse_Org
+      FROM M_Warehouse
+      WHERE M_Warehouse_ID = v_M_Warehouse_ID;
+       --RAISE_APPLICATION_ERROR(-20000,v_Warehouse_Org);
+
+      IF(ad_org_isinnaturaltree(v_Warehouse_Org, v_AD_Org_ID, v_AD_Client_ID) = 'N' AND v_isSoTrx = 'N') THEN
+         RAISE_APPLICATION_ERROR(-20000,'@WrongWarehouse@');
+      END IF;           
+      
+     v_ResultStr:='CheckingRestrictions';
+     SELECT COUNT(*)
+     INTO v_Count
+     FROM C_DocType,
+          M_InOut M
+     WHERE M_Inout_ID = v_Record_ID
+       AND C_DocType.DocBaseType IN ('MMR', 'MMS')
+      AND C_DocType.IsSOTrx=M.IsSOTrx
+      AND AD_ISORGINCLUDED(m.AD_Org_ID,C_DocType.AD_Org_ID, m.AD_Client_ID) <> -1
+      --AND EM_Sco_M_Warehouse_ID = v_M_Warehouse_ID
+       AND M.C_DOCTYPE_ID=C_DocType.C_DOCTYPE_ID;
+       
+ -- RAISE v_Count ;       
+        
+        IF (v_Count=0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgDoctypeShipment@') ;
+        END IF;
+ 
+
+        SELECT COUNT(*), MAX(M.line)
+        INTO v_Count, v_line
+        FROM M_InOutLine M,
+          M_Product P
+        WHERE M.M_PRODUCT_ID=P.M_PRODUCT_ID
+          AND P.M_ATTRIBUTESET_ID IS NOT NULL
+          AND (P.ATTRSETVALUETYPE IS NULL OR P.ATTRSETVALUETYPE <> 'F')
+          AND (SELECT ISONEATTRSETVALREQUIRED FROM M_ATTRIBUTESET WHERE M_ATTRIBUTESET_ID = P.M_ATTRIBUTESET_ID) = 'Y'
+          AND COALESCE(M.M_ATTRIBUTESETINSTANCE_ID, '0') = '0'
+          AND M.M_INOUT_ID=v_Record_ID;
+               IF v_Count<>0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||' '||v_line||' '||'@productWithoutAttributeSet@') ;
+        END IF;
+        SELECT COUNT(*), MAX(M.line)
+        INTO v_Count, v_Line
+        FROM M_InOut I,
+          M_InOutLine M,
+          M_AttributeSetInstance P
+        WHERE I.M_InOut_ID=M.M_InOut_ID
+          AND M.M_AttributeSetInstance_ID=P.M_AttributeSetInstance_ID
+          AND P.ISLOCKED='Y'
+          AND I.ISSOTRX='Y'
+          AND I.M_INOUT_ID=v_Record_ID;
+       
+        IF (v_Count<>0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@lockedProduct@') ;
+        END IF;
+
+
+      -- check inout line instance location
+        SELECT COUNT(*), MAX(M.line)
+        INTO v_Count, v_Line
+        FROM M_InOutLine M,
+          M_Product P
+        WHERE M.M_InOut_ID=v_Record_ID
+          AND M.M_Locator_ID IS NULL
+          AND p.m_product_id = m.m_product_id
+          AND p.isstocked = 'Y'
+          AND p.producttype = 'I';
+            
+       
+
+        IF (v_Count <> 0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@InoutLineWithoutLocator@') ;
+        END IF;	  
+      --check if bom non-stockable is exploded
+        SELECT COUNT(*), MAX(M.line)
+        INTO v_Count, v_Line
+        FROM M_InOutLine M,    
+          M_Product P
+        WHERE M.M_InOut_ID=v_Record_ID
+          AND P.isBOM='Y' 
+          AND P.isstocked='N'
+          AND M.explode='N'
+          AND p.m_product_id = m.m_product_id;
+        IF (v_Count <> 0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@InoutLineNotExploded@') ;
+        END IF;
+    --Check negative quantities on return inouts
+    IF (v_isreturndoctype = 'Y') THEN
+      SELECT count(*) INTO v_count
+      FROM m_inoutline iol JOIN c_orderline ol ON iol.c_orderline_id = ol.c_orderline_id
+      WHERE iol.m_inout_id = v_record_id
+        AND iol.movementqty > 0
+        AND canceled_inoutline_id IS NULL
+        AND ol.c_order_discount_id IS NULL;
+      IF (v_Count <> 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ReturnInOutNegativeQty@');
+      END IF;
+    END IF;
+
+      SELECT count(*) INTO v_count
+      FROM dual
+      WHERE EXISTS (
+          SELECT 1
+          FROM m_inoutline il JOIN m_product p ON il.m_product_id = p.m_product_id
+          WHERE il.m_inout_id = v_record_id
+            AND p.isgeneric = 'Y');
+      IF (v_count > 0) THEN
+        SELECT max(p.name) INTO v_productname
+        FROM m_inoutline il JOIN m_product p ON il.m_product_id = p.m_product_id
+        WHERE il.m_inout_id = v_record_id
+          AND p.isgeneric = 'Y';
+        RAISE_APPLICATION_ERROR(-20000, '@CannotUseGenericProduct@ ' || v_productName);
+      END IF;
+      
+        -- Process Shipments
+      SELECT COUNT(*) INTO v_Aux
+      FROM M_InOutLine
+      WHERE M_InOut_ID = v_Record_ID;
+
+      
+      select value into v_cmbitemvalue from scr_combo_item where scr_combo_item_id=v_combo_item_id;
+
+      IF(v_DocAction='CO') THEN
+        --For ebilling check that all locations are valid
+        IF(v_deliveryviarule IN ('SCR_P_NIC','SCR_C_NIC','SCR_VSGR_NIC')) THEN
+          SELECT loc.c_region_id, loc.em_scr_province_id, loc.c_city_id
+            INTO v_region_id, v_province_id, v_city_id
+            FROM M_Inout io
+            INNER JOIN m_warehouse wh on io.m_warehouse_id = wh.m_warehouse_id
+            LEFT JOIN c_bpartner_location cbplsa ON io.em_swa_source_address_id = cbplsa.c_bpartner_location_id
+            ,C_Location loc
+          WHERE io.m_inout_id = v_Record_ID
+            AND loc.c_location_id = (CASE WHEN io.em_swa_edit_source_address='Y' AND cbplsa.c_location_id IS NOT NULL THEN cbplsa.c_location_id ELSE wh.c_location_id END);
+  
+          IF(v_region_id IS NULL OR v_province_id IS NULL OR v_city_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@BILL_InvalidSourceAddress@');
+          END IF;
+
+          SELECT loc.c_region_id, loc.em_scr_province_id, loc.c_city_id
+            INTO v_region_id, v_province_id, v_city_id
+            FROM M_Inout io
+            INNER JOIN c_bpartner_location iobpl ON iobpl.c_bpartner_location_id = (CASE WHEN io.delivery_location_id IS NOT NULL THEN io.delivery_location_id ELSE io.c_bpartner_location_id END)
+            ,C_Location loc
+          WHERE io.m_inout_id = v_Record_ID
+          AND loc.c_location_id = iobpl.c_location_id;
+  
+          IF(v_region_id IS NULL OR v_province_id IS NULL OR v_city_id IS NULL) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@BILL_InvalidDestAddress@');
+          END IF;
+        END IF;
+            
+      END IF;
+
+
+      --Validating project id in inoutlines
+      --IF(v_DocAction='CO') THEN 
+      --   IF(v_C_Project_Id IS NOT NULL) THEN
+      --     IF(EXISTS(SELECT 1 FROM M_InOutLine WHERE M_InOut_id=v_Record_ID AND (C_PROJECT_ID IS NULL OR C_PROJECT_ID<>v_C_Project_Id))) THEN
+      --       RAISE_APPLICATION_ERROR(-20000, '@SPR_NoSameProject@') ;
+      --     END IF;
+      --   ELSE
+      --     IF(EXISTS(SELECT 1 FROM M_InOutLine WHERE M_InOut_id=v_Record_ID AND C_PROJECT_ID IS NOT NULL)) THEN
+      --       RAISE_APPLICATION_ERROR(-20000, '@SPR_NoProjectInLines@') ;
+      --     END IF;        
+      --   END IF;
+      --END IF;
+
+        
+      --Bill Closure Validation for Client 
+      IF(v_DocAction='CO' AND v_cmbitemvalue<>'AnulacionGuiaCliente' AND (v_specialDocType='SCOMMSHIPMENT' OR v_specialDocType='SWAMMDISPATCH')) THEN
+        SELECT coalesce(em_ssa_billclosure,0) INTO v_bp_billclosure FROM c_bpartner WHERE c_bpartner_id=v_BPartner_ID;
+        IF(v_bp_billclosure!=0 AND date_part('day',v_movementdate)>v_bp_billclosure) THEN          
+          RAISE_APPLICATION_ERROR(-20000,'@SSA_CannotCompleteDoc_BPBillClosure@'||v_bp_billclosure);
+        END IF;
+      END IF;      
+  
+      --Checking if Business Partner is blocked (only for documents with credit)
+      IF(v_DocAction='CO' AND v_cmbitemvalue<>'AnulacionGuiaCliente' AND (v_specialDocType='SCOMMSHIPMENT' OR v_specialDocType='SWAMMDISPATCH')) THEN      
+        FOR Cur_OrderLine IN (
+          SELECT c_orderline_id, line
+            FROM m_inoutline
+           WHERE m_inout_id = v_Record_ID
+             AND c_orderline_id is not null
+           ORDER BY line
+        ) LOOP
+          SELECT C_Order_ID INTO v_IO_Order FROM C_OrderLine WHERE c_OrderLine_ID=Cur_OrderLine.c_orderline_id;	
+          SELECT c_paymentterm_id INTO v_cPaymentTerm_ID FROM C_Order WHERE c_Order_ID=v_IO_Order;  
+      	 	
+          SELECT em_sco_specialpayterm INTO v_specialpaymenterm FROM c_paymentterm WHERE c_paymentterm_id=v_cPaymentTerm_ID;
+          IF (v_specialpaymenterm IS NULL OR v_specialpaymenterm!='SCOINMEDIATETERM') THEN
+             SELECT CASE WHEN (m.ISSOTRX='Y') THEN customer_blocking ELSE vendor_blocking END, CASE WHEN (m.ISSOTRX='Y') 
+                    THEN so_goods_blocking ELSE po_goods_blocking END, name, DocAction, bp.c_bpartner_id
+               INTO v_bpartner_blocked, v_goods_blocked, v_bpartner_name, v_DocAction, v_IO_bpartner_id
+               FROM M_InOut m, C_BPartner bp
+              WHERE m.c_bpartner_id = bp.c_bpartner_id
+                AND m.M_InOut_ID=v_Record_ID
+                AND m.C_BPARTNER_ID=bp.C_BPARTNER_ID;    
+             IF (v_DocAction = 'CO' AND v_bpartner_blocked = 'Y' AND v_goods_blocked = 'Y' AND v_isreturndoctype='N') THEN
+                SELECT em_scr_msg_blocking INTO v_detail_block_msg FROM c_bpartner WHERE c_bpartner_id=v_IO_bpartner_id; 
+                RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '|| v_bpartner_name ||' '||COALESCE(v_detail_block_msg,'@SSA_BusinessPartnerBlocked@'));
+             END IF;             
+          END IF;
+        END LOOP;
+      END IF;
+      
+
+   -- EDIT by Vafaster 
+      FOR Cur_parameter_Vafaster IN 
+      (
+        SELECT em_sim_is_import 
+	  FROM c_order 
+	    inner join c_orderline on c_order.c_order_id = c_orderline.c_order_id 
+	    inner join m_inoutline on c_orderline.c_orderline_id = m_inoutline.c_orderline_id
+	WHERE m_inoutline.m_inout_id=v_Record_ID
+      ) 
+      LOOP 
+        IF(Cur_parameter_Vafaster.em_sim_is_import = 'Y') THEN
+              v_var_import = 1;
+        ELSE
+               v_var_noimport= 1;
+        END IF;
+      END LOOP;
+
+       IF(v_var_import=1 and v_var_noimport=1) THEN
+          RAISE_APPLICATION_ERROR(-20000,  '@sim_no_process_linesmixed@') ;
+       END IF;
+   -- END EDIT BY VAFASTER
+
+--campos se ponen read only y se puede imprimir el documento y el picking al completar completa la guia :D 
+    SELECT COALESCE(em_swa_nopicking,'N'), em_swa_shipstatus,c_order_id ,em_swa_isvoided, em_sco_specialdoctype, EM_Swa_Tramitedoc, em_ssa_cmbitem_value
+      INTO v_no_picking, v_em_swa_shipstatus,v_tmp_c_order_id,v_em_swa_isvoided, v_specialdoctype, v_EM_Swa_Tramitedoc, v_ssa_cmbitem_value
+      FROM M_INOUT INNER JOIN M_WAREHOUSE ON M_INOUT.M_WAREHOUSE_ID=M_WAREHOUSE.M_WAREHOUSE_ID
+     WHERE M_INOUT_ID = v_Record_ID;
+
+	SELECT documentno 
+          INTO v_exist_doc_pl 
+          FROM obwpl_pickinglist ob
+              INNER JOIN m_inoutline io on ob.obwpl_pickinglist_id = io.em_obwpl_pickinglist_id
+         WHERE io.m_inout_id = v_Record_ID
+         LIMIT 1;
+
+       
+
+        ---Validaciones Para almacen de Consignacion 
+          IF(v_issotrx='Y' AND v_DocAction IN ('CO','RC') AND v_ssa_cmbitem_value IN ('consignacion','SalidaDevolucionConsignacion'))THEN
+            --Validación sólo Para Movimientos de Salida de almacén de Consignacion    
+            SELECT em_swa_warehousetype INTO v_swa_warehousetype FROM M_warehouse  WHERE m_warehouse_id = v_M_Warehouse_ID;
+              IF(v_swa_warehousetype IN ('CO'))THEN
+                SWA_REBUILDINOUT_CONSIGMENT(v_Record_ID, v_DocAction) ;
+              END IF;
+          END IF;
+         ----------------------------- 
+--END EDIT
+
+    
+      IF(v_inout_reference_reposition_ID IS NOT NULL AND v_DocAction='CO')THEN
+         M_INOUT_POST(NULL, v_inout_reference_reposition_ID) ;----avalos
+         IF(v_isfromreposition = 'Y' AND v_requireposicion_id IS NOT NULL ) THEN --AND v_specialdoctype IN ('SWAINTERNALSHIPMENT','SWAMMDISPATCH','')
+
+
+          IF(v_issotrx='Y')THEN
+
+             SELECT COUNT(*) 
+               INTO v_count
+               FROM M_INOUT 
+               WHERE ISSOTRX='Y' 
+                 AND DOCSTATUS = 'CO'
+                AND m_warehouse_id =  v_M_Warehouse_ID 
+                AND em_swa_requireposicion_id = v_requireposicion_id;
+
+             IF(v_count > 0)THEN
+                RAISE_APPLICATION_ERROR(-20000,'@swa_m_inout_reposition_existcompleted@');
+             END IF;
+             
+           END IF; 
+            --INICIO1: Esto es para crear la recepcion de reposicion cuando completamos la guia Cliente 
+           /*v_pinstance_id:= get_uuid();
+            INSERT INTO ad_pinstance (
+                  ad_pinstance_id, ad_process_id, record_id, isactive, 
+                  ad_user_id, ad_client_id, ad_org_id, created, createdby,
+                  updated, updatedby
+            )VALUES( 
+                  v_pinstance_id, '772EF7C5158D4316B3B7CE20D05AC8CD', v_requireposicion_id, 'Y',
+                  v_User, v_AD_Client_ID, v_AD_Org_ID, now(), v_User,
+                  now(), v_User
+            );*/
+             --- Ya no se va a crear una Orden de Recepción, no por ahora
+               --PERFORM SWA_REQUIREMENT_PROCESS(v_pinstance_id) ;----vafaster
+            --FIN INICIO1
+           
+         
+           UPDATE swa_requerimientoreposicion 
+              SET isdelivered='FU',
+                  duedate=now()+30
+            WHERE swa_requerimientoreposicion_id = v_requireposicion_id;
+            
+           UPDATE m_inout
+              SET docaction='RC'--como se completo la nota de ingreso asociada entonces la pròxima action serà Anular (RC)
+            WHERE m_inout_id = v_inout_reference_reposition_ID;
+         END IF;
+      END IF;
+
+      
+    -- END EDIT BY VAFASTER 
+
+
+      IF v_Aux > 0 THEN  
+        SELECT COUNT(*)
+        INTO v_Count
+        FROM M_INOUT IO, M_INOUTLINE IOL
+        WHERE IO.M_INOUT_ID = IOL.M_INOUT_ID
+        AND AD_ISORGINCLUDED(IOL.AD_Org_ID, IO.AD_Org_ID, IO.AD_Client_ID) = -1
+        AND IO.M_INOUT_ID = v_Record_ID;
+        IF (v_Count>0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgLines@') ;
+        END IF;
+      END IF;
+      
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+      INTO v_is_ready, v_is_tr_allow
+      FROM M_INOUT, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=M_INOUT.AD_Org_ID
+      AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+      AND M_INOUT.M_INOUT_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+        
+      SELECT AD_ORG_CHK_DOCUMENTS('M_INOUT', 'M_INOUTLINE', v_Record_ID, 'M_INOUT_ID', 'M_INOUT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+      
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('M_INOUT', v_Record_ID, 'M_INOUT_ID', 'LE')
+      INTO v_org_bule_id
+      FROM DUAL;
+      
+      SELECT AD_OrgType.IsAcctLegalEntity
+      INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+      AND AD_Org.AD_Org_ID=v_org_bule_id;
+      
+      IF (v_isacctle='Y') THEN    
+        SELECT C_CHK_OPEN_PERIOD(v_AD_Org_ID, v_DateAcct, NULL, v_DocType_ID) 
+        INTO v_available_period
+        FROM DUAL;
+
+        IF (v_available_period<>1) THEN
+          IF (v_docAction <> 'RC') THEN
+             RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+          END IF;
+        END IF;
+      END IF;  
+  
+        FOR Cur_InOut IN
+          (SELECT *
+          FROM M_INOUT
+          WHERE(M_InOut_ID=v_Record_ID
+            OR(v_Record_ID IS NULL
+            AND DocAction='CO'))
+            AND IsActive='Y'  FOR UPDATE
+          )
+        LOOP
+        
+        
+          DBMS_OUTPUT.PUT_LINE('Shipment_ID=' || Cur_InOut.M_InOut_ID || ', Doc=' || Cur_InOut.DocumentNo || ', Status=' || Cur_InOut.DocStatus || ', Action=' || Cur_InOut.DocAction) ;
+          v_ResultStr:='HeaderLoop';
+          /**
+          * Shipment not processed
+          */
+          IF(Cur_InOut.Processed='N' AND Cur_InOut.DocStatus='DR' AND Cur_InOut.DocAction='CO') THEN
+            -- For all active shipment lines
+            v_ResultStr:='HeaderLoop-1';
+            
+        IF v_Aux=0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ReceiptWithoutLines@');
+        END IF;
+
+
+	--change Shipment Status
+	SELECT em_sco_specialdoctype INTO v_specialdoctype FROM C_Doctype WHERE C_Doctype_ID=Cur_InOut.c_doctype_id;
+        IF (v_specialdoctype IN ('SCOMMSHIPMENT','SWAMMSHIPMENTINDIRECT')) THEN
+
+	  IF(Cur_InOut.em_swa_inoutfromorder_type IN ('POS','WAR')) THEN
+	    UPDATE M_Inout 
+	      SET em_swa_shipstatus = 'SWA_DELI', 
+	          em_swa_shipmentaction = 'SWA_RE',
+	          em_swa_packdatetime = now(),
+	          em_swa_uwaydatetime = now(),
+		  em_swa_delidatetime = now()
+            WHERE M_Inout_ID = Cur_InOut.M_InOut_ID;
+	  ELSE
+	    IF(Cur_InOut.em_swa_packdatetime IS NULL) THEN
+              --Add by vafaster
+              --Si en goods shipment esta habilitado el ckeck tramitedocumentario,cuando se
+              -- complete la guia se pone a entregado el campo deli
+	      v_shipstatus:='SWA_PACK';
+	      v_shipsaction:='SWA_TODISP';
+	      v_dalidate:=NULL;
+	      IF(Cur_InOut.em_swa_tramitedoc='Y')THEN
+	        v_shipstatus:='SWA_DELI';
+	        v_shipsaction:='SWA_RE';
+	        v_dalidate:=now();
+	      END IF;
+	      --END ADD
+              UPDATE M_Inout 
+	        SET em_swa_shipstatus = v_shipstatus, 
+	            em_swa_shipmentaction = v_shipsaction,
+	            em_swa_packdatetime = now(),
+	            em_swa_uwaydatetime = NULL,
+		    em_swa_delidatetime = v_dalidate
+              WHERE M_Inout_ID = Cur_InOut.M_InOut_ID;
+	    END IF;
+	  END IF;
+
+	END IF;
+
+
+	--If the shipment has em_ssa_serviceorder_id check for m_inoutline-> em_sre_serviceinorderline_id
+        IF(Cur_InOut.em_ssa_serviceorder_id IS NOT NULL) THEN
+          FOR Cur_ServiceInoutLine IN
+            (SELECT *
+               FROM M_Inoutline
+               WHERE M_InOut_ID=Cur_InOut.M_InOut_ID AND
+	             IsActive = 'Y' AND
+	             em_sre_serviceinorderline_id IS NOT NULL FOR UPDATE)
+	  LOOP
+
+	    SELECT qtyordered
+              INTO v_serviceqtyordered
+              FROM C_Orderline
+	    WHERE C_Orderline_ID = Cur_ServiceInoutLine.em_sre_serviceinorderline_id;
+
+	    SELECT COALESCE(sum(M_InoutLine.movementqty),0)
+	      INTO v_sumservicemovementqty
+	      FROM M_InoutLine, M_Inout
+	    WHERE M_Inout.M_Inout_ID = M_Inoutline.M_Inout_ID AND
+	          M_Inoutline.IsActive = 'Y' AND
+		  em_sre_serviceinorderline_id = Cur_ServiceInoutLine.em_sre_serviceinorderline_id AND
+		  M_Inout.docstatus IN ('CO','CL') AND
+		  M_Inoutline.M_Inoutline_ID <> Cur_ServiceInoutLine.M_InoutLine_ID;
+
+	    IF(v_sumservicemovementqty + Cur_ServiceInoutLine.movementqty > v_serviceqtyordered) THEN
+	        v_Message := '@SRE_NotPossibleCompleteServiceOrderInOut@' || ' ' || Cur_InOut.documentno;
+                v_Message := v_Message || ' ' || '@line@' || ' ' || Cur_ServiceInoutLine.line || '. ';
+                v_Message := v_Message || '@SRE_InvalidmovementqtyAmount@ ' || (v_serviceqtyordered - v_sumservicemovementqty) || ' .';
+                RAISE_APPLICATION_ERROR(-20000, v_Message);
+	    END IF;
+
+	  END LOOP;
+        END IF;
+
+  
+
+
+          FOR Cur_InOutLine IN
+            (SELECT *
+            FROM M_INOUTLINE
+            WHERE M_InOut_ID=Cur_InOut.M_InOut_ID
+              AND IsActive='Y'  FOR UPDATE
+            )
+          LOOP
+            -- Incomming or Outgoing :1:2
+            v_Qty:=Cur_InOutLine.MovementQty;
+            v_QuantityOrder:=Cur_InOutLine.QuantityOrder;
+
+            IF((SUBSTR(Cur_InOut.MovementType, 2)='-') or SUBSTR(Cur_InOut.MovementType, 6)='-') THEN --ADD BY VAFASTER 'OR'
+              v_Qty:=- Cur_InOutLine.MovementQty;
+              v_QuantityOrder:=-Cur_InOutLine.QuantityOrder;
+            END IF;
+        --    RAISE_APPLICATION_ERROR(-20000-- , v_Qty);ffffff
+            IF(Cur_InOut.IsSOTrx='N') THEN
+              v_QtySO:=0;
+              v_QtyPO:=Cur_InOutLine.MovementQty;
+              v_QuantityOrderSO:=0;
+              v_QuantityOrderPO:=Cur_InOutLine.QuantityOrder;
+            ELSE
+              v_QtySO:=Cur_InOutLine.MovementQty;
+              v_QtyPO:=0;
+              v_QuantityOrderSO:=Cur_InOutLine.QuantityOrder;
+              v_QuantityOrderPO:=0;
+            END IF;
+
+            --Only for reposition And Service OrderLine
+            --Las siguientes variables me sirven para validar ya en la anulacion v_em_swa_requerepo_detail_id,v_locator_fromreserve_id , v_em_sre_serviceorderline_id
+            --Cuando anulo una guia asociada a una transferencia entre almacenes, 
+            --La cantidad reservada deberà de dejar de estar distribuida.
+            --Cuando anulo una guia asociada a una Order de Compra por Servicio, 
+            --La cantidad reservada deberà de dejar de estar distribuida.
+              SELECT em_swa_requerepo_detail_id,m_locator_id ,em_sre_serviceorderline_id
+                 INTO v_em_swa_requerepo_detail_id,v_locator_fromreserve_id , v_em_sre_serviceorderline_id
+               FROM m_inoutline where m_inoutline_id = Cur_InOutLine.canceled_inoutline_id;
+            
+            -- UOM Conversion
+            -- Is it a standard stocked product:3
+            SELECT COUNT(*)
+            INTO v_IsStocked
+            FROM M_PRODUCT
+            WHERE M_Product_ID=Cur_InOutLine.M_Product_ID
+              AND IsStocked='Y'
+              AND ProductType='I';
+           
+            -- Create Transaction for stocked product
+            IF(Cur_InOutLine.M_Product_ID IS NOT NULL AND v_IsStocked=1 AND Cur_InOutLine.IsDescription <> 'Y') THEN
+
+                IF (cur_inout.issotrx = 'Y' AND cur_inoutline.c_orderline_id IS NOT NULL AND v_qty < 0 AND cur_inoutline.canceled_inoutline_id IS NULL) THEN
+                     -- Manage reservations.
+			SELECT count(*), max(m_reservation_id)
+			  INTO v_aux, v_reservation_id
+			FROM m_reservation
+			WHERE c_orderline_id = cur_inoutline.c_orderline_id;
+			IF (v_aux > 1) THEN
+			  RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+			ELSIF (v_aux = 1) THEN
+			  M_RESERVATION_CONSUMPTION(v_reservation_id, cur_inoutline.m_locator_id, cur_inoutline.m_attributesetinstance_id, cur_inoutline.movementqty, v_user, v_result, v_message);
+			END IF;
+               ELSIF (cur_inout.issotrx = 'Y' AND cur_inoutline.em_sre_serviceorderline_id IS NOT NULL AND v_qty < 0 AND cur_inoutline.canceled_inoutline_id IS NULL)THEN			
+                        SELECT count(*), max(m_reservation_id)
+			  INTO v_aux, v_reservation_id
+			  FROM m_reservation
+			 WHERE em_swa_serviceorderline_id = cur_inoutline.em_sre_serviceorderline_id;
+			IF (v_aux > 1) THEN
+			  RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+			 ELSIF (v_aux = 1) THEN
+			  swa_reserve_comsumption_repo(v_reservation_id, cur_inoutline.m_locator_id, cur_inoutline.movementqty, v_user, v_result, v_message);
+			END IF;
+	       ELSIF (cur_inout.issotrx = 'Y' AND cur_inoutline.em_swa_requerepo_detail_id IS NOT NULL AND v_qty < 0 AND cur_inoutline.canceled_inoutline_id IS NULL)THEN
+			SELECT count(*), max(m_reservation_id)
+			  INTO v_aux, v_reservation_id
+			  FROM m_reservation
+			 WHERE em_swa_requerepo_detail_id = cur_inoutline.em_swa_requerepo_detail_id;
+			 IF (v_aux > 1) THEN
+			  RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+			 ELSIF (v_aux = 1) THEN
+			  swa_reserve_comsumption_repo(v_reservation_id, cur_inoutline.m_locator_id, cur_inoutline.movementqty, v_user, v_result, v_message);
+			END IF;
+	       ELSIF(cur_inout.issotrx = 'Y')THEN
+	       
+                        SELECT count(*), max(m_reservation_id)
+			  INTO v_aux, v_reservation_id
+			  FROM m_reservation
+			 WHERE em_swa_m_inoutline_id = Cur_InOutLine.M_INOUTLINE_ID;
+			 
+			 IF (v_aux > 1) THEN
+			  RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+			 ELSIF (v_aux = 1) THEN
+			  swa_reserve_comsumption_repo(v_reservation_id, cur_inoutline.m_locator_id, cur_inoutline.movementqty, v_user, v_result, v_message);
+			END IF;   
+	       
+               ELSIF (cur_inout.issotrx = 'Y' AND cur_inoutline.c_orderline_id IS NOT NULL AND v_qty > 0 AND cur_inoutline.canceled_inoutline_id IS NOT NULL) THEN
+
+
+		SELECT O.DOCSTATUS INTO v_OrderStatus from  C_ORDER O INNER JOIN C_ORDERLINE OL ON O.C_ORDER_ID=OL.C_ORDER_ID
+		WHERE OL.C_ORDERLINE_ID = cur_inoutline.c_orderline_id;
+
+		IF(v_OrderStatus='CO') THEN
+			
+				   -- Undo reservation
+			--Si hay una ubicacion de anulación configurada en el almacén
+			--entonces se deberà tomar la ubicaciòn original(primer m_inoutline) para quitar el distribuido de la 
+			--ubicación en la reserva (Ubicación del primer m_inoutline)
+			--Cuando se anula, se crea otro m_locator (de anulación) y este no es el mismo al original m_inoutline
+
+			SELECT m_locator_id 
+			 INTO v_locator_fromreserve_id 
+		       FROM m_inoutline where m_inoutline_id = Cur_InOutLine.canceled_inoutline_id;
+		    
+
+			 IF(v_locator_fromreserve_id IS NULL)THEN
+			   v_locator_fromreserve_id:= cur_inoutline.m_locator_id;
+			 END IF;
+			-------
+
+		     
+			DECLARE
+			  cur_released_stock RECORD;
+			  v_qtyaux NUMBER;
+			  v_undoqty NUMBER;
+			BEGIN
+			  SELECT count(*), max(m_reservation_id)
+			    INTO v_aux, v_reservation_id
+			  FROM m_reservation
+			  WHERE c_orderline_id = cur_inoutline.c_orderline_id;
+			  IF (v_aux > 1) THEN
+			    RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+			  ELSIF (v_aux = 1) THEN
+			    v_qtyaux := v_qty;
+			    FOR cur_released_stock IN (
+				SELECT m_reservation_stock_id, quantity, releasedqty
+				FROM m_reservation_stock
+				WHERE m_locator_id = v_locator_fromreserve_id
+				  AND COALESCE(m_attributesetinstance_id, '0') = COALESCE(cur_inoutline.m_attributesetinstance_id, '0')
+				  AND m_reservation_id = v_reservation_id
+				  AND COALESCE(releasedqty, 0) > 0
+				ORDER BY CASE isallocated WHEN 'N' THEN 0 ELSE 1 END
+			    ) LOOP
+			      v_undoqty := LEAST(v_qtyaux, cur_released_stock.releasedqty);
+			      UPDATE m_reservation_stock
+			      SET releasedqty = releasedqty - v_undoqty, c_orderline_id=cur_inoutline.c_orderline_id , m_locator_id=null, isallocated='N' /*sin locator para que de nuevo busque ubicacion*/
+			      WHERE m_reservation_stock_id = cur_released_stock.m_reservation_stock_id;			      
+			      v_qtyaux := v_qtyaux - v_undoqty;
+			    END LOOP;
+          
+
+			    /*para unificar lineas del m_reservation_stock sin ubicacion pero con mismo c_orderline, debido a que M_RESERVE_STOCK_MANUAL asume que hay una sola linea por c_orderline*/
+                            CREATE TEMP TABLE cur_released_stock_tmp AS 
+                               SELECT sum(quantity) as quantity, c_orderline_id, ad_client_id, ad_org_id 
+                                 FROM m_reservation_stock 
+                                WHERE m_reservation_id=v_reservation_id
+				  AND m_locator_id is NULL AND c_orderline_id is not null
+				GROUP BY c_orderline_id, ad_client_id, ad_org_id;
+
+			    DELETE FROM m_reservation_stock WHERE m_reservation_id=v_reservation_id AND m_locator_id is NULL AND c_orderline_id is not null;
+
+			    FOR cur_released_stock IN (
+				SELECT *
+                                 FROM cur_released_stock_tmp
+			    ) LOOP
+		                INSERT INTO m_reservation_stock(
+		                  m_reservation_stock_id, ad_client_id, ad_org_id, isactive,
+		                  created, createdby, updated, updatedby,
+		                  m_reservation_id, m_attributesetinstance_id, m_locator_id, c_orderline_id,
+		                  quantity, releasedqty, isallocated
+		                ) VALUES (
+		                  get_uuid(), cur_released_stock.ad_client_id, cur_released_stock.ad_org_id, 'Y',
+		                  now(), v_user, now(), v_user,
+		                  v_reservation_id, NULL, NULL, cur_released_stock.c_orderline_id,
+		                  cur_released_stock.quantity, 0, 'N'
+		                );
+			    END LOOP;
+
+			    DROP TABLE cur_released_stock_tmp;
+			    /*fin de unificacion de lineas de m_reservation_stock*/
+                            
+			  END IF;
+			END;
+
+
+		END IF;
+
+
+
+                
+              ELSIF (cur_inout.issotrx = 'Y' AND v_em_sre_serviceorderline_id IS NOT NULL AND v_qty > 0 AND cur_inoutline.canceled_inoutline_id IS NOT NULL) THEN
+                -- Undo reservation
+                --Si hay una ubicacion de anulación configurada en el almacén
+                --entonces se deberà tomar la ubicaciòn original(primer m_inoutline) para quitar el distribuido de la 
+                --ubicación en la reserva (Ubicación del primer m_inoutline)
+                --Cuando se anula, se crea otro m_locator (de anulación) y este no es el mismo al original m_inoutline
+                 IF(v_locator_fromreserve_id IS NULL)THEN
+                   v_locator_fromreserve_id:= cur_inoutline.m_locator_id;
+                 END IF;
+                -------
+
+                DECLARE
+                  cur_released_stock RECORD;
+                  v_qtyaux NUMBER;
+                  v_undoqty NUMBER;
+                BEGIN
+                  SELECT count(*), max(m_reservation_id)
+                    INTO v_aux, v_reservation_id
+                  FROM m_reservation
+                  WHERE em_swa_serviceorderline_id = v_em_sre_serviceorderline_id;
+                  IF (v_aux > 1) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+                  ELSIF (v_aux = 1) THEN
+                    v_qtyaux := v_qty;
+                    FOR cur_released_stock IN (
+                        SELECT m_reservation_stock_id, quantity, releasedqty
+                        FROM m_reservation_stock
+                        WHERE m_locator_id = v_locator_fromreserve_id
+                          AND COALESCE(m_attributesetinstance_id, '0') = COALESCE(cur_inoutline.m_attributesetinstance_id, '0')
+                          AND m_reservation_id = v_reservation_id
+                          AND COALESCE(releasedqty, 0) > 0
+                        ORDER BY CASE isallocated WHEN 'N' THEN 0 ELSE 1 END
+                    ) LOOP
+                      v_undoqty := LEAST(v_qtyaux, cur_released_stock.releasedqty);
+                      UPDATE m_reservation_stock
+                      SET releasedqty = releasedqty - v_undoqty
+                      WHERE m_reservation_stock_id = cur_released_stock.m_reservation_stock_id;
+                      v_qtyaux := v_qtyaux - v_undoqty;
+                    END LOOP;
+                  END IF;
+                END;  
+                
+              ELSIF (cur_inout.issotrx = 'Y' AND v_em_swa_requerepo_detail_id IS NOT NULL AND v_qty > 0 AND cur_inoutline.canceled_inoutline_id IS NOT NULL) THEN
+                -- Undo reservation
+                --Si hay una ubicacion de anulación configurada en el almacén
+                --entonces se deberà tomar la ubicaciòn original(primer m_inoutline) para quitar el distribuido de la 
+                --ubicación en la reserva (Ubicación del primer m_inoutline)
+                --Cuando se anula, se crea otro m_locator (de anulación) y este no es el mismo al original m_inoutline
+                 IF(v_locator_fromreserve_id IS NULL)THEN
+                   v_locator_fromreserve_id:= cur_inoutline.m_locator_id;
+                 END IF;
+                -------
+
+             
+                DECLARE
+                  cur_released_stock RECORD;
+                  v_qtyaux NUMBER;
+                  v_undoqty NUMBER;
+                BEGIN
+                  SELECT count(*), max(m_reservation_id)
+                    INTO v_aux, v_reservation_id
+                  FROM m_reservation
+                  WHERE em_swa_requerepo_detail_id = v_em_swa_requerepo_detail_id;
+                  IF (v_aux > 1) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@SOLineWithMoreThanOneOpenReservation@');
+                  ELSIF (v_aux = 1) THEN
+                    v_qtyaux := v_qty;
+                    FOR cur_released_stock IN (
+                        SELECT m_reservation_stock_id, quantity, releasedqty
+                        FROM m_reservation_stock
+                        WHERE m_locator_id = v_locator_fromreserve_id
+                          AND COALESCE(m_attributesetinstance_id, '0') = COALESCE(cur_inoutline.m_attributesetinstance_id, '0')
+                          AND m_reservation_id = v_reservation_id
+                          AND COALESCE(releasedqty, 0) > 0
+                        ORDER BY CASE isallocated WHEN 'N' THEN 0 ELSE 1 END
+                    ) LOOP
+                      v_undoqty := LEAST(v_qtyaux, cur_released_stock.releasedqty);
+                      UPDATE m_reservation_stock
+                      SET releasedqty = releasedqty - v_undoqty
+                      WHERE m_reservation_stock_id = cur_released_stock.m_reservation_stock_id;
+                      v_qtyaux := v_qtyaux - v_undoqty;
+                    END LOOP;
+                  END IF;
+                END;        
+              ELSIF (cur_inout.issotrx = 'N' AND cur_inoutline.canceled_inoutline_id IS NULL) THEN
+                -- Manage pre-reserves
+                DECLARE
+                  cur_reserve_stock RECORD;
+                  v_pendingqty NUMBER;
+                  v_qtyaux NUMBER;
+                  v_res_stock_id VARCHAR2(32);
+                BEGIN
+                  v_pendingqty := v_qty;
+                  FOR cur_reserve_stock IN (
+                      SELECT rs.*
+                      FROM m_reservation_stock rs JOIN m_reservation r ON rs.m_reservation_id = r.m_reservation_id
+                      WHERE rs.c_orderline_id = cur_inoutline.c_orderline_id
+                        AND rs.quantity <> COALESCE(rs.releasedqty, 0)
+                        AND rs.m_locator_id IS NULL
+                        AND r.res_status NOT IN ('DR', 'CL')
+                  ) LOOP
+                    v_qtyaux := LEAST(cur_reserve_stock.quantity - COALESCE(cur_reserve_stock.releasedqty, 0), v_pendingqty);
+                    -- Check if exists a reserved stock for the same orderline, attributes and locator in the reservation
+                    SELECT count(*), max(m_reservation_stock_id) INTO v_aux, v_res_stock_id
+                    FROM m_reservation_stock
+                    WHERE c_orderline_id = cur_inoutline.c_orderline_id
+                      AND m_locator_id = cur_inoutline.m_locator_id
+                      AND m_reservation_id = cur_reserve_stock.m_reservation_id
+                      AND isallocated = 'Y'
+                      AND COALESCE(m_attributesetinstance_id, '0') = COALESCE(Cur_InOutLine.M_AttributeSetInstance_ID, '0');
+                    -- Update existing prereserved stock to decrease reserved qty
+                    UPDATE m_reservation_stock
+                    SET quantity = quantity - v_qtyaux
+                    WHERE m_reservation_stock_id = cur_reserve_stock.m_reservation_stock_id;
+                    -- Insert or update reserved stock by same quantity
+		    --RAISE NO_DATA_FOUND;
+                    IF (v_aux > 0) THEN
+                      UPDATE m_reservation_stock
+                      SET quantity = quantity + v_qtyaux
+                      WHERE m_reservation_stock_id = v_res_stock_id;
+                    ELSE
+                      INSERT INTO m_reservation_stock(
+                        m_reservation_stock_id, ad_client_id, ad_org_id, isactive,
+                        created, createdby, updated, updatedby,
+                        m_reservation_id, m_attributesetinstance_id, m_locator_id, c_orderline_id,
+                        quantity, releasedqty, isallocated
+                      ) VALUES (
+                        get_uuid(), cur_reserve_stock.ad_client_id, cur_reserve_stock.ad_org_id, 'Y',
+                        now(), v_user, now(), v_user,
+                        cur_reserve_stock.m_reservation_id, cur_inoutline.m_attributesetinstance_id, cur_inoutline.m_locator_id, cur_inoutline.c_orderline_id,
+                        v_qtyaux, 0, 'Y'
+                      );
+                    END IF;
+                    v_pendingqty := v_pendingqty - v_qtyaux;
+                    IF (v_pendingqty <= 0) THEN
+                      EXIT;
+                    END IF;
+                  END LOOP;
+                  DELETE FROM m_reservation_stock
+                  WHERE c_orderline_id = cur_inoutline.c_orderline_id
+                    AND quantity = 0
+                    AND COALESCE(releasedqty, 0) = 0;
+                END;
+              ELSIF (cur_inout.issotrx = 'N' AND cur_inoutline.canceled_inoutline_id IS NOT NULL AND v_qty < 0) THEN
+                -- Revert to pre-reservations
+                DECLARE
+                  cur_reserve_stock     RECORD;
+                  v_pendingqty          NUMBER;
+                  v_qtyaux              NUMBER;
+                  v_res_stock_id        VARCHAR2(32);
+                  v_aux_released NUMBER:= 0;
+                BEGIN
+                  v_pendingqty := -v_qty;
+                  FOR cur_reserve_stock IN (
+                      SELECT rs.quantity, COALESCE(rs.releasedqty,0) AS releasedqty, rs.m_reservation_stock_id, rs.m_reservation_id,
+                          rs.ad_org_id, rs.ad_client_id
+                      FROM m_reservation_stock rs JOIN m_reservation r ON rs.m_reservation_id = r.m_reservation_id
+                      WHERE rs.c_orderline_id = cur_inoutline.c_orderline_id
+                        AND rs.m_locator_id = cur_inoutline.m_locator_id
+                        AND r.res_status NOT IN ('DR', 'CL')
+                  ) LOOP
+                    v_qtyaux := LEAST((cur_reserve_stock.quantity - COALESCE(cur_reserve_stock.releasedqty, 0)), v_pendingqty);
+                    v_aux_released := v_aux_released + COALESCE(cur_reserve_stock.releasedqty, 0);
+                    IF (cur_reserve_stock.quantity <> COALESCE(cur_reserve_stock.releasedqty, 0)) THEN
+                      -- Check if exists a prereservation for the same orderline, attributes and locator in the reservation
+                      SELECT count(*), max(m_reservation_stock_id) INTO v_aux, v_res_stock_id
+                      FROM m_reservation_stock
+                      WHERE c_orderline_id = cur_inoutline.c_orderline_id
+                        AND m_locator_id IS NULL
+                        AND m_reservation_id = cur_reserve_stock.m_reservation_id;
+                      -- Update existing prereserved stock to decrease reserved qty
+                      UPDATE m_reservation_stock
+                      SET quantity = quantity - v_qtyaux
+                      WHERE m_reservation_stock_id = cur_reserve_stock.m_reservation_stock_id;
+                      -- Insert or update reserved stock by same quantity
+                      IF (v_aux > 0) THEN
+                        UPDATE m_reservation_stock
+                        SET quantity = quantity + v_qtyaux
+                        WHERE m_reservation_stock_id = v_res_stock_id;
+                      ELSE
+                        INSERT INTO m_reservation_stock (
+                          m_reservation_stock_id, ad_client_id, ad_org_id, isactive,
+                          created, createdby, updated, updatedby,
+                          m_reservation_id, m_attributesetinstance_id, m_locator_id, c_orderline_id,
+                          quantity, releasedqty, isallocated
+                        ) VALUES (
+                          get_uuid(), cur_reserve_stock.ad_client_id, cur_reserve_stock.ad_org_id, 'Y',
+                          now(), v_user, now(), v_user,
+                          cur_reserve_stock.m_reservation_id, '0', NULL, cur_inoutline.c_orderline_id,
+                          v_qtyaux, 0, 'Y'
+                        );
+                      END IF;
+                      v_pendingqty := v_pendingqty - v_qtyaux;
+                      IF (v_pendingqty <= 0) THEN
+                        EXIT;
+                      END IF;
+                    END IF;
+                  END LOOP;
+
+		
+
+                  IF (v_pendingqty > 0 AND v_aux_released > 0) THEN
+                    -- Not all quantity has been reverted to pre-reservation having released quantity.
+                    RAISE_APPLICATION_ERROR(-20000, '@ReceiptVoidReleasedQtyFound@');
+                  END IF;
+                  DELETE FROM m_reservation_stock
+                  WHERE c_orderline_id = cur_inoutline.c_orderline_id
+                    AND quantity = 0
+                    AND COALESCE(releasedqty, 0) = 0;
+                END;
+              END IF;
+
+
+              v_ResultStr:='CreateTransaction';
+              Ad_Sequence_Next('M_Transaction', Cur_InOutLine.AD_Org_ID, v_NextNo) ;
+
+		
+              
+              INSERT
+              INTO M_TRANSACTION
+                (
+                  M_Transaction_ID, M_InOutLine_ID, AD_Client_ID, AD_Org_ID,
+                  IsActive, Created, CreatedBy, Updated,
+                  UpdatedBy, MovementType, M_Locator_ID, M_Product_ID,
+                  M_AttributeSetInstance_ID, MovementDate, MovementQty, M_Product_UOM_ID,
+                  QuantityOrder, C_UOM_ID,em_ssa_combo_item_id, EM_SPR_EXCLUDEFROMPROJECT
+                )
+                VALUES
+                (
+                  v_NextNo, Cur_InOutLine.M_InOutLine_ID, Cur_InOutLine.AD_Client_ID, Cur_InOutLine.AD_Org_ID,
+                   'Y', now(), v_User, now(),
+                  v_User, Cur_InOut.MovementType, Cur_InOutLine.M_Locator_ID, Cur_InOutLine.M_Product_ID,
+                  COALESCE(Cur_InOutLine.M_AttributeSetInstance_ID, '0'), Cur_InOut.MovementDate, v_Qty, Cur_InOutLine.M_Product_UOM_ID,
+                  v_QuantityOrder, Cur_InOutLine.C_UOM_ID,v_combo_item_id , Cur_InOutLine.EM_SPR_EXCLUDEFROMPROJECT
+                )
+                ;
+
+                
+            
+            END IF;
+            -- Create Asset
+            IF(Cur_InOutLine.M_Product_ID IS NOT NULL) THEN -- Modify By Vafaster QUIT from IF=> AND Cur_InOut.IsSOTrx='Y'
+              A_ASSET_CREATE(NULL, Cur_InOutLine.M_InOutLine_ID) ;
+            END IF;
+
+            
+	    
+            v_ResultStr:='UpdateOrderLine';
+            IF(Cur_InOutLine.C_OrderLine_ID IS NOT NULL) THEN
+              if(Cur_InOut.ISSOTRX='Y') THEN
+
+	      IF (v_specialdoctype = 'SWARFCRECEIPT') THEN
+
+                    DECLARE
+		      v_qtyordered NUMBER;
+                      v_movementqty NUMBER;
+		      v_qtyreturned NUMBER;
+	            BEGIN
+		      --Calculate QtyReturned for m_inoutline and c_invoiceline
+		      SELECT m_inoutline_id 
+		        INTO v_shipmentoutline_ID 
+	                FROM c_orderline
+		      WHERE c_orderline.c_orderline_id = Cur_InOutLine.c_orderline_id;
+
+		      IF(v_shipmentoutline_ID IS NOT NULL AND v_shipmentoutline_ID<>'') THEN
+		        SELECT em_ssa_qtyreturned, movementqty
+                          INTO v_qtyreturned, v_movementqty
+                        FROM m_inoutline WHERE m_inoutline_id = v_shipmentoutline_ID FOR UPDATE;
+
+		        IF(v_qtyreturned + v_Qty > v_movementqty) THEN
+		          RAISE_APPLICATION_ERROR(-20000, '@SSA_ReturnedQtyGreaterThanMovementQty@') ;
+	                END IF; 
+		        UPDATE m_inoutline SET em_ssa_qtyreturned = em_ssa_qtyreturned + v_Qty WHERE m_inoutline_id = v_shipmentoutline_ID;
+		      END IF;
+
+		  
+
+		      SELECT c_orderline_id
+		        INTO v_sorderline_ID
+		        FROM m_inoutline
+		      WHERE m_inoutline_ID = v_shipmentoutline_ID;
+
+		      IF(v_sorderline_ID IS NOT NULL AND v_sorderline_ID<>'') THEN
+		        SELECT em_ssa_qtyreturned, qtyordered
+                          INTO v_qtyreturned, v_qtyordered
+                        FROM c_orderline WHERE c_orderline_id =v_sorderline_ID FOR UPDATE;
+
+		        IF(v_qtyreturned + v_Qty > v_qtyordered) THEN
+		          RAISE_APPLICATION_ERROR(-20000, '@SSA_ReturnedQtyGreaterThanQtyOrdered@') ;
+	                END IF; 
+		        UPDATE c_orderline SET em_ssa_qtyreturned = em_ssa_qtyreturned + v_Qty WHERE c_orderline_id = v_sorderline_ID;
+		      END IF;
+                    END;
+
+		   ELSIF(v_specialdoctype = 'SSARFSRECEIPT') THEN
+			--If sample receipt consider the qtyinvoiced from the c_order as qty_returned
+                    DECLARE
+		      v_qtyordered NUMBER;
+                      v_movementqty NUMBER;
+		      v_qtyreturned NUMBER;
+			   v_qtyinvoiced NUMBER;
+	            BEGIN
+		      --Calculate QtyReturned for m_inoutline and c_invoiceline
+		      SELECT m_inoutline_id
+		        INTO v_shipmentoutline_ID
+	                FROM c_orderline
+		      WHERE c_orderline.c_orderline_id = Cur_InOutLine.c_orderline_id;
+
+		      IF(v_shipmentoutline_ID IS NOT NULL AND v_shipmentoutline_ID<>'') THEN
+		        SELECT em_ssa_qtyreturned, movementqty
+                          INTO v_qtyreturned, v_movementqty
+                        FROM m_inoutline WHERE m_inoutline_id = v_shipmentoutline_ID FOR UPDATE;
+
+		        IF(v_qtyreturned + v_Qty > v_movementqty) THEN
+		          RAISE_APPLICATION_ERROR(-20000, '@SSA_ReturnedQtyGreaterThanMovementQty@') ;
+	                END IF; 
+		        UPDATE m_inoutline SET em_ssa_qtyreturned = em_ssa_qtyreturned + v_Qty WHERE m_inoutline_id = v_shipmentoutline_ID;
+		      END IF;
+
+		  
+
+		      SELECT c_orderline_id
+		        INTO v_sorderline_ID
+		        FROM m_inoutline
+		      WHERE m_inoutline_ID = v_shipmentoutline_ID;
+
+		      IF(v_sorderline_ID IS NOT NULL AND v_sorderline_ID<>'') THEN
+		        SELECT em_ssa_qtyreturned, qtyordered, qtyinvoiced
+                          INTO v_qtyreturned, v_qtyordered, v_qtyinvoiced
+                        FROM c_orderline WHERE c_orderline_id =v_sorderline_ID FOR UPDATE;
+
+		        IF(v_qtyreturned + v_qtyinvoiced + v_Qty > v_qtyordered) THEN
+		          RAISE_APPLICATION_ERROR(-20000, '@SSA_ReturnedQtyGreaterThanQtyOrdered@') ;
+	                END IF; 
+		        UPDATE c_orderline SET em_ssa_qtyreturned = em_ssa_qtyreturned + v_Qty WHERE c_orderline_id = v_sorderline_ID;
+		      END IF;
+                    END;
+
+		  END IF;
+                  
+
+                -- Sets DateDelivered with the recent shipment date
+                -- of the shipment/s done for the orderline.
+                SELECT MAX(M.MOVEMENTDATE) INTO v_DateDelivered
+                FROM M_INOUTLINE ML, M_INOUT M
+                WHERE ML.C_OrderLine_ID = Cur_InOutLine.C_OrderLine_ID
+                AND ML.M_INOUT_ID = M.M_INOUT_ID
+                AND M.DOCSTATUS='CO';
+              ELSE
+                v_DateDelivered := null;
+              END IF;
+                          
+              IF(v_QtySO > 0) THEN
+                IF(v_DateDelivered IS NULL OR v_DateDelivered < Cur_InOut.MovementDate ) THEN
+                  v_DateDelivered:=Cur_InOut.MovementDate;
+                END IF;
+              END IF;
+              
+              -- stocked product
+              IF(Cur_InOutLine.M_Product_ID IS NOT NULL AND v_IsStocked=1) THEN
+                -- Update OrderLine (if C-, Qty is negative)
+                SELECT DOCSTATUS into v_DocStatus
+                FROM C_ORDER
+                WHERE C_ORDER_ID = (SELECT C_ORDER_ID
+                                    FROM C_ORDERLINE 
+                                    WHERE C_ORDERLINE_ID=Cur_InOutLine.C_OrderLine_ID);
+                IF (v_DocStatus = 'DR') THEN
+                  UPDATE C_ORDERLINE
+                    SET QtyDelivered=QtyDelivered + v_QtySO,
+                    DATEDELIVERED=(CASE WHEN (QtyDelivered + v_QtySO) > 0 THEN v_DateDelivered ELSE NULL END),
+                    Updated=now(),
+                    UpdatedBy=v_User
+                  WHERE C_OrderLine_ID=Cur_InOutLine.C_OrderLine_ID;
+
+                ELSE 
+                  UPDATE C_ORDERLINE
+                    SET QtyReserved=QtyReserved - v_QtyPO - v_QtySO,
+                    DATEDELIVERED=(CASE WHEN (QtyReserved - v_QtyPO - v_QtySO) > 0 THEN v_DateDelivered ELSE NULL END),
+                    QtyDelivered=QtyDelivered + v_QtySO,
+                    Updated=now(),
+                    UpdatedBy=v_User
+                   WHERE C_OrderLine_ID=Cur_InOutLine.C_OrderLine_ID;
+
+                END IF;
+                -- Products not stocked
+              ELSE
+                -- Update OrderLine (if C-, Qty is negative)
+                UPDATE C_ORDERLINE
+                  SET QtyDelivered=QtyDelivered + v_QtySO,
+                  DATEDELIVERED=(CASE WHEN (QtyDelivered + v_QtySO) > 0 THEN v_DateDelivered ELSE NULL END),
+                  Updated=now(),
+                  UpdatedBy=v_User
+                WHERE C_OrderLine_ID=Cur_InOutLine.C_OrderLine_ID;
+              END IF;
+            END IF;
+            IF(Cur_InOutLine.M_Product_ID IS NOT NULL AND v_IsStocked=1) THEN
+              M_Check_Stock(Cur_InOutLine.M_Product_ID, v_AD_Client_ID, v_AD_Org_ID, v_Result, v_Message) ;
+              IF v_Result=0 THEN
+                SELECT name INTO v_ProductName FROM M_Product WHERE M_Product_id = Cur_InOutLine.M_Product_ID;
+			    RAISE_APPLICATION_ERROR(-20000, v_Message||' '||'@line@'||' '||Cur_InOutLine.line||', '||'@Product@'||' '||v_ProductName) ;
+              END IF;
+            END IF;
+
+          END LOOP; -- For all InOut Lines
+          /*******************
+          * PO Matching
+          ******************/
+
+          IF(1=1) THEN--(Cur_InOut.IsSOTrx='N') THEN    --BY 
+          
+            DECLARE
+              Cur_SLines RECORD;
+              Cur_ILines RECORD;
+              v_Qty NUMBER;
+              v_MatchPO_ID VARCHAR2(32) ;
+              v_MatchInv_ID VARCHAR2(32) ;
+            BEGIN
+              v_ResultStr:='MatchPO';
+              FOR Cur_SLines IN
+                (SELECT sl.AD_Client_ID,
+                  sl.AD_Org_ID,
+                  ol.C_OrderLine_ID,
+                  sl.M_InOutLine_ID,
+                  sl.M_Product_ID,
+                  sl.M_AttributeSetInstance_ID,
+                  sl.MovementQty,
+                  ol.QtyOrdered
+                FROM M_INOUTLINE sl,
+                  C_ORDERLINE ol
+                WHERE sl.C_OrderLine_ID=ol.C_OrderLine_ID
+                  AND sl.M_Product_ID=ol.M_Product_ID  --    AND   sl.M_AttributeSetInstance_ID=ol.M_AttributeSetInstance_ID
+                  AND sl.M_InOut_ID=Cur_InOut.M_InOut_ID
+                )
+              LOOP          
+
+          
+                v_Qty:=Cur_SLines.MovementQty;
+                --IF (ABS(Cur_SLines.MovementQty) > ABS(Cur_SLines.QtyOrdered)) THEN
+                -- v_Qty := Cur_SLines.QtyOrdered;
+                --END IF;
+
+                  Ad_Sequence_Next('M_MatchPO', Cur_SLines.AD_Org_ID, v_MatchPO_ID) ;
+                  -- The min qty. Modified by Ismael Ciordia
+                  v_ResultStr:='InsertMatchPO ' || v_MatchPO_ID;
+                  INSERT
+                  INTO M_MATCHPO
+                    (
+                      M_MatchPO_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                      Created, CreatedBy, Updated, UpdatedBy,
+                      M_InOutLine_ID, C_OrderLine_ID, M_Product_ID, DateTrx,
+                      Qty, Processing, Processed, Posted
+                    )
+                    VALUES
+                    (
+                      v_MatchPO_ID, Cur_SLines.AD_Client_ID, Cur_SLines.AD_Org_ID, 'Y',
+                      now(), v_User, now(), v_User,
+                      Cur_SLines.M_InOutLine_ID, Cur_SLines.C_OrderLine_ID, Cur_SLines.M_Product_ID, now(),
+                      v_Qty, 'N', 'Y', 'N'
+                    )
+                  ;
+                  
+              END LOOP;
+              v_ResultStr:='MatchInv';
+              FOR Cur_ILines IN
+                (SELECT sl.AD_Client_ID,
+                  sl.AD_Org_ID,
+                  il.C_InvoiceLine_ID,
+                  sl.M_InOutLine_ID,
+                  sl.M_Product_ID,
+                  sl.M_AttributeSetInstance_ID,
+                  sl.MovementQty,
+                  il.QTYINVOICED,
+                  i.DateAcct
+                FROM M_INOUTLINE sl,
+                  C_INVOICE i,
+                  C_INVOICELINE il
+                WHERE sl.M_InOutLine_ID=il.M_InOutLine_ID
+                  AND sl.M_InOut_ID=Cur_InOut.M_InOut_ID
+                  AND i.C_INVOICE_ID = il.C_INVOICE_ID
+                )
+              LOOP
+
+
+                Ad_Sequence_Next('M_MatchInv', Cur_ILines.AD_Org_ID, v_MatchInv_ID) ;
+                -- The min qty. Modified by Ismael Ciordia
+                v_Qty:=Cur_ILines.MovementQty;
+                --IF (ABS(Cur_ILines.MovementQty) > ABS(Cur_ILines.QtyInvoiced)) THEN
+                -- v_Qty := Cur_ILines.QtyInvoiced;
+                --END IF;
+                v_ResultStr:='InsertMatchPO ' || v_MatchPO_ID;
+                INSERT
+                INTO M_MATCHINV
+                  (
+                    M_MATCHINV_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+                    CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+                    M_INOUTLINE_ID, C_INVOICELINE_ID, M_PRODUCT_ID, DATETRX,
+                    QTY, PROCESSING, PROCESSED, POSTED
+                  )
+                  VALUES
+                  (
+                    v_MatchInv_ID, Cur_ILines.AD_Client_ID, Cur_ILines.AD_Org_ID, 'Y',
+                    now(), v_User, now(), v_User,
+                    Cur_ILines.M_InOutLine_ID, Cur_ILines.C_InvoiceLine_ID, Cur_ILines.M_Product_ID, Cur_ILines.DateAcct,
+                    v_Qty, 'N', 'Y', 'N'
+                  )
+                  ;
+              END LOOP;
+
+                        
+            END;
+          ELSE
+
+          
+            --Void document is created automatically from main document . 
+            --during completion of void document , we have to skip delivery rule for void document .
+            select COALESCE(instr(M_INOUT.Description,'*R*:'),0) 
+            into v_voiddoccount 
+            from M_INOUT
+            where M_INOUT.M_INOUT_id =v_Record_ID;
+            if v_voiddoccount = 0 then
+              v_ResultStr:='Check delivery rule for sales orders';
+              v_Message_aux:='';
+              v_orderid_old:='0';
+              FOR Cur_Order IN 
+                (SELECT c_order.deliveryrule, m_inoutline.line, c_order.c_order_id,
+                        c_order.documentno, c_orderline.line as orderline
+                 FROM M_InOutLine, C_Orderline, C_Order
+                 WHERE M_Inoutline.c_orderline_id = c_orderline.c_orderline_id
+                   AND c_orderline.c_order_id = c_order.c_order_id
+                   AND m_inoutline.m_inout_id = cur_inout.m_inout_id
+                   AND ((c_order.deliveryrule = 'O'
+                        AND EXISTS (SELECT 1 FROM C_OrderLine ol
+                                    WHERE ol.C_Order_ID = C_order.c_order_id
+                                      and ol.qtyordered > ol.qtydelivered ))
+                        OR (c_order.deliveryrule = 'L' 
+                            AND c_orderline.qtyordered > c_orderline.qtydelivered))
+                 ORDER BY c_order.c_order_id, c_orderline.line) LOOP
+                --Order lines not completely delivered with delivery rule O or L
+                IF (v_orderid_old <> cur_order.c_order_id OR cur_order.deliveryrule <> 'O' ) THEN
+                  v_Message_aux := COALESCE(v_Message_aux,'') || '@Shipment@' || ' ' || cur_inout.documentno;
+                  v_Message_aux := v_Message_aux || ' ' || '@line@' || ' ' || cur_order.line || ': ';
+                  v_Message_aux := v_Message_aux || '@SalesOrderDocumentno@' || cur_order.documentno;
+                  IF (cur_order.deliveryrule = 'O') THEN
+                    v_Message_aux := v_Message_aux || ' ' || '@notCompleteDeliveryRuleOrder@' || '<br>';
+                  ELSE
+                    v_Message_aux := v_Message_aux || ' ' || '@line@' || ' ' || cur_order.orderline;
+                    v_Message_aux := v_Message_aux || ' ' || '@notCompleteDeliveryRuleLine@' || '<br>';
+                  END IF;
+                END IF;
+                v_orderid_old := cur_order.c_order_id;
+              END LOOP;
+              IF (v_Message_aux IS NOT NULL AND v_Message_aux <> '') THEN
+                RAISE_APPLICATION_ERROR(-20000, v_Message_aux);
+              END IF;
+            END IF;
+          END IF;
+          -- Close Shipment
+          v_ResultStr:='CloseShipment';
+
+
+          UPDATE M_INOUT
+            SET Processed='Y',
+            DocStatus='CO',
+            DocAction='RC',
+            Process_Goods_Java='--',
+            Updated=now(),
+            UpdatedBy=v_User
+          WHERE M_INOUT.M_INOUT_ID=Cur_InOut.M_INOUT_ID;
+          --
+          
+          FOR Cur_inOutLineCO IN
+            (SELECT ol.C_OrderLine_ID,
+                    sl.M_InOutLine_ID
+             FROM M_INOUTLINE sl,
+                  C_ORDERLINE ol
+             WHERE sl.C_OrderLine_ID=ol.C_OrderLine_ID
+               AND sl.M_InOut_ID=Cur_InOut.M_InOut_ID
+               AND sl.IsActive='Y'
+            )
+          LOOP          
+               -- Update Invoice Lines created from order
+	       UPDATE C_InvoiceLine SET M_InOutLine_ID=Cur_inOutLineCO.M_InOutLine_ID
+   	        WHERE C_OrderLine_ID=Cur_inOutLineCO.C_OrderLine_ID
+ 		  AND M_InOutLine_ID IS NULL;
+	       --
+	  END LOOP;    
+
+          -- Updating MInOut invoice state
+          UPDATE M_INOUT
+             SET em_scr_invoice_state=COALESCE(A.DocStatus,'??')
+          FROM
+            (SELECT i.DocStatus
+               FROM M_INOUTLINE sl,
+                    C_INVOICELINE il,
+                    C_INVOICE i
+              WHERE il.m_inoutline_id=sl.m_inoutline_id
+                AND il.c_invoice_id=i.c_invoice_id
+                AND sl.M_InOut_ID=Cur_InOut.M_INOUT_ID
+                AND sl.IsActive='Y'
+              ORDER BY sl.created, il.created DESC LIMIT 1              
+            ) A
+          WHERE M_INOUT.M_INOUT_ID=Cur_InOut.M_INOUT_ID;
+         --       
+
+
+--BY PALK
+    ELSIF(Cur_InOut.DocStatus='DR' AND Cur_InOut.DocAction='RC' AND Cur_InOut.ISSOTRX ='Y') THEN
+
+
+           SELECT SCR_combo_item_id 
+                INTO v_Swa_Combo_Item_void_id 
+                FROM SCR_combo_item ci 
+               INNER JOIN SCR_combo_category cc 
+                       ON ci.SCR_combo_category_id = cc.SCR_combo_category_id
+                WHERE ci.value='AnulacionGuiaCliente'
+                  AND cc.value='TipoAnulacionGuiaCliente'
+                  AND ci.ad_client_id= Cur_InOut.AD_Client_ID;
+
+	      IF(v_Swa_Combo_Item_void_id IS NULL) THEN	   
+	        RAISE_APPLICATION_ERROR(-20000, '@swa_void_good_shipment_nocboitem@');
+	      END IF;
+
+
+
+           SELECT COUNT(*) INTO v_count
+           FROM M_INOUTLINE
+           WHERE M_INOUT_ID=v_Record_ID;
+        
+          IF (v_count<>0) THEN
+            RAISE_APPLICATION_ERROR(-20000,'@swa_voidedShipmentNeedDeleteLines@');
+          END IF;
+
+         
+          -- VAFASTER Si Voideo un  de Reposition, Se voidea Tmb El otro shipment
+             IF(v_inout_reference_reposition_ID IS NOT NULL AND v_DocAction='RC')THEN
+                --Info de FOR:
+                --Si anulo una Guia de remision, entonces la recepcion de transferencia se ANULA O VOIDEA 
+                FOR CUR_VOID_RECEIPT_REPOSITION IN (
+                        SELECT * FROM swa_requerimientoreposicion 
+                        WHERE swa_fromrequerimiento_id=v_requireposicion_id
+                        ) 
+                LOOP 
+                   IF(CUR_VOID_RECEIPT_REPOSITION.status='CO')THEN
+                     RAISE_APPLICATION_ERROR(-20000, '@swa_noVoid_repositionNoDraft@' || CUR_VOID_RECEIPT_REPOSITION.documentno);
+                   ELSE
+                    UPDATE swa_requerimientoreposicion 
+                       SET Status='VO'
+                     WHERE swa_requerimientoreposicion_id= CUR_VOID_RECEIPT_REPOSITION.swa_requerimientoreposicion_id;
+                   END IF;
+                END LOOP;
+                              
+              UPDATE M_INOUT
+                 SET DOCSTATUS='VO',
+                     DOCACTION ='--',
+                     em_sco_voiddate = now(),
+                     process_goods_java='--'
+               WHERE M_INOUT_ID = v_inout_reference_reposition_ID;
+                
+                  IF(v_isfromreposition = 'Y' AND v_requireposicion_id IS NOT NULL) THEN
+                   UPDATE swa_requerimientoreposicion 
+                      SET isdelivered='EM',
+                          duedate=null                        
+                    WHERE swa_requerimientoreposicion_id = v_requireposicion_id;
+                   END IF;
+            END IF;
+          -- ENDSIMON
+ 
+
+		UPDATE M_INOUT
+		SET DocStatus='VO',
+		    DocAction='--',
+		    Process_Goods_Java='--',
+		    Processed='Y',
+		    Updated=now(),
+		    UpdatedBy=v_User,
+                    em_sco_voiddate = now(),
+                    em_sco_voidmotive_cmbitem_id = v_voidmotive_comboitem_id
+		WHERE M_Inout_ID=v_Record_ID;
+
+	                  
+
+              FOR CUR_tmp IN (
+                  SELECT distinct em_obwpl_pickinglist_id
+                    FROM M_INOUTLINE MIOL
+                   WHERE MIOL.M_INOUT_ID=Cur_InOut.m_inout_id 
+              )
+              LOOP
+                 UPDATE obwpl_pickinglist
+                    SET pickliststatus='CA',
+		        em_swa_c_order_id = null,
+			em_swa_requerepo_id = null,
+			em_swa_m_production_id = null,
+			em_swa_rtv_c_order_id = null,
+			em_ssa_service_order_id=null,
+			description = 'Anulado por Documento ' || Cur_InOut.documentno
+                  WHERE OBWPL_pickinglist_id = CUR_tmp.em_obwpl_pickinglist_id;
+              END LOOP;
+
+             
+    
+    
+          -- Not Processed + Complete --
+          /**
+          * Reverse Correction
+          */
+        ELSIF(Cur_InOut.DocStatus='CO' AND Cur_InOut.DocAction='RC') THEN
+          --Check if the m_inoutlines has an invoice lines related. In this case is not possible to void the m_inout.
+          --COMMENTED BY UGO WE WILL LET IT BE VOIDED IF ALL RELATED INVOICES ARE IN DRAFT STATUS ELIMINATING THE LINKS
+	  --SELECT COUNT(*)
+          --INTO v_count
+          --FROM M_INOUTLINE MIOL 
+          --    JOIN C_INVOICELINE CIL ON MIOL.M_INOUTLINE_ID=CIL.M_INOUTLINE_ID 
+          --    JOIN C_INVOICE CI ON CI.C_INVOICE_ID=CIL.C_INVOICE_ID
+          --WHERE M_INOUT_ID=Cur_InOut.m_inout_id
+          --AND CI.DOCSTATUS <> 'VO';
+
+
+           --ADDED BY VAFASTER VOIDED SHIPMENT THEN VOIDED PICKING
+            IF(Cur_InOut.ISSOTRX ='Y')THEN
+
+              FOR CUR_tmp IN (
+                SELECT distinct em_obwpl_pickinglist_id
+                  FROM M_INOUTLINE MIOL
+                WHERE MIOL.M_INOUT_ID=Cur_InOut.m_inout_id 
+              )
+              LOOP
+                 UPDATE obwpl_pickinglist
+                    SET pickliststatus='CA',
+		        em_swa_c_order_id = null,
+			em_swa_requerepo_id = null,
+			em_swa_m_production_id = null,
+			em_swa_rtv_c_order_id = null,
+			em_ssa_service_order_id=null,
+			description = 'Anulado por Documento ' || Cur_InOut.documentno
+                  WHERE OBWPL_pickinglist_id = CUR_tmp.em_obwpl_pickinglist_id;
+              END LOOP;
+
+          END IF;
+          --END ADD VAFASTER VOIDED SHIPMENT THEN VOIDED PICKING
+
+	  --ADDED BY UGO TO VOID GOOD SHIPMENT
+          IF(v_isSoTrx = 'Y') THEN
+            SELECT COUNT(*)
+              INTO v_count
+              FROM M_INOUTLINE MIOL
+                  JOIN C_INVOICELINE CIL ON MIOL.M_INOUTLINE_ID=CIL.M_INOUTLINE_ID 
+                  JOIN C_INVOICE CI ON CI.C_INVOICE_ID=CIL.C_INVOICE_ID
+              WHERE M_INOUT_ID=Cur_InOut.m_inout_id
+              AND CI.DOCSTATUS NOT IN ('DR','VO');
+ 
+            IF (v_count <> 0) THEN
+	       RAISE_APPLICATION_ERROR(-20000,'@SCO_VoidShipmentWithRelatedNotDRInvoice@');
+            END IF;
+          END IF;
+
+          --ULink the c_invoiceline -> m_inoutline_id reference from normal m_inout
+
+          UPDATE C_INVOICELINE 
+            SET M_INOUTLINE_ID = NULL
+            WHERE M_INOUTLINE_ID IN (SELECT M.M_INOUTLINE_ID FROM M_INOUTLINE M WHERE M.M_INOUT_ID = Cur_InOut.m_inout_id);
+
+          --Check that there isn't any line with an invoice if the order's 
+          --invoice rule is after delivery
+          select count(*), max(line) into v_count, v_line
+          from (
+          SELECT m_inoutline.m_inoutline_id, m_inoutline.line
+          from m_inoutline, c_order, c_orderline, c_invoiceline, m_inout, c_invoice
+          where m_inoutline.c_orderline_id = c_orderline.c_orderline_id
+            and c_orderline.c_order_id = c_order.c_order_id
+            and c_orderline.c_orderline_id = c_invoiceline.c_orderline_id
+            and m_inoutline.m_inout_id = m_inout.m_inout_id
+            and c_invoiceline.c_invoice_id = c_invoice.c_invoice_id
+            and m_inout.m_inout_id = Cur_InOut.m_inout_id
+            and m_inout.issotrx = 'Y'
+            and c_order.invoicerule in ('D', 'O', 'S')
+            and c_invoice.processed='Y'
+          group by m_inoutline.m_inoutline_id, m_inoutline.line
+          having sum(c_invoiceline.qtyinvoiced) <> 0
+          ) a;
+          IF (v_count > 0 ) THEN
+            v_Message := '@InoutDocumentno@' || ': ' || Cur_InOut.DocumentNo || ' ' || '@line@' || ': ' || v_line || '. ';
+            v_Message := v_Message || '@VoidShipmentInvoiced@';
+            RAISE_APPLICATION_ERROR(-20000, v_Message);
+          END IF;
+          v_ResultStr:='CreateInOut';
+          SELECT COALESCE(C_DOCTYPE_REVERSED_ID, C_DOCTYPE_ID)
+          INTO v_DoctypeReversed_ID
+          FROM C_DOCTYPE
+          WHERE C_DOCTYPE_ID=Cur_InOut.C_DocType_ID;
+          Ad_Sequence_Next('M_InOut', Cur_InOut.M_InOut_ID, v_RInOut_ID) ; -- Get RInOut_ID
+          Ad_Sequence_Doctype(v_DoctypeReversed_ID, Cur_InOut.M_InOut_ID, 'Y', v_RDocumentNo) ; -- Get RDocumentNo
+          IF(v_RDocumentNo IS NULL) THEN
+            AD_Sequence_Doc('DocumentNo_M_InOut', Cur_InOut.AD_Client_ID, 'Y', v_RDocumentNo) ;
+          END IF;
+          -- Indicate that it is invoiced (i.e. not printed on invoices)
+          v_ResultStr:='SetInvoiced';
+          UPDATE M_INOUTLINE  SET IsInvoiced='Y',Updated=now(),UpdatedBy=v_User  WHERE M_InOut_ID=Cur_InOut.M_InOut_ID;
+          --
+          DBMS_OUTPUT.PUT_LINE('Reverse InOut_ID=' || v_RInOut_ID || ' DocumentNo=' || v_RDocumentNo) ;
+          v_ResultStr:='InsertInOut Reverse ' || v_RInOut_ID;
+
+           --Cuando es Anulacion de Guia, vamos a actualizar el tipo de Orden para que en la transaccion nos diga que es de tipo anulacion
+           IF(Cur_InOut.issotrx = 'Y')THEN --Guia Cliente
+
+              SELECT COALESCE(ci.value,'')
+                INTO v_cmbitemvalue
+                FROM SCR_Combo_Item ci
+              WHERE ci.SCR_Combo_Item_ID = Cur_InOut.em_swa_combo_item_id LIMIT 1;
+
+              IF(v_cmbitemvalue IN ('consumomatprimainmueble')) THEN
+                SELECT SCR_combo_item_id 
+                  INTO v_Swa_Combo_Item_void_id 
+                  FROM SCR_combo_item ci 
+                 INNER JOIN SCR_combo_category cc 
+                         ON ci.SCR_combo_category_id = cc.SCR_combo_category_id
+                  WHERE ci.value='anulacion_consumomatprimainmueble'
+                    AND cc.value='TipoAnulacionGuiaCliente'
+                    AND ci.ad_client_id= Cur_InOut.AD_Client_ID;
+              ELSE
+                SELECT SCR_combo_item_id 
+                  INTO v_Swa_Combo_Item_void_id 
+                  FROM SCR_combo_item ci 
+                 INNER JOIN SCR_combo_category cc 
+                         ON ci.SCR_combo_category_id = cc.SCR_combo_category_id
+                  WHERE ci.value='AnulacionGuiaCliente'
+                    AND cc.value='TipoAnulacionGuiaCliente'
+                    AND ci.ad_client_id= Cur_InOut.AD_Client_ID;
+              END IF;
+
+	      IF(v_Swa_Combo_Item_void_id IS NULL) THEN	   
+	        RAISE_APPLICATION_ERROR(-20000, '@swa_void_good_shipment_nocboitem@');
+	      END IF;
+
+	      --
+           ELSE  --Guia Proveedor
+             SELECT SCR_combo_item_id 
+                INTO v_Swa_Combo_Item_void_id 
+                FROM SCR_combo_item ci
+               INNER JOIN SCR_combo_category cc 
+                       ON ci.SCR_combo_category_id = cc.SCR_combo_category_id
+                WHERE ci.value='AnulacionGuiaProveedor'
+                  AND cc.value='TipoAnulacionGuiaProveedor'
+                  AND ci.ad_client_id= Cur_InOut.AD_Client_ID;
+
+	      IF(v_Swa_Combo_Item_void_id IS NULL) THEN	      
+                  RAISE_APPLICATION_ERROR(-20000, '@swa_void_good_Receipt_nocboitem@');
+	      END IF;
+           END IF;
+
+          
+          INSERT
+          INTO M_INOUT
+            (
+              M_InOut_ID, C_Order_ID, IsSOTrx, AD_Client_ID,
+              AD_Org_ID, IsActive, Created, CreatedBy,
+              Updated, UpdatedBy, DocumentNo, C_DocType_ID,
+              Description, IsPrinted, MovementType, MovementDate,
+              DateAcct, C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID,
+              M_Warehouse_ID, POReference, DateOrdered, DeliveryRule,
+              FreightCostRule, FreightAmt, C_Project_ID, C_Activity_ID,
+              C_Campaign_ID, AD_OrgTrx_ID, User1_ID, User2_ID,
+              C_Costcenter_ID, A_Asset_ID,
+              DeliveryViaRule, M_Shipper_ID, C_Charge_ID, ChargeAmt,
+              PriorityRule, DocStatus, DocAction, Processing,
+              Processed, ISLOGISTIC, salesrep_id, Process_Goods_Java,EM_Swa_Combo_Item_ID,em_swa_isvoided, em_scr_physical_documentno              
+            )
+            VALUES
+            (
+              v_RInOut_ID, Cur_InOut.C_Order_ID, Cur_InOut.IsSOTrx, Cur_InOut.AD_Client_ID,
+              Cur_InOut.AD_Org_ID, 'Y', now(), v_User,
+              now(), v_User, v_RDocumentNo, v_DoctypeReversed_ID,
+               '(*R*: ' || Cur_InOut.DocumentNo || ') ' || COALESCE(TO_CHAR(Cur_InOut.Description), ''), 'N', Cur_InOut.MovementType, Cur_InOut.MovementDate,
+              Cur_InOut.DateAcct, Cur_InOut.C_BPartner_ID, Cur_InOut.C_BPartner_Location_ID, Cur_InOut.AD_User_ID,
+              Cur_InOut.M_Warehouse_ID, Cur_InOut.POReference, Cur_InOut.DateOrdered, Cur_InOut.DeliveryRule,
+              Cur_InOut.FreightCostRule, Cur_InOut.FreightAmt * -1, Cur_InOut.C_Project_ID, Cur_InOut.C_Activity_ID,
+              Cur_InOut.C_Campaign_ID, Cur_InOut.AD_OrgTrx_ID, Cur_InOut.User1_ID, Cur_InOut.User2_ID,
+              Cur_InOut.C_Costcenter_ID, Cur_InOut.A_Asset_ID,
+              Cur_InOut.DeliveryViaRule, Cur_InOut.M_Shipper_ID, Cur_InOut.C_Charge_ID, Cur_InOut.ChargeAmt * -1,
+              Cur_InOut.PriorityRule, 'DR', 'CO', 'N',
+               'N', Cur_InOut.islogistic, Cur_InOut.salesrep_id, 'CO',v_Swa_Combo_Item_void_id,'Y', Cur_InOut.em_scr_physical_documentno              
+            )
+            ;
+          v_ResultStr:='InsertInOutLine';
+
+          SELECT em_swa_annul_locator_id 
+            INTO v_swa_annul_locator_id            
+            FROM m_warehouse 
+           WHERE m_warehouse_id = Cur_InOut.m_warehouse_id;
+
+
+         SELECT em_sco_specialdoctype 
+           INTO v_em_sco_specialdoctype
+           FROM c_doctype 
+          WHERE c_doctype_id=v_DoctypeReversed_ID;
+          
+
+          FOR Cur_InOutLine IN
+            (SELECT *
+            FROM M_INOUTLINE
+            WHERE M_InOut_ID=Cur_InOut.M_InOut_ID
+              AND IsActive='Y'  FOR UPDATE
+            )
+          LOOP
+            -- Create InOut Line
+            Ad_Sequence_Next('M_InOutLine', Cur_InOut.M_InOut_ID, v_NextNo) ;
+            v_ResultStr:='CreateInOutLine';
+
+           --  RAISE_APPLICATION_ERROR(-20000, v_em_sco_specialdoctype) ;
+             
+             IF(Cur_InOut.issotrx = 'Y')THEN
+	       IF(v_swa_annul_locator_id IS NOT NULL 
+	          AND v_em_sco_specialdoctype NOT IN ('SWARFCRECEIPT','SSARFSRECEIPT'))THEN
+	            v_locator_asign_id:= v_swa_annul_locator_id;
+	       ELSE
+		  v_locator_asign_id:= Cur_InOutLine.M_Locator_ID;
+	       END IF;
+             ELSE  
+                IF(v_em_sco_specialdoctype IN ('SWARTVRECEIPT'))THEN
+                  IF(v_swa_annul_locator_id IS NOT NULL)THEN
+                   v_locator_asign_id:= v_swa_annul_locator_id;
+                  ELSE
+                   v_locator_asign_id:= Cur_InOutLine.M_Locator_ID;
+                  END IF;
+                ELSE
+                 v_locator_asign_id:= Cur_InOutLine.M_Locator_ID;
+                END IF;
+             END IF;
+
+            INSERT
+            INTO M_INOUTLINE
+              (
+                M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+                AD_Client_ID, AD_Org_ID, IsActive, Created,
+                CreatedBy, Updated, UpdatedBy, M_Product_ID,
+                M_AttributeSetInstance_ID, C_UOM_ID, M_Locator_ID, MovementQty,
+                Description, IsInvoiced,  --MODIFIED BY F.IRIAZABAL
+                QuantityOrder, M_Product_UOM_ID, IsDescription,
+                canceled_inoutline_id, A_Asset_ID, C_Project_ID, C_BPartner_ID,
+                User1_ID, User2_ID, C_CostCenter_ID, 
+                explode, em_sco_voidorderline_id,  EM_SPR_EXCLUDEFROMPROJECT
+              )
+              VALUES
+              (
+                v_NextNo, Cur_InOutLine.Line, v_RInOut_ID, Cur_InOutLine.C_OrderLine_ID,
+                Cur_InOut.AD_Client_ID, Cur_InOut.AD_Org_ID, 'Y', now(),
+                v_User, now(), v_User, Cur_InOutLine.M_Product_ID,
+                Cur_InOutLine.M_AttributeSetInstance_ID, Cur_InOutLine.C_UOM_ID, v_locator_asign_id, Cur_InOutLine.MovementQty * -1,
+                 '*R*: ' || COALESCE(TO_CHAR(Cur_InOutLine.Description), ''), Cur_InOutLine.IsInvoiced, --MODIFIED BY F.IRIAZABAL
+                Cur_InOutLine.QuantityOrder * -1, Cur_InOutLine.M_PRODUCT_UOM_ID, Cur_InOutLine.IsDescription,
+                Cur_InOutLine.M_InOutLine_ID, Cur_InOutLine.A_Asset_ID, Cur_InOutLine.C_Project_ID, Cur_InOutLine.C_BPartner_ID,
+                Cur_InOutLine.User1_ID, Cur_InOutLine.User2_ID, Cur_InOutLine.C_CostCenter_ID, 
+                Cur_InOutLine.explode , Cur_InOutLine.C_OrderLine_ID, Cur_InOutLine.EM_SPR_EXCLUDEFROMPROJECT
+              )
+              ;
+
+	    --copy orderline to voided orderline added by UGO
+            UPDATE M_INOUTLINE SET em_sco_voidorderline_id = Cur_InOutLine.C_OrderLine_ID WHERE M_INOUTLINE_ID = Cur_InOutLine.M_Inoutline_ID;
+
+            -- Create InOut acctounting dimension
+            v_ResultStr:='CreateInOutLineAcctDimension';
+            INSERT
+            INTO M_INOUTLINE_ACCTDIMENSION
+              (
+                M_InOutLine_Acctdimension_ID, M_InOutLine_ID, Quantity,
+                AD_Client_ID, AD_Org_ID, IsActive, Created,
+                CreatedBy, Updated, UpdatedBy, M_Product_ID, C_BPartner_ID,
+                C_Project_ID, C_Campaign_ID, C_Activity_ID, A_Asset_ID,
+                User1_ID, User2_ID, C_CostCenter_ID
+              )
+              SELECT
+                get_uuid(), v_NextNo, Quantity * -1,
+                AD_Client_ID, AD_Org_ID, 'Y', now(),
+                v_User, now(), v_User, M_Product_ID, C_BPartner_ID,
+                C_Project_ID, C_Campaign_ID, C_Activity_ID , A_Asset_ID,
+                User1_ID, User2_ID, C_CostCenter_ID
+              FROM M_INOUTLINE_ACCTDIMENSION where M_INOUTLINE_ID=Cur_InOutLine.M_INOUTLINE_ID
+              and IsActive = 'Y';
+
+            INSERT INTO M_MATCHINV
+              (M_MATCHINV_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+              M_INOUTLINE_ID, C_INVOICELINE_ID, M_PRODUCT_ID, DATETRX, QTY, PROCESSING, PROCESSED, POSTED)
+            SELECT
+              GET_UUID(), MI.AD_CLIENT_ID, MI.AD_ORG_ID, MI.ISACTIVE, now(), '0', now(), '0',
+              v_NextNo, MI.C_INVOICELINE_ID, MI.M_PRODUCT_ID, MI.DATETRX, -MI.QTY, 'N', 'Y', 'N'
+            FROM M_MATCHINV MI
+            WHERE MI.M_INOUTLINE_ID = Cur_InOutLine.M_InOutLine_ID;
+
+          END LOOP;
+
+          --Get a default void motive (the first one of the motivodeanulacion combo category)
+          SELECT SCR_Combo_Item.scr_combo_item_id 
+            INTO v_voidmotive_comboitem_id
+            FROM SCR_Combo_Item, SCR_Combo_Category 
+          WHERE SCR_Combo_Item.SCR_Combo_Category_ID = SCR_Combo_Category.SCR_Combo_Category_ID AND
+            SCR_Combo_Category.value = 'motivodeanulacion' AND
+            SCR_Combo_Item.AD_Client_ID = Cur_InOut.AD_Client_ID AND
+            ad_isorgincluded(Cur_InOut.AD_Org_ID,SCR_Combo_Item.ad_org_id,Cur_InOut.AD_Client_ID) <> -1 ORDER BY seqno LIMIT 1;
+
+          -- Close Order
+          v_ResultStr:='CloseInOut';
+          UPDATE M_INOUT
+            SET Description=COALESCE(TO_CHAR(Description), '') || ' (*R*=' || v_RDocumentNo || ')',
+            Processed='Y',
+            DocStatus='VO', -- it IS reversed
+            DocAction='--',
+            Process_Goods_Java='--',
+            Updated=now(),
+            UpdatedBy=v_User,
+            em_sco_voiddate=now(),
+            em_sco_voidmotive_cmbitem_id = v_voidmotive_comboitem_id
+          WHERE M_INOUT.M_INOUT_ID=Cur_InOut.M_INOUT_ID;
+
+	   FOR Cur_InOutLine IN
+            (SELECT *
+            FROM M_INOUTLINE
+            WHERE M_InOut_ID=Cur_InOut.M_InOut_ID
+              AND IsActive='Y'  FOR UPDATE
+            )
+	  LOOP
+            UPDATE M_INOUTLINE
+              SET Description=COALESCE(TO_CHAR(Cur_InOutLine.Description), '') || ' : *R*',
+              Updated=now(),
+              UpdatedBy=v_User
+            WHERE M_INOUTLINE.M_INOUTLINE_ID=Cur_InOutLine.M_INOUTLINE_ID;
+          END LOOP;
+          
+          -- Post Reversal
+          v_ResultStr:='PostReversal';
+          -- Update reversal goods dates
+          IF (v_voidmovementdate IS NOT NULL) THEN
+            UPDATE M_INOUT SET MovementDate = v_voidmovementdate WHERE M_INOUT_ID = v_RInOut_ID;
+          END IF;
+          IF (v_voiddate_acct IS NOT NULL) THEN
+            UPDATE M_INOUT SET DateAcct = v_voiddate_acct WHERE M_INOUT_ID = v_RInOut_ID;
+          END IF;
+          M_INOUT_POST(NULL, v_RInOut_ID) ;
+          -- Indicate as Reversal Transaction
+          v_ResultStr:='IndicateReversal';
+          UPDATE M_INOUT
+            SET Updated=now(),
+            UpdatedBy=v_User,
+            DocStatus='VO', -- the reversal transaction
+            em_sco_voiddate=now()
+          WHERE M_InOut_ID=v_RInOut_ID;
+
+	  --ADDED BY UGO TO VOID GOOD SHIPMENT
+          --After voiding the document we need to ulink the m_inoutline -> c_orderline reference from the doc and void doc.
+
+          --ULink the c_invoiceline -> m_inoutline_id reference from reversed m_inout
+          UPDATE C_INVOICELINE 
+            SET M_INOUTLINE_ID = NULL
+            WHERE M_INOUTLINE_ID IN (SELECT M.M_INOUTLINE_ID FROM M_INOUTLINE M WHERE M.M_INOUT_ID = v_RInOut_ID);
+          
+          UPDATE M_INOUTLINE
+            SET C_ORDERLINE_ID = NULL
+          WHERE M_INOUT_ID = v_RInOut_ID;
+
+          UPDATE M_INOUTLINE
+            SET C_ORDERLINE_ID = NULL
+          WHERE M_INOUT_ID = Cur_InOut.m_inout_id;      
+
+
+          -- VAFASTER Si Voideo un  de Reposition, Se voidea Tmb El otro shipment
+             IF(v_inout_reference_reposition_ID IS NOT NULL AND v_DocAction='RC')THEN
+
+
+                FOR CUR_VOID_RECEIPT_REPOSITION IN (
+                        SELECT * FROM swa_requerimientoreposicion 
+                        WHERE swa_fromrequerimiento_id=v_requireposicion_id
+                        ) 
+                LOOP 
+                   IF(CUR_VOID_RECEIPT_REPOSITION.status='CO')THEN
+                     RAISE_APPLICATION_ERROR(-20000, '@swa_noVoid_repositionNoDraft@' || CUR_VOID_RECEIPT_REPOSITION.documentno);
+                   ELSE
+                    UPDATE swa_requerimientoreposicion 
+                       SET Status='VO',
+                           duedate=null
+                     WHERE swa_requerimientoreposicion_id= CUR_VOID_RECEIPT_REPOSITION.swa_requerimientoreposicion_id;
+                   END IF;
+                END LOOP;
+             
+                M_INOUT_POST(NULL, v_inout_reference_reposition_ID);
+                  IF(v_isfromreposition = 'Y' AND v_requireposicion_id IS NOT NULL) THEN
+                   UPDATE swa_requerimientoreposicion 
+                      SET isdelivered='EM' 
+                    WHERE swa_requerimientoreposicion_id = v_requireposicion_id;
+                   END IF;
+            END IF;
+          -- ENDSIMON
+          
+        END IF; -- ReverseCorrection
+
+        --M_Inout_Post - Finish_Process Extension Point
+        --Extension point at the end of the M_Inout_Post. It has 5 available parameters Record_ID, DocAction, User, Message and Result
+        SELECT count(*) INTO v_count
+        FROM DUAL
+        where exists (select 1 from ad_ep_procedures where ad_extension_points_id = '5A7C6972321E42C2A5A8E9D6D73E6A7C');
+        IF (v_count=1) THEN
+          DECLARE
+            v_ep_instance VARCHAR2(32);
+            v_extension_point_id VARCHAR2(32) := '5A7C6972321E42C2A5A8E9D6D73E6A7C';
+          BEGIN
+            v_ep_instance := get_uuid();
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+              v_record_id, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'DocAction',
+              Cur_InOut.DocAction, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+              v_User, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
+              NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+              NULL, NULL, v_Result, NULL, NULL, NULL, NULL);
+            AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+            SELECT p_number INTO v_Result
+            FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance
+              AND parametername LIKE 'Result';
+            SELECT p_text INTO v_Message
+            FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance
+              AND parametername LIKE 'Message';
+
+            DELETE FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance;
+          END;
+        END IF;
+
+      END LOOP; -- InOut Header
+      /**
+      * Transaction End
+      */
+      v_ResultStr:='Fini';
+    END IF; --FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<M_InOut_Post finished>>') ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END M_INOUT_POST
+]]></body>
+    </function>
+  </database>

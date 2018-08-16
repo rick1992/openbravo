@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<SqlClass name="ApplyToDUAData" package="pe.com.unifiedgo.accounting.process">
+  
+   
+   <SqlMethod name="selectGLItemByAcctValue" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT gl.C_glitem_ID , gl.name 
+        FROM C_glitem gl, C_Glitem_acct glacct, C_Acctschema schema, AD_Org org, C_Validcombination comb, C_Elementvalue el
+        WHERE gl.AD_CLIENT_ID = ?
+        AND AD_ISORGINCLUDED(?,gl.AD_Org_ID,?) <> -1 
+        AND gl.C_Glitem_ID = glacct.C_Glitem_ID
+        AND glacct.C_Acctschema_ID = schema.C_Acctschema_ID
+        AND ad_get_org_le_bu(?,'LE') = org.AD_Org_ID
+        AND org.C_Acctschema_ID = schema.C_Acctschema_ID
+        AND glacct.glitem_debit_acct = comb.C_Validcombination_ID
+        AND comb.account_ID = el.C_Elementvalue_ID
+        AND el.value LIKE ? 
+
+      ]]></Sql>
+        <Parameter name="adClientId" />
+        <Parameter name="adOrgId" />
+        <Parameter name="adClientId" />
+        <Parameter name="adOrgId" />
+        <Parameter name="accvalue" />
+   </SqlMethod>
+  
+  </SqlClass>

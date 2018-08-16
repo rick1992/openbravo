@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteControlFondosFijosData" package="pe.com.unifiedgo.report.ad_reports">
+    <SqlClassComment></SqlClassComment>
+    
+    <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select '' as rownum, '' as id , '' as fondofijo, '' as tipoperacion, '' as detalle, '' as nromes, '' as mes, 
+                '' as monto, '' as adorgid, '' as orgname, '' as socialname, '' as startdate, '' as enddate, 
+                '' as name, '' as padre from dual
+            ]]>
+        </Sql>
+    </SqlMethod>
+    
+    <SqlMethod name="selectData" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select max(sco_facc_transac_detail_v_id) as id,                
+                fa.name || ' (' ||coalesce((select coalesce((select t.description from c_currency_trl t where t.c_currency_id = c.c_currency_id and t.ad_language = 'es_PE' limit 1 ),c.description) from c_currency c where c.c_currency_id = fa.c_currency_id), '') || ')' as fondofijo,
+                case when inv.c_invoice_id is not null then 'PAGO'
+                when ite.c_glitem_id is not null then 'CONCEPTO' end as tipoperacion,                
+                case when inv.c_invoice_id is not null then /*coalesce(inv.description, '')*/ 'PAGO' || coalesce(' - ' || bp.name, '')
+                when ite.c_glitem_id is not null then coalesce(ite.name, '') || coalesce(' - ' || tbp.name, '') end as detalle,
+                to_char(ftd.dateacct, 'MM') as nromes,
+                
+                case to_char(ftd.dateacct, 'MM')
+                when '01' then 'Enero'
+                when '02' then 'Febrero'
+                when '03' then 'Marzo'
+                when '04' then 'Abril'
+                when '05' then 'Mayo'
+                when '06' then 'Junio'
+                when '07' then 'Julio'
+                when '08' then 'Agosto'
+                when '09' then 'Septiembre'
+                when '10' then 'Octubre'
+                when '11' then 'Noviembre'
+                when '12' then 'Diciembre' end as mes, 
+                
+                sum(case when ftd.paymentamt > 0 then ftd.paymentamt
+                when ftd.depositamt < 0 then abs(ftd.depositamt) else 0.0 end) as monto
+                
+                from sco_facc_transac_detail_v ftd
+                
+                join fin_financial_account fa on ftd.fin_financial_account_id = fa.fin_financial_account_id
+                left join c_invoice inv on ftd.c_invoice_id = inv.c_invoice_id
+                left join c_bpartner bp on inv.c_bpartner_id = bp.c_bpartner_id
+                left join c_glitem ite on ftd.c_glitem_id = ite.c_glitem_id
+                left join fin_finacc_transaction tra on ftd.fin_finacc_transaction_id = tra.fin_finacc_transaction_id
+                left join c_bpartner tbp on tra.c_bpartner_id = tbp.c_bpartner_id
+                where fa.type = 'SCR_F'
+                
+                and ad_isorgincluded(fa.ad_org_id, ?, fa.ad_client_id) <> -1
+                and ftd.dateacct >= to_date(?) and ftd.dateacct <= to_date(?)
+                and ftd.c_glitem_id not in (select c_glitem_id from c_glitem where em_sco_specialglitem = 'SCOFIXEDCASHREPOSITION')
+                and 1=1                 
+                
+                group by fondofijo, tipoperacion, detalle, nromes, mes 
+                order by fondofijo, detalle, nromes             
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+        <Parameter name="dateFrom" />
+        <Parameter name="dateTo" />        
+        <Parameter name="cGlitemId" optional="true" after="1=1"><![CDATA[ and ite.c_glitem_id = ?]]></Parameter>
+        <Parameter name="cBpartnerId" optional="true" after="1=1"><![CDATA[ and to_char(?) in (bp.c_bpartner_id, tbp.c_bpartner_id)]]></Parameter>
+        <Parameter name="isActive" optional="true" after="1=1"><![CDATA[ and fa.isactive = ?]]></Parameter>        
+    </SqlMethod>
+    
+    <SqlMethod name="getGlItems" type="preparedStatement" return="multiple">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select c_glitem_id as id, name, ad_org_id as padre from c_glitem where ad_org_id = ? or ad_org_id = '0' order by name 
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select name as orgname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="">
+        <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            <![CDATA[
+                select social_name as socialname from ad_org where ad_org_id = ?            
+            ]]>
+        </Sql>
+        <Field name="rownum" value="count"/>
+        <Parameter name="adOrgId" />
+    </SqlMethod>
+    
+    <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+    
+</SqlClass>

@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteControlCostosVersusVentasData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_por_producto" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+	
+	
+
+		SELECT A.productvalue, A.productname, A.invphysicaldocno, A.dateacct , A.area, A.qtyinvoiced,
+		       A.priceactual, A.priceactual*A.qtyinvoiced AS totalvta, A.costounit, ROUND(A.costounit*A.qtyinvoiced,2) AS totalcosto,
+		 (A.priceactual*A.qtyinvoiced) - ROUND(A.costounit*A.qtyinvoiced,2) AS difcosto,A.vendedor,A.cliente
+		FROM (SELECT  p.M_Product_ID, p.value AS productvalue, p.name as productname, 
+		i.em_scr_physical_documentno as invphysicaldocno, i.dateacct , COALESCE(w.value,'') as area, il.qtyinvoiced,
+		(select au.name from ad_user au where au.ad_user_id=i.salesrep_id) as vendedor
+		,cbp.name as cliente,
+		COALESCE(( 
+		  CASE WHEN i.c_currency_id<>'308' THEN COALESCE(C_Currency_Round(C_Currency_Convert(il.priceactual, i.c_currency_id,'308', i.dateacct, NULL, i.ad_client_id, i.ad_org_id),'308',NULL),0)
+		  ELSE il.priceactual END ),0) AS priceactual,
+		COALESCE((
+		SELECT 
+		  CASE WHEN c.c_currency_id<>'308' THEN COALESCE(SUM(C_Currency_Round(C_Currency_Convert(c.cost, c.c_currency_id,'308', i.dateacct, NULL, c.ad_client_id, c.ad_org_id),'308',NULL)),0)
+		  ELSE c.cost END FROM M_Costing c
+		WHERE c.M_Product_ID = p.M_Product_ID
+		AND c.isactive = 'Y'
+		AND c.AD_Client_ID = il.AD_Client_ID
+		AND AD_ISORGINCLUDED(il.AD_Org_ID, c.AD_Org_ID, il.AD_Client_ID) <> -1
+		AND TRUNC(c.datefrom) <= TRUNC(i.dateacct)
+		AND TRUNC(c.dateto) >= TRUNC(i.dateacct) 
+		group by c.c_currency_id, c.cost, c.dateTo, c.created
+		order by c.dateTo desc, c.created desc  LIMIT 1
+		),0) as costounit
+		FROM C_Invoiceline il
+		LEFT JOIN M_Inoutline iol ON il.M_Inoutline_ID = iol.M_Inoutline_ID
+		LEFT JOIN M_Inout io ON iol.M_Inout_ID = io.M_Inout_ID
+		LEFT JOIN M_Warehouse w ON io.M_Warehouse_ID = w.M_Warehouse_ID
+		, C_Invoice i, c_bpartner cbp,
+		M_Product p
+		WHERE il.C_Invoice_ID = i.C_Invoice_ID
+		AND il.M_Product_ID = p.M_Product_ID
+		AND cbp.c_bpartner_id=i.c_bpartner_id
+		AND i.docstatus = 'CO'
+		AND i.em_sco_specialdoctype IN ('SCOARINVOICE','SCOARTICKET')
+		AND i.ad_client_id IN ('1')
+		AND i.ad_org_id IN ('1')
+		AND 1=1 
+
+		AND il.financial_invoice_line = 'N') A
+		
+		where 2=2 
+		
+		ORDER BY A.productvalue
+			
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+   
+    <Parameter name="adUserClient" type="replace" optional="true" after="i.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND i.ad_org_id IN (" text="'1'"/> 
+    <Parameter name="lineaProductoId"  optional="true" after="1=1"><![CDATA[ AND p.em_prdc_productgroup_id= (?)]]></Parameter>       
+    <Parameter name="productoId"  optional="true" after="1=1"><![CDATA[  AND p.m_product_id = (?)]]></Parameter>   
+    <Parameter name="dateFrom"  optional="true" after="1=1"><![CDATA[  AND (i.dateacct) >= to_date(?) ]]></Parameter>       
+    <Parameter name="dateTo"  optional="true" after="1=1"><![CDATA[   AND (i.dateacct) < to_date(?) ]]></Parameter>       
+    
+    <Parameter name="condicion"  optional="true" after="2=2"><![CDATA[  and case to_char(?) when '<' then ((A.priceactual*A.qtyinvoiced) - ROUND(A.costounit*A.qtyinvoiced,2)) < 0
+		 					   when '>' then ((A.priceactual*A.qtyinvoiced) - ROUND(A.costounit*A.qtyinvoiced,2)) > 0
+		 					   when '=' then ((A.priceactual*A.qtyinvoiced) - ROUND(A.costounit*A.qtyinvoiced,2)) = 0
+		 					   else true end   ]]></Parameter>       
+
+           
+  </SqlMethod>
+  
+  
+  
+  
+  
+  
+ 
+  
+  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  
+  		  <SqlMethod name="selectPrdcProductgroup" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		      SELECT PRDC_PRODUCTGROUP.VALUE || ' - ' || PRDC_PRODUCTGROUP.DESCRIPTION AS NAME     FROM PRDC_PRODUCTGROUP 
+		           WHERE PRDC_PRODUCTGROUP.PRDC_PRODUCTGROUP_ID = ?
+		    </Sql>
+		    <Parameter name="idLineaProducto"/>
+		  </SqlMethod>    
+  
+  
+  
+     <SqlMethod name="selectMproduct" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		       SELECT M_PRODUCT.VALUE || ' - ' || M_PRODUCT.NAME AS NAME  FROM M_PRODUCT      WHERE M_PRODUCT.M_PRODUCT_ID = ?
+		    </Sql>
+		    <Parameter name="idProducto"/>
+		  </SqlMethod>   
+		  
+		  
+		  
+		  <SqlMethod name="selectMWarehouse" type="preparedStatement" return="String" default="">
+		    <SqlMethodComment></SqlMethodComment>
+		    <Sql>
+		        SELECT M_WAREHOUSE.VALUE || ' - ' || M_WAREHOUSE.NAME AS NAME FROM M_WAREHOUSE       WHERE M_WAREHOUSE.M_WAREHOUSE_ID = ?
+		    </Sql>
+		    <Parameter name="idAlmacen"/>
+		  </SqlMethod>   
+  
+  
+  
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+</SqlClass>

@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCO_CALCULATE_ALT_CONVRATE">
+    <function name="SCO_CALCULATE_ALT_CONVRATE" type="NUMERIC">
+      <parameter name="p_finacccurrid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_paymentcurrid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="convrate" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[v_rate_polarity VARCHAR(1) := 'E';
+  v_alt_convrate NUMBER;
+ v_precision NUMBER;
+BEGIN
+
+  SELECT sco_calculate_rate_polarity(p_finaccCurrId,p_paymentCurrId) INTO v_rate_polarity;
+  IF(v_rate_polarity = 'E') THEN
+    v_alt_convrate := convRate;
+  ELSE
+    v_precision := 3;
+    IF(p_finaccCurrId<>'308' AND p_paymentCurrId<>'308') THEN
+      v_precision := 6;
+    END IF;
+    v_alt_convrate := round(1/convRate,v_precision);
+  END IF;
+
+  RETURN v_alt_convrate;
+END SCO_CALCULATE_ALT_CONVRATE
+]]></body>
+    </function>
+  </database>

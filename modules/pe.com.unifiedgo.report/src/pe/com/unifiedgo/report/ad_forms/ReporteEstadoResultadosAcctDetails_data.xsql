@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteEstadoResultadosAcctDetailsData" package="pe.com.unifiedgo.report.ad_forms">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT '' as cuenta_ident, '' as cuenta_nombre, '' as saldo_anio_actual, '' as sub_categoria_id, '' as sub_categoria, '' as tittlesaldo2,  
+      '' as rownum
+      FROM DUAL
+    ]]></Sql>  
+  </SqlMethod>
+  
+ <SqlMethod name="selectAccountsByCategory" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    SELECT fa.acctvalue as cuenta_ident, 
+           el.name as cuenta_nombre,
+           COALESCE((COALESCE(sum(fa.amtacctdr - fa.amtacctcr),0)*(CASE WHEN sesa.account LIKE '-%' THEN -1 ELSE 1 END)),0)*-(CASE WHEN sesc.sign='SCO_PLUS' THEN 1 ELSE -1 END) as saldo_anio_actual
+    FROM sco_eeff_category sec
+    LEFT JOIN sco_eeff_subcategory sesc ON sec.sco_eeff_category_id=sesc.sco_eeff_category_id
+    LEFT JOIN sco_eeff_subcat_accts sesa ON sesc.sco_eeff_subcategory_id=sesa.sco_eeff_subcategory_id,
+    fact_acct fa
+    INNER JOIN c_elementvalue el on fa.account_id=el.c_elementvalue_id
+    WHERE fa.factaccttype IN ('O','N')
+      AND fa.acctvalue ILIKE replace(sesa.account, '-','')
+      AND 4=4 AND fa.ad_org_id IN ('4')
+      AND fa.ad_client_id=sec.ad_client_id
+      AND cast(fa.dateacct AS date) BETWEEN to_date(?) and to_date(?)
+      AND (CASE WHEN sesa.consider = 'Y' AND sesa.considerwhen='SCO_PLUS' THEN (fa.amtacctdr - fa.amtacctcr)>0 
+          WHEN sesa.consider = 'Y' AND sesa.considerwhen<>'SCO_PLUS' THEN (fa.amtacctdr - fa.amtacctcr)<0
+          ELSE '.'='.' END)
+      AND sec.type='SCO_ER'
+      AND sec.ad_client_id IN ('1') 
+      AND sec.ad_org_id IN ('1') 
+      AND sec.catgroup IN('SCO_ER_ER')
+      AND sesc.sco_eeff_subcategory_id=?
+    GROUP BY fa.acctvalue, el.name, sesa.account, sesc.sign
+    ORDER BY fa.acctvalue
+      ]]></Sql>
+      
+     <Field name="rownum" value="count"/>
+     <Parameter name="adOrg" type="replace" optional="true" after="4=4 AND fa.ad_org_id IN (" text="'4'"/>
+     <Parameter name="dateFromMes"></Parameter>
+     <Parameter name="dateToMes"></Parameter>
+
+     <Parameter name="adUserClient" type="replace" optional="true" after="AND sec.ad_client_id IN (" text="'1'"/>
+     <Parameter name="adOrg" type="replace" optional="true" after="sec.ad_org_id IN (" text="'1'"/>
+     <Parameter name="subCategoryId"/>    
+  </SqlMethod>  
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+     
+</SqlClass>

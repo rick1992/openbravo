@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_CHECK_INV_COMPLETED">
+    <trigger name="SSA_CHECK_INV_COMPLETED" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_physicalDocNo_def VARCHAR(60):='000-0000000';
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    -- If invoice is printed, cannot be deleted
+    IF INSERTING THEN 
+         IF (:NEW.issotrx='Y' AND :NEW.docstatus='CO' AND :NEW.em_sco_specialdoctype NOT IN('SCOARBOEINVOICE')) THEN
+	     IF (:NEW.em_scr_physical_documentno IS NULL OR :NEW.em_scr_physical_documentno = v_physicalDocNo_def)
+	         THEN  RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesInvWithoutPhyDocNo@');
+	     END IF;
+	 END IF;
+    
+    ELSE    
+         IF (:NEW.issotrx='Y') THEN
+             IF(COALESCE(:OLD.docstatus,'.')<>COALESCE(:NEW.docstatus,'.') 
+                OR COALESCE(:OLD.em_sco_specialdoctype,'.')<>COALESCE(:NEW.em_sco_specialdoctype,'.')) THEN             
+		 IF (:NEW.docstatus='CO' AND :NEW.em_sco_specialdoctype NOT IN('SCOARBOEINVOICE')) THEN
+		     IF (:NEW.em_scr_physical_documentno IS NULL OR :NEW.em_scr_physical_documentno = v_physicalDocNo_def)
+			 THEN  RAISE_APPLICATION_ERROR(-20000, '@SSA_SalesInvWithoutPhyDocNo@');
+		     END IF;
+		 END IF;
+	 END IF;
+	 END IF;
+    END IF;
+
+  IF(DELETING) THEN
+   IF(:OLD.PROCESSED='Y') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+   END IF;
+  END IF;
+END SSA_CHECK_INV_COMPLETED
+]]></body>
+    </trigger>
+  </database>

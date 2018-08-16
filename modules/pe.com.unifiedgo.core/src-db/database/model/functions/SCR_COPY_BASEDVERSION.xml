@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SCR_COPY_BASEDVERSION">
+    <function name="SCR_COPY_BASEDVERSION" type="NULL">
+      <parameter name="p_pricelist_version_from_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_pricelist_version_to_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[Cur_ProductPrice RECORD;
+  v_Currency_From_ID VARCHAR(32);
+  v_Currency_To_ID VARCHAR(32);
+  v_NextNo VARCHAR(32);
+
+  v_AD_Client_ID VARCHAR(32); 
+  v_AD_Org_ID VARCHAR(32);
+
+  v_Count NUMBER;
+  v_newPriceList NUMBER;
+  v_newPriceStd NUMBER;
+  BEGIN
+    
+    SELECT M_PriceList.C_Currency_ID 
+      INTO v_Currency_From_ID
+      FROM M_PriceList, M_PriceList_Version
+    WHERE M_PriceList.M_PriceList_ID = M_PriceList_Version.M_PriceList_ID AND
+	  M_PriceList_Version.M_PriceList_Version_ID = p_pricelist_version_from_id;
+
+    SELECT M_PriceList.C_Currency_ID, M_PriceList_Version.AD_Client_ID, M_PriceList_Version.AD_Org_ID
+      INTO v_Currency_To_ID, v_AD_Client_ID, v_AD_Org_ID
+      FROM M_PriceList, M_PriceList_Version
+    WHERE M_PriceList.M_PriceList_ID = M_PriceList_Version.M_PriceList_ID AND
+	  M_PriceList_Version.M_PriceList_Version_ID = p_pricelist_version_to_id;
+
+    IF(v_Currency_From_ID IS NULL OR v_Currency_From_ID='' OR v_Currency_To_ID IS NULL OR v_Currency_To_ID='') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SCR_InvalidCopyBaseVer@') ;
+    END IF;
+
+    FOR Cur_ProductPrice IN
+    (SELECT * FROM M_Productprice
+     WHERE M_PriceList_Version_ID=p_pricelist_version_from_id)
+    LOOP
+
+      SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(Cur_ProductPrice.pricestd, v_Currency_From_ID, v_Currency_To_ID, now(), NULL, v_AD_Client_ID, v_AD_Org_ID), v_Currency_To_ID, NULL)), 0)
+      INTO v_newPriceStd;
+
+      SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert(Cur_ProductPrice.pricelist, v_Currency_From_ID, v_Currency_To_ID, now(), NULL, v_AD_Client_ID, v_AD_Org_ID), v_Currency_To_ID, NULL)), 0)
+      INTO v_newPriceList;
+
+      SELECT Count(*) INTO v_Count FROM M_Productprice WHERE m_product_id = Cur_ProductPrice.m_product_id AND m_pricelist_version_id = p_pricelist_version_to_id;
+      IF(v_Count<>0) THEN
+	UPDATE M_Productprice SET pricestd=v_newPriceStd, pricelist=v_newPriceList WHERE m_product_id = Cur_ProductPrice.m_product_id AND m_pricelist_version_id = p_pricelist_version_to_id;
+      ELSE
+        AD_Sequence_Next('M_ProductPrice', v_AD_Client_ID, v_NextNo) ;
+	INSERT INTO m_productprice(
+            m_productprice_id, m_pricelist_version_id, m_product_id, ad_client_id, 
+            ad_org_id, isactive, created, createdby, updated, updatedby, 
+            pricelist, pricestd, pricelimit, cost, algorithm)
+        VALUES (
+            v_NextNo, p_pricelist_version_to_id, Cur_ProductPrice.m_product_id, v_AD_Client_ID, 
+            v_AD_Org_ID, 'Y', now(), p_user_id, now(), p_user_id, 
+            v_newPriceList, v_newPriceStd, Cur_ProductPrice.pricelimit, Cur_ProductPrice.cost, Cur_ProductPrice.algorithm);
+      END IF;
+
+    END LOOP;
+    RETURN;
+END SCR_COPY_BASEDVERSION
+]]></body>
+    </function>
+  </database>

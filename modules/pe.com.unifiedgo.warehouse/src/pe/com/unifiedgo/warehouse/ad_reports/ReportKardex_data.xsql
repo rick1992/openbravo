@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2013 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="ReportKardexData" package="pe.com.unifiedgo.warehouse.ad_reports">
+  <SqlClassComment>Class ReportKardexData</SqlClassComment>
+  <SqlMethod name="selectEmpty" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS TRANSACTIONID, '' AS CLIENTID, '' AS ORGID, '' AS RECORDID, 
+          '' AS TABLEID, '' AS TRANSACTIONDATE, '' AS TRXPROCESSDATE, '' AS TRXPROCESSDATEREF,
+          '' AS MOVEMENTDATE, '' AS MOVEMENTHOUR, '' AS PRODUCTID, '' AS WAREHOUSEID, '' AS QTYPOSSITIVE,'' AS SALDO,'' AS SALDOSOLES,
+          '' AS QTYNEGATIVE,'' AS COSTPOSSITIVE,'' AS COSTNEGATIVE, '' AS PHYSICALNUMBER, '' AS PHYSICALNUMBERINVOICE , '' AS INVOICETABLE,'' AS INVOICEID ,'' AS REFERENCEDOCUMENT, '' AS COMBOITEMID, '' AS MOVEMENTTYPE,
+          '' AS PARTNERNAME, '' AS UPDATEDDATE, '' AS INITIALCOST, '' AS UNITCOST
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  <SqlMethod name="selectKardexAnalityc" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		SELECT a.m_transaction_id as TRANSACTIONID,
+		       a.ad_client_id as CLIENTID,
+		       a.ad_org_id as ORGID,
+		       a.record_id as RECORDID,
+		       a.ad_table_id as TABLEID,
+		       a.transactiondate as TRANSACTIONDATE,
+		       a.trxprocessdate as TRXPROCESSDATE,
+		       a.trxprocessdate_ref as TRXPROCESSDATEREF,
+		       a.movementdate as MOVEMENTDATE,
+		       a.movementhour as MOVEMENTHOUR,
+		       a.m_product_id as PRODUCTID,
+		       a.m_warehouse_id as WAREHOUSEID,
+		       a.qtypossitive as QTYPOSSITIVE,
+		       a.qtynegative as QTYNEGATIVE,
+		       a.physicalnumber as PHYSICALNUMBER,
+		       a.physicalnumberinvoice as PHYSICALNUMBERINVOICE ,
+               a.invoicetable as INVOICETABLE,
+               a.invoiceid as INVOICEID,   
+		       a.referencedocument as REFERENCEDOCUMENT,
+		       a.em_ssa_combo_item_id as COMBOITEMID,
+		       case when (a.docstatus='VO') THEN cbi.name || ' - Anulado ' ELSE cbi.name END  as MOVEMENTTYPE,
+		       a.bpartnername as PARTNERNAME,
+		       a.updateddate as UPDATEDDATE
+		FROM(
+			SELECT mt.m_product_id || mt.ad_client_id || mt.m_transaction_id as m_transaction_id,
+				mt.ad_client_id, 
+				mt.ad_org_id ,
+				coalesce(miv.m_inventory_id,mprd.m_production_id , mvc.swa_movementcode_id) as record_id,
+				case WHEN miv.m_inventory_id IS NOT NULL THEN '321'
+				     WHEN mprd.m_production_id IS NOT NULL THEN '325'
+				     WHEN mvc.swa_movementcode_id IS NOT NULL THEN 'CDCFC9F1E20B44D9B80B3C1F374BEA05'
+				     ELSE ''
+				     END as ad_table_id,
+				mt.movementdate as transactiondate,
+				mt.trxprocessdate,
+				mt.trxprocessdate as trxprocessdate_ref,
+				to_char(mt.movementdate, 'DD-MM-YYYY') as movementdate,
+				to_char(mt.created, 'hh24:mi:ss') as movementhour,
+				mt.m_product_id, 
+				mw.m_warehouse_id,
+				case when mt.movementqty > 0 THEN mt.movementqty    ELSE 0 END AS qtypossitive,
+				case when mt.movementqty < 0 THEN mt.movementqty*-1 ELSE 0 END AS qtynegative,
+				'' AS physicalnumber,
+				'' AS physicalnumberinvoice,  
+                '' AS invoicetable,
+                '' AS invoiceid, 
+				coalesce(miv.documentno,mprd.documentno, mvc.documentno) as referencedocument, 
+				mt.em_ssa_combo_item_id,
+				'' as bpartnername,
+				'' as docstatus,
+				to_char(mt.created, 'DD-MM-YYYY') || ' ' || to_char(mt.created, 'hh24:mi:ss') as updateddate
+			   FROM m_transaction mt 
+			   LEFT JOIN m_locator ml  ON ml.m_locator_id =  mt.m_locator_id    
+				   LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id	  
+				   LEFT JOIN m_inventoryLine mil ON mil.m_inventoryLine_id = mt.m_inventoryLine_id		
+				   LEFT JOIN m_inventory miv ON miv.m_inventory_id = mil.m_inventory_id      
+				   LEFT JOIN m_productionline mprdl ON mprdl.m_productionline_id = mt.m_productionline_id      
+				   LEFT JOIN m_productionplan mprdp ON mprdp.m_productionplan_id = mprdl.m_productionplan_id      
+				   LEFT JOIN m_production mprd ON mprd.m_production_id = mprdp.m_production_id
+				   LEFT JOIN swa_movementcode_product mcp ON mcp.swa_movementcode_product_id = mt.em_swa_movcode_product_id
+				   LEFT JOIN swa_movementcode_plan mvp ON mvp.swa_movementcode_plan_id = mcp.swa_movementcode_plan_id
+				   LEFT JOIN swa_movementcode mvc ON mvc.swa_movementcode_id = mvp.swa_movementcode_id
+			  WHERE mt.m_inoutline_id is null
+			    AND mt.m_product_id = ?
+			    
+			    AND mw.m_warehouse_id = ? 
+			    AND AD_ISORGINCLUDED(mt.ad_org_id, ?, ?) > -1
+			    AND trunc(mt.movementdate) between ? AND ?
+			    AND mt.m_movementline_id is null
+			    AND ((CASE WHEN (mt.m_productionline_id is not null AND mt.movementtype <> 'P+') then 1 ELSE 0 END)=0)
+			    AND 1=1
+			UNION ALL
+			SELECT mt.m_product_id || COALESCE(li.c_orderline_id, li.m_inout_id) ||  li.m_inout_id as m_transaction_id, 
+			       mt.ad_client_id, 
+			       mt.ad_org_id, 
+			       io.m_inout_id as record_id,
+			       '319' as ad_table_id,
+			       mt.movementdate as transactiondate,
+			       COALESCE(vw.trxprocessdate_source,max(io.created)) as trxprocessdate,
+			       max(mt.trxprocessdate) as trxprocessdate_ref,
+			       to_char((COALESCE(mt.movementdate, vw.trxprocessdate_source,max(mt.trxprocessdate))), 'DD-MM-YYYY') as movementdate,
+			       to_char(max(mt.created), 'hh24:mi:ss') as movementhour,
+			       mt.m_product_id, 
+			       mw.m_warehouse_id, 
+			       case when sum(mt.movementqty) > 0 THEN sum(mt.movementqty)    ELSE 0 END AS qtypossitive,
+			       case when sum(mt.movementqty) < 0 THEN sum(mt.movementqty)*-1 ELSE 0 END AS qtynegative,
+			       case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT')  THEN io.em_scr_physical_documentno ELSE '' END AS physicalnumber,
+			       case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAMMDISPATCH') THEN  
+			         CASE WHEN li.c_orderline_id is NULL THEN
+			              ( SELECT inv.em_scr_physical_documentno 
+                            FROM c_invoice inv INNER JOIN c_invoiceline invl ON invl.c_invoice_id = inv.c_invoice_id
+                            WHERE inv.docstatus='CO' 
+                              AND  invl.m_inoutline_id IN ( SELECT M_INOUTLINE_ID FROM M_INOUTLINE WHERE M_INOUT_ID = li.m_inout_id) LIMIT 1
+                          )
+			         ELSE
+	                      (SELECT inv.em_scr_physical_documentno 
+	                        FROM c_invoice inv INNER JOIN c_invoiceline invl ON invl.c_invoice_id = inv.c_invoice_id
+	                       WHERE inv.docstatus='CO' AND invl.c_orderline_id = li.c_orderline_id order by inv.created 
+	                       LIMIT 1)
+	                 END
+                   ELSE '' END AS  physicalnumberinvoice,
+                   '318' AS invoicetable,
+                   case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAMMDISPATCH') THEN  
+                      (
+                        CASE WHEN li.c_orderline_id is NULL THEN
+
+                          ( SELECT inv.c_invoice_id 
+                            FROM c_invoice inv INNER JOIN c_invoiceline invl ON invl.c_invoice_id = inv.c_invoice_id
+                            WHERE inv.docstatus='CO' 
+                              AND  invl.m_inoutline_id IN ( SELECT M_INOUTLINE_ID FROM M_INOUTLINE WHERE M_INOUT_ID = li.m_inout_id) LIMIT 1
+                          )
+                        
+                             ELSE
+                                                     
+                          ( SELECT inv.c_invoice_id 
+                              FROM c_invoice inv INNER JOIN c_invoiceline invl ON invl.c_invoice_id = inv.c_invoice_id
+                              WHERE inv.docstatus='CO' 
+                                AND  invl.c_orderline_id = li.c_orderline_id 
+                                  order by inv.created LIMIT 1
+                           )
+                        END
+                      )
+                   ELSE '' END AS  invoiceid,
+			       case when io.em_sco_specialdoctype IN ('SCOMMRECEIPT') THEN io.em_scr_physical_documentno || ' / ' || io.documentno ELSE io.documentno END AS referencedocument,
+			       mt.em_ssa_combo_item_id,
+			       bpr.name as bpartnername,
+			       io.docstatus,
+			       case when io.docstatus = 'VO' THEN to_char(io.created, 'DD-MM-YYYY') || ' ' || to_char(io.created, 'hh24:mi:ss') ELSE to_char(io.updated, 'DD-MM-YYYY') || ' ' || to_char(io.updated, 'hh24:mi:ss') END as updateddate
+			  FROM m_transaction mt 
+				 INNER JOIN m_inoutline li ON li.m_inoutline_id = mt.m_inoutline_id 
+				 INNER JOIN m_inout io ON io.m_inout_id = li.m_inout_id
+				 INNER JOIN c_bpartner bpr ON io.c_bpartner_id = bpr.c_bpartner_id
+				 LEFT JOIN swa_inout_relation_void_v vw ON vw.m_inout_id = io.m_inout_id
+				 INNER JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+				 INNER JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+			  WHERE mt.m_product_id = ?
+			    
+			    AND mw.m_warehouse_id = ? 
+			    AND AD_ISORGINCLUDED(mt.ad_org_id, ?, ?) > -1
+			    AND trunc(mt.movementdate) between ? AND ?
+			    AND mt.m_inoutline_id is not null
+			    AND 2=2
+			 GROUP BY li.m_inout_id, 
+			      li.c_orderline_id,
+				  io.m_inout_id,
+				  mt.ad_client_id, 
+				  mt.ad_org_id, 
+				  mt.m_product_id , 
+				  mw.m_warehouse_id,
+				  bpr.name,
+				  mt.created,
+				  mt.movementdate,
+				  io.docstatus,
+				  io.created,
+				  vw.trxprocessdate_source,
+				  io.em_scr_physical_documentno,	
+				  io.documentno,
+				  io.updated,
+				  io.em_sco_specialdoctype,
+				  mt.em_ssa_combo_item_id
+		    ) a
+		INNER JOIN scr_combo_item cbi ON cbi.scr_combo_item_id = a.em_ssa_combo_item_id
+		ORDER BY a.transactiondate,a.trxprocessdate, a.trxprocessdate_ref
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strProductId"/>
+    <Parameter name="strWarehouseId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strShowExcluded" optional="true" after="AND 1=1"><![CDATA[ AND mt.em_spr_excludefromproject = ? ]]></Parameter>
+    <Parameter name="strProductId"/>
+    <Parameter name="strWarehouseId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strShowExcluded" optional="true" after="AND 2=2"><![CDATA[ AND mt.em_spr_excludefromproject = ? ]]></Parameter>
+  </SqlMethod>
+   <SqlMethod name="selectKardexAnalitycValue" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+		SELECT a.m_transaction_id as TRANSACTIONID,
+		       a.ad_client_id as CLIENTID,
+		       a.ad_org_id as ORGID,
+		       a.record_id as RECORDID,
+		       a.ad_table_id as TABLEID,
+		       a.transactiondate as TRANSACTIONDATE,
+		       a.trxprocessdate as TRXPROCESSDATE,
+		       a.trxprocessdate_ref as TRXPROCESSDATEREF,
+		       a.movementdate as MOVEMENTDATE,
+		       a.movementhour as MOVEMENTHOUR,
+		       a.m_product_id as PRODUCTID,
+		       a.m_warehouse_id as WAREHOUSEID,
+		       a.qtypossitive as QTYPOSSITIVE,
+		       a.qtynegative as QTYNEGATIVE,
+		       a.costpossitive as COSTPOSSITIVE,
+		       a.costnegative as COSTNEGATIVE,
+		       a.physicalnumber as PHYSICALNUMBER,
+		       a.physicalnumberinvoice as PHYSICALNUMBERINVOICE ,
+               a.invoicetable as INVOICETABLE,
+               a.invoiceid as INVOICEID,   
+		       a.referencedocument as REFERENCEDOCUMENT,
+		       a.em_ssa_combo_item_id as COMBOITEMID,
+		       case when (a.docstatus='VO') THEN cbi.name || ' - Anulado ' ELSE cbi.name END  as MOVEMENTTYPE,
+		       a.bpartnername as PARTNERNAME,
+		       a.updateddate as UPDATEDDATE,
+		       
+		       CASE
+                       WHEN a.qtypossitive > 0 THEN  ROUND(a.costpossitive / a.qtypossitive,2)
+                       WHEN a.qtynegative <> 0 THEN  ROUND(a.costnegative / a.qtynegative,2) 
+                       ELSE 0 END AS UNITCOST
+		       
+		    /* case WHEN (COALESCE(a.costpossitive,0)=0 AND COALESCE(a.costnegative,0)=0) THEN 0 ELSE
+		          (select ROUND(price,2) from m_costing where m_product_id = a.m_product_id and a.TRANSACTIONDATE between datefrom and dateto limit 1) 
+		       END  AS UNITCOST   */
+		       
+		FROM(
+			SELECT mt.m_product_id || mt.ad_client_id || mt.m_transaction_id as m_transaction_id,
+				mt.ad_client_id, 
+				mt.ad_org_id ,
+				coalesce(miv.m_inventory_id,mprd.m_production_id , mvc.swa_movementcode_id) as record_id,
+				case WHEN miv.m_inventory_id IS NOT NULL THEN '321'
+				     WHEN mprd.m_production_id IS NOT NULL THEN '325'
+				     WHEN mvc.swa_movementcode_id IS NOT NULL THEN 'CDCFC9F1E20B44D9B80B3C1F374BEA05'
+				     ELSE ''
+				     END as ad_table_id,
+				mt.movementdate as transactiondate,
+				mt.trxprocessdate,
+				mt.trxprocessdate as trxprocessdate_ref,
+				to_char(mt.movementdate, 'DD-MM-YYYY') as movementdate,
+				to_char(mt.created, 'hh24:mi:ss') as movementhour,
+				mt.m_product_id, 
+				mw.m_warehouse_id,
+				case when mt.movementqty > 0 THEN mt.movementqty    ELSE 0 END AS qtypossitive,
+				case when mt.movementqty < 0 THEN mt.movementqty*-1 ELSE 0 END AS qtynegative,
+				case when mt.movementqty > 0 THEN COALESCE(ROUND(mt.transactioncost,4),0) ELSE 0 END AS costpossitive,
+				case when mt.movementqty < 0 THEN COALESCE(ROUND(mt.transactioncost,4),0) ELSE 0 END AS costnegative,
+				'' AS physicalnumber,
+				'' AS physicalnumberinvoice,  
+                '' AS invoicetable,
+                '' AS invoiceid, 
+				coalesce(miv.documentno,mprd.documentno, mvc.documentno) as referencedocument, 
+				mt.em_ssa_combo_item_id,
+				'' as bpartnername,
+				'' as docstatus,
+				to_char(mt.created, 'DD-MM-YYYY') || ' ' || to_char(mt.created, 'hh24:mi:ss') as updateddate
+			   FROM m_transaction mt 
+			   LEFT JOIN m_locator ml  ON ml.m_locator_id =  mt.m_locator_id    
+				   LEFT JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id	  
+				   LEFT JOIN m_inventoryLine mil ON mil.m_inventoryLine_id = mt.m_inventoryLine_id		
+				   LEFT JOIN m_inventory miv ON miv.m_inventory_id = mil.m_inventory_id      
+				   LEFT JOIN m_productionline mprdl ON mprdl.m_productionline_id = mt.m_productionline_id     
+				   LEFT JOIN m_productionplan mprdp ON mprdp.m_productionplan_id = mprdl.m_productionplan_id      
+				   LEFT JOIN m_production mprd ON mprd.m_production_id = mprdp.m_production_id
+				   LEFT JOIN swa_movementcode_product mcp ON mcp.swa_movementcode_product_id = mt.em_swa_movcode_product_id
+				   LEFT JOIN swa_movementcode_plan mvp ON mvp.swa_movementcode_plan_id = mcp.swa_movementcode_plan_id
+				   LEFT JOIN swa_movementcode mvc ON mvc.swa_movementcode_id = mvp.swa_movementcode_id
+			  WHERE mt.m_inoutline_id is null
+			    AND mt.m_product_id = ?
+			    AND mw.m_warehouse_id = ? 
+			    AND AD_ISORGINCLUDED(mt.ad_org_id, ?, ?) > -1
+			    AND trunc(mt.movementdate) between ? AND ?
+			    AND mt.m_movementline_id is null
+   			    AND ((CASE WHEN (mt.m_productionline_id is not null AND mt.movementtype <> 'P+') then 1 ELSE 0 END)=0)
+			UNION ALL
+			SELECT mt.m_product_id || COALESCE(li.c_orderline_id, li.m_inout_id) ||  li.m_inout_id as m_transaction_id, 
+			       mt.ad_client_id, 
+			       mt.ad_org_id, 
+			       io.m_inout_id as record_id,
+			       '319' as ad_table_id,
+			       mt.movementdate as transactiondate,
+			       COALESCE(vw.trxprocessdate_source,max(io.created)) as trxprocessdate,
+			       max(mt.trxprocessdate) as trxprocessdate_ref,
+			       to_char((COALESCE(mt.movementdate, vw.trxprocessdate_source,max(mt.trxprocessdate))), 'DD-MM-YYYY') as movementdate,
+			       to_char(max(mt.created), 'hh24:mi:ss') as movementhour,
+			       mt.m_product_id, 
+			       mw.m_warehouse_id, 
+			       case when sum(mt.movementqty) > 0 THEN sum(mt.movementqty)    ELSE 0 END AS qtypossitive,
+			       case when sum(mt.movementqty) < 0 THEN sum(mt.movementqty)*-1 ELSE 0 END AS qtynegative,
+			       case when sum(mt.movementqty) > 0 THEN COALESCE(ROUND(sum(mt.transactioncost),4),0) ELSE 0 END AS costpossitive,
+			       case when sum(mt.movementqty) < 0 THEN COALESCE(ROUND(sum(mt.transactioncost),4),0) ELSE 0 END AS costnegative,
+			       case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAINTERNALSHIPMENT')  THEN io.em_scr_physical_documentno ELSE '' END AS physicalnumber,
+			       case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAMMDISPATCH') THEN  
+                      (SELECT inv.em_scr_physical_documentno 
+                        FROM c_invoice inv INNER JOIN c_invoiceline invl ON invl.c_invoice_id = inv.c_invoice_id
+                       WHERE inv.docstatus='CO' AND invl.c_orderline_id = li.c_orderline_id order by inv.created 
+                       LIMIT 1)
+                   ELSE '' END AS  physicalnumberinvoice,
+                   '318' AS invoicetable,
+                   case when io.em_sco_specialdoctype IN ('SCOMMSHIPMENT','SWAMMDISPATCH') THEN  
+                      (SELECT inv.c_invoice_id 
+                        FROM c_invoice inv INNER JOIN c_invoiceline invl ON invl.c_invoice_id = inv.c_invoice_id
+                       WHERE inv.docstatus='CO' AND invl.c_orderline_id = li.c_orderline_id order by inv.created LIMIT 1)
+                   ELSE '' END AS  invoiceid,
+			       case when io.em_sco_specialdoctype IN ('SCOMMRECEIPT') THEN io.em_scr_physical_documentno || ' / ' || io.documentno ELSE io.documentno END AS referencedocument,
+			       mt.em_ssa_combo_item_id,
+			       bpr.name as bpartnername,
+			       io.docstatus,
+			       case when io.docstatus = 'VO' THEN to_char(io.created, 'DD-MM-YYYY') || ' ' || to_char(io.created, 'hh24:mi:ss') ELSE to_char(io.updated, 'DD-MM-YYYY') || ' ' || to_char(io.updated, 'hh24:mi:ss') END as updateddate
+			  FROM m_transaction mt 
+				 INNER JOIN m_inoutline li ON li.m_inoutline_id = mt.m_inoutline_id 
+				 INNER JOIN m_inout io ON io.m_inout_id = li.m_inout_id
+				 INNER JOIN c_bpartner bpr ON io.c_bpartner_id = bpr.c_bpartner_id
+				 LEFT JOIN swa_inout_relation_void_v vw ON vw.m_inout_id = io.m_inout_id
+				 INNER JOIN m_locator ml ON ml.m_locator_id = mt.m_locator_id
+				 INNER JOIN m_warehouse mw ON mw.m_warehouse_id = ml.m_warehouse_id
+			  WHERE mt.m_product_id = ?
+			    AND mw.m_warehouse_id = ? 
+			    AND AD_ISORGINCLUDED(mt.ad_org_id, ?, ?) > -1
+			    AND trunc(mt.movementdate) between ? AND ?
+			    AND mt.m_inoutline_id is not null
+			 GROUP BY li.m_inout_id, 
+			      li.c_orderline_id,
+				  io.m_inout_id,
+				  mt.ad_client_id, 
+				  mt.ad_org_id, 
+				  mt.m_product_id , 
+				  mw.m_warehouse_id,
+				  bpr.name,
+				  mt.created,
+				  mt.movementdate,
+				  io.docstatus,
+				  io.created,
+				  vw.trxprocessdate_source,
+				  io.em_scr_physical_documentno,	
+				  io.documentno,
+				  io.updated,
+				  io.em_sco_specialdoctype,
+				  mt.em_ssa_combo_item_id
+		    ) a
+		INNER JOIN scr_combo_item cbi ON cbi.scr_combo_item_id = a.em_ssa_combo_item_id
+		ORDER BY a.transactiondate,a.trxprocessdate, a.trxprocessdate_ref
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strProductId"/>
+    <Parameter name="strWarehouseId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+    <Parameter name="strProductId"/>
+    <Parameter name="strWarehouseId"/>
+    <Parameter name="strOrgId"/>
+    <Parameter name="StrClientId"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strDateTo"/>
+  </SqlMethod>
+  
+  
+   <SqlMethod name="selectKardexCostInitial" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT a.AD_CLIENT_ID AS CLIENTID,
+             COALESCE(ROUND(a.unitcost*a.totalqty,4),0) AS INITIALCOST 
+        FROM (
+			SELECT mt2.AD_CLIENT_ID,
+	               COALESCE((select mc.cost from m_costing mc where (to_date(?) BETWEEN mc.datefrom and mc.dateto ) and 
+			                 mc.m_product_id = mt2.m_product_id order by mc.created desc limit 1),0) AS unitcost,
+	               COALESCE(SUM (mt2.movementqty),0) AS totalqty 
+	          FROM m_transaction mt2
+		 INNER JOIN m_locator ml2 on ml2.m_locator_id=mt2.m_locator_id      
+		 INNER JOIN m_warehouse mwh2 on mwh2.m_warehouse_id = ml2.m_warehouse_id 
+		      WHERE mt2.ad_client_id = ?
+		        AND mt2.m_product_id = ?
+		        AND mwh2.m_warehouse_id = ?
+		        AND mt2.movementdate < to_date(?)
+	    	 GROUP BY mt2.m_product_id, mt2.AD_CLIENT_ID 
+	    	) a
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="strDateFrom"/>
+    <Parameter name="strClientId"/>
+    <Parameter name="strProductId"/>
+    <Parameter name="strWarehouseId"/>
+    <Parameter name="strDateFrom"/>
+    
+  </SqlMethod>
+  
+  
+  
+</SqlClass>

@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_POSTINGMAP_LINE_TRG">
+    <trigger name="SCO_POSTINGMAP_LINE_TRG" table="SCO_POSTINGMAP_LINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_replaceto_acctschema_id VARCHAR(32);
+v_rfdoctype_org_id VARCHAR(32);
+BEGIN
+
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      SELECT c_acctschema_id
+      INTO v_replaceto_acctschema_id
+      FROM c_validcombination
+      WHERE c_validcombination_id=:NEW.replaceto_acct_id;
+
+
+      IF(v_replaceto_acctschema_id <> :NEW.replaceto_acctschema_id) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidAcctCombination@') ;
+      END IF;
+
+      IF(:NEW.replacefrom_org_id IS NOT NULL) THEN
+        IF(AD_ISORGINCLUDED(:NEW.replacefrom_org_id, :NEW.AD_Org_ID, :NEW.AD_Client_ID) = -1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_PostingmapLine_InvalidRFOrg@') ;
+        END IF;
+      END IF;
+
+      IF(:NEW.replacefrom_doctype_id IS NOT NULL) THEN
+        SELECT AD_Org_ID
+          INTO v_rfdoctype_org_id
+          FROM C_Doctype
+        WHERE C_Doctype_ID = :NEW.replacefrom_doctype_id; 
+        IF(AD_ISORGINCLUDED(:NEW.AD_Org_ID, v_rfdoctype_org_id, :NEW.AD_Client_ID) = -1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_PostingmapLine_InvalidRFDoctype@') ;
+        END IF;
+      END IF;
+
+
+    ELSIF( UPDATING) THEN
+      IF(COALESCE(:OLD.replaceto_acct_id,'') <> COALESCE(:NEW.replaceto_acct_id,'')
+      OR COALESCE(:OLD.replaceto_acctschema_id,'') <> COALESCE(:NEW.replaceto_acctschema_id,'')) THEN
+        SELECT c_acctschema_id
+        INTO v_replaceto_acctschema_id
+        FROM c_validcombination
+        WHERE c_validcombination_id=:NEW.replaceto_acct_id;
+
+
+        IF(v_replaceto_acctschema_id <> :NEW.replaceto_acctschema_id) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidAcctCombination@') ;
+        END IF;
+      END IF;
+
+      IF(COALESCE(:OLD.ad_org_id,'') <> COALESCE(:NEW.ad_org_id,'')
+      OR COALESCE(:OLD.replacefrom_org_id,'') <> COALESCE(:NEW.replacefrom_org_id,'')) THEN
+        IF(:NEW.replacefrom_org_id IS NOT NULL) THEN
+          IF(AD_ISORGINCLUDED(:NEW.replacefrom_org_id, :NEW.AD_Org_ID, :NEW.AD_Client_ID) = -1) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_PostingmapLine_InvalidRFOrg@') ;
+          END IF;
+        END IF;
+      END IF;
+
+      IF(COALESCE(:OLD.ad_org_id,'') <> COALESCE(:NEW.ad_org_id,'')
+      OR COALESCE(:OLD.replacefrom_doctype_id,'') <> COALESCE(:NEW.replacefrom_doctype_id,'')) THEN
+        IF(:NEW.replacefrom_doctype_id IS NOT NULL) THEN
+          SELECT AD_Org_ID
+            INTO v_rfdoctype_org_id
+            FROM C_Doctype
+          WHERE C_Doctype_ID = :NEW.replacefrom_doctype_id; 
+          IF(AD_ISORGINCLUDED(:NEW.AD_Org_ID, v_rfdoctype_org_id, :NEW.AD_Client_ID) = -1) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SCO_PostingmapLine_InvalidRFDoctype@') ;
+          END IF;
+        END IF;
+      END IF;
+
+    END IF;
+
+
+END SCO_POSTINGMAP_LINE_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Rpt_AR_BOE_Invoice_ugo" pageWidth="1057" pageHeight="607" orientation="Landscape" columnWidth="1057" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.0000000000000002"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="8"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true"/>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="DOCUMENT_ID" class="java.lang.String">
+		<defaultValueExpression><![CDATA["'1000032'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="DOCUMENT_NAME" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'INVOICE'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["/home/openbravo/src/openbravo/erp/devel/bttCourse/pi/src"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["('0')"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{BASE_DESIGN}+"/org/openbravo/erpReports/"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="SHOW_LOGO" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="SHOW_COMPANYDATA" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="HEADER_MARGIN" class="java.lang.String" isForPrompting="false"/>
+	<queryString>
+		<![CDATA[select inv.c_invoice_id as "INV_ID",
+coalesce(inv.em_scr_physical_documentno,'') as "NRO_INV",
+coalesce(inv.grandtotal,0.00) as "IMPORTE",
+inv.dateacct as "FEC_GIRO",
+
+coalesce(c.cursymbol,coalesce(cur.cursymbol,'')) as "SIMB",
+coalesce(c.description,coalesce(cur.description,'')) as "MONEDA",
+coalesce(bp.name,'') as "B_PARTNER",
+coalesce(bp.taxid,'') as "RUC",
+coalesce(bpl.phone,coalesce(bpl.phone2,'')) as "TELEF",
+coalesce(bpl.name,'')
+ as "DIRECC",
+
+coalesce(avl.name,'') as "AVAL",
+coalesce(avl.taxid,'') as "AV_RUC",
+
+(select coalesce(phone,coalesce(phone2,'')) from c_bpartner_location where em_sco_nulllocation = 'N' and c_bpartner_id = avl.c_bpartner_id limit 1) as "AV_TEL",
+
+coalesce((select coalesce(l.address1,'')||coalesce(' '||l.address2,'')||coalesce(' '||l.city,'')
+||coalesce(' - '||(select description from c_region where c_region_id = l.c_region_id),'')
+||coalesce(' - '||(select description from c_country where c_country_id = l.c_country_id),'')
+ from c_location l where l.c_location_id =  (select c_location_id from c_bpartner_location
+where c_bpartner_id = avl.c_bpartner_id and em_sco_nulllocation = 'N' limit 1)
+),'') as "AV_DIREC",
+
+(select c_location.city from ad_org
+join ad_orginfo on ad_org.ad_org_id = ad_orginfo.ad_org_id
+left join c_location on ad_orginfo.c_location_id = c_location.c_location_id
+where ad_org.ad_org_id = org.ad_org_id) as "LUG_GIRO",
+
+org.ad_org_id as "ORG_ID",
+coalesce(org.name,'') as "ORG",
+(select max(duedate) from fin_payment_schedule where c_invoice_id = inv.c_invoice_id) as "FECHA_VENC"
+
+,coalesce(inv.em_sco_isboerenewal,'N') as renovacion
+
+from c_invoice inv
+join c_currency cur on inv.c_currency_id = cur.c_currency_id
+left join c_currency_trl c on cur.c_currency_id = c.c_currency_id
+join c_bpartner bp on inv.c_bpartner_id = bp.c_bpartner_id
+join c_bpartner_location bpl on inv.c_bpartner_location_id = bpl.c_bpartner_location_id
+left join c_location loc on bpl.c_location_id = loc.c_location_id
+left join c_bpartner avl on inv.em_sco_aval_id = avl.c_bpartner_id,
+ad_org org
+join ad_orgtype typ using (ad_orgtype_id)
+
+where AD_ISORGINCLUDED(inv.ad_org_id, org.ad_org_id, inv.ad_client_id)<>-1
+and(typ.IsLegalEntity='Y' or typ.IsAcctLegalEntity='Y')
+and inv.c_invoice_id in ($P{DOCUMENT_ID})]]>
+	</queryString>
+	<field name="INV_ID" class="java.lang.String"/>
+	<field name="NRO_INV" class="java.lang.String"/>
+	<field name="IMPORTE" class="java.math.BigDecimal"/>
+	<field name="FEC_GIRO" class="java.sql.Timestamp"/>
+	<field name="SIMB" class="java.lang.String"/>
+	<field name="MONEDA" class="java.lang.String"/>
+	<field name="B_PARTNER" class="java.lang.String"/>
+	<field name="RUC" class="java.lang.String"/>
+	<field name="TELEF" class="java.lang.String"/>
+	<field name="DIRECC" class="java.lang.String"/>
+	<field name="AVAL" class="java.lang.String"/>
+	<field name="AV_RUC" class="java.lang.String"/>
+	<field name="AV_TEL" class="java.lang.String"/>
+	<field name="AV_DIREC" class="java.lang.String"/>
+	<field name="LUG_GIRO" class="java.lang.String"/>
+	<field name="ORG_ID" class="java.lang.String"/>
+	<field name="ORG" class="java.lang.String"/>
+	<field name="FECHA_VENC" class="java.sql.Timestamp"/>
+	<field name="renovacion" class="java.lang.String"/>
+	<variable name="TOTAL_LINENETAMT" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID"/>
+	<variable name="TOTAL_TAXAMT" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID"/>
+	<variable name="SHOWLOGO" class="java.lang.String"/>
+	<variable name="SHOWCOMPANYDATA" class="java.lang.String"/>
+	<variable name="TOTALBRUTO" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID"/>
+	<variable name="TOTAL_ANTICIPO" class="java.math.BigDecimal" resetType="Group" resetGroup="C_INVOICE_ID"/>
+	<group name="C_INVOICE_ID" isStartNewPage="true">
+		<groupExpression><![CDATA[]]></groupExpression>
+	</group>
+	<pageHeader>
+		<band height="268" splitType="Stretch">
+			<textField>
+				<reportElement x="907" y="30" width="100" height="16"/>
+				<textElement textAlignment="Right">
+					<font fontName="Tahoma" size="13"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["****"+$P{NUMBERFORMAT}.format($F{IMPORTE})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="182" y="28" width="130" height="19"/>
+				<textElement textAlignment="Center">
+					<font fontName="Tahoma" size="14"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NRO_INV}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="444" y="28" width="120" height="16"/>
+				<textElement textAlignment="Center">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{LUG_GIRO}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="626" y="39" width="115" height="19"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="Tahoma" size="14"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FEC_GIRO}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="760" y="39" width="123" height="19">
+					<printWhenExpression><![CDATA[$F{FECHA_VENC}!=null]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center">
+					<font fontName="Tahoma" size="14"/>
+				</textElement>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{FECHA_VENC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="903" y="30" width="30" height="16"/>
+				<textElement>
+					<font fontName="Tahoma" size="13"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{SIMB}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="235" y="119" width="568" height="16"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="11" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{B_PARTNER}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="234" y="131" width="507" height="32"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DIRECC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="234" y="161" width="110" height="16"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{RUC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="412" y="161" width="90" height="16"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{TELEF}==null?"":$F{TELEF}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="255" y="190" width="548" height="16"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="12" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{AVAL}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="254" y="203" width="487" height="32"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{AV_DIREC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="426" y="229" width="98" height="16"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{AV_TEL}==null?"":$F{AV_TEL}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="254" y="236" width="105" height="16"/>
+				<textElement verticalAlignment="Bottom">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{AV_RUC}==null?"":$F{AV_RUC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="182" y="83" width="751" height="16"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Tahoma" size="13"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[pe.com.unifiedgo.report.common.Utility.Convertir($F{IMPORTE}.toString(),$F{MONEDA})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="324" y="28" width="98" height="16">
+					<printWhenExpression><![CDATA[$F{renovacion}.compareToIgnoreCase("Y")==0]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" markup="none">
+					<font fontName="Tahoma" size="12"/>
+				</textElement>
+				<text><![CDATA[Renovación]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<pageFooter>
+		<band height="339"/>
+	</pageFooter>
+</jasperReport>

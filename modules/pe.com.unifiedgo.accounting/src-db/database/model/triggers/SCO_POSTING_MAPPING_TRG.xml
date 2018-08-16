@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_POSTING_MAPPING_TRG">
+    <trigger name="SCO_POSTING_MAPPING_TRG" table="SCO_POSTING_MAPPING" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+v_replacefrom_acctschema_id VARCHAR(32);
+v_Aux NUMBER;
+BEGIN
+
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING) THEN
+      SELECT c_acctschema_id
+      INTO v_replacefrom_acctschema_id
+      FROM c_validcombination
+      WHERE c_validcombination_id=:NEW.replacefrom_acct_id;
+
+
+      IF(v_replacefrom_acctschema_id <> :NEW.replaceto_acctschema_id) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidAcctCombination@') ;
+      END IF;
+    ELSIF( UPDATING) THEN
+      IF(COALESCE(:OLD.replacefrom_acct_id,'') <> COALESCE(:NEW.replacefrom_acct_id,'')
+      OR COALESCE(:OLD.replaceto_acctschema_id,'') <> COALESCE(:NEW.replaceto_acctschema_id,'')) THEN
+        SELECT c_acctschema_id
+        INTO v_replacefrom_acctschema_id
+        FROM c_validcombination
+        WHERE c_validcombination_id=:NEW.replacefrom_acct_id;
+
+
+        IF(v_replacefrom_acctschema_id <> :NEW.replaceto_acctschema_id) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_InvalidAcctCombination@') ;
+        END IF;
+      END IF;
+    END IF;
+
+    IF(UPDATING) THEN
+      IF(COALESCE(:OLD.AD_Org_ID,'')<>COALESCE(:NEW.AD_Org_ID,'')
+      OR COALESCE(:OLD.replaceto_acctschema_id,'')<>COALESCE(:NEW.replaceto_acctschema_id,'')) THEN
+        SELECT count(*)
+          INTO v_Aux
+          FROM SCO_Postingmap_Line
+        WHERE SCO_Posting_Mapping_ID = :NEW.SCO_Posting_Mapping_ID;
+
+        IF(v_Aux<>0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SCO_PostingMappingHasLines@') ;
+        END IF;
+      END IF;
+    END IF;
+
+END SCO_POSTING_MAPPING_TRG
+]]></body>
+    </trigger>
+  </database>

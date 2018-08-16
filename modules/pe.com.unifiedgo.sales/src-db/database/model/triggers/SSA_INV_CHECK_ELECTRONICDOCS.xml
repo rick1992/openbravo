@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SSA_INV_CHECK_ELECTRONICDOCS">
+    <trigger name="SSA_INV_CHECK_ELECTRONICDOCS" table="C_INVOICE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  v_physicalDocNo_def VARCHAR(60):='000-0000000'; 
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+   
+    IF UPDATING 
+    THEN     
+        IF (:NEW.issotrx='Y') THEN
+          IF (COALESCE(:OLD.em_bill_isebill,'.')=COALESCE(:NEW.em_bill_isebill,'.') AND COALESCE(:NEW.em_bill_isebill,'.')='Y') THEN
+
+            IF (COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.')) THEN             		          
+	      RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotEditPhyDocNo_eBill@');
+	    END IF;   
+	    
+            IF (COALESCE(:OLD.em_sco_doctyperef_id,'.')<>COALESCE(:NEW.em_sco_doctyperef_id,'.')) THEN             		
+              RAISE_APPLICATION_ERROR(-20000, '@SSA_CannotEditDocTypeRef_eBill@');
+	    END IF;	
+	      	    
+          END IF;          	  
+	END IF;
+	
+    END IF;
+
+    -- If invoice is electronic, cannot be deleted
+    IF DELETING
+    THEN
+    	 IF(:OLD.em_bill_isebill='Y' AND :OLD.issotrx='Y')
+	    THEN  RAISE_APPLICATION_ERROR(-20000, '@SSA_electronicInvCannotBeDelete@');
+	 END IF;
+
+    END IF;
+
+  IF(DELETING) THEN
+   IF(:OLD.PROCESSED='Y') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+   END IF;
+  END IF;
+END SSA_INV_CHECK_ELECTRONICDOCS
+]]></body>
+    </trigger>
+  </database>

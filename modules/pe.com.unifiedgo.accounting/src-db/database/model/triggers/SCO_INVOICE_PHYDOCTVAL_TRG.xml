@@ -1,0 +1,198 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER SCO_INVOICE_PHYDOCTVAL_TRG">
+    <trigger name="SCO_INVOICE_PHYDOCTVAL_TRG" table="C_INVOICE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[  v_Aux NUMBER;
+  v_podoctype_value VARCHAR(40);
+  v_validatePoPhyNo VARCHAR(1);
+  v_physicalDocNo_def VARCHAR(60):='000-0000000';
+  v_specialdoctype VARCHAR(32);
+  v_specialdoctype2 VARCHAR(32);
+  v_doctype_org_id VARCHAR(32);
+  v_doctypetarget2_id VARCHAR(32); 
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT em_sco_specialdoctype, ad_org_id INTO v_specialdoctype, v_doctype_org_id FROM C_DocType WHERE C_DocType_ID = :NEW.c_doctypetarget_id;
+    
+    --Consider simple provision as apinvoice
+    IF(v_specialdoctype = 'SCOAPSIMPLEPROVISIONINVOICE') THEN
+      v_specialdoctype2 := 'SCOAPINVOICE';
+      SELECT c_doctype_id INTO v_doctypetarget2_id 
+       FROM c_doctype 
+      WHERE ad_org_id = v_doctype_org_id AND em_sco_specialdoctype = v_specialdoctype2;
+    ELSIF(v_specialdoctype = 'SCOAPINVOICE') THEN
+      v_specialdoctype2 := 'SCOAPSIMPLEPROVISIONINVOICE';
+      SELECT c_doctype_id INTO v_doctypetarget2_id
+        FROM c_doctype 
+      WHERE ad_org_id = v_doctype_org_id AND em_sco_specialdoctype = v_specialdoctype2;
+    ELSE
+      v_specialdoctype2 := '';
+      v_doctypetarget2_id := '';
+    END IF;
+
+    IF(:NEW.issotrx = 'Y') THEN
+      IF(INSERTING) THEN
+        IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+           :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+        END IF;
+
+        IF(:NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+           --Check for doctype and physical number uniqueness
+           SELECT Count(*)
+             INTO v_Aux 
+             FROM C_Invoice 
+           WHERE C_Invoice.C_Invoice_ID <> :NEW.C_Invoice_ID AND
+                 C_Invoice.issotrx = 'Y' AND
+                 --C_Invoice.docstatus NOT IN ('DR') AND
+                 C_Invoice.em_sco_specialdoctype = v_specialdoctype AND 
+                 C_Invoice.C_doctypetarget_id = :NEW.C_doctypetarget_id AND
+                 C_Invoice.em_scr_physical_documentno IS NOT NULL 
+                 --AND UPPER(C_Invoice.em_scr_physical_documentno) = UPPER(NEW.em_scr_physical_documentno) 
+                 AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 1),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 1),30,'0'))
+                 AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 2),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 2),30,'0'))
+               LIMIT 1;
+           IF(v_Aux>=1) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@SCO_SalesInvUniqPhysicalNumber@');
+           END IF;
+         END IF;
+
+      ELSIF(UPDATING) THEN
+        IF(COALESCE(:OLD.docstatus,'.')<>COALESCE(:NEW.docstatus,'.') OR
+           COALESCE(:OLD.c_doctypetarget_id,'.')<>COALESCE(:NEW.c_doctypetarget_id,'.') OR
+           COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.')) THEN
+           IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+              :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+           END IF;
+
+           IF(:NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+              --Check for doctype and physical number uniqueness
+              SELECT Count(*)
+                INTO v_Aux 
+                FROM C_Invoice 
+               WHERE C_Invoice.C_Invoice_ID <> :NEW.C_Invoice_ID AND
+                     C_Invoice.issotrx = 'Y' AND
+                     --C_Invoice.docstatus NOT IN ('DR') AND
+                     C_Invoice.em_sco_specialdoctype = v_specialdoctype AND 
+                     C_Invoice.C_doctypetarget_id = :NEW.C_doctypetarget_id AND
+                     C_Invoice.em_scr_physical_documentno IS NOT NULL 
+                     --AND UPPER(C_Invoice.em_scr_physical_documentno) = UPPER(NEW.em_scr_physical_documentno)
+                     AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 1),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 1),30,'0'))
+                     AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 2),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 2),30,'0'))
+               LIMIT 1;
+              IF(v_Aux>=1) THEN
+                 RAISE_APPLICATION_ERROR(-20000, '@SCO_SalesInvUniqPhysicalNumber@');
+              END IF;
+           END IF;
+        END IF;
+      END IF;
+
+      
+    ELSE --issotrx = 'N'
+
+      IF(INSERTING) THEN
+	v_validatePoPhyNo := 'Y';
+        IF(:NEW.em_sco_podoctype_comboitem_id IS NOT NULL) THEN
+          SELECT value 
+            INTO v_podoctype_value
+            FROM scr_combo_item
+          WHERE scr_combo_item_id = :NEW.em_sco_podoctype_comboitem_id;
+
+          IF(v_podoctype_value = 'tabla10_99' OR v_podoctype_value = 'tabla10_00') THEN
+	    v_validatePoPhyNo := 'N';
+          END IF;
+
+        ELSE
+	  v_validatePoPhyNo := 'N';
+        END IF;
+
+	IF(v_validatePoPhyNo = 'Y') THEN
+          IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+             :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+          END IF;  
+
+    	  IF(:NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+             --Check for doctype, bpartner and physical number uniqueness
+             SELECT Count(*) 
+               INTO v_Aux 
+               FROM C_Invoice 
+              WHERE C_Invoice.C_Invoice_ID <> :NEW.C_Invoice_ID AND
+                    C_Invoice.issotrx = 'N' AND
+                    (C_Invoice.C_doctypetarget_id = :NEW.C_doctypetarget_id OR C_Invoice.C_doctypetarget_id =v_doctypetarget2_id) AND
+                    --C_Invoice.docstatus NOT IN ('DR','VO') AND
+                    (C_Invoice.em_sco_specialdoctype = v_specialdoctype OR C_Invoice.em_sco_specialdoctype = v_specialdoctype2) AND 
+                    C_Invoice.C_Bpartner_ID = :NEW.C_Bpartner_ID AND
+                    (C_Invoice.em_sco_podoctype_comboitem_id IS NOT NULL AND C_Invoice.em_sco_podoctype_comboitem_id = :NEW.em_sco_podoctype_comboitem_id) AND
+                    C_Invoice.em_scr_physical_documentno IS NOT NULL 
+                    --AND UPPER(C_Invoice.em_scr_physical_documentno) = UPPER(NEW.em_scr_physical_documentno)
+                    AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 1),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 1),30,'0'))
+                    AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 2),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 2),30,'0'))
+                    LIMIT 1;
+             IF(v_Aux>=1) THEN
+               RAISE_APPLICATION_ERROR(-20000, '@SCO_PurchaseInvUniqPhysicalNumber@');
+             END IF;
+          END IF;
+
+        END IF;
+        
+      ELSIF(UPDATING) THEN
+        IF(COALESCE(:OLD.docstatus,'.')<>COALESCE(:NEW.docstatus,'.') OR
+           COALESCE(:OLD.c_doctypetarget_id,'.')<>COALESCE(:NEW.c_doctypetarget_id,'.') OR
+           COALESCE(:OLD.C_Bpartner_ID,'.')<>COALESCE(:NEW.C_Bpartner_ID,'.') OR
+           COALESCE(:OLD.em_sco_podoctype_comboitem_id,'.')<>COALESCE(:NEW.em_sco_podoctype_comboitem_id,'.') OR
+           COALESCE(:OLD.em_scr_physical_documentno,'.')<>COALESCE(:NEW.em_scr_physical_documentno,'.')) THEN
+
+	  v_validatePoPhyNo := 'Y';
+          IF(:NEW.em_sco_podoctype_comboitem_id IS NOT NULL) THEN
+            SELECT value 
+              INTO v_podoctype_value
+              FROM scr_combo_item
+            WHERE scr_combo_item_id = :NEW.em_sco_podoctype_comboitem_id;
+
+            IF(v_podoctype_value = 'tabla10_99') THEN
+	      v_validatePoPhyNo := 'N';
+            END IF;
+
+          ELSE
+	    v_validatePoPhyNo := 'N';
+          END IF;
+
+	  IF(v_validatePoPhyNo = 'Y') THEN
+            IF(:NEW.em_scr_physical_documentno IS NULL OR trim(:NEW.em_scr_physical_documentno) = '') THEN 
+               :NEW.em_scr_physical_documentno:=v_physicalDocNo_def;
+            END IF;
+
+    	    IF(:NEW.em_scr_physical_documentno <> v_physicalDocNo_def) THEN
+               --Check for doctype, bpartner and physical number uniqueness
+               SELECT Count(*) 
+                 INTO v_Aux 
+                 FROM C_Invoice 
+                WHERE C_Invoice.C_Invoice_ID <> :NEW.C_Invoice_ID AND
+                      C_Invoice.issotrx = 'N' AND
+                      (C_Invoice.C_doctypetarget_id = :NEW.C_doctypetarget_id OR C_Invoice.C_doctypetarget_id =v_doctypetarget2_id) AND
+                      --C_Invoice.docstatus NOT IN ('DR','VO') AND
+                      (C_Invoice.em_sco_specialdoctype = v_specialdoctype OR C_Invoice.em_sco_specialdoctype = v_specialdoctype2) AND 
+	              C_Invoice.C_Bpartner_ID = :NEW.C_Bpartner_ID AND
+                      (C_Invoice.em_sco_podoctype_comboitem_id IS NOT NULL AND C_Invoice.em_sco_podoctype_comboitem_id = :NEW.em_sco_podoctype_comboitem_id) AND
+                      C_Invoice.em_scr_physical_documentno IS NOT NULL 
+                      --AND UPPER(C_Invoice.em_scr_physical_documentno) = UPPER(NEW.em_scr_physical_documentno)
+                      AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 1),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 1),30,'0'))
+                      AND UPPER(lpad(split_part(C_Invoice.em_scr_physical_documentno, '-', 2),30,'0')) = UPPER(lpad(split_part(:NEW.em_scr_physical_documentno, '-', 2),30,'0'))
+                      LIMIT 1;
+               IF(v_Aux>=1) THEN
+                 RAISE_APPLICATION_ERROR(-20000, '@SCO_PurchaseInvUniqPhysicalNumber@');
+               END IF;
+            END IF;
+          END IF;
+          
+        END IF;
+      END IF;
+      
+    END IF;
+
+    END SCO_INVOICE_PHYDOCTVAL_TRG
+]]></body>
+    </trigger>
+  </database>

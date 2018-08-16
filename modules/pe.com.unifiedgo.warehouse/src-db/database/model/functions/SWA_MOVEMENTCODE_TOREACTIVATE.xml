@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION SWA_MOVEMENTCODE_TOREACTIVATE">
+    <function name="SWA_MOVEMENTCODE_TOREACTIVATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[-- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_docaction VARCHAR2(60);
+  v_docstatus VARCHAR2(60);
+  v_Result NUMBER:=1; -- Success
+  v_fromrequerimiento_id VARCHAR2(32);
+  v_swa_requirement_request_id VARCHAR2(32);
+  is_requirement_trx char(1);
+
+-- Record Info
+  v_orderApprovedState VARCHAR(32);
+  Row_Table RECORD;
+  
+
+BEGIN
+    
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+    -- Get Parameters
+    IF (p_PInstance_ID IS NULL) THEN
+      RAISE NO_DATA_FOUND ;
+    END IF;
+
+    SELECT Record_ID, CreatedBy
+      INTO v_Record_ID, v_User_ID
+      FROM AD_PInstance
+     WHERE AD_PInstance_ID = p_PInstance_ID;
+
+     SELECT * INTO Row_Table FROM SWA_MOVEMENTCODE WHERE SWA_MOVEMENTCODE_ID=v_Record_ID FOR UPDATE;
+
+      IF(Row_Table.processed = 'Y')THEN
+       RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_processed@');
+      END IF;
+   
+      IF(Row_Table.docstatus='CO' OR Row_Table.docstatus='PD')THEN
+            UPDATE swa_movementcode
+ 	       SET docstatus='DR'
+	     WHERE swa_movementcode_id=Row_Table.swa_movementcode_id;
+
+      ELSE
+         RAISE_APPLICATION_ERROR(-20000,'@swa_movementcode_invalidaction@');
+      END IF;
+  
+
+    v_Message:='Terminated';
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+
+    EXCEPTION
+    WHEN OTHERS THEN
+      v_ResultStr:= '@ERROR=' || SQLERRM;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      END IF;
+
+    RETURN;
+END SWA_MOVEMENTCODE_TOREACTIVATE
+]]></body>
+    </function>
+  </database>

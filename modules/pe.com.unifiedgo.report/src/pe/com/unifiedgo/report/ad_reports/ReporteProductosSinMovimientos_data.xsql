@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2014 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReporteProductosSinMovimientosData" package="pe.com.unifiedgo.report.ad_reports">
+  <SqlClassComment></SqlClassComment>
+ <SqlMethod name="select_lineas" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+	select *,
+	(
+		SELECT
+			ord.dateordered
+		FROM
+			c_order ord
+		INNER JOIN c_orderline ordlin ON ord.c_order_id = ordlin.c_order_id
+		INNER JOIN m_inoutline miol ON miol.c_orderline_id = ordlin.c_orderline_id
+		INNER JOIN m_transaction mt ON mt.m_inoutline_id = miol.m_inoutline_id
+		INNER JOIN scr_combo_item sc ON mt.em_ssa_combo_item_id = sc.scr_combo_item_id
+
+		WHERE
+			sc.value in ('CompraNacional','CompraImportacion')
+		AND 3 = 3
+		AND mt.m_product_id = T .m_product_id
+		order by mt.movementdate desc
+		LIMIT 1
+	) AS fecha_ultima_compra,
+	(
+		SELECT
+			ord.dateordered
+		FROM
+			c_order ord
+		INNER JOIN c_orderline ordlin ON ord.c_order_id = ordlin.c_order_id
+		INNER JOIN m_inoutline miol ON miol.c_orderline_id = ordlin.c_orderline_id
+		INNER JOIN m_transaction mt ON mt.m_inoutline_id = miol.m_inoutline_id
+		LEFT JOIN scr_combo_item sc ON mt.em_ssa_combo_item_id = sc.scr_combo_item_id
+
+		WHERE
+			sc.value in ('facturadeventa')
+
+		AND 4 = 4
+		AND mt.m_product_id = T .m_product_id
+		order by mt.movementdate desc
+
+		LIMIT 1
+	) AS fecha_ultima_venta
+	
+	,(select mc.cost from m_costing mc where mc.m_product_id=t.m_product_id and now() BETWEEN mc.datefrom and mc.dateto LIMIT 1) as costo_unitario
+
+ 	from 
+
+	(	
+	
+	select 
+		'' as idorganizacion,
+	'' as idperiodo,
+	'' as periodo,
+	'' as fechainicial,
+	'' as fechafinal,
+	
+	mt.m_transaction_id
+	,mp.m_product_id
+	,ml.m_warehouse_id
+	,(select mw2.value||' - '||mw2.name from m_warehouse mw2 where mw2.m_warehouse_id=ml.m_warehouse_id) as almacen
+	,coalesce((select coalesce(arlt.name,arl.name,'') from ad_ref_list arl 
+		inner join ad_reference are on arl.ad_reference_id=are.ad_reference_id	
+		inner join ad_ref_list_trl arlt on arl.ad_ref_list_id=arlt.ad_ref_list_id
+		where arl.value=mw.em_swa_warehousetype and are.name = 'swa_warehousetype' limit 1),'') as tipo_almacen
+	,mp.value,mp.name,(SELECT cu.name from c_uom_trl cu WHERE cu.c_uom_id=mp.c_uom_id LIMIT 1) as uom
+	,mt.movementdate as fecha
+	,sc.name as tipo_movimiento
+	,mt.movementqty
+	,(SELECT sum(mt2.movementqty) from m_transaction mt2 
+	inner JOIN m_locator ml2 on mt2.m_locator_id=ml2.m_locator_id
+	where mt2.m_product_id  = mp.m_product_id and 
+	ml2.m_warehouse_id = ml.m_warehouse_id and mt2.movementdate<= mt.movementdate) as cantidad
+	,ml.value as ubicacion
+
+	
+	from m_transaction mt
+	inner join m_product mp on mt.m_product_id=mp.m_product_id
+	inner JOIN m_locator ml on mt.m_locator_id=ml.m_locator_id
+	inner join m_warehouse mw on ml.m_warehouse_id=mw.m_warehouse_id
+	left  join scr_combo_item sc on mt.em_ssa_combo_item_id=sc.scr_combo_item_id
+	
+	where 
+
+	  mt.ad_client_id IN ('1') 
+		and mt.ad_org_id in ('1') 
+		and 1=1 
+		and 2=2 
+
+	
+
+	
+	ORDER BY mt.movementdate DESC LIMIT 1
+	
+	) as t
+
+		 
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+    
+        <Parameter name="parDateFrom3" optional="true" after="3 = 3"><![CDATA[ and mt.movementdate <= TO_DATE(?)]]></Parameter>
+        <Parameter name="parDateFrom4" optional="true" after="4 = 4"><![CDATA[ and mt.movementdate <= TO_DATE(?)]]></Parameter>
+    
+    
+     <Parameter name="adUserClient" type="replace" optional="true" after="mt.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="mt.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ and mt.movementdate <= TO_DATE(?)]]></Parameter>
+    
+    <Parameter name="productoId" optional="true" after="2=2"><![CDATA[AND mp.m_product_id = ?  ]]></Parameter>
+        <Parameter name="almacenId" optional="true" after="2=2"><![CDATA[AND ml.m_warehouse_id = ?  ]]></Parameter>
+  </SqlMethod>
+  
+ <SqlMethod name="selectProductWithOutMovement" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+       SELECT prd.m_product_id FROM M_PRODUCT prd
+        WHERE prd.ad_org_id in ('1')
+          AND prd.ad_client_id = ?
+          AND prd.isstocked = 'Y'
+          AND 1=1
+          AND prd.m_product_id NOT IN (
+	            SELECT m_product_id FROM M_TRANSACTION tra
+	              INNER JOIN m_locator lo on tra.m_locator_id = lo.m_locator_id 
+	              INNER JOIN m_warehouse w on lo.m_warehouse_id = w.m_warehouse_id
+	             WHERE tra.m_movementline_id is null
+	              AND tra.ad_client_id = ?
+	              AND tra.ad_org_id in ('1')
+	              AND trunc(tra.movementdate) between ? AND ?
+	              AND 2=2
+              )
+       ORDER BY prd.value
+     ]]></Sql>
+     
+     <Parameter name="adUserOrg" type="replace" optional="true" after="prd.ad_org_id in (" text="'1'"/>
+     <Parameter name="adClientId"/>
+     <Parameter name="lineaProductoId" optional="true" after="1=1"><![CDATA[AND prd.em_prdc_productgroup_id = ? ]]></Parameter>
+     <Parameter name="adClientId"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="tra.ad_org_id in (" text="'1'"/>
+     <Parameter name="strDateFrom"/>
+     <Parameter name="strDateTo"/>
+     <Parameter name="strWarehouseId" optional="true" after="2=2"><![CDATA[ AND w.m_warehouse_id = ?  ]]></Parameter>
+     <Parameter name="strAllWarehouse" optional="true" after="2=2"><![CDATA[ AND w.EM_Swa_Warehousetype IN ('NO','CO','MI','VS') ]]></Parameter>
+ </SqlMethod>
+  
+  
+   <SqlMethod name="select_cabecera" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+
+			SELECT DISTINCT
+			
+		 mt.m_product_id,
+		ml.m_warehouse_id
+
+		 from m_transaction mt
+		inner JOIN m_locator ml on mt.m_locator_id=ml.m_locator_id
+		inner join m_product mp on mt.m_product_id=mp.m_product_id
+		
+		where
+		mp.isactive='Y'
+		 and
+		mt.ad_client_id IN ('1') 
+		and
+		 mt.ad_org_id in ('1') 
+		and 
+		1=1
+		  and 
+		  2=2  
+		  
+		  
+		  AND mp.m_product_id NOT IN (
+			SELECT
+				tra.m_product_id
+			FROM
+				m_transaction tra
+			INNER JOIN m_locator loc ON tra.m_locator_id = loc.m_locator_id
+			WHERE
+				tra.ad_client_id IN ('1')
+			AND tra.ad_org_id IN ('1')
+			AND 3=3
+
+		)
+		
+		
+		ORDER BY 2,1
+		 
+      ]]></Sql>
+      
+    <Field name="rownum" value="count"/>
+     <Parameter name="adUserClient" type="replace" optional="true" after="mt.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="mt.ad_org_id in (" text="'1'"/>        
+    <Parameter name="parDateFrom" optional="true" after="1=1"><![CDATA[ and mt.movementdate < TO_DATE(?) ]]></Parameter>  
+    <Parameter name="almacenId" optional="true" after="2=2"><![CDATA[AND ml.m_warehouse_id = ?  ]]></Parameter>
+	<Parameter name="lineaProductoId" optional="true" after="2=2"><![CDATA[AND mp.em_prdc_productgroup_id = ?    ]]></Parameter>
+	    
+	<Parameter name="adUserClient2" type="replace" optional="true" after="tra.ad_client_id IN (" text="'1'"/>
+    <Parameter name="adUserOrg2" type="replace" optional="true" after="tra.ad_org_id IN (" text="'1'"/> 
+    <Parameter name="parDateFrom2" optional="true" after="3=3"><![CDATA[ and tra.movementdate >= TO_DATE(?) ]]></Parameter>  
+    <Parameter name="parDateTo2" optional="true" after="3=3"><![CDATA[ and tra.movementdate < TO_DATE(?)  ]]></Parameter>  
+    <Parameter name="almacenId2" optional="true" after="3=3"><![CDATA[ AND loc.m_warehouse_id = ?  ]]></Parameter>
+    
+    
+  </SqlMethod>
+  
+  
+  
+  
+  
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="rownum"/>      
+  </SqlMethod>
+  
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectSocialName" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT social_name
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT NAME
+        FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      ]]></Sql>
+    <Parameter name="orgId"/>
+  </SqlMethod> 
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string" default="PEN">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT c_currency_id 
+        FROM c_currency  
+        WHERE iso_code=?
+      ]]></Sql>
+    <Parameter name="currencyCode"/>
+  </SqlMethod> 
+  <SqlMethod name="selectRucOrg" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT a.taxid ruc 
+        FROM ad_orginfo a        
+        WHERE a.ad_org_id = ?
+      ]]></Sql>
+    <Parameter name="adUserOrg"/>
+  </SqlMethod>   
+  
+   <SqlMethod name="select_periodos" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      
+
+	 SELECT 
+	ao3.ad_org_id as idorganizacion,
+	cp.c_period_id as idperiodo,
+	cp.name as periodo,
+	to_char(cp.startdate,'dd-MM-yyyy') as fechainicial,
+	to_char(cp.enddate,'dd-MM-yyyy') as fechafinal
+	   
+	FROM c_period cp
+	INNER   join ad_org ao on cp.ad_org_id=ao.ad_org_id
+	LEFT JOIN (select ao2.ad_org_id,ao2.social_name,ao2.name from ad_org ao2) ao3
+	on ao.social_name=ao3.social_name
+	
+	where periodtype!='A'
+	ORDER BY 1,cp.startdate desc
+
+      
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+     </SqlMethod>
+  
+</SqlClass>
